@@ -22,7 +22,9 @@ rebuilding the native runtime.
 
 ## Native MCU runtime
 
-Use Docker, Python 3 and an official MPC 3.9.1 Gen1 USB image. On Linux, running
+Use Docker, Python 3, Clang with ARM cross-target support, and an official MPC
+3.9.1 Gen1 USB image. The tested host compiler is Apple Clang 17.0.0; the Docker
+image supplies the ARM GCC linker, headers and libraries. On Linux, running
 ARM component tests also requires configured ARM user-mode emulation; Docker
 Desktop's Linux VM supplies this on the tested development platform.
 
@@ -120,9 +122,11 @@ built for the override folder, so the exact release bytes are tested only by
 flashing an image.
 
 `firmware/package.py` is a release qualification gate, not a general installer.
-It accepts only the nine files
-pinned by `firmware/runtime.sha256`, built for the image location with the
-manual lifetime.
+For v0.3.0-rc.1, its `--prerelease` mode accepts only the eleven files pinned by
+`firmware/prerelease-runtime.sha256`, built for the image location with the
+manual lifetime. The canonical [firmware build](../firmware/README.md) adds
+the plugin admission helper and matching bundle descriptor before this check.
+The default mode and `firmware/runtime.sha256` retain the frozen v0.2.6 pins.
 A changed compiler or source may produce different bytes. Such a build is a
 new candidate, not the tested release: do not bypass the package check or update
 pins merely to make it pass. Native lifecycle, controller and playback tests

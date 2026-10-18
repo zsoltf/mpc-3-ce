@@ -1,21 +1,16 @@
 # MCU image and release
 
-The current personal test candidate is `gpu-sd-usb-cpu0-test1`, with provision
-revision `gpu_sd_usb_cpu0_test1`. It changes the stock Az01 EHCI policy to CPU0
-and retains the exact GPU prerelease2 [SD-card Pd/Cardinal bundle](plugin-setup/README.md).
-`build-prerelease.sh` produces
-`MPC-3.9.1-Gen1-CE-GPU-SD-USB-CPU0-test1-update.img` in a separate output folder.
-The on-screen CE label stays unchanged. This is not a published release.
+The current candidate is `v0.3.0-rc.1`, CMD31/MMV21, with provision revision
+`v0_3_0_rc_1`. It runs from `/usr/share/mpclearn/mcu` and uses the matching
+[SD-card Pd/Cardinal bundle](plugin-setup/README.md). See the
+[release notes](../docs/releases/v0.3.0-rc.1.md) for features and limits.
+The native Info screen retains the `MPC CE v0.2.6` base label; the update filename
+and payload `BUILD.json` identify this candidate.
 
-The frozen public `v0.2.6` browser recipes still contain the older CPU2 host and
-their matching runtime. They do not include this CPU0 change. The current global
-`mpc-ce.json` and C admission header describe the CPU0 candidate; running the
-public build recipe from this checkout does not recreate released v0.2.6.
-
-Public release identity: `v0.2.6`, CMD31/MMV17, run in place from
-`/usr/share/mpclearn/mcu`. It supports MPC Live II firmware 3.9.1 and the
-full-size Behringer X-Touch in MC mode over USB. Do not infer other MPC or MCU
-hardware compatibility from the Gen1 image header.
+The current `mpc-ce.json`, prerelease runtime pins and browser recipes describe
+this candidate. The default `package.py` mode, `runtime.sha256` and older
+`build-v0.2.6.sh` workflow retain the historical v0.2.6 release identity; use
+that workflow only from its matching frozen source.
 
 ## Deliverables
 
@@ -69,24 +64,37 @@ python3 firmware/patch-mpc-ce.py build/MPC build/v0_2_6/MPC
 sh firmware/build-v0.2.6.sh
 ```
 
-### Build the personal CPU0 test candidate
+### Build v0.3.0-rc.1
 
-Use a generated copy of the frozen GPU prerelease2 host source, with only the
-new host manifest and admission identity overlaid. Rebuild and qualify its
-matching observer, command client and bridge before integrating runtime pins.
-Keep the original host and bundle intact; do not build from unrelated controller
-or UI work in the primary checkout. From the separately prepared image-builder
-source with those qualified pins and the candidate MPC in `build/v0_2_6/MPC`
-(the existing internal input path):
+First follow the [runtime build instructions](../docs/BUILDING.md), including
+its component checks. Use this candidate's source tree and generated
+image-location runtime. Supply your own official firmware in `inputs/`, your
+Ed25519 public key in `inputs/owner.pub`, and the pinned image tool:
 
 ```sh
-bash firmware/build-prerelease.sh /absolute/path/to/qualified-frozen-host-copy \
-  /absolute/path/to/prerelease-gpu2/plugins.squashfs build/cpu0-test1-delivery
+# Reuse a local MPC-LiveXplore clone if you already have one.
+sh firmware/prepare-upstream.sh /absolute/path/to/MPC-LiveXplore
 ```
 
-The bundle remains104112128 bytes, SHA256
-`2401ad9ebf999cdf84e262525e922f14039ab52ad5174d998c08e7dbb9d46fa8`.
-No MIDI repair candidate is included. The build does not authorize installation.
+Use Go 1.26.4 for the plugin admission helper. With the matching SD bundle
+available as a regular file, run from the repository root:
+
+```sh
+bash firmware/build-prerelease.sh "$PWD" \
+  /absolute/path/to/MPCLEARN/plugins.squashfs build/v0_3_0_rc_1
+```
+
+The output is
+`build/v0_3_0_rc_1/MPC-3.9.1-Gen1-CE-v0.3.0-rc.1-update.img`, its payload and
+verification report, and the matching `MPCLEARN` folder. This is a local image
+for the owner's use; do not redistribute Akai firmware.
+
+The bundle must be 146,268,160 bytes, SHA256
+`3ec130ed82a1d5db301be54999a5936e3200b45ddf2c4806a463d1d2841ebc58`.
+The build checks this identity and the eleven-file prerelease runtime manifest
+before assembling the image. It refuses changed runtime bytes; do not repin
+an unqualified build to force admission. Building does not qualify flashing,
+reboot, controller hardware or audio behavior.
 
 `package.py` accepts only the qualified native Preferences observer and matched
 runtime package. It intentionally refuses an arbitrary unqualified runtime.
@@ -99,7 +107,8 @@ The image builder reuses TheKikGen's pinned image tool at
 See `upstream/COMMIT`. A source release must resolve that tool's distribution
 license or require users to obtain it from upstream; do not silently relicense it.
 
-Generated files are under `artifacts/`; the USB image name retains `-update.img`.
+Generated files stay in the chosen build output; the USB image name retains
+`-update.img`.
 Verification checks the exact official input, XZ/SHA1 image structure, geometry,
 filesystem consistency, full semantic delta, each payload byte/mode/owner and
 the exact CE label and Az01 EHCI CPU slots in `/usr/bin/MPC`, with its stock
@@ -109,10 +118,11 @@ it changes no worker affinity or priority. This remains a prerelease candidate
 qualified on the tested Live II workload, not a guarantee for every load. Building
 and checking an image does not prove it flashed or booted.
 
-### Frozen public browser patch variants
+### Browser patch variants
 
-The following recipe workflow describes the frozen public release. Do not
-regenerate or publish these assets as part of the personal CPU0 test.
+The checked-in recipes match v0.3.0-rc.1. Rebuilding the browser does not require
+regenerating them. The following describes their root and patch inputs; keep
+all variants matched when preparing another qualified candidate.
 
 Maintainers prepare the SSH-enabled reference root with the canonical 81-byte
 Ed25519 placeholder instead of a real owner's key. `make-patch.py` emits only
@@ -129,12 +139,11 @@ whose placeholder is replaced locally before the final image verification.
 
 The separate USB diagnostics choice is a third no-SSH recipe. It overlays the
 exact current no-SSH root with one bounded current-report ARMhf collector, an independent
-systemd unit and its `multi-user.target.wants` link. Maintainers generate it
-without rebuilding the released runtime:
-
-```sh
-sh firmware/build-diagnostic-root.sh build/v0_2_6
-```
+systemd unit and its `multi-user.target.wants` link. It does not require
+rebuilding the native runtime. The historical
+`build-diagnostic-root.sh` helper expects the v0.2.6-style root layout and
+`build/fs_inventory`; for another output layout, use `diagnostics-patch.py`,
+`diagnostics-verify.py` and `make-patch.py --no-ssh` with its matching root paths.
 
 `diagnostics-verify.py` compares every pre-existing filesystem inventory entry
 with the current root and checks the three added paths, modes, bytes and unit

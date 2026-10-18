@@ -27,6 +27,10 @@ print('PASS device-location.sh admits only the image location (release builds) a
 builders = sorted(p.name for p in source.glob('*.sh') if re.search(r"(?m)^printf '#define OBSERVER", p.read_text()))
 covered = {'build.sh': 'override', 'command-build.sh': 'duration', 'mirror-build.sh': 'override',
            'model-build.sh': 'override', 'ui-witness-build.sh': 'override'}
+# Historical diagnostic builders are absent from the public source export.
+# Always require the production builder, and cover every included diagnostic.
+assert (source/'command-build.sh').is_file(), 'production command builder is missing'
+covered = {name: mode for name, mode in covered.items() if (source/name).is_file()}
 assert set(builders) == set(covered), builders
 bin = work/'bin'; bin.mkdir()
 for tool in ('docker', 'python3'):
