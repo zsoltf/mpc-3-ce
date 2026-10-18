@@ -398,6 +398,9 @@ void command_retire(void){
 #include "native-wheel-probe.inc"
 #endif
 #include "focus-press-capture.inc"
+#include "clip-capture.inc"
+#include "clip-command.inc"
+#include "step-capture.inc"
 static void service_one(Context *c,unsigned at){
  CommandSlot *slot=command_state->slots+at;
  unsigned published=atomic_load_explicit(&slot->published,memory_order_acquire);
@@ -405,6 +408,8 @@ static void service_one(Context *c,unsigned at){
  CommandRequest r;Track *t=NULL;uint32_t function=0;
  if(!command_request_read(slot,published,&r)){command_fail(C_FORMAT);return;}
  if(atomic_load_explicit(&command_state->new_project_intent,memory_order_seq_cst))return;
+ if(command_clip(r.reserved)){clip_command_service(c,at,&r);return;}
+ if(command_step(r.reserved)){step_command_service(c,at,&r);return;}
  if(command_chooser(r.reserved)){effects_chooser_service(c,at,&r);return;}
  if(command_io(r.reserved)){io_input_service(c,at,&r);return;}
  if(command_qlink_mode(r.reserved)){qlink_mode_service(c,at,&r);return;}
@@ -519,6 +524,7 @@ static void service(Context *c){
  effects_complete(c);
  effects_service(c);
  io_complete(c);io_service(c);
+ step_service(c);clip_service();
  qlink_mode_complete(c);qlink_complete(c);qlink_service(c); /* Bounded receipts never starve mode-cache feedback. */
  if(atomic_load(&mirror_state->meters.closing)||atomic_load(&command_state->stop_requested)||atomic_load_explicit(&command_state->new_project_intent,memory_order_seq_cst))return;
  /* Whatever this drain dispatches into effects_pending is what the wait at
@@ -627,6 +633,10 @@ static void position_point(Context *c,unsigned site,unsigned lane){
 void observer_hook(Context *c,unsigned kind){
  if(!c||kind<MODEL_HOOK_BASE||!command_state)return;
  unsigned site=kind-MODEL_HOOK_BASE;
+ if(site==STEP_BOUND_PLAYHEAD){step_bound_clock_capture(c);return;}
+ if(site==STEP_BOUND_EVENTS_CHANGED){step_bound_changed(c);return;}
+ if(site==STEP_EVENTS_CHANGED){step_source_changed(c);return;}
+ if(site==STEP_PLAYHEAD){step_clock_capture(c);return;}
 #ifdef NATIVE_WHEEL_PROBE
  if(site==NWP_SITE){native_wheel_probe_capture(c);return;}
 #else

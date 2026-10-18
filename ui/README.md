@@ -70,8 +70,9 @@ owner-refresh suppression. Same-count data changes explicitly repaint the
 native list. Label text and Slider values refresh silently from the consumer's
 owner. Slider callbacks publish a consumer-defined intent with value-changed,
 drag-started and drag-ended events; the toolkit never becomes the parameter
-owner. Arbitrary Graphics, text entry
-and a general UI scheduler remain outside the public API.
+owner. `mpc_ui_text_open` borrows the admitted native keyboard for bounded
+text entry. Arbitrary Graphics and a general UI scheduler remain outside the
+public API.
 
 ## Ownership and admission
 
@@ -150,14 +151,17 @@ Apply and Export only for a transient New or Copy that it saw MPC create in the
 current screen lifetime. This keeps an arbitrary imported desktop `.xmm` out of
 the stock writer's known normalization path.
 
-At 1280 by 690, the public layout reserves `(32,84,248,478)` for functional
-groups, `(296,84,420,478)` for target names and `(732,84,516,478)` for selected
-assignment detail. Pads, Pad Banks, Q-Links, Transport & Navigation, Global
-Controls, Sequence & Track, Pad Performance, Looper, Step Sequencer, Editor
-Tabs, Modes, Panels, Browser and Additional Targets cover IDs 0 through 119
-without gaps. The adapter still supplies the native labels and current mapping
-metadata from MPC's owner; the screen neither snapshots the whole mapping nor
-parses XMM files.
+At 1280 by 690, the public layout uses the full dark app surface, a 76-pixel
+mapping/action header, section headings and a footer. It reserves
+`(24,128,270,496)` for functional groups, `(310,128,386,496)` for target names
+and `(712,128,544,496)` for selected assignment detail. Native ListBox rows
+remain the only selection controls; labels provide the noninteractive headings,
+values and context. Pads, Pad Banks, Q-Links, Transport / Nav, Global Controls,
+Sequence / Track, Pad Performance, Looper, Step Sequencer, Editor Tabs, Modes,
+Panels, Browser and Additional cover IDs 0 through 119 without gaps. The
+adapter still supplies the native labels and current mapping metadata from
+MPC's owner; the screen neither snapshots the whole mapping nor parses XMM
+files.
 
 Closing first invalidates every binding and removes borrowed Slider listeners,
 then releases focus, hides controls and detaches children. Only after all
@@ -297,6 +301,84 @@ source dependency closure without changing the public checkout or publishing.
 
 ## Native acceptance boundary
 
+The development image surface has native rendering/input and normal lifecycle
+observations on the existing app-list owner. `mpc_ui_image_create` creates one
+fixed-size opaque image (maximum 1280 by 800); place it at that exact
+size. `mpc_ui_image_update` copies top-down RGBA with alpha 255 and a nonzero
+revision, skipping a repeated revision without copying or repainting. Call it
+only when pixels change. For an expensive owner renderer, register
+`mpc_ui_image_on_refresh` and call `mpc_ui_image_invalidate` after meaningful
+changes. Repeated invalidations request one visible paint; its refresh callback
+publishes the latest pixels with `mpc_ui_image_update`. Input still reaches the
+owner immediately, and publishing pixels inside that callback does not schedule
+another paint. A change raised during refresh retains one later paint. Hidden
+screens retain pending refresh without invoking their consumer; no idle timer
+is created. The consumer must cancel engine input separately from drawing.
+
+Pointer callbacks carry local coordinates, including
+out-of-bounds drags. Hide, Menu suspension and close cancel a contact rather
+than synthesize release; a stale release is ignored. Cancellation requested
+inside a pointer callback is delivered after that callback returns, before the
+toolkit releases its callback-depth protection. Callback owners must remain
+alive through close. Existing callback-active destruction refusal is unchanged.
+
+The optional `mpc_ui_image_contacts` callback adds stable contact IDs without
+changing the single-contact callback. The consumer classifies pan/pinch and
+cancels its engine's pending edit when navigation takes over. The toolkit
+retains capture and the same hide/close cancellation rules.
+
+For a right-side Add palette, opt in with `mpc_ui_list_drag_out` after placing
+the list. Vertical swipes keep native scrolling. A deliberate leftward drag
+emits BEGIN/MOVE/DROP with screen-local coordinates and the original row index.
+The consumer owns only the preview and validates its canvas bounds before one
+engine creation on DROP. A second contact, silent list refresh, hide or close
+cancels; `mpc_ui_list_cancel_drag` handles consumer actions. Keep the callback
+owner alive through screen closure. Native candidate13 observed Cardinal drag,
+tap placement, scroll in both directions, outside release and canonical Undo
+in `build/touch-track-1/`. Physical multi-contact cancellation remains unverified;
+the ARM component fixture substitutes event delivery for its regression check.
+
+`examples/image-diagnostic/build.sh` builds a diagnostic and a normal Global
+MIDI Learn package in ignored scratch. It explicitly substitutes committed
+CMD31 host `4d29e11963a97846f0531cda9ef61af678a0b4d0` for the parked CMD32 host
+work, overlays the current toolkit, and uses the existing example app slot.
+Its explicit build-only host patch accepts exactly four typed diagnostic
+pointer receipts (0x201 DOWN, 0x202 MOVE, 0x203 UP, 0x204 CANCEL) through the
+existing example intent counter and last-intent field. A consumer-header marker
+enables that branch only for the diagnostic; normal examples still reject these
+IDs, and unknown IDs remain failures in both builds. This extra host adaptation
+allows the retained old state inode to record CANCEL before forced teardown.
+The diagnostic shows an odd-width RGB image, top-left white orientation mark,
+dark bottom, touch marker and event counts. Pressing its rightmost 20 pixels
+hides it during the contact; Show restores it. It starts no renderer or engine.
+ARM tests substitute native Image, Graphics and MouseEvent boundaries; they
+do not establish native ABI execution, rendering, touch capture or teardown.
+The image ABI was compared to pinned JUCE
+`8ec56d15896d687711be348aaace08311ecabcc8` and exact MPC raw ELF callees/callers,
+with admission ranges in `native-preferences-prepare.py`. The native image
+trial observed correct RGB/orientation, drag coordinates and marker movement,
+one hide-during-contact cancellation with stale release ignored, Menu/resume,
+Back/reopen and balanced idle owner teardown with zero failures. Evidence is
+`build/native-image-ui-qualification/native-image-1/`. Active-contact forced
+owner destruction remains unobserved. Command-Main navigation during a held
+contact bypassed suspension; arbitrary host navigation is not qualified.
+
+The public image consumer also hosts a stopped-DSP Pd editor. The first native
+trial exercised actual object creation, selection/movement, wiring, Unwire,
+Delete, unchanged engine-written Save/fresh Reload, Menu/resume and balanced
+Back (`build/pd-touch-prototype/native-touch-1/`). It exposed a consumer bug:
+captured outside MOVE/UP was clamped and committed, not delivered as CANCEL.
+The consumer now cancels at the canvas edge; its replacement native package
+still awaits that repeated observation. The frozen Rack app's native touchscreen
+trial exercised creation, Source movement, Source-to-Sink wiring, unchanged
+Save/fresh Reload, Unwire, rewire, Menu/resume, balanced Back/fresh reopen and
+suspended New Project owner closure (`build/cardinal-touch-prototype/native-touch-1/`).
+Its old-inode readback records cleanup before the stock destructor, no retained
+owner and zero failures. These prototypes use real engine
+owners but fixed test-module/object palettes and DSP stopped. They establish
+neither audio integration, musical performance nor a general module catalog.
+No plug-in editor attachment is implied.
+
 The launcher and public examples now demonstrate this canonical implementation
 through the qualified app-list owner: native rendering, button intent, Label
 refresh, Slider drag events, post-callback Back, fresh reopen and repeated
@@ -397,3 +479,11 @@ the plug-in's existing parameter owner round trip and close/unload order on that
 exact parent. The toolkit provides its full-button painter and native inherited
 Label and Slider widget paths. Arbitrary Graphics and text entry remain
 unsupported.
+
+`mpc_ui_list_detail_rows` opts a list into readable primary/detail rows. It keeps
+the existing list model, selection, scrolling and owner callbacks. Primary text
+is 22px over one or two lines; secondary text is muted 18px. Both are left
+aligned with 16px padding and retain native fitting without horizontal shrink.
+The painter needs at least 48px (one primary line) or 74px (two); taller rows
+add vertical breathing room. A null detail
+callback restores the ordinary painter; existing lists do not opt in implicitly.

@@ -133,3 +133,31 @@ the r4 release; it now pins the r5 package (runtime `4d060dc`, stage
 button helper and session script are byte-identical to these r4 files. The
 measurements above are the r4 measurements and still describe that shared
 controller code.
+
+## Global MIDI Learn UI playback qualification
+
+The 2026-09-29 Tech House Demo run in
+[`playback-t102`](../build/global-midi-ui-qualification/visual-redesign-1/playback-t102/readback.log)
+verified navigation and command settlement. Its five-second process CPU means
+and the demo's light playback do not qualify audio performance: a UI callback
+could stall a critical thread for a few milliseconds without changing that
+mean. Zsolt could not listen during this run.
+
+For T10.2, use the earlier 40-track project if available, or another saved
+project with sustained synth/drum load and enough baseline headroom pressure
+to reveal spikes. Record the exact candidate binary and controller setup.
+Keep the project, passage and playback
+state fixed across closed-editor, open-idle and repeated group-switch,
+scroll/selection and concurrent-control windows. Measure MPC, bridge and audio
+thread activity in short device-clock bins aligned to the action, plus any
+available audio underrun counters; retain peak and distribution, not only
+whole-run means. Include a no-touch baseline with the same viewer/profiler
+running; keep screenshot capture outside timed windows. Record sample loss
+and tool overhead, then bound and remove temporary
+profiling tools. The VNC server's `mono=` press/release records now provide
+device-clock action markers; a native trial confirmed the markers in
+[`event-marker-validation.log`](../build/global-midi-ui-qualification/visual-redesign-1/playback-t102/event-marker-validation.log).
+Compare repeated windows and inspect the UI drain, list rebuild and pairing
+poll paths if an action correlates with a spike. Audio acceptance remains the
+operator's listening judgment during the same busy passage, separately from
+CPU, meter display, command settlement and the absence of reported underruns.

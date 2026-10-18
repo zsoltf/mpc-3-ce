@@ -60,6 +60,11 @@ provisioner = root/'usr/libexec/mpclearn/provision.sh'
 EXECUTABLE = 'command-client mirror-input mirror-read mcu-session.sh mcu mpclearn-controls main-button mcu-boot.sh mcu-boot-install.sh'.split()
 PRIVATE = 'command-observer.so config.h session-package.sha256'.split()
 PUBLIC = 'LICENSE BUILD.json payload.sha256'.split()
+metadata = json.loads((payload/'BUILD.json').read_text())
+if 'plugin_bundle' in metadata:
+    assert 'revision='+metadata['image_revision'] in provisioner.read_text().splitlines(), 'candidate provision revision differs'
+    EXECUTABLE.append('plugin-setup')
+    PRIVATE.append('plugin-bundle.json')
 def inode_mode(path):
     out = run(['debugfs', '-R', f'stat {path}', str(image)]).stdout
     line = next(l for l in out.splitlines() if 'Mode:' in l)

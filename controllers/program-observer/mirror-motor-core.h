@@ -40,7 +40,14 @@ static inline unsigned bank_field(const MirrorBank *bank,unsigned strip){return 
 static inline unsigned bank_encoder_field(const MirrorBank *bank,unsigned strip){return bank->assignment==BA_SEND&&strip>=4?CF_COUNT:bank->flip?bank->volume_fields[strip]:bank_parameter(bank,strip);}
 static inline const MotorIdentity *bank_encoder_identity(const MirrorBank *bank,unsigned strip){return bank->assignment==BA_SEND&&!bank->flip?&bank->selected:&bank->strips[strip];}
 static inline void bank_init(MirrorBank *bank){memset(bank,0,sizeof(*bank));bank->assignment=BA_TRACK;bank->effects_slot=EFFECT_LIST;for(unsigned i=0;i<MIRROR_BANK;i++){bank->faders[i].last_sent=bank->faders[i].physical=-1;bank->strip_row[i]=-1;}}
-static inline void bank_disconnect(MirrorBank *bank){uint32_t offset=bank->offset,epoch=bank->epoch,view=bank->view,field=bank->fader_field;bank_init(bank);bank->offset=offset;bank->epoch=epoch;bank->view=view;bank->fader_field=field;}
+static inline void bank_disconnect(MirrorBank *bank){
+ uint32_t offset=bank->offset,epoch=bank->epoch,view=bank->view,field=bank->fader_field;
+ /* Selection history belongs to the retained view, not the physical port.
+  * Erasing it makes the first fresh snapshot after reconnect look like a new
+  * MPC selection and pulls an explicitly paged bank back to that track. */
+ MotorIdentity selected=bank->selected;
+ bank_init(bank);bank->offset=offset;bank->epoch=epoch;bank->view=view;bank->fader_field=field;bank->selected=selected;
+}
 static inline void bank_drop(MirrorBank *bank,uint32_t now){
  for(unsigned i=0;i<MIRROR_BANK;i++){
   MirrorFader *f=bank->faders+i;memset(&f->identity,0,sizeof(f->identity));f->available=f->empty=0;f->last_sent=-1;f->wait=1;f->barrier=now;f->revision=f->bits=0;bank->strip_row[i]=-1;

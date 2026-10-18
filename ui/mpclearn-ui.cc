@@ -4,6 +4,9 @@ using uintptr_t = __UINTPTR_TYPE__;
 #include "include/mpclearn-ui.h"
 #include "private/mpclearn-ui-private.h"
 #include "private/mpc-3.9.1-profile.h"
+#ifdef MPCLEARN_CARDINAL_GPU
+#include "private/cardinal-gpu/presenter.inc"
+#endif
 
 extern "C" void *memcpy(void *, const void *, size_t) noexcept;
 extern "C" void *memset(void *, int, size_t) noexcept;
@@ -27,6 +30,7 @@ constexpr uint32_t kTextOffColour = 0x01000102u;
 constexpr uint32_t kTextOnColour = 0x01000103u;
 constexpr uint32_t kControlButton = 1u;
 constexpr uint32_t kControlLabel = 2u;
+constexpr uint32_t kControlImage = 3u;
 constexpr uint32_t kComponentParentOffset = 0x0cu;
 constexpr long kArmGetTid = 224;
 
@@ -34,6 +38,7 @@ struct Binding;
 struct ListModel;
 struct SliderBinding;
 struct MpcUiScreenImpl;
+struct TextRequest;
 
 struct MpcUiContextImpl {
     uint32_t magic;
@@ -44,6 +49,8 @@ struct MpcUiContextImpl {
     uint32_t screens;
     uint32_t app_hosts;
     MpcUiPrivateHost host;
+    void *text_owner;
+    TextRequest *text_request;
 };
 
 struct MpcUiParentImpl {
@@ -87,6 +94,10 @@ struct MpcUiScreenImpl {
     uint32_t closing;
 };
 
+struct ImageContact {
+    uint32_t id, active, cancel_pending;
+    float x, y;
+};
 struct Binding {
     uint32_t magic;
     uint32_t live;
@@ -101,8 +112,19 @@ struct Binding {
     uint32_t is_selected;
     uint32_t width;
     uint32_t height;
+    float text_size;
     alignas(4) unsigned char paint_label[4];
     uint32_t paint_label_live;
+    MpcUiControlImpl *control;
+    MpcUiPointerCallback pointer_callback;
+    MpcUiContactCallback contact_callback;
+    MpcUiImageRefreshCallback image_refresh_callback;
+    uint32_t image_pending, image_painting;
+    ImageContact contacts[10];
+    void *image;
+    uint32_t image_width, image_height, image_revision;
+    uint32_t contact, pointer_depth, cancel_pending;
+    float pointer_x, pointer_y;
 };
 
 struct MpcUiControlImpl {
@@ -121,9 +143,11 @@ struct MpcUiControlImpl {
 
 struct ListModel {
     void *vptr;
+    MpcUiListImpl *list;
     uint32_t magic;
     uint32_t live;
     uint32_t suppress_selection;
+    uint32_t activate_on_click;
     MpcUiContextImpl *context;
     MpcUiScreenImpl *screen;
     MpcUiListRowText row_text;
@@ -133,6 +157,21 @@ struct ListModel {
     uint32_t normal;
     uint32_t selection;
     uint32_t text;
+    float text_size;
+    uint32_t text_lines;
+    MpcUiListRowText row_detail;
+    uint32_t primary_lines;
+};
+
+struct ListDrag {
+    void *vptr;
+    MpcUiListImpl *list;
+    void *parent;
+    void *table[14];
+    MpcUiListDragCallback callback;
+    uint32_t attached, tracking, active, blocked, scrolling, id, row;
+    uint32_t contacts[10];
+    float start_x, start_y, x, y;
 };
 
 struct MpcUiListImpl {
@@ -149,6 +188,7 @@ struct MpcUiListImpl {
     uint32_t requested_visible;
     uint32_t visible;
     uint32_t drag_enabled;
+    ListDrag drag;
 };
 
 struct SliderBinding {
@@ -227,6 +267,7 @@ static void set_error(MpcUiContextImpl *context, uint32_t error) {
 }
 
 static int valid_text(const char *text);
+static int valid_display_text(const char *text);
 
 static Binding *binding_from_object(void *object) {
     if (!object) return nullptr;
@@ -236,6 +277,10 @@ static Binding *binding_from_object(void *object) {
     auto *binding = (Binding *)(table + MPC_UI_BUTTON_VTABLE_BYTES);
     return binding->magic == kBindingMagic ? binding : nullptr;
 }
+
+#include "private/image-surface.inc"
+#include "private/text-entry.inc"
+#include "private/list-drag.inc"
 
 extern "C" void mpc_ui_button_clicked(void *object) noexcept {
     Binding *binding = binding_from_object(object);
@@ -261,7 +306,7 @@ extern "C" void mpc_ui_button_paint(void *object, void *graphics,
     try {
         host.graphics_fill_all(graphics, fill);
         host.graphics_set_colour(graphics, binding->text);
-        host.graphics_set_font(graphics, 22.0f);
+        host.graphics_set_font(graphics, binding->text_size > 0 ? binding->text_size : 22.0f);
         host.graphics_draw_fitted_text(
             graphics, binding->paint_label,
             8, 0, (int)binding->width - 16, (int)binding->height, 36, 1, 0.0f);
@@ -276,7 +321,7 @@ extern "C" void mpc_ui_list_model_deleting_destructor(void *) noexcept {}
 extern "C" int mpc_ui_list_model_count(void *opaque) noexcept {
     auto *model = (ListModel *)opaque;
     if (!model || model->magic != kListModelMagic || !model->live ||
-        model->row_count > 256u) return 0;
+        model->row_count > 4096u) return 0;
     return (int)model->row_count;
 }
 
@@ -288,21 +333,41 @@ extern "C" void mpc_ui_list_model_paint(
         !model->context || !model->screen || model->screen->closing ||
         !graphics || row < 0 || (uint32_t)row >= model->row_count ||
         width <= 16 || width > 2000 || height <= 0 || height > 1200 ||
-        !model->row_text) return;
+        !model->row_text || (model->row_detail && (width <= 32 ||
+        height < (int)model->primary_lines * 26 + 22))) return;
     alignas(4) unsigned char label[4] = {};
     int label_live = 0;
     try {
         const char *text = model->row_text(model->owner, (uint32_t)row);
-        if (!valid_text(text)) return;
+        if (!valid_display_text(text)) return;
         MpcUiPrivateHost &host = model->context->host;
         host.string_ctor(label, text);
         label_live = 1;
         host.graphics_fill_all(graphics,
                                selected ? model->selection : model->normal);
+        if (model->row_detail) {
+            const int primary_height = (int)model->primary_lines * 26;
+            const int top = height > primary_height + 22 ? (height - primary_height - 22) / 2 : 0;
+            host.graphics_set_colour(graphics, model->text);
+            host.graphics_set_font(graphics, 22.0f);
+            host.graphics_draw_fitted_text(graphics, label, 16, top, width - 32,
+                                           primary_height, 33, model->primary_lines, 1.0f);
+            label_live = 0;
+            host.string_dtor(label);
+            const char *detail = model->row_detail(model->owner, (uint32_t)row);
+            if (!valid_display_text(detail)) return;
+            host.string_ctor(label, detail); label_live = 1;
+            host.graphics_set_colour(graphics, selected ? 0xffe6e6ebu : 0xffbfc0c8u);
+            host.graphics_set_font(graphics, 18.0f);
+            host.graphics_draw_fitted_text(graphics, label, 16, top + primary_height,
+                                           width - 32, 22, 33, 1, 1.0f);
+            label_live = 0; host.string_dtor(label);
+            return;
+        }
         host.graphics_set_colour(graphics, model->text);
-        host.graphics_set_font(graphics, 22.0f);
+        host.graphics_set_font(graphics, model->text_size > 0 ? model->text_size : 22.0f);
         host.graphics_draw_fitted_text(graphics, label, 8, 0, width - 16,
-                                       height, 36, 1, 0.0f);
+                                       height, 36, model->text_lines ? model->text_lines : 1, 0.0f);
         label_live = 0;
         host.string_dtor(label);
     } catch (...) {
@@ -317,19 +382,27 @@ extern "C" void *mpc_ui_list_model_refresh(void *, int, int, void *) noexcept {
     return nullptr;
 }
 
-extern "C" void mpc_ui_list_model_clicked(void *, int, const void *) noexcept {}
-
-extern "C" void mpc_ui_list_model_selected(void *opaque, int row) noexcept {
+static void publish_list_selection(void *opaque, int row, bool clicked) noexcept {
     auto *model = (ListModel *)opaque;
     if (!model || model->magic != kListModelMagic || !model->live ||
+        (model->activate_on_click != 0) != clicked ||
         model->suppress_selection || !model->context || !model->screen ||
         model->screen->closing || !model->selected || row < 0 ||
         (uint32_t)row >= model->row_count) return;
+    if (model->list && (!model->list->visible || model->list->drag.active ||
+        model->list->drag.blocked || model->list->drag.scrolling)) return;
     if (!on_ui_thread(model->context)) return;
     model->context->callback_depth++;
     try { model->selected(model->owner, (uint32_t)row); }
     catch (...) { set_error(model->context, MPC_UI_HOST_CALL_FAILED); }
     model->context->callback_depth--;
+}
+
+extern "C" void mpc_ui_list_model_clicked(void *opaque, int row, const void *) noexcept {
+    publish_list_selection(opaque, row, true);
+}
+extern "C" void mpc_ui_list_model_selected(void *opaque, int row) noexcept {
+    publish_list_selection(opaque, row, false);
 }
 
 extern "C" void mpc_ui_slider_listener_complete_destructor(void *) noexcept {}
@@ -421,6 +494,11 @@ static MpcUiPrivateHost resolve_host(uint32_t bias) {
     MPC_UI_RESOLVE(sized_delete, decltype(host.sized_delete), MPC_UI_RVA_SIZED_DELETE);
     MPC_UI_RESOLVE(string_ctor, decltype(host.string_ctor), MPC_UI_RVA_STRING_CTOR);
     MPC_UI_RESOLVE(string_dtor, decltype(host.string_dtor), MPC_UI_RVA_STRING_DTOR);
+    MPC_UI_RESOLVE(text_session_ctor, decltype(host.text_session_ctor), MPC_UI_RVA_TEXT_SESSION_CTOR);
+    MPC_UI_RESOLVE(text_open, decltype(host.text_open), MPC_UI_RVA_TEXT_OPEN);
+    MPC_UI_RESOLVE(text_close, decltype(host.text_close), MPC_UI_RVA_TEXT_CLOSE);
+    MPC_UI_RESOLVE(string_assign, decltype(host.string_assign), MPC_UI_RVA_STRING_ASSIGN);
+    MPC_UI_RESOLVE(string_utf8, decltype(host.string_utf8), MPC_UI_RVA_STRING_UTF8);
     MPC_UI_RESOLVE(set_colour, decltype(host.set_colour), MPC_UI_RVA_SET_COLOUR);
     MPC_UI_RESOLVE(button_ctor, decltype(host.button_ctor), MPC_UI_RVA_BUTTON_CTOR);
     MPC_UI_RESOLVE(button_dtor, decltype(host.button_dtor), MPC_UI_RVA_BUTTON_DTOR);
@@ -448,6 +526,11 @@ static MpcUiPrivateHost resolve_host(uint32_t bias) {
                    MPC_UI_RVA_LIST_GET_VIEWPORT);
     MPC_UI_RESOLVE(viewport_set_drag, decltype(host.viewport_set_drag),
                    MPC_UI_RVA_VIEWPORT_SET_DRAG);
+    MPC_UI_RESOLVE(list_select_on_down, decltype(host.list_select_on_down), MPC_UI_RVA_LIST_SELECT_ON_DOWN);
+    MPC_UI_RESOLVE(component_add_mouse_listener, decltype(host.component_add_mouse_listener), MPC_UI_RVA_COMPONENT_ADD_MOUSE_LISTENER);
+    MPC_UI_RESOLVE(component_remove_mouse_listener, decltype(host.component_remove_mouse_listener), MPC_UI_RVA_COMPONENT_REMOVE_MOUSE_LISTENER);
+    MPC_UI_RESOLVE(mouse_event_relative, decltype(host.mouse_event_relative), MPC_UI_RVA_MOUSE_EVENT_RELATIVE);
+    host.list_row_vtable = (const void *)(uintptr_t)(bias + MPC_UI_RVA_LIST_ROW_VTABLE);
     MPC_UI_RESOLVE(slider_ctor, decltype(host.slider_ctor),
                    MPC_UI_RVA_SLIDER_CTOR);
     MPC_UI_RESOLVE(slider_dtor, decltype(host.slider_dtor),
@@ -487,6 +570,12 @@ static MpcUiPrivateHost resolve_host(uint32_t bias) {
     host.button_vtable = (const unsigned char *)(uintptr_t)(bias + MPC_UI_RVA_BUTTON_VTABLE);
     host.list_model_vtable =
         (const unsigned char *)(uintptr_t)(bias + MPC_UI_RVA_LIST_MODEL_VTABLE);
+    MPC_UI_RESOLVE(image_create, decltype(host.image_create), MPC_UI_RVA_IMAGE_CREATE);
+    MPC_UI_RESOLVE(image_bitmap, decltype(host.image_bitmap), MPC_UI_RVA_IMAGE_BITMAP);
+    MPC_UI_RESOLVE(image_release, decltype(host.image_release), MPC_UI_RVA_IMAGE_RELEASE);
+    MPC_UI_RESOLVE(graphics_draw_image, decltype(host.graphics_draw_image), MPC_UI_RVA_GRAPHICS_DRAW_IMAGE);
+    host.image_type_vtable = (const unsigned char *)(uintptr_t)(bias + MPC_UI_RVA_IMAGE_TYPE_VTABLE);
+    host.software_pixel_vtable = (const unsigned char *)(uintptr_t)(bias + MPC_UI_RVA_SOFTWARE_PIXEL_VTABLE);
 #undef MPC_UI_RESOLVE
     return host;
 }
@@ -518,11 +607,25 @@ static int valid_text(const char *text) {
     return 0;
 }
 
+// Status captions and file/instance rows are not short button labels. Keep
+// their copied native strings bounded without rejecting useful patch names.
+static int valid_display_text(const char *text) {
+    if (!text) return 0;
+    for (unsigned length = 0; length < 512; ++length)
+        if (!text[length]) return length != 0;
+    return 0;
+}
+
 static void invalidate_bindings(MpcUiScreenImpl *screen) {
     for (MpcUiControlImpl *control = screen->controls; control; control = control->next)
-        if (control->binding) control->binding->live = 0;
-    for (MpcUiListImpl *list = screen->lists; list; list = list->next)
+        if (control->binding) {
+            cancel_image_contact(control->binding);
+            control->binding->live = 0;
+        }
+    for (MpcUiListImpl *list = screen->lists; list; list = list->next) {
+        cancel_list_drag(list);
         if (list->model) list->model->live = 0;
+    }
     for (MpcUiSliderImpl *slider = screen->sliders; slider;
          slider = slider->next)
         if (slider->binding) slider->binding->live = 0;
@@ -555,6 +658,12 @@ static int disconnect_list_models(MpcUiScreenImpl *screen) {
 static int disable_list_drag(MpcUiScreenImpl *screen) {
     int success = 1;
     for (MpcUiListImpl *list = screen->lists; list; list = list->next) {
+        if (list->drag.attached) {
+            try {
+                screen->context->host.component_remove_mouse_listener(list->drag.parent, &list->drag);
+                list->drag.attached = 0;
+            } catch (...) { set_error(screen->context, MPC_UI_HOST_CALL_FAILED); success = 0; }
+        }
         if (!list->drag_enabled) continue;
         try {
             screen->context->host.viewport_set_drag(
@@ -669,7 +778,13 @@ static void destroy_control(MpcUiControlImpl *control) {
     MpcUiContextImpl *context = control->screen->context;
     MpcUiPrivateHost &host = context->host;
     if (control->binding) control->binding->live = 0;
-    if (control->kind == kControlButton) {
+    if (control->binding && control->binding->image) {
+        void *image = control->binding->image;
+        control->binding->image = nullptr;
+        try { host.image_release(image); }
+        catch (...) { set_error(context, MPC_UI_HOST_CALL_FAILED); }
+    }
+    if (control->kind == kControlButton || control->kind == kControlImage) {
         if (control->vtable)
             *(void **)control->object = (unsigned char *)host.button_vtable + 8;
         try { host.button_dtor(control->object); }
@@ -769,7 +884,7 @@ extern "C" int mpc_ui_private_context_destroy(MpcUiContext **context) {
     MpcUiContextImpl *value = as_context(*context);
     if (!value) return 0;
     if (!on_ui_thread(value)) return 0;
-    if (value->parents || value->screens || value->app_hosts ||
+    if (value->parents || value->screens || value->app_hosts || value->text_request ||
         value->callback_depth) {
         set_error(value, MPC_UI_LIFETIME_ORDER);
         return 0;
@@ -1097,6 +1212,7 @@ extern "C" int mpc_ui_private_screen_invalidate(MpcUiScreen *screen) {
         return 0;
     }
     value->closing = 1;
+    text_cancel_screen(value);
     invalidate_bindings(value);
     return 1;
 }
@@ -1108,6 +1224,7 @@ extern "C" int mpc_ui_private_app_host_drain(MpcUiAppHost *host) {
         if (value) set_error(value->context, MPC_UI_CALLBACK_ACTIVE);
         return 0;
     }
+    text_poll(value->context);
     if (!value->close_requested) return 1;
     if (!value->registered || !value->opened) {
         set_error(value->context, MPC_UI_LIFETIME_ORDER);
@@ -1313,7 +1430,7 @@ extern "C" MpcUiControl *mpc_ui_button_create(
 extern "C" MpcUiControl *mpc_ui_label_create(MpcUiScreen *screen,
                                                 const char *text) {
     MpcUiScreenImpl *owner = as_screen(screen);
-    if (!owner || !valid_text(text) || owner->closing ||
+    if (!owner || !valid_display_text(text) || owner->closing ||
         !on_ui_thread(owner->context)) {
         if (owner) set_error(owner->context, MPC_UI_INVALID_ARGUMENT);
         return nullptr;
@@ -1364,12 +1481,87 @@ extern "C" MpcUiControl *mpc_ui_label_create(MpcUiScreen *screen,
     return nullptr;
 }
 
+extern "C" MpcUiControl *mpc_ui_image_create(
+    MpcUiScreen *screen, uint32_t width, uint32_t height,
+    MpcUiPointerCallback callback, void *callback_owner) {
+    auto *s = as_screen(screen);
+    if (!s || s->closing || !on_ui_thread(s->context) || !width ||
+        width > 1280 || !height || height > 800) return nullptr;
+    auto &h = s->context->host;
+    if (!h.image_create || !h.image_bitmap || !h.image_release ||
+        !h.graphics_draw_image || !h.image_type_vtable ||
+        !h.software_pixel_vtable) return nullptr;
+    // NativeImageType is a stateless, one-vptr concrete native receiver.
+    const void *type = h.image_type_vtable + 8;
+    void *image = nullptr;
+    MpcUiControlImpl *control = nullptr;
+    try {
+        h.image_create(&image, &type, 2, (int)width, (int)height, 1);
+        if (!image || *(const void **)image != h.software_pixel_vtable + 8)
+            throw (uint32_t)MPC_UI_HOST_CALL_FAILED;
+        control = as_control(mpc_ui_button_create(screen, "image", 0, nullptr,
+                                                  callback_owner));
+        if (!control) throw (uint32_t)MPC_UI_ALLOCATION_FAILED;
+        control->kind = kControlImage;
+        Binding *b = control->binding;
+        b->control = control;
+        b->image = image; image = nullptr; // sole reference transfer
+        b->image_width = width; b->image_height = height;
+        b->pointer_callback = callback;
+        ((void **)control->vtable)[2 + 5] = (void *)(uintptr_t)&mpc_ui_image_down;
+        ((void **)control->vtable)[2 + 6] = (void *)(uintptr_t)&mpc_ui_image_drag;
+        ((void **)control->vtable)[2 + 7] = (void *)(uintptr_t)&mpc_ui_image_up;
+        ((void **)control->vtable)[2 + 48] = (void *)(uintptr_t)&mpc_ui_image_paint;
+        h.component_set_intercepts_mouse(control->object, callback != nullptr, 0);
+        return (MpcUiControl *)control;
+    } catch (...) { set_error(s->context, MPC_UI_HOST_CALL_FAILED); }
+    if (control) {
+        // It is the newly prepended, unattached control only.
+        s->controls = control->next;
+        destroy_control(control);
+    }
+    if (image) try { h.image_release(image); } catch (...) {}
+    return nullptr;
+}
+
+extern "C" int mpc_ui_image_update(MpcUiControl *image,
+    const unsigned char *rgba, uint32_t stride, uint32_t bytes,
+    uint32_t revision) {
+    auto *c = as_control(image);
+    if (!c || c->kind != kControlImage || !rgba || !revision ||
+        c->screen->closing || !on_ui_thread(c->screen->context)) return 0;
+    Binding *b = c->binding;
+    const uint32_t row_bytes = b->image_width * 4;
+    if (stride < row_bytes || stride > 1280 * 4 ||
+        bytes < stride * (b->image_height - 1) + row_bytes) return 0;
+    if (revision == b->image_revision) return 1;
+    // Validate before changing any host pixel.
+    if (!image_pixels_opaque(rgba, b->image_width, b->image_height, stride)) return 0;
+    ImageBitmap bitmap = {nullptr, 0, 0, 0, (int)b->image_width,
+                           (int)b->image_height, nullptr};
+    try {
+        auto &h = c->screen->context->host;
+        h.image_bitmap(b->image, &bitmap, 0, 0, 1);
+        if (!bitmap.data || bitmap.format != 2 || bitmap.pixel_stride != 4 ||
+            bitmap.line_stride != (int)row_bytes || bitmap.releaser) return 0;
+        for (uint32_t y = 0; y < b->image_height; ++y) {
+            const unsigned char *src = rgba + y * stride;
+            unsigned char *dst = bitmap.data + y * bitmap.line_stride;
+            image_pixels_bgra(dst, src, b->image_width);
+        }
+        b->image_revision = revision;
+        if (!b->image_painting) h.repaint(c->object);
+        return 1;
+    } catch (...) { set_error(c->screen->context, MPC_UI_HOST_CALL_FAILED); }
+    return 0;
+}
+
 extern "C" MpcUiList *mpc_ui_list_create(
     MpcUiScreen *screen, const char *name, uint32_t row_count,
     uint32_t row_height, MpcUiListRowText row_text,
     MpcUiListSelectionCallback selected, void *model_owner) {
     MpcUiScreenImpl *owner = as_screen(screen);
-    if (!owner || !valid_text(name) || row_count > 256u || !row_height ||
+    if (!owner || !valid_text(name) || row_count > 4096u || !row_height ||
         row_height > 256u || !row_text || !model_owner || owner->closing ||
         !on_ui_thread(owner->context)) {
         if (owner) set_error(owner->context, MPC_UI_INVALID_ARGUMENT);
@@ -1395,6 +1587,7 @@ extern "C" MpcUiList *mpc_ui_list_create(
                MPC_UI_LIST_MODEL_VTABLE_BYTES);
         memset(list->model, 0, sizeof(*list->model));
         list->model->vptr = (unsigned char *)list->model_vtable + 8;
+        list->model->list = list;
         list->model->magic = kListModelMagic;
         list->model->live = 1;
         list->model->context = context;
@@ -1557,15 +1750,50 @@ extern "C" int mpc_ui_list_style(MpcUiList *list,
     }
 }
 
+extern "C" int mpc_ui_list_text_layout(MpcUiList *list, float pixels, uint32_t lines) {
+    MpcUiListImpl *value = as_list(list);
+    if (!value || !(pixels >= 14.0f && pixels <= 48.0f) || lines < 1 || lines > 3 ||
+        !on_ui_thread(value->screen->context)) return 0;
+    value->model->text_size = pixels;
+    value->model->text_lines = lines;
+    try { value->screen->context->host.repaint(value->object); return 1; }
+    catch (...) { set_error(value->screen->context, MPC_UI_HOST_CALL_FAILED); return 0; }
+}
+
+extern "C" int mpc_ui_list_detail_rows(MpcUiList *list, MpcUiListRowText detail,
+                                        uint32_t primary_lines) {
+    MpcUiListImpl *value = as_list(list);
+    if (!value || primary_lines < 1 || primary_lines > 2 ||
+        !on_ui_thread(value->screen->context)) return 0;
+    value->model->row_detail = detail;
+    value->model->primary_lines = primary_lines;
+    try { value->screen->context->host.repaint(value->object); return 1; }
+    catch (...) { set_error(value->screen->context, MPC_UI_HOST_CALL_FAILED); return 0; }
+}
+
+extern "C" int mpc_ui_list_activate_on_click(MpcUiList *list, int enabled) {
+    MpcUiListImpl *value = as_list(list);
+    if (!value || !on_ui_thread(value->screen->context)) return 0;
+    value->model->activate_on_click = enabled != 0;
+    // A short list can select on DOWN even with drag scrolling enabled.
+    // Action palettes wait for UP so a drag never arms tap placement first.
+    if (value->screen->context->host.list_select_on_down) {
+        try { value->screen->context->host.list_select_on_down(value->object, !enabled); }
+        catch (...) { set_error(value->screen->context, MPC_UI_HOST_CALL_FAILED); return 0; }
+    }
+    return 1;
+}
+
 extern "C" int mpc_ui_list_update(MpcUiList *list, uint32_t row_count,
                                     uint32_t selected_row) {
     MpcUiListImpl *value = as_list(list);
-    if (!value || row_count > 256u ||
+    if (!value || row_count > 4096u ||
         (selected_row != MPC_UI_NO_SELECTION && selected_row >= row_count) ||
         !value->model_attached || !on_ui_thread(value->screen->context)) {
         if (value) set_error(value->screen->context, MPC_UI_INVALID_ARGUMENT);
         return 0;
     }
+    cancel_list_drag(value);
     value->model->suppress_selection = 1;
     value->model->row_count = row_count;
     try {
@@ -1615,6 +1843,7 @@ extern "C" int mpc_ui_list_place(MpcUiList *list, MpcUiRect bounds) {
 extern "C" int mpc_ui_list_visible(MpcUiList *list, int visible) {
     MpcUiListImpl *value = as_list(list);
     if (!value || !on_ui_thread(value->screen->context)) return 0;
+    if (!visible) cancel_list_drag(value);
     value->requested_visible = visible != 0;
     try {
         int shown = value->screen->visible && value->requested_visible;
@@ -1746,6 +1975,20 @@ extern "C" int mpc_ui_button_style(MpcUiControl *control,
     }
 }
 
+extern "C" int mpc_ui_button_text_size(MpcUiControl *control, float pixels) {
+    MpcUiControlImpl *value = as_control(control);
+    if (!value || value->kind != kControlButton || !(pixels >= 14 && pixels <= 48) ||
+        !on_ui_thread(value->screen->context)) return 0;
+    value->binding->text_size = pixels;
+    try {
+        value->screen->context->host.repaint(value->object);
+        return 1;
+    } catch (...) {
+        set_error(value->screen->context, MPC_UI_HOST_CALL_FAILED);
+        return 0;
+    }
+}
+
 extern "C" int mpc_ui_button_text(MpcUiControl *control, const char *text) {
     MpcUiControlImpl *value = as_control(control);
     if (!value || value->kind != kControlButton || !valid_text(text) ||
@@ -1816,7 +2059,7 @@ extern "C" int mpc_ui_label_style(MpcUiControl *control,
 extern "C" int mpc_ui_label_text(MpcUiControl *control,
                                     const char *text) {
     MpcUiControlImpl *value = as_control(control);
-    if (!value || value->kind != kControlLabel || !valid_text(text) ||
+    if (!value || value->kind != kControlLabel || !valid_display_text(text) ||
         !on_ui_thread(value->screen->context)) {
         if (value) set_error(value->screen->context, MPC_UI_INVALID_ARGUMENT);
         return 0;
@@ -1844,6 +2087,9 @@ extern "C" int mpc_ui_label_text(MpcUiControl *control,
 extern "C" int mpc_ui_control_place(MpcUiControl *control, MpcUiRect bounds) {
     MpcUiControlImpl *value = as_control(control);
     if (!value || !valid_rect(bounds) || !on_ui_thread(value->screen->context)) return 0;
+    if (value->kind == kControlImage &&
+        ((uint32_t)bounds.width != value->binding->image_width ||
+         (uint32_t)bounds.height != value->binding->image_height)) return 0;
     if (bounds.width > value->screen->bounds.width ||
         bounds.height > value->screen->bounds.height ||
         bounds.x > value->screen->bounds.width - bounds.width ||
@@ -1876,6 +2122,7 @@ extern "C" int mpc_ui_control_visible(MpcUiControl *control, int visible) {
     MpcUiControlImpl *value = as_control(control);
     if (!value || !on_ui_thread(value->screen->context)) return 0;
     value->requested_visible = visible != 0;
+    if (!visible && value->binding) cancel_image_contact(value->binding);
     try {
         int shown = value->screen->visible && value->requested_visible;
         if (value->attached) value->screen->context->host.set_visible(value->object, shown);
@@ -1938,6 +2185,7 @@ static void set_screen_children_visible(MpcUiScreenImpl *value, int shown) {
     for (MpcUiControlImpl *control = value->controls; control; control = control->next) {
         if (control->attached) {
             int visible = shown && control->requested_visible;
+            if (!visible && control->binding) cancel_image_contact(control->binding);
             value->context->host.set_visible(control->object, visible);
             control->visible = visible;
         }
@@ -1945,6 +2193,7 @@ static void set_screen_children_visible(MpcUiScreenImpl *value, int shown) {
     for (MpcUiListImpl *list = value->lists; list; list = list->next) {
         if (list->attached) {
             int visible = shown && list->requested_visible;
+            if (!visible) cancel_list_drag(list);
             value->context->host.set_visible(list->object, visible);
             list->visible = visible;
         }
@@ -1989,6 +2238,7 @@ extern "C" int mpc_ui_screen_show(MpcUiScreen *screen) {
 extern "C" int mpc_ui_screen_hide(MpcUiScreen *screen) {
     MpcUiScreenImpl *value = as_screen(screen);
     if (!value || !on_ui_thread(value->context)) return 0;
+    text_cancel_screen(value);
     if (!value->visible) return 1;
     int hidden = 0;
     try {
@@ -2063,5 +2313,22 @@ extern "C" int mpc_ui_screen_close(MpcUiScreen **screen) {
         return 0;
     }
     *screen = nullptr;
+    return 1;
+}
+
+extern "C" int mpc_ui_private_context_text_owner(MpcUiContext *context, void *owner) {
+    auto *value = as_context(context);
+    if (!value || !owner || !on_ui_thread(value) || value->text_request) return 0;
+    value->text_owner = owner;
+    return 1;
+}
+extern "C" int mpc_ui_text_open(MpcUiScreen *screen, const char *title,
+                                const char *initial, MpcUiTextCallback callback, void *owner) {
+    return text_open(as_screen(screen), title, initial, callback, owner);
+}
+extern "C" int mpc_ui_text_cancel(MpcUiScreen *screen) {
+    auto *value = as_screen(screen);
+    if (!value || !on_ui_thread(value->context)) return 0;
+    text_cancel_screen(value);
     return 1;
 }

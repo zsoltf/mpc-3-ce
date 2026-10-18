@@ -78,7 +78,7 @@ static unsigned global_toggle_target(const CommandRequest *r,uint32_t *target,ui
  }
  uint32_t a=word(root+0x2e4),owner=0;unsigned field;
  if(!pointer(a)||a>UINT32_MAX-0x400)return C_IDENTITY;
- if(r->reserved==GLOBAL_RECORD_TOGGLE){
+ if(command_record(r->reserved)){
   uint32_t seq=word(a+0x3bc),rec;
   if(!pointer(seq)||seq>UINT32_MAX-0x400)return C_IDENTITY;
   rec=word(seq+0x3ec);if(!typed(rec,0x68a0318)||rec>UINT32_MAX-0x9c)return C_IDENTITY;
@@ -100,10 +100,10 @@ static void global_toggle_commit(Context *c,unsigned site,unsigned at){
  if(c->r[5]!=accepted[at].property)return;
  /* Both configured Loop and Click's native listener call e298bc: its commit
   * at e29938 is M_MUTE, despite the broader bool-shaped hook names. */
- unsigned expected=r->reserved==GLOBAL_RECORD_TOGGLE?CH_RECORD_COMMIT:M_MUTE;
+ unsigned expected=command_record(r->reserved)?CH_RECORD_COMMIT:M_MUTE;
  if(site!=expected)return;
- unsigned raw=c->r[7],value=r->reserved==GLOBAL_RECORD_TOGGLE?(raw==1||raw==3):raw;
- if(global_call.id!=r->seq||global_call.phase!=1||token()!=command_owner||!atomic_load(&command_in_hook)||raw>(r->reserved==GLOBAL_RECORD_TOGGLE?4u:1u)||value!=accepted[at].native_bits){trace_fail(C_TRACE_AMBIGUOUS);return;}
+ unsigned raw=c->r[7],value=command_record(r->reserved)?(raw==1||raw==3):raw;
+ if(global_call.id!=r->seq||global_call.phase!=1||token()!=command_owner||!atomic_load(&command_in_hook)||raw>(command_record(r->reserved)?4u:1u)||value!=accepted[at].native_bits){trace_fail(C_TRACE_AMBIGUOUS);return;}
  global_call.phase=2;
  event(c,CE_GLOBAL_STATE,r->seq,accepted[at].property,raw,accepted[at].program,0,r->reserved,value,0,epoch);
 }
@@ -404,9 +404,11 @@ static void global_service(Context *c,unsigned at,const CommandRequest *r){
  if(why)goto reject;
  if(global_call.id){why=C_REENTRY;goto reject;}
  atomic_store_explicit(active_request+at,r->seq,memory_order_seq_cst);
+ unsigned record_already_on=0;
  if(command_toggle(r->reserved)){
   unsigned value;why=global_toggle_target(r,&target,&function,&accepted[at].property,&value);if(why)goto reject;
-  accepted[at].native_bits=!value;
+  record_already_on=r->reserved==GLOBAL_RECORD_ENABLE&&value;
+  accepted[at].native_bits=r->reserved==GLOBAL_RECORD_ENABLE?1u:!value;
  }
  event(c,CE_GLOBAL_BEGIN,r->seq,command_toggle(r->reserved)?accepted[at].property:0,0,target,0,r->reserved,r->bits,command_toggle(r->reserved)?0:accepted[at].property,epoch);
  uint32_t check_target=0,check_function=0;why=global_resolve(c,r,&check_target,&check_function);
@@ -425,7 +427,12 @@ static void global_service(Context *c,unsigned at,const CommandRequest *r){
  /* juce::KeyPress {keyCode, ModifierKeys, textCharacter}, built in both builds
   * from the one definition in command-state.h. */
  uint32_t key[3]={command_key_code(r->reserved),command_key_modifiers(r->reserved),command_key_symbol(r->reserved).text};
-if(r->reserved==GLOBAL_TRACK_NEW){native_started[at]=r->seq;why=new_track_open_native(c,r,target);if(why)goto reject;}else if(r->reserved==GLOBAL_TRACK_TYPE){native_started[at]=r->seq;why=type_open_native(c,r,target);if(why)goto reject;}else if(command_key(r->reserved)){
+if(record_already_on){
+ /* Desired-on is already configured on the native owner. Do not call the
+  * facade again or require a commit that an unchanged setter need not emit. */
+ global_call.phase=2;
+ event(c,CE_GLOBAL_STATE,r->seq,accepted[at].property,0,target,0,r->reserved,1,0,epoch);
+}else if(r->reserved==GLOBAL_TRACK_NEW){native_started[at]=r->seq;why=new_track_open_native(c,r,target);if(why)goto reject;}else if(r->reserved==GLOBAL_TRACK_TYPE){native_started[at]=r->seq;why=type_open_native(c,r,target);if(why)goto reject;}else if(command_key(r->reserved)){
  /* Qualify the application's own top-level peer before anything is started or
   * borrowed, and require it to name that same component back. */
  uint32_t top=global_key_desktop_component(),peer=top?global_key_peer(top):0;

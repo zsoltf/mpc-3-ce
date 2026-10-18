@@ -19,11 +19,12 @@ int main(void){
  need(hui_decode(&input,clockwise,700,&intent)==1&&intent.kind==HUI_INTENT_ENCODER&&intent.strip==7&&intent.value==3,"clockwise encoder magnitude");
  need(hui_decode(&input,counterclockwise,701,&intent)==1&&intent.kind==HUI_INTENT_ENCODER&&!intent.strip&&intent.value==-2,"counterclockwise encoder magnitude");
  const unsigned char reply[]={0x90,0,0x7f};need(hui_decode(&input,reply,800,&intent)==1&&intent.kind==HUI_INTENT_HEARTBEAT_REPLY,"standard heartbeat reply vector");
- HuiWire heartbeat=hui_heartbeat(),led=hui_led(2,HUI_BUTTON_MUTE,1),ring=hui_ring(6,11);
- const unsigned char expected_heartbeat[]={0x90,0,0},expected_led[]={0xb0,0x0c,2,0xb0,0x2c,0x42},expected_ring[]={0xb0,0x16,11};
+ HuiWire heartbeat=hui_heartbeat(),fader=hui_fader(3,0x934),led=hui_led(2,HUI_BUTTON_MUTE,1),ring=hui_ring(6,11);
+ const unsigned char expected_heartbeat[]={0x90,0,0},expected_fader[]={0xb0,3,0x12,0xb0,0x23,0x34},expected_led[]={0xb0,0x0c,2,0xb0,0x2c,0x42},expected_ring[]={0xb0,0x16,11};
  need(heartbeat.length==3&&!memcmp(heartbeat.bytes,expected_heartbeat,3),"standard host heartbeat encoding");
+ need(fader.length==6&&!memcmp(fader.bytes,expected_fader,6),"standard paired 14-bit fader feedback encoding");
  need(led.length==6&&!memcmp(led.bytes,expected_led,6),"paired HUI LED encoding");
  need(ring.length==3&&!memcmp(ring.bytes,expected_ring,3),"standard ring encoding");
  hui_input_reset(&input);for(unsigned i=0;i<HUI_STRIPS;i++)need(!input.fader_valid[i],"reset clears fader partials");need(!input.zone_valid,"reset clears zone partial");
- puts("PASS independent standard HUI codec vectors: bounded fader/zone pairs, switches, transport, encoders, heartbeat, LED and ring encoding");return 0;
+ puts("PASS independent standard HUI codec vectors: bounded fader/zone pairs, switches, transport, encoders, heartbeat, paired fader feedback, LED and ring encoding");return 0;
 }

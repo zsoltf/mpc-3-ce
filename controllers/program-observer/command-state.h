@@ -11,12 +11,18 @@
 #include "effects-state.h"
 #include "qlink-state.h"
 #include "io-state.h"
+#include "step-state.h"
+#include "clip-state.h"
 #define COMMAND_MAGIC 0x41444d43u
 #define COMMAND_VERSION 31u
 #define COMMAND_SLOTS 32u
 #define COMMAND_LANES 8u
 #define COMMAND_EVENTS 128u
 #define COMMAND_DRAIN 46u
+#define STEP_EVENTS_CHANGED 303u
+#define STEP_PLAYHEAD 304u
+#define STEP_BOUND_EVENTS_CHANGED 305u
+#define STEP_BOUND_PLAYHEAD 306u
 #define COMMAND_SEQUENCE_LAST (UINT32_MAX-1u)
 /* C_NO_DESTINATION is appended, not inserted: it is the refusal the application
  * itself shows as "All Sequences are used!", and no existing code carries it.
@@ -30,7 +36,9 @@ static inline const char *command_error_name(unsigned code){
 }
 enum {CA_NONE,CA_ENROLL_INCREMENT,CA_ENROLL_DECREMENT,CA_LANE_GUARD,CA_CONSTRUCTOR_OWNER,CA_SOURCE_REENTRY};
 static inline uint32_t command_admission_detail(unsigned guard,unsigned result,unsigned site){return (site<<16)|(guard<<8)|(result&255u);}
-enum {JOG_BAR=CF_COUNT,JOG_BEAT,JOG_PULSE,GLOBAL_SAVE,GLOBAL_ZOOM_IN,GLOBAL_ZOOM_OUT,GLOBAL_ZOOM_UP,GLOBAL_ZOOM_DOWN,GLOBAL_KEY_ENTER,GLOBAL_KEY_CANCEL,GLOBAL_KEY_LEFT,GLOBAL_KEY_UP,GLOBAL_KEY_RIGHT,GLOBAL_KEY_DOWN,GLOBAL_RECORD_TOGGLE,GLOBAL_CLICK_TOGGLE,GLOBAL_LOOP_TOGGLE,GLOBAL_PAGE_MAIN,GLOBAL_PAGE_ARRANGE,GLOBAL_PAGE_CLIP,GLOBAL_PAGE_MIX,GLOBAL_PAGE_PAD_MIX,GLOBAL_PAGE_TRACK_EDIT,GLOBAL_PAGE_SAMPLE_EDIT,GLOBAL_PAGE_STEP,EFFECT_PARAMETER,EFFECT_ENABLE,QLINK_VALUE,QLINK_MODE,IO_PARAMETER,EFFECT_CHOOSER,GLOBAL_TRACK_TYPE,GLOBAL_TRACK_NEW,GLOBAL_PLAY,GLOBAL_STOP,GLOBAL_UNDO,GLOBAL_REDO,JOG_DATA,GLOBAL_KEY_TAB,GLOBAL_KEY_BACKTAB,JOG_PRESS,GLOBAL_SEQ_DUPLICATE,NOTE_SELECT};
+enum {JOG_BAR=CF_COUNT,JOG_BEAT,JOG_PULSE,GLOBAL_SAVE,GLOBAL_ZOOM_IN,GLOBAL_ZOOM_OUT,GLOBAL_ZOOM_UP,GLOBAL_ZOOM_DOWN,GLOBAL_KEY_ENTER,GLOBAL_KEY_CANCEL,GLOBAL_KEY_LEFT,GLOBAL_KEY_UP,GLOBAL_KEY_RIGHT,GLOBAL_KEY_DOWN,GLOBAL_RECORD_TOGGLE,GLOBAL_CLICK_TOGGLE,GLOBAL_LOOP_TOGGLE,GLOBAL_PAGE_MAIN,GLOBAL_PAGE_ARRANGE,GLOBAL_PAGE_CLIP,GLOBAL_PAGE_MIX,GLOBAL_PAGE_PAD_MIX,GLOBAL_PAGE_TRACK_EDIT,GLOBAL_PAGE_SAMPLE_EDIT,GLOBAL_PAGE_STEP,EFFECT_PARAMETER,EFFECT_ENABLE,QLINK_VALUE,QLINK_MODE,IO_PARAMETER,EFFECT_CHOOSER,GLOBAL_TRACK_TYPE,GLOBAL_TRACK_NEW,GLOBAL_PLAY,GLOBAL_STOP,GLOBAL_UNDO,GLOBAL_REDO,JOG_DATA,GLOBAL_KEY_TAB,GLOBAL_KEY_BACKTAB,JOG_PRESS,GLOBAL_SEQ_DUPLICATE,NOTE_SELECT,GLOBAL_RECORD_ENABLE,STEP_TOGGLE,CLIP_ACTION};
+static inline int command_clip(unsigned op){return op==CLIP_ACTION;}
+static inline int command_step(unsigned op){return op==STEP_TOGGLE;}
 static inline int command_chooser(unsigned op){return op==EFFECT_CHOOSER;}
 static inline int command_io(unsigned op){return op==IO_PARAMETER;}
 static inline int command_qlink_mode(unsigned op){return op==QLINK_MODE;}
@@ -73,7 +81,9 @@ static inline CommandKeySymbol command_key_symbol(unsigned op){
  if(op==GLOBAL_KEY_BACKTAB)return backtab;
  return (op>=GLOBAL_KEY_ENTER&&op<=GLOBAL_KEY_DOWN)?keys[op-GLOBAL_KEY_ENTER]:none;
 }
-static inline int command_toggle(unsigned op){return op>=GLOBAL_RECORD_TOGGLE&&op<=GLOBAL_LOOP_TOGGLE;}
+static inline int command_record(unsigned op){return op==GLOBAL_RECORD_TOGGLE||op==GLOBAL_RECORD_ENABLE;}
+/* Boolean owner intents include idempotent Record-on; existing toggle IDs stay unchanged. */
+static inline int command_toggle(unsigned op){return (op>=GLOBAL_RECORD_TOGGLE&&op<=GLOBAL_LOOP_TOGGLE)||op==GLOBAL_RECORD_ENABLE;}
 static inline int command_transport(unsigned op){return op==GLOBAL_PLAY||op==GLOBAL_STOP;}
 static inline int command_history(unsigned op){return op==GLOBAL_UNDO||op==GLOBAL_REDO;}
 /* Duplicate Sequence: one press builds the application's own Copy Sequence
@@ -83,7 +93,7 @@ static inline int command_history(unsigned op){return op==GLOBAL_UNDO||op==GLOBA
  * it. It resolves the editor exactly as the other editor-family global
  * operations do and takes no new hook site. See sequence-duplicate.inc. */
 static inline int command_sequence_duplicate(unsigned op){return op==GLOBAL_SEQ_DUPLICATE;}
-static inline int command_global(unsigned op){return op==GLOBAL_TRACK_NEW||op==GLOBAL_TRACK_TYPE||command_transport(op)||command_history(op)||command_key(op)||command_sequence_duplicate(op)||op==CF_AUTOMATION||(op>=GLOBAL_SAVE&&op<=GLOBAL_PAGE_STEP);}
+static inline int command_global(unsigned op){return op==GLOBAL_RECORD_ENABLE||op==GLOBAL_TRACK_NEW||op==GLOBAL_TRACK_TYPE||command_transport(op)||command_history(op)||command_key(op)||command_sequence_duplicate(op)||op==CF_AUTOMATION||(op>=GLOBAL_SAVE&&op<=GLOBAL_PAGE_STEP);}
 enum {RC_ENTER=129,RC_DONE,RC_APPLY,RC_PRODUCER,RC_ENQUEUER,RC_ENQUEUE_RETURN,RC_SECOND_ENTER,RC_SECOND_RETURN,RC_SECOND_DONE,RC_CP_DEATH};
 enum {MS_CREATE=99,MS_RESULT,MS_ENTER,MS_DONE,MS_FACTORY_DEATH,MS_FACTORY_DELETE,MS_SET_ENTER,MS_SET_DONE};
 enum {PX_GET=165,PX_GET_DONE,PX_SET,PX_LISTENER,PX_NOTIFY,PX_DEATH,PX_FACADE,PX_FACADE_ALT,PX_SET_ALT,PX_REPLACE,PX_UI_VECTOR,PX_RETIRE,PX_WIDGET_CTOR,PX_WIDGET_DTOR,PX_VST_REFRESH,PX_PARAMETER_TREE,PX_UI_DRAIN,PX_INSERT_ENABLE};
@@ -122,7 +132,7 @@ static inline int command_focus_controller(unsigned op){return command_counted_f
 /* Signed relative native units, not a desired position or Track identity. */
 static inline int command_jog_delta(uint32_t bits){int32_t n=(int32_t)bits;return n&&n>=-JOG_DELTA_LIMIT&&n<=JOG_DELTA_LIMIT;}
 enum {IO_INPUT_SET=218,IO_OUTPUT_SET,IO_FILTER_SET,IO_INPUT_DONE,IO_OUTPUT_DONE,IO_FILTER_DONE,IO_CONNECTOR_BIRTH,IO_CONNECTOR_DEATH,IO_CONNECTOR_DELETE,IO_BIND_ENTER,IO_BIND_DONE,IO_PORT_CATALOGUE,IO_INPUT_CATALOGUE_SEED,IO_OUTPUT_CATALOGUE_SEED,IO_CONNECTOR_READY};
-enum {CE_DISPATCH=1,CE_RETURN,CE_QUEUE,CE_BODY,CE_COMMIT,CE_DONE,CE_OTHER_COMMIT,CE_OWNER_BEGIN,CE_OWNER_END,CE_JOG_ENQUEUE,CE_JOG_ENTER,CE_JOG_DONE,CE_MASTER_CREATE,CE_MASTER_QUEUE,CE_MASTER_ENTER,CE_MASTER_SET,CE_MASTER_COMMIT,CE_MASTER_VALUE,CE_MASTER_DONE,CE_GLOBAL_BEGIN,CE_GLOBAL_STATE,CE_GLOBAL_END,CE_RECORD_QUEUE,CE_RECORD_ENTER,CE_RECORD_APPLY,CE_RECORD_DONE,CE_RECORD_WORK,CE_RECORD_WORK_ENTER,CE_RECORD_HANDLED,CE_RECORD_WORK_DONE,CE_RECORD_COMMIT,CE_RECORD_TIME,CE_PAD_EXECUTE,CE_MIDI_QUEUE,CE_MIDI_ENTER,CE_MIDI_SET,CE_MIDI_COMMIT,CE_MIDI_DONE,CE_JOG_OUTCOME,CE_EFFECT_EXECUTE,CE_EFFECT_VALUE,CE_QL_QUEUE,CE_QL_RESULT,CE_QL_ENTER,CE_QL_DONE,CE_QL_VALUE,CE_QL_BARRIER,CE_QM_QUEUE,CE_QM_RESULT,CE_QM_ENTER,CE_QM_DONE,CE_QM_VALUE,CE_QM_ACCEPT,CE_IO_SET,CE_IO_COMMIT,CE_IO_DONE,CE_IO_VALUE,CE_IO_QUEUE,CE_IO_RESULT,CE_IO_ENTER,CE_IO_AUDIO_DONE,CE_CHOOSER_ACCEPT,CE_WHEEL_STEP};
+enum {CE_DISPATCH=1,CE_RETURN,CE_QUEUE,CE_BODY,CE_COMMIT,CE_DONE,CE_OTHER_COMMIT,CE_OWNER_BEGIN,CE_OWNER_END,CE_JOG_ENQUEUE,CE_JOG_ENTER,CE_JOG_DONE,CE_MASTER_CREATE,CE_MASTER_QUEUE,CE_MASTER_ENTER,CE_MASTER_SET,CE_MASTER_COMMIT,CE_MASTER_VALUE,CE_MASTER_DONE,CE_GLOBAL_BEGIN,CE_GLOBAL_STATE,CE_GLOBAL_END,CE_RECORD_QUEUE,CE_RECORD_ENTER,CE_RECORD_APPLY,CE_RECORD_DONE,CE_RECORD_WORK,CE_RECORD_WORK_ENTER,CE_RECORD_HANDLED,CE_RECORD_WORK_DONE,CE_RECORD_COMMIT,CE_RECORD_TIME,CE_PAD_EXECUTE,CE_MIDI_QUEUE,CE_MIDI_ENTER,CE_MIDI_SET,CE_MIDI_COMMIT,CE_MIDI_DONE,CE_JOG_OUTCOME,CE_EFFECT_EXECUTE,CE_EFFECT_VALUE,CE_QL_QUEUE,CE_QL_RESULT,CE_QL_ENTER,CE_QL_DONE,CE_QL_VALUE,CE_QL_BARRIER,CE_QM_QUEUE,CE_QM_RESULT,CE_QM_ENTER,CE_QM_DONE,CE_QM_VALUE,CE_QM_ACCEPT,CE_IO_SET,CE_IO_COMMIT,CE_IO_DONE,CE_IO_VALUE,CE_IO_QUEUE,CE_IO_RESULT,CE_IO_ENTER,CE_IO_AUDIO_DONE,CE_CHOOSER_ACCEPT,CE_WHEEL_STEP,CE_STEP_BEGIN,CE_STEP_RETURN,CE_STEP_STATE,CE_CLIP_BEGIN,CE_CLIP_RETURN,CE_CLIP_ACCEPT};
 typedef struct {
  uint32_t seq,pid,start_lo,start_hi,origin_sec,origin_nsec,epoch,serial,binding,incarnation,
  bits,created,expires,before_bits,before_revision,reserved; /* reserved is the version3 ChannelField operation */
@@ -166,6 +176,8 @@ typedef struct {
  EffectsInterest effects_interest;
  QLinkInterest qlink_interest;
  IOInterest io_interest;
+ StepInterest step_interest;
+ ClipInterest clip_interest;
  MeterInterest meter_interest;
  CommandSlot slots[COMMAND_SLOTS];
  _Atomic uint32_t lane_tokens[COMMAND_LANES];
@@ -275,6 +287,8 @@ static inline unsigned command_free(const CommandState *s){
  return COMMAND_SLOTS;
 }
 static inline int command_conflict(const CommandRequest *a,const CommandRequest *b){
+ if(command_clip(a->reserved)||command_clip(b->reserved))return command_clip(a->reserved)&&command_clip(b->reserved);
+ if(command_step(a->reserved)||command_step(b->reserved))return command_step(a->reserved)&&command_step(b->reserved);
  if(command_chooser(a->reserved)||command_chooser(b->reserved)){if(command_chooser(a->reserved)&&command_chooser(b->reserved))return 1;return (command_effect(a->reserved)||command_effect(b->reserved))&&a->program_owner==b->program_owner;}
  if(command_io(a->reserved)&&command_io(b->reserved))return a->track_owner==b->track_owner&&a->io_field==b->io_field;
  if(command_qlink_mode(a->reserved)||command_qlink_mode(b->reserved)){if((command_qlink(a->reserved)||command_qlink_mode(a->reserved))&&(command_qlink(b->reserved)||command_qlink_mode(b->reserved)))return a->qlink_root==b->qlink_root;return 0;}
@@ -329,11 +343,19 @@ static inline int command_writer_shut(CommandState *s){
  /* A failed reservation is retried by the bounded consumer close loop. */
  return atomic_compare_exchange_weak_explicit(&s->external_gate,&idle,2,memory_order_seq_cst,memory_order_seq_cst);
 }
+static inline int command_step_format(const CommandRequest *r){
+ return command_step(r->reserved)&&r->bits<=1&&r->before_bits<=1&&r->bits!=r->before_bits&&r->epoch&&r->serial&&r->binding&&r->incarnation&&r->project_owner&&r->track_owner&&r->program_owner&&r->pad_index<128&&r->qlink_root&&r->qlink_wrapper&&r->qlink_provider&&r->qlink_generation&&r->effect_generation&&r->effect_ap<128&&r->effect_slot<=STEP_VIEWS&&!r->before_revision&&!r->pad_owner&&!r->global_owner&&!r->field_incarnation&&!r->pad_generation&&!r->io_generation&&!r->io_choice_generation&&!r->io_field&&!r->io_connector;
+}
+static inline int command_clip_format(const CommandRequest *r){
+ return command_clip(r->reserved)&&r->bits>=CLIP_LAUNCH&&r->bits<=CLIP_SCENE_STOP&&r->before_bits<=CLIP_WILL_STOP_OVERDUBBING&&r->epoch&&r->project_owner&&r->qlink_root&&(r->effect_index||r->bits!=CLIP_RECORD_TOGGLE)&&r->pad_index<128&&(!r->track_owner?r->bits>=CLIP_SCENE_LAUNCH:1)&&!r->serial&&!r->binding&&!r->incarnation&&!r->program_owner&&!r->before_revision&&!r->pad_owner&&!r->global_owner&&!r->field_incarnation&&!r->pad_generation&&!r->effect_slot&&!r->effect_key&&!r->effect_ap&&!r->effect_position&&!r->qlink_wrapper&&!r->qlink_provider&&!r->qlink_generation&&!r->qlink_index&&!r->io_generation&&!r->io_choice_generation&&!r->io_field&&!r->io_connector;
+}
 static inline int command_publish_request_at(CommandState *s,const CommandRequest *r,unsigned at){
+ if(command_clip(r->reserved)){if(!command_clip_format(r))return 0;}else if(command_step(r->reserved)){if(!command_step_format(r))return 0;}else{
  if(command_qlink_mode(r->reserved)){if(!r->qlink_root||!r->global_owner||!r->field_incarnation||!command_mode_delta(r->bits)||r->qlink_wrapper||r->qlink_provider||r->qlink_generation||r->qlink_index)return 0;}else if(command_qlink(r->reserved)){if(!r->qlink_root||!r->qlink_wrapper||!r->qlink_provider||!r->qlink_generation||r->qlink_index>=QLINK_SLOTS||r->pad_owner||r->global_owner)return 0;}else if(r->qlink_root||r->qlink_wrapper||r->qlink_provider||r->qlink_generation||r->qlink_index)return 0;
  if(command_io(r->reserved)){if(!r->io_generation||!r->io_choice_generation||r->io_field>=IO_FIELDS||!r->io_connector||!command_mode_delta(r->bits))return 0;}else if(r->io_generation||r->io_choice_generation||r->io_field||r->io_connector)return 0;
  if(command_chooser(r->reserved)){if(r->bits>1||!r->effect_generation||r->effect_slot>=EFFECT_SLOTS||r->effect_index||r->effect_position>=(EFFECT_MAX_PRESENTATION+7)/8||r->pad_owner||r->global_owner||(r->bits?(!r->effect_key||!r->effect_ap):(r->effect_key||r->effect_ap)))return 0;}else if(command_effect(r->reserved)){if(!r->effect_generation||r->effect_slot>=EFFECT_SLOTS||r->effect_index>=EFFECT_MAX_PARAMETERS||r->effect_position>=EFFECT_MAX_PRESENTATION||!r->effect_key||!r->effect_ap||r->pad_owner||r->pad_index||r->pad_generation||r->global_owner)return 0;}else if(r->effect_generation||r->effect_slot||r->effect_index||r->effect_key||r->effect_ap||r->effect_position)return 0;
  if(r->pad_owner?(!r->pad_generation||r->pad_owner>PAD_OWNERS||r->pad_index>=PAD_SLOTS||!pad_controller(r->reserved)||r->global_owner):(r->pad_index||r->pad_generation))return 0;
+ }
  if(atomic_load_explicit(&s->new_project_intent,memory_order_seq_cst)||!command_writer_enter(s))return 0;
  if(atomic_load_explicit(&s->new_project_intent,memory_order_seq_cst)){command_writer_leave(s);return 0;}
  if(at>=COMMAND_SLOTS||atomic_load_explicit(&s->slots[at].published,memory_order_acquire)!=atomic_load_explicit(&s->slots[at].reclaimed,memory_order_acquire)||r->seq!=atomic_load_explicit(&s->published,memory_order_acquire)+1||r->seq>COMMAND_SEQUENCE_LAST){command_writer_leave(s);return 0;}
@@ -373,7 +395,7 @@ static inline unsigned command_request_controller(const CommandRequest *r){retur
 static inline int command_recording(const CommandRequest *r){return !command_qlink(r->reserved)&&(r->pad_owner||command_float(r->reserved)||(command_io(r->reserved)&&(r->io_field==IO_AUDIO_IN||r->io_field==IO_AUDIO_OUT)));}
 static inline unsigned command_source_field(unsigned field){return field==CF_SOLO?CF_SOLO_AUDIO:field;}
 static inline int command_supported(unsigned field){return command_chooser(field)||command_io(field)||command_qlink_mode(field)||command_qlink(field)||command_effect(field)||field==CF_MIDI_VOLUME||field==CF_VOLUME||field==CF_PAN||field==CF_MUTE||field==CF_SOLO||field==CF_ARM||field==CF_SELECTION||(field>=CF_SEND1&&field<=CF_SEND4);}
-static inline int command_operation(unsigned op){return command_supported(op)||command_jog(op)||command_focus_controller(op)||op==CF_MASTER||command_global(op);}
+static inline int command_operation(unsigned op){return command_clip(op)||command_step(op)||command_supported(op)||command_jog(op)||command_focus_controller(op)||op==CF_MASTER||command_global(op);}
 static inline uint32_t command_native_bits(unsigned field,uint32_t bits){if(field!=CF_MUTE&&field!=CF_SOLO)return bits;float f=bits?1.0f:0.0f;uint32_t b;memcpy(&b,&f,4);return b;}
 extern CommandState *command_state;
 extern _Atomic uint32_t command_in_hook,command_violation;

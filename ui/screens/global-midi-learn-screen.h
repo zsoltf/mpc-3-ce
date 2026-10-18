@@ -11,6 +11,12 @@ extern "C" {
 #define MPCLEARN_GLOBAL_LEARN_NO_SELECTION MPC_UI_NO_SELECTION
 #define MPCLEARN_GLOBAL_LEARN_TEXT_MAX 64u
 
+enum MpclearnGlobalLearnFocus {
+    MPCLEARN_GLOBAL_LEARN_FOCUS_NONE = 0u,
+    MPCLEARN_GLOBAL_LEARN_FOCUS_GROUPS = 1u,
+    MPCLEARN_GLOBAL_LEARN_FOCUS_TARGETS = 2u,
+};
+
 enum MpclearnGlobalLearnIntent {
     MPCLEARN_GLOBAL_LEARN_GROUP_1 = 0x100u,
     MPCLEARN_GLOBAL_LEARN_TARGET_1 = 0x200u,
@@ -48,6 +54,7 @@ typedef struct {
     uint32_t target_count;
     uint32_t selected_group;
     uint32_t selected_target_row;
+    uint32_t focused_list;
     uint32_t can_learn;
     uint32_t learning;
     uint32_t can_new;
@@ -66,6 +73,8 @@ typedef struct {
     MpcUiScreen *screen;
     MpcUiList *groups;
     MpcUiList *targets;
+    MpcUiControl *background;
+    MpcUiControl *header;
     MpcUiControl *title;
     MpcUiControl *mapping_previous;
     MpcUiControl *mapping;
@@ -74,6 +83,15 @@ typedef struct {
     MpcUiControl *file_copy;
     MpcUiControl *file_load;
     MpcUiControl *file_export;
+    MpcUiControl *groups_heading;
+    MpcUiControl *targets_heading;
+    MpcUiControl *detail_heading;
+    MpcUiControl *detail_background;
+    MpcUiControl *target_heading;
+    MpcUiControl *assignment_heading;
+    MpcUiControl *editor_heading;
+    MpcUiControl *empty_hint;
+    MpcUiControl *empty_subhint;
     MpcUiControl *edit_type;
     MpcUiControl *edit_channel_down;
     MpcUiControl *edit_channel;
@@ -94,6 +112,7 @@ typedef struct {
     MpcUiIntentCallback callback;
     void *callback_owner;
     uint32_t target_count;
+    uint32_t focused_list;
     char target_text[MPCLEARN_GLOBAL_LEARN_MAX_GROUP_TARGETS]
                     [MPCLEARN_GLOBAL_LEARN_TEXT_MAX];
 } MpclearnGlobalLearnScreen;

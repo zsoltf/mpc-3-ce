@@ -155,6 +155,12 @@ if mirror:
   selected += [298,299,300,301]
   sites += [(0x331ea38,'0500a0e1203093e5')]
   selected += [302]
+  sites += [(0x1d1f7c8,'5c3090e5010053e1'),(0x1cf8e5c,'0130a0e10020a0e1')]
+  selected += [303,304]
+  sites += [(0x240ce88,'242094e50030a0e3')]
+  selected += [305]
+  sites += [(0x1bdcc98,'004094e5040055e1')]
+  selected += [306]
  sites=[sites[i] for i in selected]
 for a,h in sites:
  if at(a,8).hex()!=h:raise SystemExit(f'raw recipe changed at {a:x}')
@@ -163,6 +169,7 @@ if command:
  # destination with their inline jump literal. Scan direct B/BL in the whole RX image.
  interiors={0xe45848,0xe45b30,0xba6888,0xbd20e4,0xa0a0d4,0xa0d9f4,0xa09c94,0xa0d5e8}
  interiors.update((0x331ea38,0x331ea3c))
+ interiors.update([0x1d1f7cc,0x1cf8e60])
  for typ,off,va,pa,size,mem,flags,align in loads:
   if typ!=1 or not flags&1:continue
   for offset in range(0,size-3,4):
@@ -332,6 +339,16 @@ if command:
    guards.append((address,12));continue # Native sized-delete PLT, outside exidx.
   start=max(x for x in starts if x<=address);end=min(x for x in starts if x>start)
   if (start,end-start) not in guards:guards.append((start,end-start))
+# Absolute drum event adapters use native constructors, containers and history.
+if command:guards += [(0x1cf08a8,0x368),(0x1cf2474,0x390),(0x24021f4,0x78),(0x13ce1c8,0x728),(0x1cecc9c,0x68),(0x1ceb6cc,0x44),(0x1ceab40,0x2c),(0x1c3d860,0x220),(0x925c70,0x18),(0x911f58,0x68),(0xc96a68,0xf4),(0x4a693c,0xc),(0x23e74d0,0x4c)]
+# Native explicit record task, queue and its existing owner cancellation.
+if command:guards += [(0x38a4224,0x54),(0x38a43dc,0x44),(0x28cb18c,0x1e4),(0x94cdb0,4),(0x94cdd4,4),(0xe73420,0x4bc)]
+if command:guards += [(0x253ea48,0x438),(0x240ce28,0xfc),(0x23bd0c8,0xa4),(0x1bdcc74,0x40),(0x1bc6d0c,0x7c)]
+# Native Clip Matrix UI facades and nonallocating state lookups.
+if command:guards += [(0xe658d0,0x30),(0xe66230,0xf8),(0xe67140,0x28),(0xe90d50,0xc4),(0xe669f8,0x1c),(0xe90e90,0x7c),(0xe672bc,0x1b4),(0xe65f24,0x194),(0xe660b8,0x178)]
+# Existing native touch toggle and its owned add/remove dispatch.
+if command:guards += [(0x1d1f7c8,0x18),(0x1cecd04,0x8c),(0x1cf8ddc,0x538),(0x1bddae0,0x58),(0x1bc8064,0x34),(0x1d1f840,0x32c)]
+if command:guards += [(0x1ced9c0,0x2b8),(0x1ced4d8,0x270),(0x1cf1624,0x290),(0x1d18594,0x24)]
 for a,_ in sites:
  found=[x for x in starts if x<=a]
  if not found:raise SystemExit('no unwind range')

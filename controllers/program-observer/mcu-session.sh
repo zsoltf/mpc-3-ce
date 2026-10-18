@@ -13,6 +13,7 @@ runtime=/run/mpclearn
 state=$runtime/state
 snapshot=$runtime/settings-before
 staging=$runtime/archive
+controller_recovery=$runtime/controller-recovery
 adapter=$here/mpclearn-controls
 inspector=$here/main-button
 settings=/media/az01-internal/Settings/MPC/MPC.settings
@@ -22,6 +23,7 @@ history_entries=8
 cap_mpc_log=1048576
 cap_log=262144
 cap_locator=4096
+cap_controller_preferences=8992
 cap_status_head=1835008
 cap_status_tail=262144
 cap_mirror_head=458752
@@ -37,6 +39,11 @@ tmpfs_dir(){ owned_dir "$1" && [ "$(stat -f -c %T "$1")" = tmpfs ]; }
 [ "$(id -u)" -eq 0 ] && owned_dir "$here" || exit 2
 cd "$here"
 [ -f session-package.sha256 ] && sha256sum -c session-package.sha256 >/dev/null || exit 1
+if [ -e plugin-setup ] || [ -e plugin-bundle.json ];then
+ for name in plugin-setup plugin-bundle.json;do
+  [ -f "$name" ] && [ ! -L "$name" ] && awk -v n="$name" '$2==n{f=1}END{exit !f}' session-package.sha256 || exit 1
+ done
+fi
 grep -Fqx '#define WINDOW_SECONDS 0u' config.h || exit 1
 grep -Fqx "#define OBSERVER_LIBRARY \"$here/command-observer.so\"" config.h || exit 1
 grep -Fqx "#define OBSERVER_LOG \"$state/volume.state\"" config.h || exit 1
@@ -48,25 +55,40 @@ case "$probe_definitions" in
  1) grep -Fqx "#define PLUGIN_HOST_PROBE_STATE \"$state/plugin-host-probe.state\"" config.h || exit 1;probe_state=$state/plugin-host-probe.state;;
  *) exit 1;;
 esac
-command=${1:-status};case "$command" in start|status|stop|bridge-start|bridge-stop|list-midi|configure) ;; *) echo 'mcu-session.sh start|status|stop|bridge-start|bridge-stop|list-midi|configure [--profile=xtouch|xtouch-mini|generic|hui --endpoint-client=NAME --endpoint-port=NAME --endpoint-type=kernel|any] [--verbose]' >&2;exit 2;; esac
+command=${1:-status};case "$command" in start|status|stop|bridge-start|bridge-stop|list-midi|configure) ;; *) echo 'mcu-session.sh start|status|stop|bridge-start|bridge-stop|list-midi|configure [--profile=xtouch|xtouch-mini|generic|hui|lcxl3-daw|launchpad-x-programmer|launchpad-pro-mk3-programmer|mpk-mini-mk3|lpd8-mk2|mpk249 (--endpoint-client=NAME --endpoint-port=NAME --endpoint-type=kernel|user|any | --input-client=NAME --input-port=NAME --input-type=kernel|user|any --output-client=NAME --output-port=NAME --output-type=kernel|user|any) --hui-mode=pickup|motorized] [--verbose]' >&2;exit 2;; esac
 [ "$#" -eq 0 ] || shift
-verbose=;controller_profile=xtouch;endpoint_client=;endpoint_port=;endpoint_type=kernel;selection_options=0;profile_option=0
+verbose=;controller_profile=xtouch;endpoint_client=;endpoint_port=;endpoint_type=kernel;input_client=;input_port=;input_type=kernel;output_client=;output_port=;output_type=kernel;legacy_endpoint_options=0;split_endpoint_options=0;hui_mode=pickup;hui_mode_option=0;selection_options=0;profile_option=0
 for option in "$@";do
  case "$option" in
   --verbose) verbose=--verbose;;
-  --profile=xtouch|--profile=xtouch-mini|--profile=generic|--profile=hui) controller_profile=${option#--profile=};selection_options=$((selection_options+1));profile_option=1;;
-  --endpoint-client=?*) endpoint_client=${option#--endpoint-client=};selection_options=$((selection_options+1));;
-  --endpoint-port=?*) endpoint_port=${option#--endpoint-port=};selection_options=$((selection_options+1));;
-  --endpoint-type=kernel|--endpoint-type=any) endpoint_type=${option#--endpoint-type=};selection_options=$((selection_options+1));;
+  --profile=xtouch|--profile=xtouch-mini|--profile=generic|--profile=hui|--profile=lcxl3-daw|--profile=launchpad-x-programmer|--profile=launchpad-pro-mk3-programmer|--profile=mpk-mini-mk3|--profile=lpd8-mk2|--profile=mpk249) controller_profile=${option#--profile=};selection_options=$((selection_options+1));profile_option=1;;
+  --endpoint-client=?*) endpoint_client=${option#--endpoint-client=};legacy_endpoint_options=1;selection_options=$((selection_options+1));;
+  --endpoint-port=?*) endpoint_port=${option#--endpoint-port=};legacy_endpoint_options=1;selection_options=$((selection_options+1));;
+  --endpoint-type=kernel|--endpoint-type=user|--endpoint-type=any) endpoint_type=${option#--endpoint-type=};legacy_endpoint_options=1;selection_options=$((selection_options+1));;
+  --input-client=?*) input_client=${option#--input-client=};split_endpoint_options=1;selection_options=$((selection_options+1));;
+  --input-port=?*) input_port=${option#--input-port=};split_endpoint_options=1;selection_options=$((selection_options+1));;
+  --input-type=kernel|--input-type=user|--input-type=any) input_type=${option#--input-type=};split_endpoint_options=1;selection_options=$((selection_options+1));;
+  --output-client=?*) output_client=${option#--output-client=};split_endpoint_options=1;selection_options=$((selection_options+1));;
+  --output-port=?*) output_port=${option#--output-port=};split_endpoint_options=1;selection_options=$((selection_options+1));;
+  --output-type=kernel|--output-type=user|--output-type=any) output_type=${option#--output-type=};split_endpoint_options=1;selection_options=$((selection_options+1));;
+  --hui-mode=pickup|--hui-mode=motorized) hui_mode=${option#--hui-mode=};hui_mode_option=1;selection_options=$((selection_options+1));;
   *) exit 2;;
  esac
 done
 if [ "$command" = configure ] && [ "$profile_option" -eq 0 ];then echo 'configure requires an explicit controller profile.' >&2;exit 2;fi
-if [ "$controller_profile" = generic ] || [ "$controller_profile" = hui ];then
- [ -n "$endpoint_client" ] && [ -n "$endpoint_port" ] || { echo 'The selected protocol requires exact endpoint client and port names.' >&2;exit 2; }
+if [ "$legacy_endpoint_options" -eq 1 ] && [ "$split_endpoint_options" -eq 1 ];then echo 'Use either the same-port endpoint options or the separate input/output options, not both.' >&2;exit 2
+elif [ "$controller_profile" != xtouch ] && [ "$controller_profile" != xtouch-mini ];then
+ if [ "$split_endpoint_options" -eq 1 ];then
+  [ -n "$input_client" ] && [ -n "$input_port" ] && [ -n "$output_client" ] && [ -n "$output_port" ] || { echo 'The selected protocol requires complete input and output endpoint names.' >&2;exit 2; }
+  if [ "$controller_profile" = hui ];then case "$input_type:$output_type" in kernel:kernel|kernel:user|user:kernel|user:user) ;; *) echo 'HUI requires exact kernel or user input and output endpoint types.' >&2;exit 2;; esac;fi
+ else
+  [ -n "$endpoint_client" ] && [ -n "$endpoint_port" ] || { echo 'The selected protocol requires exact endpoint client and port names.' >&2;exit 2; }
+  [ "$controller_profile" != hui ] || [ "$endpoint_type" = kernel ] || [ "$endpoint_type" = user ] || { echo 'HUI requires an exact kernel or user endpoint type.' >&2;exit 2; }
+ fi
 else
- [ -z "$endpoint_client$endpoint_port" ] && [ "$endpoint_type" = kernel ] || { echo 'Selected hardware profile has a fixed physical endpoint.' >&2;exit 2; }
+ [ "$legacy_endpoint_options" -eq 0 ] && [ "$split_endpoint_options" -eq 0 ] && [ "$hui_mode_option" -eq 0 ] || { echo 'Selected hardware profile has a fixed physical endpoint.' >&2;exit 2; }
 fi
+[ "$controller_profile" = hui ] || [ "$hui_mode_option" -eq 0 ] || { echo 'HUI behavior applies only to the HUI profile.' >&2;exit 2; }
 owned_dir "$home" || { echo "$home is not a root-owned 0700 folder; refusing to write there." >&2;exit 2; }
 for folder in "$home/session" "$history";do
  [ -e "$folder" ] || [ -L "$folder" ] || mkdir -m 700 "$folder" 2>/dev/null || :
@@ -130,25 +152,59 @@ bridge_stop(){
  fi
 }
 bridge_start(){
+ bridge_expected=1
  identity mpc.pid /usr/bin/MPC || return 1
  if identity bridge.pid "$here/mirror-input";then echo 'Bridge already active.' >&2;return 1;fi
+ if [ -f bridge.pid ] && [ ! -f bridge.exit ];then
+  n=0;while [ ! -f bridge.exit ];do n=$((n+1));[ "$n" -le 20 ] || { echo 'Prior bridge waiter did not finish; restart is incomplete.' >&2;return 1; };sleep .1;done
+ fi
+ bridge_lifetime=0
+ if [ -f "$state/native-preferences.state" ];then bridge_lifetime=$("$here/mirror-input" --native-preferences-invalidate "$state/native-preferences.state") || return 1;fi
+ if [ "$selection_options" -eq 0 ];then
+  enabled_code=0;"$here/mirror-input" --controller-any-enabled "$controller_preferences" || enabled_code=$?
+  case "$enabled_code" in 0) ;; 3) bridge_expected=0;rm -f bridge.pid bridge.exit;return 0;; *) return 1;; esac
+ fi
  source_code=0;status >/dev/null || source_code=$?
  case "$source_code" in 0|3) ;; *) return 1;; esac
  motor_choice=$("$here/mirror-input" --surface-status "$preferences") || { echo "Invalid surface preference; refusing automatic motor enable." >&2;return 1; }
- rm -f bridge.exit
+ rm -f bridge.pid bridge.exit
  # This child only waits for its explicit bridge and records its exit status.
  # It never restarts it. The operation lock is not inherited.
  (
   set +e
   if [ "$selection_options" -eq 0 ];then
    "$here/mirror-input" "$state/volume.state" "$state/command.state" manual $verbose "--controller-preferences=$controller_preferences" "--held-mask=${handoff_holds:-0}" "--motors=$motor_choice" "--preferences=$preferences" "--stop-adapter-exe=$adapter" &
-  elif [ "$controller_profile" = generic ] || [ "$controller_profile" = hui ];then
+  elif [ "$split_endpoint_options" -eq 1 ];then
+   if [ "$controller_profile" = hui ];then
+    "$here/mirror-input" "$state/volume.state" "$state/command.state" manual $verbose "--profile=$controller_profile" "--input-client=$input_client" "--input-port=$input_port" "--input-type=$input_type" "--output-client=$output_client" "--output-port=$output_port" "--output-type=$output_type" "--hui-mode=$hui_mode" "--held-mask=${handoff_holds:-0}" "--motors=$motor_choice" "--preferences=$preferences" "--stop-adapter-exe=$adapter" &
+   else
+    "$here/mirror-input" "$state/volume.state" "$state/command.state" manual $verbose "--profile=$controller_profile" "--input-client=$input_client" "--input-port=$input_port" "--input-type=$input_type" "--output-client=$output_client" "--output-port=$output_port" "--output-type=$output_type" "--held-mask=${handoff_holds:-0}" "--motors=$motor_choice" "--preferences=$preferences" "--stop-adapter-exe=$adapter" &
+   fi
+  elif [ "$controller_profile" = hui ];then
+   "$here/mirror-input" "$state/volume.state" "$state/command.state" manual $verbose "--profile=$controller_profile" "--endpoint-client=$endpoint_client" "--endpoint-port=$endpoint_port" "--endpoint-type=$endpoint_type" "--hui-mode=$hui_mode" "--held-mask=${handoff_holds:-0}" "--motors=$motor_choice" "--preferences=$preferences" "--stop-adapter-exe=$adapter" &
+  elif [ "$controller_profile" != xtouch ] && [ "$controller_profile" != xtouch-mini ];then
    "$here/mirror-input" "$state/volume.state" "$state/command.state" manual $verbose "--profile=$controller_profile" "--endpoint-client=$endpoint_client" "--endpoint-port=$endpoint_port" "--endpoint-type=$endpoint_type" "--held-mask=${handoff_holds:-0}" "--motors=$motor_choice" "--preferences=$preferences" "--stop-adapter-exe=$adapter" &
   else
    "$here/mirror-input" "$state/volume.state" "$state/command.state" manual $verbose "--profile=$controller_profile" "--held-mask=${handoff_holds:-0}" "--motors=$motor_choice" "--preferences=$preferences" "--stop-adapter-exe=$adapter" &
   fi
-  b=$!;write_identity "$b" bridge.pid || exit 1
-  wait "$b";code=$?;printf '%s\n' "$code" > bridge.exit
+  b=$!
+  if ! write_identity "$b" bridge.pid;then
+   # The direct child cannot be PID-reused before this shell reaps it. If it
+   # survived an identity-read failure, stop only that owned child and bound
+   # the wait; either way publish a terminal receipt for rollback.
+   if kill -0 "$b" 2>/dev/null;then
+    kill -TERM "$b" 2>/dev/null || :
+    n=0;while kill -0 "$b" 2>/dev/null;do n=$((n+1));if [ "$n" -gt 20 ];then kill -KILL "$b" 2>/dev/null || :;break;fi;sleep .1;done
+   fi
+   child_code=0;wait "$b" || child_code=$?
+   if [ "$bridge_lifetime" -ne 0 ];then "$here/mirror-input" --native-preferences-invalidate "$state/native-preferences.state" "$bridge_lifetime" || :;fi
+   echo "BRIDGE_LAUNCH_IDENTITY_FAILED child=$b exit=$child_code" >&2
+   printf '%s\n' 125 >bridge.exit
+   exit 1
+  fi
+  wait "$b";code=$?
+  if [ "$bridge_lifetime" -ne 0 ];then "$here/mirror-input" --native-preferences-invalidate "$state/native-preferences.state" "$bridge_lifetime" || :;fi
+  printf '%s\n' "$code" > bridge.exit
  ) 9>&- >bridge.log 2>&1 &
  n=0
  while :;do
@@ -205,11 +261,25 @@ route(){
  "$inspector" --inspect --adapter-exe "$adapter" --action play 9>&- || return 1
  exact "$adapter_pid" "$adapter_tick" "$adapter"
 }
+wait_adapter_route(){
+ # DISARMED proves the adapter's own port, not MPC's later subscription.
+ # This is one bounded arming admission, never a bridge/process restart loop.
+ read -r route_clock route_idle </proc/uptime
+ route_started=${route_clock%%.*};route_attempts=0
+ while :;do
+  authorized && identity bridge.pid "$here/mirror-input" && status >/dev/null || return 1
+  route >/dev/null 2>&1 && return 0
+  read -r route_clock route_idle </proc/uptime
+  route_attempts=$((route_attempts+1))
+  [ "$route_attempts" -lt 50 ] && [ $((${route_clock%%.*}-route_started)) -lt 5 ] || return 1
+  sleep .1
+ done
+}
 authorized(){ [ -f session.id ] && [ "$(cat session.id)" = "$session_id" ] && [ ! -e session.revoked ]; }
 arm_adapter(){
  authorized && [ -f manual-adapter-unarmed.pid ] || return 1
  read -r unarmed_pid unarmed_tick <manual-adapter-unarmed.pid
- route && [ "$adapter_pid" = "$unarmed_pid" ] && [ "$adapter_tick" = "$unarmed_tick" ] || return 1
+ wait_adapter_route && [ "$adapter_pid" = "$unarmed_pid" ] && [ "$adapter_tick" = "$unarmed_tick" ] || return 1
  status >/dev/null && identity bridge.pid "$here/mirror-input" && authorized || return 1
  read -r app_pid app_tick <mpc.pid
  if "$here/command-client" new-project-intent "$state/command.state" "$app_pid" "$app_tick" >/dev/null;then return 1;fi
@@ -309,6 +379,7 @@ archive_entry(){
  history_commit "$label" || return 1
  rm -rf "$staging" || return 1
  if [ "$generation" = 1 ];then
+  rm -f "$controller_recovery"
   for file in $generation_files mpc-output.pipe;do rm -f "$file";done
   rm -f "$state/command.state" "$state/volume.state" "$state/native-preferences.state"
   remove_probe_state
@@ -326,6 +397,10 @@ archive_session(){ archive_entry session; }
 launch_app(){
  state_check && [ ! -e "$state/command.state" ] && [ ! -e "$state/volume.state" ] && [ ! -e "$state/native-preferences.state" ] && probe_absent || return 1
  authorized && ! mpc_running && ! systemctl is-active --quiet acvs || return 1
+ if [ -x "$here/plugin-setup" ] && "$here/plugin-setup" ready;then
+  export MPCLEARN_CARDINAL_RESOURCES=/run/mpclearn/plugins/Cardinal.vst/resources
+  export MESA_SHADER_CACHE_DISABLE=true
+ fi
  mkfifo -m 600 mpc-output.pipe || return 1
  tail -c "$cap_mpc_log" <mpc-output.pipe >mpc.log 9>&- &
  log_pid=$!
@@ -348,7 +423,7 @@ wait_receipt(){
 native_preferences_watch_start(){
  preferences_watch_pid=
  [ -f "$state/native-preferences.state" ] || return 0
- active_profile=saved;[ "$selection_options" -eq 0 ] || active_profile=$controller_profile
+ active_profile=${1:-saved};[ "$#" -gt 0 ] || { [ "$selection_options" -eq 0 ] || active_profile=$controller_profile; }
  "$here/mirror-input" --native-preferences-sync "$state/native-preferences.state" "$controller_preferences" "$active_profile" || return 1
  "$here/mirror-input" --native-preferences-watch "$state/native-preferences.state" 9>&- &
  preferences_watch_pid=$!
@@ -359,9 +434,81 @@ native_preferences_watch_stop(){
  wait "$preferences_watch_pid" 2>/dev/null || :
  preferences_watch_pid=
 }
+native_preferences_recover_owner(){
+ # The resident owner must parent the watcher and acknowledge its setup state.
+ # A short-lived bridge-start helper cannot leave a watcher signaling itself.
+ read -r recovery_app recovery_tick <mpc.pid
+ recovery_bridge_pid=;recovery_bridge_tick=
+ if [ "$bridge_expected" -eq 1 ];then read -r recovery_bridge_pid recovery_bridge_tick <bridge.pid;fi
+ read -r recovery_owner recovery_owner_tick <owner.pid
+ case "$recovery_owner:$recovery_owner_tick" in *[!0-9:]*|:*) return 1;; esac
+ [ "$recovery_owner" -gt 1 ] && same_boot && [ "$(start_tick "$recovery_owner")" = "$recovery_owner_tick" ] || return 1
+ recovery_profile=saved;[ "$selection_options" -eq 0 ] || recovery_profile=$controller_profile
+ printf 'pending %s %s %s %s\n' "$recovery_app" "$recovery_tick" "$bridge_expected" "$recovery_profile" >"$controller_recovery"
+ chmod 600 "$controller_recovery"
+ kill -USR2 "$recovery_owner" || { rm -f "$controller_recovery";return 1; }
+ flock -u 9
+ recovery_ok=0;recovery_wait=0
+ while authorized;do
+  if [ "$(cat "$controller_recovery" 2>/dev/null || :)" = "ready $recovery_app $recovery_tick" ];then recovery_ok=1;break;fi
+  [ "$(cat "$controller_recovery" 2>/dev/null || :)" != "failed $recovery_app $recovery_tick" ] || break
+  recovery_wait=$((recovery_wait+1));[ "$recovery_wait" -le 50 ] || break;sleep .1
+ done
+ flock 9
+ rm -f "$controller_recovery"
+ [ "$recovery_ok" -eq 1 ] && authorized && identity mpc.pid /usr/bin/MPC && [ "$pid:$tick" = "$recovery_app:$recovery_tick" ] || { echo 'Explicit bridge recovery was not acknowledged by the same session generation.' >&2;return 1; }
+ [ "$bridge_expected" -eq 0 ] || { identity bridge.pid "$here/mirror-input" && [ "$pid:$tick" = "$recovery_bridge_pid:$recovery_bridge_tick" ]; }
+}
+owner_controller_recovery(){
+ [ -f "$controller_recovery" ] || return 0
+ read -r recovery_state recovery_app recovery_tick recovery_expected recovery_profile <"$controller_recovery" || return 0
+ [ "$recovery_state" = pending ] || return 0
+ preferences_pending=0
+ recovery_valid=0
+ case "$recovery_expected:$recovery_profile" in 0:saved|1:saved|1:xtouch|1:xtouch-mini|1:generic|1:hui|1:lcxl3-daw|1:launchpad-x-programmer|1:launchpad-pro-mk3-programmer|1:mpk-mini-mk3|1:lpd8-mk2|1:mpk249) recovery_valid=1;; esac
+ if [ "$recovery_valid" -eq 1 ] && [ "$recovery_app:$recovery_tick" = "$app_pid:$app_tick" ] && { [ "$recovery_expected" -eq 0 ] || identity bridge.pid "$here/mirror-input"; };then
+  recovery_code=0;status >/dev/null 2>&1 || recovery_code=$?
+  case "$recovery_code" in 0|3)
+   native_preferences_watch_stop
+   if native_preferences_watch_start "$recovery_profile";then
+    setup=1;bridge_expected=$recovery_expected;arm_attempted=1;[ ! -f manual-adapter-unarmed.pid ] || arm_attempted=0
+    for recovered_failure in 'Controller startup failed; no automatic retry.' 'Route/source unavailable at arming; no automatic retry.';do
+     if printf '%s\n' "$recovered_failure" | cmp -s - generation.failed;then rm -f generation.failed;fi
+    done
+    printf '%s\n' ready >generation.ready
+    printf 'ready %s %s\n' "$recovery_app" "$recovery_tick" >"$controller_recovery"
+    return 0
+   fi;;
+  esac
+ fi
+ printf 'failed %s %s\n' "$recovery_app" "$recovery_tick" >"$controller_recovery"
+ return 1
+}
+native_rollback=$runtime/controller-preferences.rollback
+native_restore=$home/.controller-preferences.restore
+native_preferences_snapshot(){
+ rm -f "$native_rollback" "$native_restore"
+ native_prior_missing=1
+ if [ -e "$controller_preferences" ] || [ -L "$controller_preferences" ];then
+  [ ! -L "$controller_preferences" ] && [ -f "$controller_preferences" ] && [ "$(stat -c '%u:%a' "$controller_preferences")" = 0:600 ] || return 1
+  prior_size=$(stat -c %s "$controller_preferences")
+  [ "$prior_size" -eq 288 ] || [ "$prior_size" -eq "$cap_controller_preferences" ] || return 1
+  cp "$controller_preferences" "$native_rollback" && chmod 600 "$native_rollback" && cmp -s "$controller_preferences" "$native_rollback" || return 1
+  native_prior_missing=0
+ else
+  : >"$native_rollback" && chmod 600 "$native_rollback" || return 1
+ fi
+}
+native_preferences_discard_snapshot(){ rm -f "$native_rollback" "$native_restore"; }
+native_preferences_restore(){
+ restore_mode=present;[ "$native_prior_missing" -eq 0 ] || restore_mode=missing
+ "$here/mirror-input" --controller-restore "$controller_preferences" "$native_rollback" "$restore_mode" || return 1
+ rm -f "$native_rollback"
+}
 native_preferences_apply(){
  preferences_pending=0
  [ -f "$state/native-preferences.state" ] || return 0
+ native_preferences_snapshot || { echo 'Could not retain the prior controller preference; active bridge retained.' >&2;return 1; }
  apply_code=0
  "$here/mirror-input" --native-preferences-apply "$state/native-preferences.state" "$controller_preferences" || apply_code=$?
  case "$apply_code" in
@@ -369,19 +516,39 @@ native_preferences_apply(){
    # The preference is durable before changing the live bridge. This owner then
    # uses its existing bounded drain/start path and all future generations read
    # the same saved selection rather than an earlier one-session CLI override.
+   prior_bridge_stopped=0
    if bridge_stop;then
+    prior_bridge_stopped=1
     selection_options=0
-    if bridge_start;then "$here/mirror-input" --native-preferences-finish "$state/native-preferences.state" active || :;return 0;fi
+    if bridge_start;then native_preferences_discard_snapshot;"$here/mirror-input" --native-preferences-finish "$state/native-preferences.state" active || :;return 0;fi
+   fi
+   if [ "$prior_bridge_stopped" -eq 1 ] && ! bridge_stop;then
+    if identity bridge.pid "$here/mirror-input" || [ ! -f bridge.exit ];then "$here/mirror-input" --native-preferences-finish "$state/native-preferences.state" failed || :;echo 'Replacement controller bridge could not be stopped for rollback.' >generation.failed;return 1;fi
+    # A non-zero exit is the expected replacement-start failure. With its
+    # exact process gone and its receipt present, rollback may safely proceed.
+   fi
+   if native_preferences_restore;then
+    selection_options=0
+    prior_bridge_ready=0
+    if [ "$prior_bridge_stopped" -eq 0 ] && identity bridge.pid "$here/mirror-input";then prior_bridge_ready=1
+    elif bridge_start;then prior_bridge_ready=1
+    fi
+    if [ "$prior_bridge_ready" -eq 1 ] && "$here/mirror-input" --native-preferences-sync "$state/native-preferences.state" "$controller_preferences" saved;then
+     "$here/mirror-input" --native-preferences-finish "$state/native-preferences.state" failed || :
+     echo 'Native controller replacement failed; prior saved selection and bridge restored.' >&2
+     return 0
+    fi
    fi
    "$here/mirror-input" --native-preferences-finish "$state/native-preferences.state" failed || :
-   echo 'Native controller selection was saved but its bridge restart failed.' >generation.failed
+   echo 'Native controller replacement and prior-controller rollback failed.' >generation.failed
    return 1;;
-  10) return 0;;
-  11) echo 'Native controller selection request was invalid; active bridge retained.' >&2;;
-  12) echo 'No unique external physical MIDI controller is available; active bridge retained.' >&2;;
-  13) echo 'More than one external physical MIDI controller is available; active bridge retained.' >&2;;
-  14) echo 'Controller selection could not be saved; active bridge retained.' >&2;;
-  *) echo 'Native controller selection state is unavailable; active bridge retained.' >&2;;
+  10) native_preferences_discard_snapshot;return 0;;
+  11) native_preferences_discard_snapshot;echo 'Native controller selection request was invalid; active bridge retained.' >&2;;
+  12) native_preferences_discard_snapshot;echo 'The selected external MIDI endpoint is unavailable; active bridge retained.' >&2;;
+  13) native_preferences_discard_snapshot;echo 'The selected external MIDI endpoint is ambiguous; active bridge retained.' >&2;;
+  14) native_preferences_discard_snapshot;echo 'Controller selection could not be saved; active bridge retained.' >&2;;
+  15) native_preferences_discard_snapshot;echo 'The endpoint list changed; refresh and select the endpoint again. Active bridge retained.' >&2;;
+  *) native_preferences_discard_snapshot;echo 'Native controller selection state is unavailable; active bridge retained.' >&2;;
  esac
  return 0
 }
@@ -400,6 +567,7 @@ owner(){
    if flock -n 9;then
     if authorized;then
      read -r app_pid app_tick <mpc.pid
+     if [ "$preferences_pending" -eq 1 ];then owner_controller_recovery || setup=2;fi
      if "$here/command-client" new-project-intent "$state/command.state" "$app_pid" "$app_tick" >/dev/null 2>&1;then
       if [ "$intent_seen" -eq 0 ];then stop_adapter || :;intent_seen=1;fi
      elif [ "$setup" -ne 2 ];then
@@ -408,14 +576,14 @@ owner(){
       if [ "$setup" -eq 0 ];then
        case "$code" in
         0|3)
-         if start_adapter && bridge_start && native_preferences_watch_start;then setup=1;printf '%s\n' ready >generation.ready
-         else setup=2;echo 'Controller startup failed; no automatic retry.' >generation.failed;fi;;
+         if native_preferences_watch_start && start_adapter && bridge_start;then setup=1;printf '%s\n' ready >generation.ready
+         else setup=2;"$here/mirror-input" --native-preferences-finish "$state/native-preferences.state" failed || :;echo 'Controller startup failed; no automatic retry.' >generation.failed;fi;;
         5|1) initializing=$((initializing+1));if [ "$initializing" -gt 40 ];then setup=2;echo 'Source initialization failed; no automatic retry.' >generation.failed;fi;;
         *) setup=2;echo 'Source terminal before controller startup.' >generation.failed;;
        esac
       fi
       if [ "$setup" -eq 1 ] && [ "$preferences_pending" -eq 1 ];then native_preferences_apply || setup=2;fi
-      if [ "$setup" -eq 1 ] && [ "$code" -eq 0 ] && [ "$arm_attempted" -eq 0 ];then
+      if [ "$setup" -eq 1 ] && [ "$code" -eq 0 ] && [ "$arm_attempted" -eq 0 ] && [ "$bridge_expected" -eq 1 ];then
        arm_attempted=1
        arm_adapter || echo 'Route/source unavailable at arming; no automatic retry.' >generation.failed
       fi
@@ -464,8 +632,16 @@ case "$command" in
   [ ! -f mpc.exit ] || echo "mpc_exit=$(cat mpc.exit) log=$(cat mpc.log-status 2>/dev/null || echo unavailable)"
   status;;
  configure)
-  if [ "$controller_profile" = generic ] || [ "$controller_profile" = hui ];then
-   "$here/mirror-input" --controller-set "$controller_preferences" "--profile=$controller_profile" "--endpoint-client=$endpoint_client" "--endpoint-port=$endpoint_port" "--endpoint-type=$endpoint_type"
+  if [ "$controller_profile" != xtouch ] && [ "$controller_profile" != xtouch-mini ];then
+   if [ "$split_endpoint_options" -eq 1 ] && [ "$controller_profile" = hui ];then
+    "$here/mirror-input" --controller-set "$controller_preferences" "--profile=$controller_profile" "--input-client=$input_client" "--input-port=$input_port" "--input-type=$input_type" "--output-client=$output_client" "--output-port=$output_port" "--output-type=$output_type" "--hui-mode=$hui_mode"
+   elif [ "$split_endpoint_options" -eq 1 ];then
+    "$here/mirror-input" --controller-set "$controller_preferences" "--profile=$controller_profile" "--input-client=$input_client" "--input-port=$input_port" "--input-type=$input_type" "--output-client=$output_client" "--output-port=$output_port" "--output-type=$output_type"
+   elif [ "$controller_profile" = hui ];then
+    "$here/mirror-input" --controller-set "$controller_preferences" "--profile=$controller_profile" "--endpoint-client=$endpoint_client" "--endpoint-port=$endpoint_port" "--endpoint-type=$endpoint_type" "--hui-mode=$hui_mode"
+   else
+    "$here/mirror-input" --controller-set "$controller_preferences" "--profile=$controller_profile" "--endpoint-client=$endpoint_client" "--endpoint-port=$endpoint_port" "--endpoint-type=$endpoint_type"
+   fi
   else
    "$here/mirror-input" --controller-set "$controller_preferences" "--profile=$controller_profile"
   fi
@@ -482,9 +658,13 @@ case "$command" in
   bridge_start
   # Explicit recovery of a missed chooser-to-project arming attempt. This is
   # under session.lock and reuses all live route/identity/intent checks.
-  if [ -f manual-adapter-unarmed.pid ] && status >/dev/null;then
+  if [ -f manual-adapter-unarmed.pid ] && identity bridge.pid "$here/mirror-input" && status >/dev/null;then
    arm_adapter || { echo 'Explicit bridge-start could not arm the existing adapter.' >&2;exit 1; }
    if printf '%s\n' 'Route/source unavailable at arming; no automatic retry.' | cmp -s - generation.failed;then rm -f generation.failed;fi
+  fi
+  if ! native_preferences_recover_owner;then
+   if [ "$bridge_expected" -eq 1 ] && identity bridge.pid "$here/mirror-input" && [ "$pid:$tick" = "$recovery_bridge_pid:$recovery_bridge_tick" ];then bridge_stop || :;fi
+   exit 1
   fi;;
  start)
   if identity mpc.pid /usr/bin/MPC;then
@@ -516,6 +696,11 @@ case "$command" in
    archive_session
   fi
   cp -p "$settings" "$snapshot";sha256sum "$snapshot" >"$snapshot.sha256"
+  # Optional SD plugins are admitted once by the existing stopped-session
+  # owner. No card must still leave the controller/Global Learn app usable.
+  if [ -x "$here/plugin-setup" ];then
+   "$here/plugin-setup" prepare || echo 'Starting without the optional Pd/Cardinal SD bundle.' >&2
+  fi
   session_id="$$-$(start_tick $$)";printf '%s\n' "$session_id" >session.id
   printf '%s\n' "$boot_id" >session.boot-id
   printf '%s\n' "$here" >session.location

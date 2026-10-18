@@ -1,5 +1,6 @@
 #include "command-state.h"
 #include "command-process.h"
+#include "worker-affinity.inc"
 #ifdef NATIVE_PREFERENCES
 #include "native-preferences.h"
 #endif
@@ -87,10 +88,11 @@ __attribute__((constructor)) static void startup(void){
 #ifdef PLUGIN_HOST_PROBE
  void *plugin_host_gate=NULL;if(!plugin_host_probe_initialize()||!plugin_host_probe_install(load_bias,-1,&plugin_host_gate))goto setup_failure;
 #endif
+ if(!only_thread()||!worker_affinity_install(load_bias))goto setup_failure;
  atomic_store_explicit(&observer_running,1,memory_order_seq_cst);atomic_store_explicit(&state->alive,1,memory_order_release);atomic_store_explicit(&commands->alive,1,memory_order_release);
  if(pthread_create(&consumer,&attr,consume,NULL))goto setup_failure;
  pthread_attr_destroy(&attr);started=1;atomic_store_explicit(&commands->startup,2,memory_order_release);return;
-setup_failure:if(attr_ok)pthread_attr_destroy(&attr);
+setup_failure:worker_affinity_restore();if(attr_ok)pthread_attr_destroy(&attr);
 failure:command_close();atomic_store(&command_state->error,C_SOURCE_FAILURE);atomic_store(&command_state->alive,0);mirror_stop(MV_SETUP);atomic_store_explicit(&command_state->startup,3,memory_order_release);
 }
 __attribute__((destructor)) static void finish(void){if(started){command_close();pthread_join(consumer,NULL);}}

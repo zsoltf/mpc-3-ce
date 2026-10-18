@@ -44,9 +44,15 @@ case "${1:-}" in
   if [ "$2" = clear ];then retire "$override";echo 'Override removed.';exit 0;fi
   source=$2
   [ -d "$source" ] && [ ! -L "$source" ] || { echo "Not a package folder: $source" >&2;exit 2; }
+  extra_manifest=
+  if [ -e "$source/plugin-setup" ] || [ -e "$source/plugin-bundle.json" ];then
+   executables="$executables plugin-setup"
+   private="$private plugin-bundle.json"
+   extra_manifest=plugin-bundle.json
+  fi
   for name in $executables $private;do [ -f "$source/$name" ] && [ ! -L "$source/$name" ] || { echo "Missing package file: $name" >&2;exit 1; };done
   (cd "$source" && sha256sum -c session-package.sha256 >/dev/null) || { echo 'Package manifest does not verify.' >&2;exit 1; }
-  for name in $executables command-observer.so config.h;do
+  for name in $executables command-observer.so config.h $extra_manifest;do
    awk -v n="$name" '$2==n{f=1}END{exit !f}' "$source/session-package.sha256" || { echo "Manifest does not cover $name." >&2;exit 1; }
   done
   for line in '#define WINDOW_SECONDS 0u' "#define OBSERVER_LIBRARY \"$override/command-observer.so\"" '#define OBSERVER_LOG "/run/mpclearn/state/volume.state"' '#define COMMAND_PATH "/run/mpclearn/state/command.state"';do

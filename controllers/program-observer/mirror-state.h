@@ -11,8 +11,10 @@
 #include "effects-state.h"
 #include "qlink-state.h"
 #include "io-state.h"
-#define MIRROR_MAGIC 0x41564d4du /* MMV17: selected effects and optional Q-Link UI projection */
-#define MIRROR_VERSION 17u
+#include "step-state.h"
+#include "clip-state.h"
+#define MIRROR_MAGIC 0x41564d4du /* MMV19: native drum-step projection on the existing UI owner */
+#define MIRROR_VERSION 21u
 #define MIRROR_CELLS 2048u
 #define MIRROR_HASH 4096u
 #define MIRROR_PROBES 32u
@@ -54,6 +56,8 @@ typedef struct {
  EffectsState effects;
  QLinkState qlinks;
  IOState io;
+ StepState steps;
+ ClipState clips;
 } MirrorState;
 _Static_assert(offsetof(MirrorState,cells)%2048==0,"cell alignment");
 extern MirrorState *mirror_state;

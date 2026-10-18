@@ -7,9 +7,9 @@ constexpr MpclearnGlobalLearnGroup kGroups[MPCLEARN_GLOBAL_LEARN_GROUP_COUNT] = 
     {"PADS", 0u, 16u},
     {"PAD BANKS", 16u, 8u},
     {"Q-LINKS", 24u, 16u},
-    {"TRANSPORT & NAVIGATION", 40u, 13u},
+    {"TRANSPORT / NAV", 40u, 13u},
     {"GLOBAL CONTROLS", 53u, 8u},
-    {"SEQUENCE & TRACK", 61u, 8u},
+    {"SEQUENCE / TRACK", 61u, 8u},
     {"PAD PERFORMANCE", 69u, 5u},
     {"LOOPER", 74u, 9u},
     {"STEP SEQUENCER", 83u, 2u},
@@ -17,7 +17,7 @@ constexpr MpclearnGlobalLearnGroup kGroups[MPCLEARN_GLOBAL_LEARN_GROUP_COUNT] = 
     {"MODES", 90u, 14u},
     {"PANELS", 104u, 6u},
     {"BROWSER", 110u, 7u},
-    {"ADDITIONAL TARGETS", 117u, 3u},
+    {"ADDITIONAL", 117u, 3u},
 };
 
 } // namespace
@@ -48,35 +48,44 @@ extern "C" int mpclearn_global_learn_target_location(
 extern "C" int mpclearn_global_learn_layout(
     MpcUiRect bounds, MpclearnGlobalLearnLayout *layout) {
     if (!layout || bounds.x < 0 || bounds.y < 0 || bounds.width < 1280 ||
-        bounds.height < 620) return 0;
-    const int body_width = bounds.width - 64;
-    const int detail_width = body_width - 700;
+        bounds.height < 690) return 0;
+    const int detail_width = bounds.width - 736;
     *layout = {
-        {32, 20, 248, 48},
-        {296, 20, 72, 48},
-        {380, 20, 252, 48},
-        {644, 20, 72, 48},
-        {732, 20, 120, 48},
-        {864, 20, 120, 48},
-        {996, 20, 120, 48},
-        {1128, 20, 120, 48},
-        {32, 84, 248, bounds.height - 212},
-        {296, 84, 420, bounds.height - 212},
-        {732, 84, detail_width, bounds.height - 212},
-        {732, 200, 248, 48},
-        {992, 200, 256, 48},
-        {732, 260, 56, 48},
-        {796, 260, 180, 48},
-        {984, 260, 56, 48},
-        {1048, 260, 200, 48},
-        {732, 320, 56, 48},
-        {796, 320, 180, 48},
-        {984, 320, 56, 48},
-        {1048, 320, 200, 48},
-        {732, 380, 516, 80},
-        {1008, 474, 240, 56},
-        {732, bounds.height - 112, 240, 64},
-        {bounds.width - 252, bounds.height - 112, 220, 64},
+        {0, 0, bounds.width, bounds.height},
+        {0, 0, bounds.width, 76},
+        {24, 16, 208, 44},
+        {248, 16, 48, 44},
+        {304, 16, 382, 44},
+        {694, 16, 48, 44},
+        {768, 16, 108, 44},
+        {884, 16, 108, 44},
+        {1000, 16, 116, 44},
+        {1124, 16, 132, 44},
+        {24, 90, 270, 38},
+        {310, 90, 386, 38},
+        {712, 90, detail_width, 38},
+        {24, 128, 270, bounds.height - 194},
+        {310, 128, 386, bounds.height - 194},
+        {712, 128, detail_width, bounds.height - 194},
+        {728, 148, detail_width - 32, 28},
+        {728, 246, detail_width - 32, 28},
+        {728, 344, detail_width - 32, 28},
+        {728, 394, detail_width - 32, 44},
+        {728, 446, detail_width - 32, 32},
+        {728, 380, 248, 44},
+        {992, 380, 248, 44},
+        {728, 432, 48, 44},
+        {784, 432, 152, 44},
+        {944, 432, 48, 44},
+        {1000, 432, 240, 44},
+        {728, 484, 48, 44},
+        {784, 484, 152, 44},
+        {944, 484, 48, 44},
+        {996, 552, 244, 56},
+        {24, bounds.height - 54, 672, 42},
+        {728, 552, 244, 56},
+        {712, bounds.height - 54, 252, 42},
+        {bounds.width - 240, bounds.height - 54, 216, 42},
     };
     return 1;
 }

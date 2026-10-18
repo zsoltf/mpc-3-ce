@@ -59,7 +59,56 @@ The production adapters live in
 the Preferences adapter inserts the Controllers tab and delegates
 selection requests to the existing MCU session. Completion is reflected on the
 next already-qualified stock command UI drain; the callback itself only
-publishes the request. The launcher constructor hook binds the exact overlay and
+publishes the request.
+
+The T12.4 collection candidate uses the same owner for Add, Edit, Enable/Disable,
+Remove and Refresh Ports. From Controller and To Controller are independently
+filtered by ALSA role. Generic MCU/HUI require explicit ports; X-Touch profiles
+retain their defaults and permit manual overrides. HUI exposes Motorized and
+Pickup. One request may be pending, and collection generations reject edits to
+an obsolete row. Refresh keeps the editor draft by logical endpoint identity.
+Session port availability is separate from runtime protocol admission. All
+enabled rows run through one shared bridge; each row combines saved endpoint
+configuration with its current runtime admission.
+
+Shared Preferences state is version 14, fixed at 16384 bytes. The session owns
+ALSA discovery, collection persistence and stop/start rollback; UI callbacks
+perform none of these operations. MCUCFG1 and MCUCFG2 remain readable, including
+the old compact known-profile endpoints. Empty or all-disabled collections
+remain stopped across startup and rollback, and a later Add/Enable uses the
+same owner to start the bridge. The stock Preferences layout at raw `0x03665928` uses the constructor's
+quarter-width sidebar ratio (`0x03666c08`, float 0.25), then subtracts a 12px
+right gutter at `0x036659a4`. With the native 1280px screen this supplies a
+948px content parent at x320. The tab layout at `0x036b01d8` reads its parent
+width/height and fills that parent; it does not get the toolkit screen's
+previously declared 1280px width. Controllers uses local x24..924, giving
+24px left/right margins inside the actual 948px parent. All main actions share
+one row; editor Apply, Cancel, Refresh Ports and conditional HUI Motorized /
+Pickup share one row. When HUI is hidden the three editor actions span the
+whole row; profile changes update placement without changing the draft.
+Main rows use 72px height with separate 22px primary and muted 18px state text.
+The selected record's full From/To port and client names appear below the list;
+empty collections use a centred instruction in its place. Editor profile rows
+are 64px, port rows 96px, with readable mode/address detail and preserved port
+suffixes. The opt-in `mpc_ui_list_detail_rows` painter keeps the existing native
+list model and scroll owner, uses left alignment and prevents horizontal
+text shrink. Other lists retain their previous paint defaults. Buttons remain
+centred; native Label typography remains the host's default.
+Selectors fill the same width. The complete status ends
+at y620, preserving the previously observed visible vertical region rather
+than relying on the toolkit's logical 690px height. ARM composition and session substitutes do
+not qualify the new native rendering, gestures, lifetime or audio behavior;
+those observations remain required before T12.4 acceptance.
+The same fixed page holds a disjoint bridge-owned admission projection, keyed to
+collection generation and a session-owned lifetime. The session invalidates
+that lifetime before bridge start and after its exact child exits. Endpoint
+presence alone cannot render ACTIVE. Waiting Novation admission shows WAIT MODE;
+an unknown or unrestorable prior layout shows NO MODE, and a missing/stale
+bridge publication shows Bridge not running. A delayed valid reply updates the same row.
+Version admission rejects an old UI/runtime page pairing. There is no second
+state file, service, discovery pass or recurring executable hash.
+
+The launcher constructor hook binds the exact overlay and
 outer Page only for lifetime, context, navigation and destructor ownership. It
 runs before the stock constructor stores that Page in the overlay and before the
 Page has a parent or useful bounds, so it does not create or register an app
@@ -674,8 +723,8 @@ For each new host class or entry point:
 | Native Label and Slider public wrappers | Tested on the app-list adapter | `ui/examples/slider-screen.cc` and `ui/examples/toolkit-example.cc` use only opaque public handles. MPC rendered both native controls. Action One silently refreshed the owner presentation to 32 and Action Two to 96 without a Slider intent. One held drag delivered `DRAG_STARTED`, `VALUE_CHANGED`, then `DRAG_ENDED`; Back balanced the screen and reopen restored the initial value 64. Stock Menu suspension and tile resume retained the same value-32 instance; ordinary New Project then destroyed a second idle suspended instance before the stock owner returned. |
 | Public app registration/open/close facade | Open/Back/reopen, stock Menu suspend/resume and idle forced-owner teardown tested on the one app-list consumer slot | The private launcher adapter supplies one opaque host from its admitted context, navigation parent and local bounds. The combined public example registered without firmware details, opened, handled button and Slider input, requested Back from the active callback, closed through the owner drain and reopened. Main/Menu exposed the stock list while retaining the consumer; the existing tile resumed the same value-32 instance. The normal Global consumer retained an unapplied draft through the same route. Ordinary New Project captured cleanup before the stock destructor with open consumers, all live counts zero and no failures. Component checks additionally cover multiple screens, hidden-page preservation, focus-refusal unwind, pending-close refusal and close while suspended. Busy and active-callback owner destruction remain unobserved; arbitrary tile placement is not exposed. |
 | Distinct launcher icon or first-class EngineMode | Unknown | The shell intentionally does not add an EngineMode or claim a custom icon. |
-| Stock `SequenceSettingsDialogue` Name text-entry flow | Static only | The exact host factory, default session construction, three callback paths, two outer launcher routes and destruction order are mapped below. No callback has been invoked by this project, accept/cancel are not mapped, and focus, soft-keyboard ownership and backing-owner lifetime remain unobserved. |
-| CE-created TextEditor or arbitrary text-entry flow | Unknown | The stock Name flow does not expose a safe general constructor or callback contract. Session strings, scalar/flag meanings and callback 2/3 signatures remain unknown. |
+| Stock keyboard session and public `mpc_ui_text_open` | Native submit/cancel observed | Stock Name identifies callback 1 as Do It and callback 2 as Back/Cancel, followed by close. Cardinal Search opens the same service from Instrument Edit, filters on submit and preserves the old query on Cancel. The adapter uses the host default session and invalidates its consumer before closure. Forced closure with an active keyboard remains unobserved. |
+| CE-created TextEditor or arbitrary text-entry flow | Unknown | The public adapter borrows the application-owned keyboard service; it does not construct an arbitrary TextEditor. Default scalar/flag meanings and callback 3 remain unqualified. |
 | ComboBox, editable text or arbitrary custom Graphics paint | Unknown | Label and Slider do not qualify popup ownership, keyboard/focus behavior or a general painting surface. Each requires its own exact ABI and native lifetime observation. |
 
 This checkpoint supplies the narrow exact-firmware MPC screen code toolkit and
@@ -694,21 +743,21 @@ attachment to other stock owners, arbitrary launcher placement, dropdowns,
 text entry, keyboard ownership, custom Graphics and plug-in editor hosting
 require their own ABI and native observations.
 
-## Static stock text-entry map
+## Stock keyboard session
 
-The stock `SequenceSettingsDialogue` Name field is the narrowest known benign
-text-entry path in this exact executable. This section is an ABI map for a
-future finite observation. It is not a callable toolkit API, and none of these
-methods or callback paths has been invoked by this project.
+The stock `SequenceSettingsDialogue` Name field qualified the terminal keyboard
+flow on 2026-10-01. The bounded, opt-in captures in `build/touch-track-1/`
+record identities and lifecycle only, without entered text. `text-accept.json`
+and `text-cancel.json` map Do It to callback 1 and Back to callback 2; each
+terminal path precedes close on the owning UI thread. `text-dialogue-closed.json`
+records the stock editor's close-before-callback-storage destruction.
 
 The dialogue's screen-control builder constructs a host-default `0x48`-byte
 session whose callbacks are initially null. The stock `TouchTextEditor` factory
 installs only callback 1. Callback 1 and callback 2 each invoke their target and
 then close the launcher. Callback 3 is copied into the editor binding and has a
 separate nonterminal invoke path, but its source is null in this Name session.
-These neutral callback numbers are the static session-field ordering; matching
-JUCE names such as `onReturnKey` and `onEscapeKey` do not establish which one
-means accept or cancel in the MPC wrapper.
+The mapping comes from these native actions, not from matching JUCE names.
 
 All ranges below are raw ELF virtual addresses. They map to the same file
 offsets in the executable's first `PT_LOAD` segment. Their hashes were computed
@@ -718,16 +767,19 @@ from the pinned stock executable named above.
 | --- | --- | --- |
 | `SequenceSettingsDialogue` screen-control builder | `0x02bbee14..0x02bbf15c`; `0c7e10e29fe48a36ce62a4bce1051de5f531db1a6e2b15aa6b6fa920e76186c8` | Builds the stock Name control and session path. RTTI uses vtable raw `0x068b06e8`, mapped RVA `0x068b16e8`, with typeinfo name `24SequenceSettingsDialogue`. |
 | Session default constructor | `0x01aef8e4..0x01aef99c`; `f845a51e692113f6bcb8858f3749ebbd8ec29c617424153577bdf022021726bb` | Initializes the `0x48`-byte session, including null callback state. |
-| Callback 1 terminal path | `0x035d8078..0x035d80cc`; `30c2c18acafbbc2cec74bbc916d641d1167cbf9c16cb415a7df33556572bacd1` | Invokes callback 1 and then closes. Its user meaning is not yet observed. |
-| Callback 2 terminal path | `0x035d80cc..0x035d8120`; `bcef8fb1fb57b4f32eb5de25fe09df3e3186edbb861f3b113f7e163167029d14` | Invokes callback 2 and then closes. Its user meaning is not yet observed. |
+| Callback 1 terminal path | `0x035d8078..0x035d80cc`; `30c2c18acafbbc2cec74bbc916d641d1167cbf9c16cb415a7df33556572bacd1` | Native Do It invokes callback 1 and then closes. |
+| Callback 2 terminal path | `0x035d80cc..0x035d8120`; `bcef8fb1fb57b4f32eb5de25fe09df3e3186edbb861f3b113f7e163167029d14` | Native Back invokes callback 2 and then closes. |
 | Callback 3 propagation | `0x036732b8..0x036735e4`; `5bd425dbaee7fae1a00e492d2eaa4d69febdf8b4c9a6521d76a8f103f0d9e248` | Copies the third callback into the editor binding. Its signature is unknown. |
 | Callback 3 bound invoke | `0x0367171c..0x03671968`; `4646d9063c6f7f9df40a256ffa0f1e20dc8e263b83a40868be04826b4ccf8dbe` | Invokes the bound nonterminal path. It is not safe to synthesize. |
 | `TouchTextEditor` complete destructor | `0x034d1eec..0x034d2088`; `4e5d58331e6dda43942c5ca13c905bba17c6bf4b65db0bee7445b068b9b2dc15` | Closes its active launcher before destroying its callback storage in the order 3, 2 and 1. |
 
 The active `TouchTextEditor` launcher pointer comes from the outer factory
 source at offset `+0x80` on wrapper route A or `+0x3e8` on wrapper route B. The
-earlier `+0x3f4` attribution was incorrect and must not be reused. Static
-analysis has not identified which route the stock Name action uses at runtime.
+earlier `+0x3f4` attribution was incorrect and must not be reused. Native Name
+used route B. Its launcher's core at wrapper `+4` matched the application-owned
+service at application `+0x12c`, including before any stock keyboard was opened.
+Application `+0x3e8` is not this service. Evidence: `text-candidate-5-open.json`
+and `text-app-owner-links.txt` in the same trial directory.
 
 The source interpretation is pinned to
 `JUCE@8ec56d15896d687711be348aaace08311ecabcc8`. Exact useful source locators
@@ -741,34 +793,30 @@ defines the input-target and virtual-keyboard contract. These source locators
 help interpret host code; they do not prove the MPC-private
 `TouchTextEditor` wrapper's field meanings or lifetime.
 
-A future native qualification should stay lifecycle-only and use the stock
-Sequence Settings Name action:
+`ui/private/text-entry.inc` constructs the native default session, assigns its
+title/initial Strings at `+0/+4`, and supplies only submit/cancel callbacks.
+The host copies and later destroys those callback records; they retain a small
+request record, not the plugin or its screen. Completion reaches the consumer
+once after the native active session closes. Hide/close first clears the
+consumer pointers, then closes only its own keyboard. Text is bounded to 1023
+UTF-8 bytes and is not persisted by the toolkit.
 
-1. Record only hook counts, object identities, thread IDs, route choice and
-   lifecycle order. Do not capture, log or hash any text or text bytes.
-2. Distinguish wrapper route A (`+0x80`) from route B (`+0x3e8`) at the outer
-   factory source before interpreting launcher ownership.
-3. Exercise the normal accept and cancel gestures in separate finite runs and
-   observe which terminal callback fires, whether it fires once, and whether
-   close follows on the same owning UI thread.
-4. Keep callback 3 unqualified: it is null in the stock Name session, so this
-   flow cannot exercise the mapped nonterminal invoke. Before using it,
-   identify a separate stock flow with callback 3 present and qualify its
-   signature, owner and interaction there. Do not replace or synthesize it.
-5. Close and reopen the stock dialogue, then navigate away while it is active;
-   verify that the `TouchTextEditor` closes its launcher before destroying its
-   callback storage in the order 3, 2 and 1, with no duplicate or live object
-   left behind.
-6. Verify focus transfer, the visible soft keyboard, touch delivery and return
-   to a usable stock screen without inspecting entered content.
+The result accessor at raw `0x0093352c` returns an ARM aggregate through caller
+storage: `void(const char **output, const void *nativeString)`. Declaring it as
+a direct pointer return overwrote the native String and crashed candidate 6 on
+submit. The corrected candidate 7 submitted `Vco`, displayed matching Cardinal
+modules in the same Add panel, reopened with that initial value, and preserved
+it when a replacement was cancelled. MPC and its PCM owner stayed PID9515.
+Evidence: `text-utf8-accessor-disasm.txt`, `text-candidate-6-search-submit.json`,
+`text-candidate-7-search-submit.json`, `text-candidate-7-search-cancel.json` and
+`cardinal-native-search.png`. The ARM component regression substitutes the
+native session/widgets and checks this return ABI, copying, delayed completion,
+busy refusal, Cancel, hide and inert late callbacks; it does not prove focus.
 
-Until that observation completes, accept/cancel mapping, source owner and UI
-thread, launcher and backing-owner lifetimes, focus/modal behavior, session
-string ownership, scalar/flag meanings, callback 2/3 signatures and callback
-reentrancy are unknown. The maximum statically supported future construction
-experiment is the host default session constructor followed by the stock
-factory's callback-1 replacement. It is not authorization or evidence for a
-CE-created text editor, a reusable soft keyboard or a general text-entry API.
+Forced owner closure with an active native keyboard and native callback
+reentrancy remain acceptance work. Callback 3 stays null and unqualified;
+default scalar/flags remain untouched. This service does not qualify an
+arbitrary TextEditor constructor, unrelated modal owner or firmware version.
 
 ## UI families and plug-in boundary
 

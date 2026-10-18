@@ -150,6 +150,7 @@ static int settle(const char *command_path,const char *mirror_path){
      if(!s.master.available||s.master.owner_incarnation!=r.global_owner||s.master.incarnation!=r.field_incarnation)goto unmap;
      InputFlight *tx=in.flights+at;memset(tx,0,sizeof(*tx));tx->flight=seq;tx->field=CF_MASTER;tx->bits=r.bits;tx->expires=r.expires;tx->global_owner=r.global_owner;tx->global_epoch=r.epoch;tx->field_incarnation=r.field_incarnation;tx->property=s.master.property;tx->before_revision=r.before_revision;tx->acknowledged=atomic_load(&q->settled)==seq;continue;
     }
+    if(command_step(r.reserved)||command_clip(r.reserved)){InputFlight *tx=in.flights+at;memset(tx,0,sizeof(*tx));tx->flight=seq;tx->field=r.reserved;tx->bits=r.bits;tx->expires=r.expires;tx->step_request=r;tx->acknowledged=atomic_load(&q->settled)==seq;continue;}
     if(command_global(r.reserved)){
      InputFlight *tx=in.flights+at;memset(tx,0,sizeof(*tx));tx->flight=seq;tx->field=r.reserved;tx->bits=r.bits;tx->expires=r.expires;tx->global_epoch=r.epoch;tx->global_owner=r.global_owner;tx->field_incarnation=r.field_incarnation;tx->property=r.reserved==CF_AUTOMATION?s.automation.property:0;tx->acknowledged=atomic_load(&q->settled)==seq;continue;
     }
@@ -481,7 +482,72 @@ static int io_prepare_cli(const char *mirror_path,const char *output,const char 
  done:if(result)fprintf(stderr,"I/O prepare: %s\n",reason);munmap((void*)m,sizeof(*m));close(fd);return result;
 }
 
+#include "step-request.h"
+static int step_interest_cli(const char *command_path,const char *mirror_path,const char *seconds_arg,const char *view_arg,const char *pad_arg,const char *first_arg){
+ unsigned view=0,pad=UINT32_MAX,first=0;
+ if(view_arg){char *tail;errno=0;unsigned long v=strtoul(view_arg,&tail,10);if(errno||!*view_arg||*tail||v>=STEP_VIEWS)return 2;view=v;
+ unsigned long p=strtoul(pad_arg,&tail,10);if(errno||!*pad_arg||*tail||p>=128)return 2;pad=p;
+ unsigned long f=strtoul(first_arg,&tail,10);if(errno||!*first_arg||*tail||f>UINT32_MAX-63)return 2;first=f;}
+ char *end;errno=0;unsigned long seconds=strtoul(seconds_arg,&end,10);if(errno||*end||seconds>300)return 2;
+ int fd=-1,mfd=-1,result=1;struct stat st,mst;CommandState *c=map_file(command_path,sizeof(*c),1,&fd,&st);if(c==MAP_FAILED)return 1;
+ const MirrorState *m=map_file(mirror_path,sizeof(*m),0,&mfd,&mst);if(m==MAP_FAILED)goto done;
+ if(!header(c)||m->magic!=MIRROR_MAGIC||m->version!=MIRROR_VERSION||m->bytes!=sizeof(*m)||m->pid!=c->pid||m->origin_sec!=c->origin_sec||m->origin_nsec!=c->origin_nsec||flock(fd,LOCK_EX|LOCK_NB))goto unmap;
+ uint64_t start=((uint64_t)c->start_hi<<32)|c->start_lo;uint32_t now=command_now(c->origin_sec,c->origin_nsec),ep=atomic_load(&m->epoch);
+ if(!start||command_process_start(c->pid)!=start||!command_process_exact(c->pid)||!file_current(command_path,fd,&st)||!file_current(mirror_path,mfd,&mst)||now>UINT32_MAX-seconds*1000||!atomic_load(&m->ready)||!command_writer_enter(c))goto unmap;
+ unsigned rev=atomic_load(&c->step_interest.revision);if((rev&1)||rev>UINT32_MAX-2){command_writer_leave(c);goto unmap;}
+ atomic_store(&c->step_interest.revision,rev+1);atomic_thread_fence(memory_order_release);
+ atomic_store(c->step_interest.bind_generation+view,rev+2);atomic_store(c->step_interest.pad+view,pad);atomic_store(c->step_interest.first_step+view,first);
+ unsigned mask=atomic_load(&c->step_interest.enabled);atomic_store(&c->step_interest.enabled,seconds?mask|(1u<<view):mask&~(1u<<view));
+ atomic_store(&c->step_interest.epoch,ep);atomic_store(&c->step_interest.until,seconds?now+(unsigned)seconds*1000:0);atomic_store_explicit(&c->step_interest.revision,rev+2,memory_order_release);
+ command_writer_leave(c);printf("{\"step_interest_seconds\":%lu,\"epoch\":%u,\"view\":%u,\"pad\":%u,\"first_step\":%u}\n",seconds,ep,view,pad,first);result=0;
+unmap:munmap((void*)m,sizeof(*m));close(mfd);
+done:munmap(c,sizeof(*c));close(fd);return result;
+}
+static int step_prepare_cli(const char *mirror_path,const char *output,const char *index_arg){
+ char *end;errno=0;unsigned long index=strtoul(index_arg,&end,10);if(errno||*end||index>=STEP_CELLS)return 2;
+ int fd=-1,result=1;struct stat st;const MirrorState *m=map_file(mirror_path,sizeof(*m),0,&fd,&st);if(m==MAP_FAILED)return 1;
+ if(m->magic!=MIRROR_MAGIC||m->version!=MIRROR_VERSION||m->bytes!=sizeof(*m))goto done;
+ uint64_t start=command_process_start(m->pid);if(!start||!command_process_exact(m->pid))goto done;
+ MIRROR_COPY(s);uint32_t now;const char *reason=NULL;CommandRequest r;
+ if(settlement_snapshot(m,&s,&now,&reason)!=1||!s.steps_available||!step_request_bind(&r,&s.steps,(unsigned)index,now)||!file_current(mirror_path,fd,&st)||command_process_start(m->pid)!=start)goto done;
+ r.pid=m->pid;r.start_lo=(uint32_t)start;r.start_hi=(uint32_t)(start>>32);r.origin_sec=m->origin_sec;r.origin_nsec=m->origin_nsec;
+ int out=open(output,O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC|O_NOFOLLOW,0600);if(out<0)goto done;int ok=write(out,&r,sizeof(r))==(ssize_t)sizeof(r);if(close(out))ok=0;if(!ok)goto done;
+ printf("{\"prepared_step\":%lu,\"pad\":%u,\"native_note\":%u,\"before\":%u,\"desired\":%u,\"expires\":%u}\n",index,r.pad_index,r.effect_ap,r.before_bits,r.bits,r.expires);result=0;
+done:munmap((void*)m,sizeof(*m));close(fd);return result;
+}
+
+/* Admission may hash the executable for longer than a short input intent's
+ * lifetime. Bind this intent only after admission, then publish on the same
+ * mapped command owner without another process/hash boundary. */
+static int step_submit_cli(const char *command_path,const char *mirror_path,const char *index_arg){
+ char *end;errno=0;unsigned long index=strtoul(index_arg,&end,10);if(errno||*end||index>=STEP_CELLS)return 2;
+ int fd=-1,mfd=-1,result=1;struct stat st,mst;CommandState *c=map_file(command_path,sizeof(*c),1,&fd,&st);if(c==MAP_FAILED)return 1;
+ const MirrorState *m=map_file(mirror_path,sizeof(*m),0,&mfd,&mst);if(m==MAP_FAILED)goto done;
+ if(flock(fd,LOCK_EX|LOCK_NB)||!header(c)||m->magic!=MIRROR_MAGIC||m->version!=MIRROR_VERSION||m->bytes!=sizeof(*m)||m->pid!=c->pid||m->origin_sec!=c->origin_sec||m->origin_nsec!=c->origin_nsec)goto unmap;
+ uint64_t start=((uint64_t)c->start_hi<<32)|c->start_lo;
+ if(!start||command_process_start(c->pid)!=start||!command_process_exact(c->pid)||!file_current(command_path,fd,&st)||!file_current(mirror_path,mfd,&mst)||!command_idle(c)||command_pending(c))goto unmap;
+ MIRROR_COPY(s);uint32_t now;const char *reason=NULL;CommandRequest r;
+ if(settlement_snapshot(m,&s,&now,&reason)!=1||!s.steps_available||!step_request_bind(&r,&s.steps,(unsigned)index,now)||command_process_start(c->pid)!=start)goto unmap;
+ unsigned seq=atomic_load_explicit(&c->published,memory_order_acquire);if(seq>=COMMAND_SEQUENCE_LAST)goto unmap;
+ r.pid=c->pid;r.start_lo=c->start_lo;r.start_hi=c->start_hi;r.origin_sec=c->origin_sec;r.origin_nsec=c->origin_nsec;r.seq=seq+1;
+ unsigned at=command_free(c);if(!command_publish_request_at(c,&r,at))goto unmap;
+ printf("{\"submitted_step\":%lu,\"request\":%u,\"pad\":%u,\"before\":%u,\"desired\":%u,\"created\":%u,\"expires\":%u}\n",index,r.seq,r.pad_index,r.before_bits,r.bits,r.created,r.expires);
+ while(!stopped&&atomic_load_explicit(&c->alive,memory_order_acquire)&&atomic_load_explicit(&c->slots[at].processed,memory_order_acquire)!=r.seq){
+  uint32_t tick=command_now(c->origin_sec,c->origin_nsec);if(tick==UINT32_MAX||tick<now||tick-now>=10000)break;
+  struct timespec delay={0,10000000};nanosleep(&delay,NULL);
+ }
+ status(c);result=atomic_load_explicit(&c->slots[at].processed,memory_order_acquire)==r.seq?(atomic_load(&c->slots[at].rejected)?1:0):3;
+unmap:munmap((void*)m,sizeof(*m));close(mfd);
+done:munmap(c,sizeof(*c));close(fd);return result;
+}
+#include "clip-client.inc"
 int main(int argc,char **argv){
+ if(argc==8&&!strcmp(argv[1],"clip-view"))return clip_interest_cli(argv[2],argv[3],argv[4],argv[5],argv[6],argv[7]);
+ if(argc==8&&!strcmp(argv[1],"clip-submit"))return clip_submit_cli(argv[2],argv[3],argv[4],argv[5],argv[6],argv[7]);
+ if(argc==5&&!strcmp(argv[1],"step-submit"))return step_submit_cli(argv[2],argv[3],argv[4]);
+ if(argc==5&&!strcmp(argv[1],"step-interest"))return step_interest_cli(argv[2],argv[3],argv[4],NULL,NULL,NULL);
+ if(argc==8&&!strcmp(argv[1],"step-view"))return step_interest_cli(argv[2],argv[3],argv[4],argv[5],argv[6],argv[7]);
+ if(argc==5&&!strcmp(argv[1],"step-prepare"))return step_prepare_cli(argv[2],argv[3],argv[4]);
  if(argc==6&&!strcmp(argv[1],"io-interest"))return io_interest_cli(argv[2],argv[3],argv[4],argv[5]);
  if(argc==6&&!strcmp(argv[1],"effects-chooser"))return effects_chooser_cli(argv[2],argv[3],argv[4],argv[5]);
  if(argc==6&&!strcmp(argv[1],"io-prepare"))return io_prepare_cli(argv[2],argv[3],argv[4],argv[5]);

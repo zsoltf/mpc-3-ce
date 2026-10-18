@@ -62,6 +62,26 @@ typedef struct {
                                       int, int, int, float);
     const unsigned char *button_vtable;
     const unsigned char *list_model_vtable;
+    /* Optional only for substituted component hosts without image support. */
+    void (*image_create)(void *, void *, int, int, int, int);
+    void (*image_bitmap)(void *, void *, int, int, int);
+    void (*image_release)(void *);
+    void (*graphics_draw_image)(void *, const void *, int, int, int);
+    const unsigned char *image_type_vtable;
+    const unsigned char *software_pixel_vtable;
+    /* Optional, separately admitted stock keyboard service. */
+    void (*text_session_ctor)(void *);
+    void (*text_open)(void *, const void *);
+    void (*text_close)(void *);
+    void (*string_assign)(void *, const void *);
+    /* ARM aggregate return: native CharPointer_UTF8 uses caller storage. */
+    void (*string_utf8)(const char **, const void *);
+    /* Optional, separately admitted native row/MouseListener drag bridge. */
+    void (*component_add_mouse_listener)(void *, void *, int);
+    void (*component_remove_mouse_listener)(void *, void *);
+    void (*mouse_event_relative)(void *, const void *, void *);
+    void (*list_select_on_down)(void *, int);
+    const void *list_row_vtable;
 } MpcUiPrivateHost;
 
 /* Call only after the consumer's existing admission owner has accepted the
@@ -75,6 +95,8 @@ MpcUiContext *mpc_ui_private_context_for_component(
     const MpcUiPrivateHost *host, uint32_t ui_thread_id);
 
 int mpc_ui_private_context_destroy(MpcUiContext **context);
+/* The host adapter owns this service for the context's whole lifetime. */
+int mpc_ui_private_context_text_owner(MpcUiContext *context, void *owner);
 
 MpcUiParent *mpc_ui_private_parent_create(
     MpcUiContext *context, void *owner,

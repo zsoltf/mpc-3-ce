@@ -32,6 +32,7 @@ static void channel_read_pause(unsigned);
 #include "mirror-input-core.h"
 #include "mirror-poison.h"
 uint32_t route,exercise_adjust,dispatch_count;
+static void *fixture_peer_pages,*fixture_focus_page;
 extern uint32_t saved_sp,captured_sp,captured_pair[2];
 void exercise(Context*,void*,Context*);void capture_a(void);
 void component_listener(void){}
@@ -82,11 +83,14 @@ static void exclusive_retry_checks(void){
   memcpy((void*)(uintptr_t)loop,native,24);
   /* Only reservation loss is injected. The native STREX result and BNE decide
    * the retry; on its second visit the helper leaves the reservation intact. */
-  int32_t displacement=(int32_t)ptr(retry_once)-(int32_t)(loop+8+8);
+  /* The fixture executable lives above the MPC image. A nearby absolute
+   * veneer keeps the injected ARM branch in range without relocating code. */
+  uint32_t *veneer=(uint32_t*)(uintptr_t)(loop+32);jump(&veneer,ptr(retry_once));
+  int32_t displacement=(int32_t)(loop+32)-(int32_t)(loop+8+8);
   require(!(displacement&3)&&displacement>=-33554432&&displacement<33554432,"fault helper ARM branch range");
   put(loop+8,0xea000000u|(((uint32_t)(displacement>>2))&0xffffffu));
   uint32_t *out=(uint32_t*)(uintptr_t)(loop+24);jump(&out,ptr(capture_a));
-  __builtin___clear_cache((char*)(uintptr_t)a,(char*)(uintptr_t)(loop+32));
+  __builtin___clear_cache((char*)(uintptr_t)a,(char*)(uintptr_t)(loop+40));
   Context in=context(),actual;pending[0]=9;memset(payload[n],0,sizeof(payload[n]));
   in.r[0]=in.r[1]=in.r[4]=ptr(payload[n]);in.r[3]=ptr(pending);in.r[8]=loop+12;in.r[9]=0;
   exercise(&in,(void*)(uintptr_t)a,&actual);
@@ -107,20 +111,27 @@ static void replay_checks(void){
  static uint32_t replay_enqueuer[3],replay_vtable[3];
  static uint32_t replay_io_vectors[6][8] __attribute__((aligned(8)));
  static uint32_t replay_vectors[2][8] __attribute__((aligned(8)));replay_enqueuer[0]=ptr(replay_vtable);
- uint32_t pages[256];unsigned np=0;
+ uint32_t pages[1024];unsigned np=0;
  for(unsigned i=0;i<sizeof(guards)/sizeof(guards[0]);i++){
   uint32_t first=guards[i].address&~4095u,last=(guards[i].address+guards[i].length-1)&~4095u;
-  for(uint32_t page=first;page<=last;page+=4096){unsigned j;for(j=0;j<np;j++)if(pages[j]==page)break;if(j==np)pages[np++]=page;}
+  for(uint32_t page=first;page<=last;page+=4096){unsigned j;for(j=0;j<np;j++)if(pages[j]==page)break;if(j==np){require(np<sizeof(pages)/sizeof(pages[0]),"fixture native page inventory capacity");pages[np++]=page;}}
  }
  for(unsigned i=0;i<PATCH_COUNT;i++){
   uint32_t words[2];memcpy(words,expected[i],8);
   for(unsigned k=0;k<3;k++){
    uint32_t address=k==2?anchor[i]:anchor[i]+4*k+8+(words[k]&4095);
    if(k<2&&!relocated[i][k])continue;
-   uint32_t page=address&~4095u;unsigned j;for(j=0;j<np;j++)if(pages[j]==page)break;if(j==np)pages[np++]=page;
+   uint32_t page=address&~4095u;unsigned j;for(j=0;j<np;j++)if(pages[j]==page)break;if(j==np){require(np<sizeof(pages)/sizeof(pages[0]),"fixture native page inventory capacity");pages[np++]=page;}
   }
  }
- for(unsigned i=0;i<np;i++)require(mmap((void*)(uintptr_t)pages[i],4096,PROT_READ|PROT_WRITE|PROT_EXEC,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)!=MAP_FAILED,"synthetic exact-address page");
+ /* QEMU may not reject a mapping over the guest executable's BSS. Refuse
+  * explicitly: original and patched replay must never alias fixture storage. */
+ extern char __executable_start[],_end[];
+ for(unsigned i=0;i<np;i++){
+  require(pages[i]>=ptr(_end)||pages[i]+4096<=ptr(__executable_start),"synthetic native page overlaps fixture image; build command-component at 0x10000000");
+  void *mapped=mmap((void*)(uintptr_t)pages[i],4096,PROT_READ|PROT_WRITE|PROT_EXEC,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);
+  require(mapped==(void*)(uintptr_t)pages[i],"synthetic exact-address page");
+ }
  for(unsigned i=0;i<sizeof(guards)/sizeof(guards[0]);i++)memcpy((void*)(uintptr_t)guards[i].address,guards[i].bytes,guards[i].length);
  for(unsigned i=0;i<PATCH_COUNT;i++){
   memcpy((void*)(uintptr_t)anchor[i],expected[i],8);
@@ -405,8 +416,7 @@ static void pointer_device_checks(void){
  require(0xba67ecu+table_literal+0x2cu==POINTER_STATE_RVA,"the handler's own table literal names the exact slot the hook checks");
  static unsigned char cursor[0x3c] __attribute__((aligned(8)));
  static uint32_t devices[2];
- void *peer_page=mmap((void*)0x6b22000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);
- require(peer_page!=MAP_FAILED,"peer static table fixture page");
+ require(fixture_peer_pages==(void*)0x6b22000,"peer static table reuses the already reserved JUCE fixture pages");
  memset(command_state,0,sizeof(*command_state));initial(1);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);
  component_pointer_enable=pointer_enable_fixture;pointer_enable_calls=0;pointer_enable_argument=0;atomic_store(&pointer_enabled,0);
  memset(cursor,0,sizeof cursor);
@@ -544,8 +554,8 @@ static void wheel_data_checks(void){
  static unsigned char details[16] __attribute__((aligned(8)));
  static unsigned char controller[0x100] __attribute__((aligned(8)));
  static unsigned char focused[0x80] __attribute__((aligned(8)));
- void *focus_page=mmap((void*)0x6b6f000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);
- require(focus_page!=MAP_FAILED,"active focus controller slot fixture page");
+ fixture_focus_page=mmap((void*)0x6b6f000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);
+ require(fixture_focus_page==(void*)0x6b6f000,"active focus controller slot fixture page at exact address");
  memset(command_state,0,sizeof(*command_state));initial(1);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);
  command_state->magic=COMMAND_MAGIC;command_state->version=COMMAND_VERSION;command_state->bytes=sizeof(*command_state);command_state->capacity=COMMAND_SLOTS;
  component_wheel_call=wheel_call_fixture;wheel_calls=0;wheel_remainder=0.0f;wheel_pending=0;
@@ -929,8 +939,7 @@ static void focus_press_checks(void){
   * the load bias, so a byte guard over them would fail at install. */
  static unsigned char controller[0x100] __attribute__((aligned(8)));
  static unsigned char focused[0x80] __attribute__((aligned(8)));
- void *focus_page=mmap((void*)0x6b6f000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED,-1,0);
- require(focus_page!=MAP_FAILED,"active focus controller slot fixture page");
+ require(fixture_focus_page==(void*)0x6b6f000,"press fixture reuses its already reserved active focus page");
  MirrorState *saved_mirror=fixture;CommandState *saved_commands=command_state;
  fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"press lane fixture storage");
  memset(command_state,0,sizeof(*command_state));initial(1);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);
@@ -1009,7 +1018,7 @@ static void focus_press_checks(void){
 static void new_project_checks(void){
  MirrorState *saved_fixture=fixture;CommandState *saved_commands=command_state;
  fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"intent fixture storage");
- void *env_page=mmap((void*)0x6b26000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);require(env_page!=MAP_FAILED,"Environment singleton fixture page");
+ void *env_page=mmap((void*)0x6b26000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);require(env_page==(void*)0x6b26000,"Environment singleton fixture page at exact address");
  put(0x6b26814,ptr(root_object));
  for(unsigned test=0;test<4;test++){
   memset(command_state,0,sizeof(*command_state));initial(1);command_initialize();observer_running=1;atomic_store(&command_state->alive,1);
@@ -1226,7 +1235,7 @@ static void snapshot_clear_checks(void){
 }
 static void channel_checks(void){
  MirrorState *save=fixture;CommandState *csave=command_state;fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"channel fixtures");
- require(mmap((void*)0x6935000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED,-1,0)!=MAP_FAILED,"Track method fixture");put(0x693557c,0x26500f8);
+ require(mmap((void*)0x6935000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)==(void*)0x6935000,"Track method fixture at exact address");put(0x693557c,0x26500f8);
  initial(2);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);component_dispatch=fake_dispatch;
  seed_fixture(0,0,0x3f000000,1);seed_fixture(1,0,0x3f000000,1);load_fixture();
  MIRROR_COPY(out);require(copy_mirror(fixture,&out),"retained channel snapshot");
@@ -2035,7 +2044,7 @@ static void key_record(unsigned kind,uint32_t argument){
 #define KEY_FIXTURE_BYTES 0x3000u
 static void key_statics_reserve(void){
  void *page=mmap((void*)(uintptr_t)KEY_FIXTURE_BASE,KEY_FIXTURE_BYTES,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);
- require(page==(void*)(uintptr_t)KEY_FIXTURE_BASE,"JUCE peer statics fixture pages at their exact image addresses");
+ require(page==(void*)(uintptr_t)KEY_FIXTURE_BASE,"JUCE peer statics fixture pages at their exact image addresses");fixture_peer_pages=page;
  require(KEY_STATICS_RVA+KEY_FOCUS_OFFSET<KEY_FIXTURE_BASE+KEY_FIXTURE_BYTES&&KEY_STATICS_RVA+KEY_DESKTOP_OFFSET<KEY_FIXTURE_BASE+KEY_FIXTURE_BYTES&&KEY_DOWN_BITMAP_RVA+(0xff54u>>3)<KEY_FIXTURE_BASE+KEY_FIXTURE_BYTES,"every borrowed static is inside those pages");
 }
 /* Component::getPeer is substituted on the component the lane actually hands it:
@@ -2062,7 +2071,7 @@ static void global_dispatch_fixture(unsigned op,uint32_t target,uint32_t functio
  if(command_toggle(op)){
   Context c=context();unsigned site;
   require(bits<=1,"native intent is boolean");toggle_calls++;
-  if(op==GLOBAL_RECORD_TOGGLE){require(target==toggle_recorder,"Record receiver differs from qualified RP owner");unsigned mode=bits?3:0;put(toggle_properties+0x528,mode);c.r[5]=toggle_properties+0x500;c.r[7]=mode;site=source_site_at(0x1c2ce9c);}
+  if(command_record(op)){require(target==toggle_recorder,"Record receiver differs from qualified RP owner");unsigned mode=bits?3:0;put(toggle_properties+0x528,mode);c.r[5]=toggle_properties+0x500;c.r[7]=mode;site=source_site_at(0x1c2ce9c);}
   else if(op==GLOBAL_CLICK_TOGGLE){require(target==toggle_click,"Click native receiver");*(unsigned char*)(uintptr_t)(target+0x34)=bits;c.r[5]=target+0xc;c.r[7]=bits;site=source_site_at(0xe29938);}
   else {require(target==word(ptr(project_object)+0xe4)+0x210,"Loop freshly uses current configured Sequence");*(unsigned char*)(uintptr_t)(target+0x28)=bits;c.r[5]=target;c.r[7]=bits;site=source_site_at(0xe29938);}
   if(toggle_fault!=1)call(&c,site);
@@ -2538,6 +2547,22 @@ static void general_checks(void){
   }
  }
  require(toggle_calls==18,"all mode/toggle pairs reached native facade once per press");
+ /* MMC Record Strobe is desired-on on this same owner. Queue before an
+  * external change, then repeat against already-on state; never toggle off. */
+ for(unsigned initial_value=0;initial_value<5;initial_value++){
+  MIRROR_COPY(out);require(copy_mirror(fixture,&out),"Record-on copied owner identities");MirrorInput in={.commands=command_state};MirrorBank bank;bank_init(&bank);bank_apply(&bank,&out,tick);
+  input_global_add(&in,&out,GLOBAL_RECORD_ENABLE,0,tick);input_global_add(&in,&out,GLOBAL_RECORD_ENABLE,0,tick);
+  put(toggle_properties+0x528,initial_value);unsigned calls_before=toggle_calls;
+  for(unsigned press=0;press<2;press++){
+   atomic_store(&fixture->heartbeat,tick);input_pump(&in,&bank,&out,tick);require(!in.error&&in.submitted==press+1,"Record-on queued request published");
+   c=context();c.r[0]=ptr(queue_object)+4;call(&c,COMMAND_DRAIN);command_retire();unsigned seq=atomic_load(&command_state->published),at=command_find(command_state,seq);
+   require(at<COMMAND_SLOTS&&atomic_load(&command_state->slots[at].done)==seq,"Record-on configured result completed");
+   unsigned actual=word(toggle_properties+0x528);require(actual==1||actual==3,"Record Strobe stays enabled after fresh external state and duplicate");
+   require(toggle_calls==calls_before+((initial_value==1||initial_value==3)?0u:1u),"already-recording and duplicate Strobe do not invoke native setter again");
+   atomic_store(&fixture->heartbeat,++tick);require(copy_mirror(fixture,&out),"Record-on source readback");input_drain(&in,&bank,&out,tick);require(!in.error&&in.settled==press+1,"real consumer settles Record-on configured/no-op receipt");command_retire();require(command_idle(command_state),"Record-on receipt reclaimed");
+  }
+ }
+ puts("PASS MMC Record Strobe desired-on through real native owner drain and consumer: queued external state, every record mode, duplicates and already-on no-op; existing Record toggles preserved, native facade substituted");
  /* Missing current Sequence refuses before native entry and releases its slot. */
  put(ptr(project_object)+0xe4,0);MIRROR_COPY(absent);require(copy_mirror(fixture,&absent),"absent Sequence snapshot");
  CommandRequest absent_request={.epoch=epoch,.expires=120000,.reserved=GLOBAL_LOOP_TOGGLE,.project_owner=absent.project_owner,.global_owner=absent.project_owner};
@@ -2587,7 +2612,7 @@ static void send_destination_checks(void){
 static void bus_membership_checks(void){
  MirrorState *saved=fixture;CommandState *csaved=command_state;
  fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"bus fixture state");
- void *tables=mmap((void*)0x6931000,8192,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);require(tables!=MAP_FAILED,"bus method fixture pages");
+ void *tables=mmap((void*)0x6931000,8192,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);require(tables==(void*)0x6931000,"bus method fixture pages at exact address");
  const uint32_t types[]={0x6931f70,0x6932150,0x6931bb0,0x6931d90};
  for(unsigned subtype=0;subtype<4;subtype++)for(unsigned trial=0;trial<6;trial++){
   unsigned category=subtype<3?subtype:2;
@@ -2861,7 +2886,7 @@ static void io_program_bind_checks(uint32_t key,uint32_t p,unsigned audio){
 static float io_audio_output_seed_fixture(void *p,unsigned kind,unsigned parameter){(void)p;require(kind==0x101&&parameter==325,"Audio Out source getter ABI");return 1.0f;}
 static unsigned io_audio_output_base_fixture(void *p){(void)p;return 1;}
 static void io_audio_checks(void){
- require(mmap((void*)0x692f000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)!=MAP_FAILED,"AudioProgram method fixture page");put(0x692ff3c,0x1375c68);
+ require(mmap((void*)0x692f000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)==(void*)0x692f000,"AudioProgram method fixture page at exact address");put(0x692ff3c,0x1375c68);
  MirrorState *saved=fixture;CommandState *saved_command=command_state;fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"Audio I/O fixture state");
  unsigned char *objects=calloc(1,0x2400);require(objects!=NULL,"Audio I/O rooted connector fixtures");
  uint32_t outer=ptr(objects),pc=outer+0x100,ac=pc+0x12ec,mapper=outer+0x2000;
@@ -3110,7 +3135,11 @@ static void type_source_checks(void){
 #ifdef NATIVE_WHEEL_PROBE
 #include "native-wheel-probe-test.inc"
 #endif
+#include "step-production-test.inc"
+#include "clip-production-test.inc"
 int main(int argc,char **argv){
+ if(argc==2&&!strcmp(argv[1],"--clip-owner")){alarm(30);clip_owner_checks();return 0;}
+ if(argc==2&&!strcmp(argv[1],"--step-owner")){alarm(30);step_owner_checks();return 0;}
 #ifdef NATIVE_WHEEL_PROBE
  if(argc==2&&!strcmp(argv[1],"--wheel-probe")){alarm(30);exercise_adjust=4096;replay_checks();native_wheel_probe_checks();return 0;}
 #endif
@@ -3120,7 +3149,7 @@ int main(int argc,char **argv){
  if(argc!=3)return 2;
  component_recording_dispatch=recording_fallback_fixture;
  alarm(30);retired_key_checks();manual_checks();exercise_adjust=4096;replay_checks();
- void *v=mmap((void*)0x6930000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED,-1,0);require(v!=(void*)-1,"fixture Drum vtable page");put(0x6930c28,0x250ba74);put(0x6930c78,0x1375c68);
+ void *v=mmap((void*)0x6930000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);require(v==(void*)0x6930000,"fixture Drum vtable page at exact address");put(0x6930c28,0x250ba74);put(0x6930c78,0x1375c68);
  key_statics_reserve();
  fixture=command_file(argv[1],sizeof(MirrorState));command_state=command_file(argv[2],sizeof(CommandState));require(fixture!=MAP_FAILED&&command_state!=MAP_FAILED,"exclusive actual shared output files");
  pointer_device_checks();wheel_data_checks();note_selection_checks();

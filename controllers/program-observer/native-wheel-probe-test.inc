@@ -45,7 +45,7 @@ static void native_wheel_probe_checks(void){
  require(atomic_load(&native_wheel_probe.closed)==NWP_CLOCK&&!atomic_load(&native_wheel_probe.published),"clock failure is explicit diagnostic closure");
  uint32_t slot_page=FOCUS_SLOT_RVA&~4095u;
  void *mapped=mmap((void*)(uintptr_t)slot_page,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);
- require(mapped!=MAP_FAILED,"native focus slot fixture");
+ require(mapped==(void*)(uintptr_t)slot_page,"native focus slot fixture at exact address");
  static uint32_t grid[28];controller[0]=wheel_focus_vtables[0];controller[WHEEL_FOCUSED_OFFSET/4]=ptr(grid);grid[0]=NOTE_GRID_VTABLE;grid[WHEEL_FLAGS_OFFSET/4]=2;put(FOCUS_SLOT_RVA,ptr(controller));
  c.r[0]=ptr(controller);command_owner=token();native_wheel_probe_initialize();native_wheel_probe_capture(&c);
  require(native_wheel_probe.events[0].flags==63&&native_wheel_probe.events[0].focused==ptr(grid),"owner-thread typed visible Grid qualification");

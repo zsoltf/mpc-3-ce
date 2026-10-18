@@ -17,6 +17,8 @@ typedef struct {
 } MpclearnGlobalLearnGroup;
 
 typedef struct {
+    MpcUiRect background;
+    MpcUiRect header;
     MpcUiRect title;
     MpcUiRect mapping_previous;
     MpcUiRect mapping;
@@ -25,9 +27,17 @@ typedef struct {
     MpcUiRect file_copy;
     MpcUiRect file_load;
     MpcUiRect file_export;
+    MpcUiRect groups_heading;
+    MpcUiRect targets_heading;
+    MpcUiRect detail_heading;
     MpcUiRect groups;
     MpcUiRect targets;
     MpcUiRect detail;
+    MpcUiRect target_heading;
+    MpcUiRect assignment_heading;
+    MpcUiRect editor_heading;
+    MpcUiRect empty_hint;
+    MpcUiRect empty_subhint;
     MpcUiRect edit_type;
     MpcUiRect edit_mode;
     MpcUiRect edit_channel_down;

@@ -3,9 +3,27 @@
 
 namespace {
 
+constexpr MpcUiLabelStyle kSurface = {
+    0xff17181bu, 0xff17181bu, 36};
+constexpr MpcUiLabelStyle kHeader = {
+    0xff202126u, 0xff202126u, 36};
+constexpr MpcUiLabelStyle kChromeText = {
+    0xff202126u, 0xffe1e2e5u, 36};
+constexpr MpcUiLabelStyle kSection = {
+    0xff303137u, 0xffd5d6d9u, 36};
+constexpr MpcUiLabelStyle kCard = {
+    0xff24252au, 0xff24252au, 36};
+constexpr MpcUiLabelStyle kCaption = {
+    0xff24252au, 0xffaeb0b7u, 33};
+constexpr MpcUiLabelStyle kValue = {
+    0xff303137u, 0xffffffffu, 36};
+constexpr MpcUiLabelStyle kHint = {
+    0xff24252au, 0xffe1e2e5u, 36};
 constexpr MpcUiButtonStyle kHeading = {
-    0xff202126u, 0xff202126u, 0xffffffffu};
-constexpr MpcUiButtonStyle kList = {
+    0xff303137u, 0xff303137u, 0xffffffffu};
+constexpr MpcUiButtonStyle kListInactive = {
+    0xff24252au, 0xff595a62u, 0xffffffffu};
+constexpr MpcUiButtonStyle kListFocused = {
     0xff24252au, 0xffd31145u, 0xffffffffu};
 constexpr MpcUiButtonStyle kAction = {
     0xff2f2f34u, 0xffd31145u, 0xffffffffu};
@@ -50,8 +68,20 @@ static void target_selected(void *owner, uint32_t row) {
 static int place(MpclearnGlobalLearnScreen *screen, MpcUiRect bounds) {
     MpclearnGlobalLearnLayout layout = {};
     if (!mpclearn_global_learn_layout(bounds, &layout)) return 0;
-    const MpcUiRect detail = layout.detail;
-    return mpc_ui_control_place(screen->title, layout.title) &&
+    return mpc_ui_control_place(screen->background, layout.background) &&
+           mpc_ui_control_place(screen->header, layout.header) &&
+           mpc_ui_control_place(screen->detail_background, layout.detail) &&
+           mpc_ui_control_place(screen->groups_heading, layout.groups_heading) &&
+           mpc_ui_control_place(screen->targets_heading, layout.targets_heading) &&
+           mpc_ui_control_place(screen->detail_heading, layout.detail_heading) &&
+           mpc_ui_control_place(screen->target_heading, layout.target_heading) &&
+           mpc_ui_control_place(screen->assignment_heading,
+                                layout.assignment_heading) &&
+           mpc_ui_control_place(screen->editor_heading, layout.editor_heading) &&
+           mpc_ui_control_place(screen->empty_hint, layout.empty_hint) &&
+           mpc_ui_control_place(screen->empty_subhint,
+                                layout.empty_subhint) &&
+           mpc_ui_control_place(screen->title, layout.title) &&
            mpc_ui_control_place(screen->mapping_previous,
                                 layout.mapping_previous) &&
            mpc_ui_control_place(screen->mapping, layout.mapping) &&
@@ -63,9 +93,9 @@ static int place(MpclearnGlobalLearnScreen *screen, MpcUiRect bounds) {
            mpc_ui_list_place(screen->groups, layout.groups) &&
            mpc_ui_list_place(screen->targets, layout.targets) &&
            mpc_ui_control_place(screen->selected_target,
-                                {detail.x, detail.y, detail.width, 48}) &&
+                                {728, 180, layout.detail.width - 32, 52}) &&
            mpc_ui_control_place(screen->assignment,
-                                {detail.x, detail.y + 56, detail.width, 48}) &&
+                                {728, 278, layout.detail.width - 32, 52}) &&
            mpc_ui_control_place(screen->edit_type, layout.edit_type) &&
            mpc_ui_control_place(screen->edit_mode, layout.edit_mode) &&
            mpc_ui_control_place(screen->edit_channel_down,
@@ -88,9 +118,20 @@ static int place(MpclearnGlobalLearnScreen *screen, MpcUiRect bounds) {
 }
 
 static int style(MpclearnGlobalLearnScreen *screen) {
-    return mpc_ui_button_style(screen->title, kHeading) &&
+    return mpc_ui_label_style(screen->background, kSurface) &&
+           mpc_ui_label_style(screen->header, kHeader) &&
+           mpc_ui_label_style(screen->detail_background, kCard) &&
+           mpc_ui_label_style(screen->groups_heading, kSection) &&
+           mpc_ui_label_style(screen->targets_heading, kSection) &&
+           mpc_ui_label_style(screen->detail_heading, kSection) &&
+           mpc_ui_label_style(screen->target_heading, kCaption) &&
+           mpc_ui_label_style(screen->assignment_heading, kCaption) &&
+           mpc_ui_label_style(screen->editor_heading, kCaption) &&
+           mpc_ui_label_style(screen->empty_hint, kHint) &&
+           mpc_ui_label_style(screen->empty_subhint, kHint) &&
+           mpc_ui_label_style(screen->title, kChromeText) &&
            mpc_ui_button_style(screen->mapping_previous, kAction) &&
-           mpc_ui_button_style(screen->mapping, kHeading) &&
+           mpc_ui_label_style(screen->mapping, kValue) &&
            mpc_ui_button_style(screen->mapping_next, kAction) &&
            mpc_ui_button_style(screen->file_new, kAction) &&
            mpc_ui_button_style(screen->file_copy, kAction) &&
@@ -106,11 +147,11 @@ static int style(MpclearnGlobalLearnScreen *screen) {
            mpc_ui_button_style(screen->edit_data, kHeading) &&
            mpc_ui_button_style(screen->edit_data_up, kAction) &&
            mpc_ui_button_style(screen->edit_apply, kAction) &&
-           mpc_ui_list_style(screen->groups, kList) &&
-           mpc_ui_list_style(screen->targets, kList) &&
-           mpc_ui_button_style(screen->selected_target, kHeading) &&
-           mpc_ui_button_style(screen->assignment, kHeading) &&
-           mpc_ui_button_style(screen->status, kHeading) &&
+           mpc_ui_list_style(screen->groups, kListInactive) &&
+           mpc_ui_list_style(screen->targets, kListInactive) &&
+           mpc_ui_label_style(screen->selected_target, kValue) &&
+           mpc_ui_label_style(screen->assignment, kValue) &&
+           mpc_ui_label_style(screen->status, kChromeText) &&
            mpc_ui_button_style(screen->clear_assignment, kCancel) &&
            mpc_ui_button_style(screen->learn, kAction) &&
            mpc_ui_button_style(screen->cancel, kCancel) &&
@@ -129,13 +170,23 @@ extern "C" int mpclearn_global_learn_screen_open(
     view->callback_owner = callback_owner;
     view->screen = mpc_ui_screen_create(context, parent, bounds);
     if (!view->screen) return 0;
-    view->title = mpc_ui_button_create(
-        view->screen, "GLOBAL MIDI LEARN", 0, nullptr, nullptr);
+    view->background = mpc_ui_label_create(view->screen, " ");
+    view->header = mpc_ui_label_create(view->screen, " ");
+    view->detail_background = mpc_ui_label_create(view->screen, " ");
+    view->groups_heading = mpc_ui_label_create(view->screen, "FUNCTION GROUPS");
+    view->targets_heading = mpc_ui_label_create(view->screen, "TARGETS");
+    view->detail_heading = mpc_ui_label_create(view->screen, "MIDI ASSIGNMENT");
+    view->target_heading = mpc_ui_label_create(view->screen, "SELECTED TARGET");
+    view->assignment_heading = mpc_ui_label_create(view->screen, "CURRENT INPUT");
+    view->editor_heading = mpc_ui_label_create(view->screen, "EDIT ASSIGNMENT");
+    view->empty_hint = mpc_ui_label_create(view->screen, "CHOOSE A TARGET");
+    view->empty_subhint = mpc_ui_label_create(
+        view->screen, "Select a target to view or learn its MIDI input.");
+    view->title = mpc_ui_label_create(view->screen, "GLOBAL MIDI LEARN");
     view->mapping_previous = mpc_ui_button_create(
         view->screen, "<", MPCLEARN_GLOBAL_LEARN_PREVIOUS_FILE,
         callback, callback_owner);
-    view->mapping = mpc_ui_button_create(
-        view->screen, "CURRENT MAPPING", 0, nullptr, nullptr);
+    view->mapping = mpc_ui_label_create(view->screen, "CURRENT MAPPING");
     view->mapping_next = mpc_ui_button_create(
         view->screen, ">", MPCLEARN_GLOBAL_LEARN_NEXT_FILE,
         callback, callback_owner);
@@ -184,12 +235,12 @@ extern "C" int mpclearn_global_learn_screen_open(
         52, group_text, group_selected, view);
     view->targets = mpc_ui_list_create(
         view->screen, "TARGETS", 0, 52, target_text, target_selected, view);
-    view->selected_target = mpc_ui_button_create(
-        view->screen, "SELECT A TARGET", 0, nullptr, nullptr);
-    view->assignment = mpc_ui_button_create(
-        view->screen, "ASSIGNMENT: UNASSIGNED", 0, nullptr, nullptr);
-    view->status = mpc_ui_button_create(
-        view->screen, "SELECT A TARGET TO LEARN", 0, nullptr, nullptr);
+    view->selected_target = mpc_ui_label_create(
+        view->screen, "SELECT A TARGET");
+    view->assignment = mpc_ui_label_create(
+        view->screen, "ASSIGNMENT: UNASSIGNED");
+    view->status = mpc_ui_label_create(
+        view->screen, "SELECT A TARGET TO LEARN");
     view->clear_assignment = mpc_ui_button_create(
         view->screen, "CLEAR ASSIGNMENT", MPCLEARN_GLOBAL_LEARN_CLEAR,
         callback, callback_owner);
@@ -202,7 +253,12 @@ extern "C" int mpclearn_global_learn_screen_open(
     view->back = mpc_ui_button_create(
         view->screen, "BACK", MPCLEARN_GLOBAL_LEARN_BACK,
         callback, callback_owner);
-    if (!view->title || !view->mapping_previous || !view->mapping ||
+    if (!view->background || !view->header || !view->detail_background ||
+        !view->groups_heading || !view->targets_heading ||
+        !view->detail_heading || !view->target_heading ||
+        !view->assignment_heading || !view->editor_heading ||
+        !view->empty_hint || !view->empty_subhint ||
+        !view->title || !view->mapping_previous || !view->mapping ||
         !view->mapping_next || !view->file_new ||
         !view->file_copy || !view->file_load || !view->file_export ||
         !view->edit_type || !view->edit_mode ||
@@ -236,6 +292,8 @@ extern "C" int mpclearn_global_learn_screen_open(
         !mpc_ui_control_visible(view->edit_apply, 0) ||
         !mpc_ui_control_visible(view->mapping_previous, 0) ||
         !mpc_ui_control_visible(view->mapping_next, 0) ||
+        !mpc_ui_control_visible(view->empty_hint, 1) ||
+        !mpc_ui_control_visible(view->empty_subhint, 1) ||
         !mpc_ui_screen_show(view->screen)) {
         (void)mpclearn_global_learn_screen_close(view);
         return 0;
@@ -247,6 +305,7 @@ extern "C" int mpclearn_global_learn_screen_update(
     MpclearnGlobalLearnScreen *screen, const MpclearnGlobalLearnView *view) {
     if (!screen || !screen->screen || !view ||
         view->selected_group >= MPCLEARN_GLOBAL_LEARN_GROUP_COUNT ||
+        view->focused_list > MPCLEARN_GLOBAL_LEARN_FOCUS_TARGETS ||
         view->target_count > MPCLEARN_GLOBAL_LEARN_MAX_GROUP_TARGETS ||
         (view->selected_target_row != MPCLEARN_GLOBAL_LEARN_NO_SELECTION &&
          view->selected_target_row >= view->target_count) ||
@@ -255,16 +314,43 @@ extern "C" int mpclearn_global_learn_screen_update(
         !view->edit_type_text || !view->edit_channel_text ||
         !view->edit_data_text || !view->edit_mode_text ||
         !view->edit_reverse_text) return 0;
+    if (screen->focused_list != view->focused_list) {
+        if (!mpc_ui_list_style(screen->groups,
+                               view->focused_list == MPCLEARN_GLOBAL_LEARN_FOCUS_GROUPS
+                                   ? kListFocused : kListInactive) ||
+            !mpc_ui_list_style(screen->targets,
+                               view->focused_list == MPCLEARN_GLOBAL_LEARN_FOCUS_TARGETS
+                                   ? kListFocused : kListInactive)) return 0;
+        screen->focused_list = view->focused_list;
+    }
     for (uint32_t row = 0; row < view->target_count; ++row)
         if (!copy_text(screen->target_text[row],
                        MPCLEARN_GLOBAL_LEARN_TEXT_MAX,
                        view->target_text[row])) return 0;
     screen->target_count = view->target_count;
-    if (!mpc_ui_button_text(screen->selected_target,
+    const int has_selection =
+        view->selected_target_row != MPCLEARN_GLOBAL_LEARN_NO_SELECTION;
+    const char *hint = !has_selection ? "CHOOSE A TARGET"
+        : view->learning ? "MOVE A MIDI CONTROL"
+        : !view->can_edit ? "COPY TO EDIT"
+        : nullptr;
+    const char *subhint = !has_selection
+        ? "Select a target to view or learn its MIDI input."
+        : view->learning ? "Turn a knob, move a fader, or press a button."
+        : !view->can_edit ? "Make a user copy to change this assignment."
+        : nullptr;
+    if (!mpc_ui_label_text(screen->selected_target,
                             view->selected_target_text) ||
-        !mpc_ui_button_text(screen->mapping, view->mapping_text) ||
-        !mpc_ui_button_text(screen->assignment, view->assignment_text) ||
-        !mpc_ui_button_text(screen->status, view->status_text) ||
+        !mpc_ui_label_text(screen->mapping, view->mapping_text) ||
+        !mpc_ui_label_text(screen->assignment, view->assignment_text) ||
+        !mpc_ui_label_text(screen->status, view->status_text) ||
+        (hint && !mpc_ui_label_text(screen->empty_hint, hint)) ||
+        (subhint && !mpc_ui_label_text(screen->empty_subhint, subhint)) ||
+        !mpc_ui_control_visible(screen->empty_hint, hint != nullptr) ||
+        !mpc_ui_control_visible(screen->empty_subhint, subhint != nullptr) ||
+        !mpc_ui_control_visible(screen->editor_heading,
+                                has_selection && view->can_edit &&
+                                !view->learning) ||
         !mpc_ui_button_text(screen->edit_type, view->edit_type_text) ||
         !mpc_ui_button_text(screen->edit_channel, view->edit_channel_text) ||
         !mpc_ui_button_text(screen->edit_data, view->edit_data_text) ||

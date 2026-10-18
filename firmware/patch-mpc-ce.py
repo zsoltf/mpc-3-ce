@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create the exact MPC 3.9.1 CE v0.2.6 executable from the pristine ELF."""
+"""Create the exact MPC 3.9.1 CE executable with the Az01 EHCI CPU policy from the pristine ELF."""
 import hashlib
 import json
 import os
@@ -10,9 +10,7 @@ SPEC = json.loads((pathlib.Path(__file__).with_name("mpc-ce.json")).read_text())
 EXPECTED_INPUT = SPEC["input_sha256"]
 EXPECTED_OUTPUT = SPEC["output_sha256"]
 EXPECTED_SIZE = SPEC["size"]
-OFFSET = SPEC["offset"]
-BEFORE = bytes.fromhex(SPEC["before_hex"])
-AFTER = bytes.fromhex(SPEC["after_hex"])
+SLOTS = SPEC["slots"]
 
 
 def digest(data):
@@ -28,13 +26,23 @@ def main():
     raw = source.read_bytes()
     if len(raw) != EXPECTED_SIZE or digest(raw) != EXPECTED_INPUT:
         raise SystemExit("wrong pristine MPC executable")
-    if len(BEFORE) != len(AFTER) or raw[OFFSET:OFFSET + len(BEFORE)] != BEFORE:
-        raise SystemExit("CE label slot changed")
-    if raw.count(BEFORE) != 1:
-        raise SystemExit("CE label slot is not unique")
-    patched = raw[:OFFSET] + AFTER + raw[OFFSET + len(BEFORE):]
+    patched = bytearray(raw)
+    allowed = []
+    end = 0
+    for slot in SLOTS:
+        offset = slot["offset"]
+        before = bytes.fromhex(slot["before_hex"])
+        after = bytes.fromhex(slot["after_hex"])
+        if not before or len(before) != len(after) or not end <= offset <= len(raw) - len(before):
+            raise SystemExit("invalid or overlapping MPC slot: " + slot["name"])
+        if raw[offset:offset + len(before)] != before:
+            raise SystemExit("MPC slot changed: " + slot["name"])
+        if slot["unique"] and raw.count(before) != 1:
+            raise SystemExit("MPC slot is not unique: " + slot["name"])
+        patched[offset:offset + len(after)] = after
+        allowed.extend(offset + i for i, (a, b) in enumerate(zip(before, after)) if a != b)
+        end = offset + len(before)
     differences = [i for i, (a, b) in enumerate(zip(raw, patched)) if a != b]
-    allowed = [OFFSET + i for i, (a, b) in enumerate(zip(BEFORE, AFTER)) if a != b]
     if differences != allowed or len(patched) != len(raw):
         raise SystemExit("unexpected executable delta")
     if digest(patched) != EXPECTED_OUTPUT:
@@ -44,7 +52,7 @@ def main():
     temporary.write_bytes(patched)
     os.chmod(temporary, source.stat().st_mode & 0o777)
     temporary.replace(output)
-    print(f"PASS: {len(differences)} bytes changed only in 0x{OFFSET:08x}..0x{OFFSET + len(BEFORE):08x}")
+    print(f"PASS: {len(differences)} bytes changed only in the {len(SLOTS)} admitted MPC slots")
     print(digest(patched))
 
 

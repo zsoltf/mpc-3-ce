@@ -130,7 +130,27 @@ struct GlobalHost {
 struct PreferencesInstance {
  void *overlay,*tab,*tab_vtable;TabActive original_active;
  MpcUiContext *context;MpcUiParent *parent;MpcUiScreen *screen;
- MpcUiControl *buttons[3],*marker;uint32_t completed_sequence;
+ MpcUiControl *add,*edit,*toggle,*remove,*refresh,*apply,*cancel,*policy[2];
+ MpcUiControl *status_label,*editor_title,*input_label,*output_label,*from_detail,*to_detail,*empty_label;
+ MpcUiList *controllers,*profiles,*inputs,*outputs;
+ uint32_t completed_sequence,inventory_generation,endpoint_count,controller_generation,controller_count,selected_controller;
+ uint32_t controller_admission_revision,controller_lifetime,action_layout,toggle_text_state,selection_style_state;
+ uint32_t editing,editing_index,editing_generation,draft_profile,draft_policy,draft_enabled,draft_input,draft_output,missing_ports;
+ uint32_t input_count,output_count,input_rows[NATIVE_PREFERENCES_ENDPOINTS],output_rows[NATIVE_PREFERENCES_ENDPOINTS];
+ NativePreferencesEndpoint endpoint_rows[NATIVE_PREFERENCES_ENDPOINTS];
+ NativePreferencesController controller_rows[16];
+ /* Presentation strings never replace saved endpoint identities. */
+ char endpoint_text[NATIVE_PREFERENCES_ENDPOINTS][96],endpoint_detail[NATIVE_PREFERENCES_ENDPOINTS][32];
+ char controller_text[16][64],controller_detail[16][64],connection_text[2][192],status_text[192],editor_text[96];
+ uint32_t presentation_depth;
+};
+/* Native content/visibility changes can notify another list while its own
+ * toolkit update guard is inactive. Draft intent belongs only to user events
+ * outside the entire Controllers presentation transaction. */
+struct ControllerPresentation {
+ PreferencesInstance &instance;
+ explicit ControllerPresentation(PreferencesInstance &owner):instance(owner){instance.presentation_depth++;}
+ ~ControllerPresentation(){instance.presentation_depth--;}
 };
 struct GlobalMappingSnapshot {
  int32_t type,control,channel;unsigned char data1,reverse,valid,pad;
@@ -152,6 +172,7 @@ struct LauncherInstance {
  GlobalMappingSnapshot row_mapping[MPCLEARN_GLOBAL_LEARN_MAX_GROUP_TARGETS];
  void *selected_file;uint32_t row_count,assigned_rows,poll_divider,poll_row;
  uint32_t focus_depth,resume_requested,learn_state,learn_intent,learn_waits;
+ uint32_t wheel_list;
  uint32_t file_action,file_count,file_index;
  void *native_common_files[8],*unsaved_files[8];uint32_t native_common_count,unsaved_count;
  GlobalMappingSnapshot draft_mapping;void *draft_file;uint32_t draft_target,draft_dirty;
@@ -246,26 +267,199 @@ static void record_launcher_phase(bool layout,void *overlay,void *page) {
  }
 }
 
-static void controller_intent(void *owner,uint32_t profile) noexcept {
- auto *instance=(PreferencesInstance*)owner;
- if(!state||!instance||!instance->tab||profile<NATIVE_CONTROLLER_XTOUCH||profile>NATIVE_CONTROLLER_GENERIC){failure(NP_BAD_CONTEXT);return;}
- increment(&state->clicks);
- __atomic_store_n(&state->request_profile,profile,__ATOMIC_RELAXED);
- __atomic_store_n(&state->status,NATIVE_PREFERENCES_PENDING,__ATOMIC_RELAXED);
- __atomic_add_fetch(&state->request_sequence,1u,__ATOMIC_RELEASE);
- (void)syscall(240,&state->request_sequence,1,0x7fffffff);
+static void controller_copy(char *out,size_t bytes,const unsigned char *text,size_t limit) {
+ if(!out||!bytes)return;size_t n=0;if(text)while(n+1<bytes&&n<limit&&text[n]){out[n]=(char)text[n];n++;}out[n]=0;
 }
-static void refresh_selection(PreferencesInstance *found) noexcept {
- if(!found||!found->screen)return;
- uint32_t status=state?__atomic_load_n(&state->status,__ATOMIC_ACQUIRE):NATIVE_PREFERENCES_IDLE;
- uint32_t saved=state?__atomic_load_n(&state->saved_profile,__ATOMIC_ACQUIRE):0;
- uint32_t selected=state?__atomic_load_n(&state->active_profile,__ATOMIC_ACQUIRE):0;
- if(status>NATIVE_PREFERENCES_RESTART_FAILED||saved>NATIVE_CONTROLLER_GENERIC||selected>NATIVE_CONTROLLER_GENERIC)selected=0;
- for(unsigned i=0;i<3;i++)if(found->buttons[i]&&!mpc_ui_button_selected(found->buttons[i],selected==i+1)){failure(NP_UNEXPECTED_EXCEPTION);return;}
- if(found->marker){
-  MpcUiRect marker={340,36+(int)(selected?selected-1:0)*72,160,56};
-  if(!mpc_ui_control_place(found->marker,marker)||!mpc_ui_control_visible(found->marker,selected!=0))failure(NP_UNEXPECTED_EXCEPTION);
+static void controller_append(char *out,size_t bytes,const char *text) {
+ if(!out||!bytes||!text)return;size_t used=0;while(used+1<bytes&&out[used])used++;
+ for(size_t n=0;used+1<bytes&&text[n];n++)out[used++]=text[n];out[used]=0;
+}
+static void controller_append_number(char *out,size_t bytes,uint32_t value) {
+ char digits[11]={};unsigned n=0;do{digits[n++]=(char)('0'+value%10);value/=10;}while(value&&n<10);
+ while(n){char digit[2]={digits[--n],0};controller_append(out,bytes,digit);}
+}
+static const char *controller_profile_name(uint32_t profile){
+ static const char *const names[]={"","X-Touch","X-Touch Mini","Generic MCU","Generic HUI","Launch Control XL 3","Launchpad X","Launchpad Pro Mk3","MPK Mini Mk3","LPD8 Mk2","MPK249"};return profile<=NATIVE_CONTROLLER_PROFILE_COUNT?names[profile]:"Unknown controller";
+}
+static const char *controller_profile_mode(uint32_t profile){
+ return profile==NATIVE_CONTROLLER_LCXL3?"DAW mode":profile==NATIVE_CONTROLLER_LPX||profile==NATIVE_CONTROLLER_LPP3?"Programmer mode":profile>=NATIVE_CONTROLLER_MPK_MINI3?"CE program":profile==NATIVE_CONTROLLER_HUI?"HUI protocol":"MCU protocol";
+}
+static const char *controller_status_name(uint32_t status){
+ static const char *const names[]={"Not connected","Disabled","Ready","Input port unavailable","Output port unavailable","Disconnected","Connected","Waiting for controller mode","Controller mode changed","Bridge not running"};return status<=NATIVE_CONTROLLER_NO_BRIDGE?names[status]:"Unknown state";
+}
+static size_t controller_port_length(const unsigned char *port,size_t limit){size_t n=0;while(n<limit&&n<64&&port[n])n++;return n;}
+static void controller_append_port(char *out,size_t bytes,const unsigned char *port,size_t length,size_t budget){
+ if(!length){controller_append(out,bytes,"Not selected");return;}char compact[65]={};
+ if(length<=budget)controller_copy(compact,sizeof(compact),port,length);
+ else {size_t head=(budget-3+1)/2,tail=budget-3-head;memcpy(compact,port,head);memcpy(compact+head,"...",3);memcpy(compact+head+3,port+length-tail,tail);}
+ controller_append(out,bytes,compact);
+}
+static void controller_endpoint_text(char *out,size_t bytes,const NativePreferencesEndpoint &endpoint){
+ size_t n=controller_port_length(endpoint.port,sizeof(endpoint.port));out[0]=0;
+ if(n<=24)controller_copy(out,bytes,endpoint.port,n);
+ else {controller_copy(out,bytes,endpoint.port,18);controller_append(out,bytes,"...\n...");char tail[19]={};memcpy(tail,endpoint.port+n-18,18);controller_append(out,bytes,tail);}
+}
+static void controller_endpoint_detail(char *out,size_t bytes,const NativePreferencesEndpoint &endpoint){
+ out[0]=0;controller_append(out,bytes,endpoint.endpoint_type==NATIVE_ENDPOINT_KERNEL?"USB ":"App ");controller_append_number(out,bytes,endpoint.client_number);controller_append(out,bytes,":");controller_append_number(out,bytes,endpoint.port_number);
+}
+static void controller_record_text(char *out,size_t bytes,const NativePreferencesController &record){controller_copy(out,bytes,(const unsigned char*)controller_profile_name(record.profile),63);}
+static void controller_connection_text(char *out,size_t bytes,const NativePreferencesController &record,bool output){
+ out[0]=0;controller_append(out,bytes,output?"To: ":"From: ");
+ const unsigned char *client=output?record.output_client:record.input_client,*port=output?record.output_port:record.input_port;
+ size_t cn=output?record.output_client_length:record.input_client_length,pn=output?record.output_port_length:record.input_port_length;
+ controller_append_port(out,bytes,port,controller_port_length(port,pn),64);
+ controller_append(out,bytes,(output?record.output_type:record.input_type)==NATIVE_ENDPOINT_KERNEL?"\nUSB / ":"\nApp / ");controller_append_port(out,bytes,client,controller_port_length(client,cn),64);
+}
+static bool endpoint_matches(const NativePreferencesEndpoint &row,uint32_t type,const unsigned char *client,uint32_t client_length,const unsigned char *port,uint32_t port_length){
+ size_t cn=0,pn=0;while(cn<NATIVE_PREFERENCES_ENDPOINT_NAME_MAX&&row.client[cn])cn++;while(pn<NATIVE_PREFERENCES_ENDPOINT_NAME_MAX&&row.port[pn])pn++;
+ return row.endpoint_type==type&&cn==client_length&&pn==port_length&&!memcmp(row.client,client,cn)&&!memcmp(row.port,port,pn);
+}
+static uint32_t endpoint_list_selection(uint32_t endpoint,const uint32_t *rows,uint32_t count){
+ if(endpoint==NATIVE_ENDPOINT_UNCHANGED)return MPC_UI_NO_SELECTION;for(uint32_t row=0;row<count;row++)if(rows[row]==endpoint)return row;return MPC_UI_NO_SELECTION;
+}
+static bool refresh_controller_state(PreferencesInstance &instance) noexcept {
+ if(!state)return false;NativePreferencesEndpoint endpoints[NATIVE_PREFERENCES_ENDPOINTS]={};NativePreferencesController controllers[16]={};uint32_t endpoint_count=0,inventory_generation=0,controller_count=0,controller_generation=0;
+ bool inventory=false,collection=false;for(unsigned attempt=0;attempt<4&&!inventory;attempt++){uint32_t before=__atomic_load_n(&state->inventory_revision,__ATOMIC_ACQUIRE);if(before&1)continue;endpoint_count=state->inventory_count;inventory_generation=state->inventory_generation;if(endpoint_count>NATIVE_PREFERENCES_ENDPOINTS)return false;if(endpoint_count)memcpy(endpoints,state->endpoints,endpoint_count*sizeof(endpoints[0]));uint32_t after=__atomic_load_n(&state->inventory_revision,__ATOMIC_ACQUIRE);inventory=before==after&&!(after&1);}
+ for(unsigned attempt=0;attempt<4&&!collection;attempt++){uint32_t before=__atomic_load_n(&state->collection_revision,__ATOMIC_ACQUIRE);if(before&1)continue;controller_count=state->collection_count;controller_generation=state->collection_generation;if(controller_count>16)return false;if(controller_count)memcpy(controllers,state->controllers,controller_count*sizeof(controllers[0]));uint32_t after=__atomic_load_n(&state->collection_revision,__ATOMIC_ACQUIRE);collection=before==after&&!(after&1);}
+ if(!inventory||!collection)return false;
+ instance.controller_admission_revision=__atomic_load_n(&state->admission.revision,__ATOMIC_ACQUIRE);
+ instance.controller_lifetime=__atomic_load_n(&state->controller_lifetime,__ATOMIC_ACQUIRE);
+ native_controller_project(state,controllers,controller_count,controller_generation);
+ if(instance.inventory_generation&&instance.inventory_generation!=inventory_generation){
+  uint32_t *drafts[]={&instance.draft_input,&instance.draft_output};
+  for(unsigned role=0;role<2;role++){uint32_t previous=*drafts[role];*drafts[role]=NATIVE_ENDPOINT_UNCHANGED;if(previous>=instance.endpoint_count)continue;
+   const NativePreferencesEndpoint &old=instance.endpoint_rows[previous];
+   for(uint32_t row=0;row<endpoint_count;row++)if(endpoints[row].endpoint_type==old.endpoint_type&&(endpoints[row].capabilities&(role?NATIVE_ENDPOINT_TO_CONTROLLER:NATIVE_ENDPOINT_FROM_CONTROLLER))&&!memcmp(endpoints[row].client,old.client,sizeof(old.client))&&!memcmp(endpoints[row].port,old.port,sizeof(old.port))){*drafts[role]=row;break;}
+  }
  }
+ memcpy(instance.endpoint_rows,endpoints,sizeof(endpoints));instance.endpoint_count=endpoint_count;instance.inventory_generation=inventory_generation;instance.input_count=instance.output_count=0;
+ for(uint32_t row=0;row<endpoint_count;row++){
+  controller_endpoint_text(instance.endpoint_text[row],sizeof(instance.endpoint_text[row]),endpoints[row]);
+  controller_endpoint_detail(instance.endpoint_detail[row],sizeof(instance.endpoint_detail[row]),endpoints[row]);
+  if(endpoints[row].capabilities&NATIVE_ENDPOINT_FROM_CONTROLLER)instance.input_rows[instance.input_count++]=row;
+  if(endpoints[row].capabilities&NATIVE_ENDPOINT_TO_CONTROLLER)instance.output_rows[instance.output_count++]=row;
+ }
+ memcpy(instance.controller_rows,controllers,sizeof(controllers));instance.controller_count=controller_count;instance.controller_generation=controller_generation;
+ if(instance.selected_controller>=controller_count)instance.selected_controller=MPC_UI_NO_SELECTION;
+ for(uint32_t row=0;row<controller_count;row++){
+  controller_record_text(instance.controller_text[row],sizeof(instance.controller_text[row]),controllers[row]);
+  controller_copy(instance.controller_detail[row],sizeof(instance.controller_detail[row]),(const unsigned char*)(controllers[row].enabled?controller_status_name(controllers[row].status):"Disabled"),63);
+ }
+ return true;
+}
+static const char *controller_row_text(void *owner,uint32_t row){auto *instance=(PreferencesInstance*)owner;return instance&&row<instance->controller_count?instance->controller_text[row]:"";}
+static const char *controller_profile_text(void *,uint32_t row){return row<NATIVE_CONTROLLER_PROFILE_COUNT?controller_profile_name(row+1):"";}
+static const char *controller_input_text(void *owner,uint32_t row){auto *instance=(PreferencesInstance*)owner;return instance&&row<instance->input_count?instance->endpoint_text[instance->input_rows[row]]:"";}
+static const char *controller_output_text(void *owner,uint32_t row){auto *instance=(PreferencesInstance*)owner;return instance&&row<instance->output_count?instance->endpoint_text[instance->output_rows[row]]:"";}
+static const char *controller_row_detail(void *owner,uint32_t row){auto *i=(PreferencesInstance*)owner;return i&&row<i->controller_count?i->controller_detail[row]:"";}
+static const char *controller_profile_detail(void *,uint32_t row){return controller_profile_mode(row+1);}
+static const char *controller_input_detail(void *owner,uint32_t row){auto *i=(PreferencesInstance*)owner;return i&&row<i->input_count?i->endpoint_detail[i->input_rows[row]]:"";}
+static const char *controller_output_detail(void *owner,uint32_t row){auto *i=(PreferencesInstance*)owner;return i&&row<i->output_count?i->endpoint_detail[i->output_rows[row]]:"";}
+static void refresh_selection(PreferencesInstance *found) noexcept;
+static void controller_selected(void *owner,uint32_t row){auto *instance=(PreferencesInstance*)owner;if(!instance||instance->presentation_depth||instance->editing||row>=instance->controller_count)return;instance->selected_controller=row;refresh_selection(instance);}
+static void refresh_selection(PreferencesInstance *found) noexcept;
+static void controller_profile_selected(void *owner,uint32_t row){auto *instance=(PreferencesInstance*)owner;if(!instance||instance->presentation_depth||!instance->editing||row>=NATIVE_CONTROLLER_PROFILE_COUNT)return;
+ if(instance->draft_profile!=row+1&&row+1>=NATIVE_CONTROLLER_GENERIC)instance->draft_input=instance->draft_output=NATIVE_ENDPOINT_UNCHANGED;
+ instance->draft_profile=row+1;if(instance->draft_profile==NATIVE_CONTROLLER_HUI&&!instance->draft_policy)instance->draft_policy=NATIVE_HUI_PICKUP;else if(instance->draft_profile!=NATIVE_CONTROLLER_HUI)instance->draft_policy=0;refresh_selection(instance);}
+static void controller_input_selected(void *owner,uint32_t row){auto *instance=(PreferencesInstance*)owner;if(!instance||instance->presentation_depth||!instance->editing||row>=instance->input_count)return;instance->draft_input=instance->input_rows[row];ControllerPresentation presenting(*instance);(void)mpc_ui_list_update(instance->inputs,instance->input_count,row);}
+static void controller_output_selected(void *owner,uint32_t row){auto *instance=(PreferencesInstance*)owner;if(!instance||instance->presentation_depth||!instance->editing||row>=instance->output_count)return;instance->draft_output=instance->output_rows[row];ControllerPresentation presenting(*instance);(void)mpc_ui_list_update(instance->outputs,instance->output_count,row);}
+static void refresh_selection(PreferencesInstance *found) noexcept;
+static void publish_controller_request(PreferencesInstance &instance,uint32_t kind,uint32_t index,uint32_t enabled){
+ if(!state||__atomic_load_n(&state->request_sequence,__ATOMIC_ACQUIRE)!=__atomic_load_n(&state->completed_sequence,__ATOMIC_ACQUIRE))return;
+ __atomic_store_n(&state->request_collection_generation,kind==NATIVE_REQUEST_APPLY?instance.editing_generation:instance.controller_generation,__ATOMIC_RELAXED);
+ if(!state)return;increment(&state->clicks);__atomic_store_n(&state->request_kind,kind,__ATOMIC_RELAXED);__atomic_store_n(&state->request_controller_index,index,__ATOMIC_RELAXED);__atomic_store_n(&state->request_enabled,enabled,__ATOMIC_RELAXED);
+ __atomic_store_n(&state->request_profile,instance.draft_profile,__ATOMIC_RELAXED);__atomic_store_n(&state->request_hui_policy,instance.draft_policy,__ATOMIC_RELAXED);
+ uint32_t input_type=instance.draft_input<instance.endpoint_count?instance.endpoint_rows[instance.draft_input].endpoint_type:0,output_type=instance.draft_output<instance.endpoint_count?instance.endpoint_rows[instance.draft_output].endpoint_type:0;
+ __atomic_store_n(&state->request_input_inventory_generation,instance.inventory_generation,__ATOMIC_RELAXED);__atomic_store_n(&state->request_input_endpoint_index,instance.draft_input,__ATOMIC_RELAXED);__atomic_store_n(&state->request_input_endpoint_type,input_type,__ATOMIC_RELAXED);
+ __atomic_store_n(&state->request_output_inventory_generation,instance.inventory_generation,__ATOMIC_RELAXED);__atomic_store_n(&state->request_output_endpoint_index,instance.draft_output,__ATOMIC_RELAXED);__atomic_store_n(&state->request_output_endpoint_type,output_type,__ATOMIC_RELAXED);
+ __atomic_store_n(&state->request_inventory_generation,instance.inventory_generation,__ATOMIC_RELAXED);__atomic_store_n(&state->request_endpoint_index,instance.draft_input,__ATOMIC_RELAXED);__atomic_store_n(&state->request_endpoint_type,input_type,__ATOMIC_RELAXED);
+ __atomic_store_n(&state->status,NATIVE_PREFERENCES_PENDING,__ATOMIC_RELAXED);__atomic_add_fetch(&state->request_sequence,1u,__ATOMIC_RELEASE);(void)syscall(240,&state->request_sequence,1,0x7fffffff);
+}
+static void begin_controller_edit(PreferencesInstance &instance,uint32_t index){
+ instance.editing=1;instance.editing_index=index;instance.editing_generation=instance.controller_generation;instance.draft_input=instance.draft_output=NATIVE_ENDPOINT_UNCHANGED;instance.draft_enabled=1;instance.draft_profile=NATIVE_CONTROLLER_XTOUCH;instance.draft_policy=0;instance.missing_ports=0;
+ if(index<instance.controller_count){const NativePreferencesController &row=instance.controller_rows[index];instance.draft_enabled=row.enabled;instance.draft_profile=row.profile;instance.draft_policy=row.hui_policy;
+  for(uint32_t n=0;n<instance.endpoint_count;n++){if(endpoint_matches(instance.endpoint_rows[n],row.input_type,row.input_client,row.input_client_length,row.input_port,row.input_port_length))instance.draft_input=n;if(endpoint_matches(instance.endpoint_rows[n],row.output_type,row.output_client,row.output_client_length,row.output_port,row.output_port_length))instance.draft_output=n;}
+ }
+}
+static void controller_intent(void *owner,uint32_t intent) noexcept {
+ auto *instance=(PreferencesInstance*)owner;if(!state||!instance||!instance->tab){failure(NP_BAD_CONTEXT);return;}
+ if(instance->presentation_depth)return;
+ if(__atomic_load_n(&state->request_sequence,__ATOMIC_ACQUIRE)!=__atomic_load_n(&state->completed_sequence,__ATOMIC_ACQUIRE))return;
+ if(intent==1){if(instance->controller_count>=16)return;begin_controller_edit(*instance,NATIVE_CONTROLLER_NEW);}
+ else if(intent==2){if(instance->selected_controller>=instance->controller_count)return;begin_controller_edit(*instance,instance->selected_controller);}
+ else if(intent==3){if(instance->selected_controller>=instance->controller_count)return;publish_controller_request(*instance,NATIVE_REQUEST_TOGGLE,instance->selected_controller,!instance->controller_rows[instance->selected_controller].enabled);}
+ else if(intent==4){if(instance->selected_controller>=instance->controller_count)return;publish_controller_request(*instance,NATIVE_REQUEST_REMOVE,instance->selected_controller,0);
+  /* Completion may beat the next rendered frame. Never retarget a second
+   * Remove to the row shifted into this slot; require a new row selection. */
+  instance->selected_controller=MPC_UI_NO_SELECTION;
+ }
+ else if(intent==5)publish_controller_request(*instance,NATIVE_REQUEST_REFRESH,NATIVE_CONTROLLER_NEW,0);
+ else if(intent==6){if(!instance->editing)return;
+  bool needs_ports=instance->draft_profile>=NATIVE_CONTROLLER_GENERIC&&
+   (instance->editing_index>=instance->controller_count||instance->controller_rows[instance->editing_index].profile!=instance->draft_profile);
+  instance->missing_ports=needs_ports&&(instance->draft_input>=instance->endpoint_count||instance->draft_output>=instance->endpoint_count||
+   !(instance->endpoint_rows[instance->draft_input].capabilities&NATIVE_ENDPOINT_FROM_CONTROLLER)||!(instance->endpoint_rows[instance->draft_output].capabilities&NATIVE_ENDPOINT_TO_CONTROLLER));
+  if(!instance->missing_ports)publish_controller_request(*instance,NATIVE_REQUEST_APPLY,instance->editing_index,instance->draft_enabled);
+ }
+ else if(intent==7)instance->editing=0;
+ else if(intent==8||intent==9){instance->draft_policy=intent==8?NATIVE_HUI_MOTORIZED:NATIVE_HUI_PICKUP;}
+ else {failure(NP_BAD_CONTEXT);return;}refresh_selection(instance);
+}
+static bool controller_visible(MpcUiControl *control,int visible){return !control||mpc_ui_control_visible(control,visible);}
+static void refresh_selection(PreferencesInstance *found) noexcept {
+ if(!found||!found->screen)return;uint32_t status=state?__atomic_load_n(&state->status,__ATOMIC_ACQUIRE):NATIVE_PREFERENCES_IDLE,completed=state?__atomic_load_n(&state->completed_sequence,__ATOMIC_ACQUIRE):0;
+ ControllerPresentation presenting(*found);
+ if(completed!=found->completed_sequence){found->completed_sequence=completed;if(status==NATIVE_PREFERENCES_ACTIVE)found->editing=0;}
+ if(!refresh_controller_state(*found)){failure(NP_UNEXPECTED_EXCEPTION);return;}int editor=found->editing!=0;
+ int hui=editor&&found->draft_profile==NATIVE_CONTROLLER_HUI;
+ unsigned action_layout=!editor?1u:hui?2u:3u;
+ if(found->action_layout!=action_layout){
+  if(!mpc_ui_control_place(found->apply,hui?MpcUiRect{356,488,156,52}:MpcUiRect{24,488,288,52})||
+     !mpc_ui_control_place(found->cancel,hui?MpcUiRect{528,488,164,52}:MpcUiRect{328,488,288,52})||
+     !mpc_ui_control_place(found->refresh,editor&&!hui?MpcUiRect{632,488,292,52}:MpcUiRect{708,488,216,52})){failure(NP_UNEXPECTED_EXCEPTION);return;}
+  found->action_layout=action_layout;
+ }
+ if((found->controllers&&!mpc_ui_list_visible(found->controllers,!editor&&found->controller_count))||!controller_visible(found->add,!editor)||!controller_visible(found->edit,!editor)||!controller_visible(found->toggle,!editor)||!controller_visible(found->remove,!editor)||!controller_visible(found->from_detail,!editor&&found->controller_count)||!controller_visible(found->to_detail,!editor&&found->controller_count)||!controller_visible(found->empty_label,!editor&&!found->controller_count)||!controller_visible(found->refresh,1)||
+    (found->profiles&&!mpc_ui_list_visible(found->profiles,editor))||
+    (found->inputs&&!mpc_ui_list_visible(found->inputs,editor))||(found->outputs&&!mpc_ui_list_visible(found->outputs,editor))||!controller_visible(found->apply,editor)||!controller_visible(found->cancel,editor)||!controller_visible(found->editor_title,editor)||!controller_visible(found->input_label,editor)||!controller_visible(found->output_label,editor)){failure(NP_UNEXPECTED_EXCEPTION);return;}
+ for(unsigned i=0;i<2;i++)if(!controller_visible(found->policy[i],hui)||!mpc_ui_button_selected(found->policy[i],hui&&found->draft_policy==(i?NATIVE_HUI_PICKUP:NATIVE_HUI_MOTORIZED))){failure(NP_UNEXPECTED_EXCEPTION);return;}
+ if(editor){controller_copy(found->editor_text,sizeof(found->editor_text),(const unsigned char*)"Profile",7);if(!mpc_ui_label_text(found->editor_title,found->editor_text)){failure(NP_UNEXPECTED_EXCEPTION);return;}}
+ bool selected=found->selected_controller<found->controller_count;
+ unsigned selection_style=selected?2u:1u;
+ if(found->selection_style_state!=selection_style){
+  MpcUiButtonStyle style=selected?MpcUiButtonStyle{0xff2f2f34u,0xffd31145u,0xffffffffu}:MpcUiButtonStyle{0xff24252au,0xff24252au,0xff73757eu};
+  if(!mpc_ui_button_style(found->edit,style)||!mpc_ui_button_style(found->toggle,style)||!mpc_ui_button_style(found->remove,style)){failure(NP_UNEXPECTED_EXCEPTION);return;}
+  found->selection_style_state=selection_style;
+ }
+ if(!editor){
+  if(selected){const auto &record=found->controller_rows[found->selected_controller];for(unsigned role=0;role<2;role++)controller_connection_text(found->connection_text[role],sizeof(found->connection_text[role]),record,role!=0);}
+  else {controller_copy(found->connection_text[0],sizeof(found->connection_text[0]),(const unsigned char*)(found->controller_count?"Select a controller to see its connections.":"No controllers added yet."),100);controller_copy(found->connection_text[1],sizeof(found->connection_text[1]),(const unsigned char*)(found->controller_count?"Use Edit to change its profile or MIDI ports.":"Choose Add to connect a controller."),100);}
+  unsigned toggle_state=selected&&found->controller_rows[found->selected_controller].enabled?2u:1u;
+  if(found->toggle_text_state!=toggle_state){if(!mpc_ui_button_text(found->toggle,toggle_state==2?"Disable":"Enable")){failure(NP_UNEXPECTED_EXCEPTION);return;}found->toggle_text_state=toggle_state;}
+  if(!mpc_ui_label_text(found->from_detail,found->connection_text[0])||!mpc_ui_label_text(found->to_detail,found->connection_text[1])){failure(NP_UNEXPECTED_EXCEPTION);return;}
+ }
+ const char *message=editor?"Choose a profile and its input and output ports.":found->controller_count?"Select a controller, then edit, enable or remove it.":"Controllers use the MIDI ports you select for them.";
+ const char *instruction=editor?"Apply saves changes. Cancel leaves your setup unchanged.":"Refresh ports after connecting or disconnecting MIDI devices.";
+ if(status==NATIVE_PREFERENCES_PENDING||status==NATIVE_PREFERENCES_APPLYING)message="Applying controller changes...";
+ else if(status==NATIVE_PREFERENCES_UNAVAILABLE)message="A selected MIDI port is unavailable.";
+ else if(status==NATIVE_PREFERENCES_AMBIGUOUS)message="More than one MIDI port matches this connection.";
+ else if(status==NATIVE_PREFERENCES_INVALID)message="The controller setup could not be applied.";
+ else if(status==NATIVE_PREFERENCES_WRITE_FAILED)message="Controller settings could not be saved.";
+ else if(status==NATIVE_PREFERENCES_RESTART_FAILED)message="The controller bridge could not be restarted.";
+ else if(status==NATIVE_PREFERENCES_STALE)message="The MIDI port list changed. Choose the ports again.";
+ if(state&&state->inventory_status==NATIVE_PREFERENCES_INVALID)instruction="Too many MIDI ports, or a port name is too long.";
+ else if(editor&&found->missing_ports)message="Choose both From controller and To controller ports.";
+ else if(editor&&(found->draft_profile==NATIVE_CONTROLLER_LPX||found->draft_profile==NATIVE_CONTROLLER_LPP3))instruction="Turn off Track, Global and Control for this MIDI port.";
+ else if(editor&&found->draft_profile==NATIVE_CONTROLLER_MPK249)instruction="Turn Receive MMC off in MIDI/Sync. Use the CE program.";
+ else if(editor&&found->draft_profile>=NATIVE_CONTROLLER_MPK_MINI3)instruction="Load the CE program on the controller before applying.";
+ found->status_text[0]=0;controller_append(found->status_text,sizeof(found->status_text),message);controller_append(found->status_text,sizeof(found->status_text),"\n");controller_append(found->status_text,sizeof(found->status_text),instruction);
+ if(found->status_label&&!mpc_ui_label_text(found->status_label,found->status_text))failure(NP_UNEXPECTED_EXCEPTION);
+ /* Commit the requested selection after visibility work, while every native
+  * notification is still presentation-only rather than new draft intent. */
+ if((found->controllers&&!mpc_ui_list_update(found->controllers,found->controller_count,found->selected_controller))||
+    (found->profiles&&!mpc_ui_list_update(found->profiles,NATIVE_CONTROLLER_PROFILE_COUNT,found->draft_profile?found->draft_profile-1:MPC_UI_NO_SELECTION))||
+    (found->inputs&&!mpc_ui_list_update(found->inputs,found->input_count,endpoint_list_selection(found->draft_input,found->input_rows,found->input_count)))||
+    (found->outputs&&!mpc_ui_list_update(found->outputs,found->output_count,endpoint_list_selection(found->draft_output,found->output_rows,found->output_count))))failure(NP_UNEXPECTED_EXCEPTION);
 }
 
 extern "C" void native_preferences_tab_active(void *tab,int active) noexcept {
@@ -285,7 +479,7 @@ static bool close_preferences_ui(PreferencesInstance &instance) noexcept {
 extern "C" void native_preferences_tab_deleting_destructor(void *tab) noexcept {
  PreferencesInstance *found=tab_instance(tab);if(!found){failure(NP_BAD_CONTEXT);return;}
  PreferencesInstance instance=*found;bool closed=close_preferences_ui(*found);
- if(closed&&state)__atomic_add_fetch(&state->buttons_destroyed,4u,__ATOMIC_RELAXED);
+ if(closed&&state)__atomic_add_fetch(&state->buttons_destroyed,9u,__ATOMIC_RELAXED);
  *(void**)tab=(unsigned char*)preferences.tab_vtable+8;*found={};
  if(state){decrement(&state->live_tabs);increment(&state->tabs_destroyed);}
  try {preferences.tab_dtor(tab);}catch(...){failure(NP_TEARDOWN);}
@@ -355,7 +549,6 @@ static int insert_tab(Context *c) {
  void *tab=nullptr,*new_vector=nullptr,*tab_table=nullptr;uint32_t new_vector_bytes=0;bool tab_constructed=false;
  MpcUiContext *context=nullptr;MpcUiParent *parent=nullptr;MpcUiScreen *screen=nullptr;
  alignas(8) unsigned char label[24]={};PreferencesInstance *instance=nullptr;
- static const char *const names[3]={"X-TOUCH","X-TOUCH MINI","GENERIC MCU"};
  try {
   uint32_t overlay=c->r[11];
   if(!overlay||frame_word(c,0x68)!=overlay+0x160){failure(NP_BAD_CONTEXT);return 0;}
@@ -379,17 +572,29 @@ static int insert_tab(Context *c) {
   preferences.tab_remove(content,placeholder);
   context=create_toolkit_context();if(!context)throw NP_TOOLKIT_CONTEXT;
   parent=mpc_ui_private_component_parent(context,content);if(!parent)throw NP_PARENTING;
-  screen=mpc_ui_screen_create(context,parent,{0,0,1280,690});if(!screen)throw NP_CONSTRUCTION;
+  /* Stock Preferences: 1280 - (1280 * 0.25) sidebar - 12 gutter.
+   * The tab content fills that 948px parent; see docs/native-ui-guide.md. */
+  screen=mpc_ui_screen_create(context,parent,{0,0,948,690});if(!screen)throw NP_CONSTRUCTION;
   instance->overlay=(void*)(uintptr_t)overlay;instance->tab=tab;instance->context=context;instance->parent=parent;instance->screen=screen;
-  for(unsigned i=0;i<3;i++){
-   instance->buttons[i]=mpc_ui_button_create(screen,names[i],i+1,controller_intent,instance);
-   if(!instance->buttons[i]||!mpc_ui_button_style(instance->buttons[i],{0xff2f2f34u,0xffd31145u,0xffffffffu})||
-      !mpc_ui_control_place(instance->buttons[i],{36,36+(int)i*72,280,56}))throw NP_CONSTRUCTION;
-  }
-  instance->marker=mpc_ui_button_create(screen,"SELECTED",0,nullptr,nullptr);
-  if(!instance->marker||!mpc_ui_button_style(instance->marker,{0xffd31145u,0xffd31145u,0xffffffffu})||
-     !mpc_ui_control_place(instance->marker,{340,36,160,56})||!mpc_ui_control_visible(instance->marker,0)||
-     !mpc_ui_screen_show(screen))throw NP_CONSTRUCTION;
+  instance->controllers=mpc_ui_list_create(screen,"CONTROLLERS",0,72,controller_row_text,controller_selected,instance);
+  instance->profiles=mpc_ui_list_create(screen,"PROFILE",NATIVE_CONTROLLER_PROFILE_COUNT,64,controller_profile_text,controller_profile_selected,instance);
+  instance->inputs=mpc_ui_list_create(screen,"FROM CONTROLLER",0,96,controller_input_text,controller_input_selected,instance);
+  instance->outputs=mpc_ui_list_create(screen,"TO CONTROLLER",0,96,controller_output_text,controller_output_selected,instance);
+  instance->add=mpc_ui_button_create(screen,"Add",1,controller_intent,instance);instance->edit=mpc_ui_button_create(screen,"Edit",2,controller_intent,instance);
+  instance->toggle=mpc_ui_button_create(screen,"Enable",3,controller_intent,instance);instance->remove=mpc_ui_button_create(screen,"Remove",4,controller_intent,instance);instance->refresh=mpc_ui_button_create(screen,"Refresh ports",5,controller_intent,instance);
+  instance->apply=mpc_ui_button_create(screen,"Apply",6,controller_intent,instance);instance->cancel=mpc_ui_button_create(screen,"Cancel",7,controller_intent,instance);
+  instance->policy[0]=mpc_ui_button_create(screen,"Motorized",8,controller_intent,instance);instance->policy[1]=mpc_ui_button_create(screen,"Pickup",9,controller_intent,instance);
+  instance->empty_label=mpc_ui_label_create(screen,"No controllers yet\nChoose Add to connect your first controller.");
+  instance->from_detail=mpc_ui_label_create(screen,"No controller selected");instance->to_detail=mpc_ui_label_create(screen,"Choose Add to connect a controller");
+  instance->status_label=mpc_ui_label_create(screen,"Choose Add to connect a controller");instance->editor_title=mpc_ui_label_create(screen,"ADD CONTROLLER");instance->input_label=mpc_ui_label_create(screen,"From controller");instance->output_label=mpc_ui_label_create(screen,"To controller");
+  MpcUiButtonStyle list_style={0xff2f2f34u,0xffd31145u,0xffffffffu},button_style={0xff2f2f34u,0xffd31145u,0xffffffffu};MpcUiLabelStyle label_style={0xff202126u,0xffffffffu,1};
+  if(!instance->controllers||!instance->profiles||!instance->inputs||!instance->outputs||!instance->add||!instance->edit||!instance->toggle||!instance->remove||!instance->refresh||!instance->apply||!instance->cancel||!instance->policy[0]||!instance->policy[1]||!instance->empty_label||!instance->from_detail||!instance->to_detail||!instance->status_label||!instance->editor_title||!instance->input_label||!instance->output_label||
+     !mpc_ui_list_detail_rows(instance->controllers,controller_row_detail,1)||!mpc_ui_list_detail_rows(instance->profiles,controller_profile_detail,1)||!mpc_ui_list_detail_rows(instance->inputs,controller_input_detail,2)||!mpc_ui_list_detail_rows(instance->outputs,controller_output_detail,2)||
+     !mpc_ui_label_style(instance->empty_label,{0xff202126u,0xffffffffu,36})||!mpc_ui_control_place(instance->empty_label,{24,24,900,288})||!mpc_ui_label_style(instance->from_detail,label_style)||!mpc_ui_control_place(instance->from_detail,{24,324,900,68})||!mpc_ui_label_style(instance->to_detail,label_style)||!mpc_ui_control_place(instance->to_detail,{24,400,900,68})||
+     !mpc_ui_list_style(instance->controllers,list_style)||!mpc_ui_list_place(instance->controllers,{24,24,900,288})||!mpc_ui_list_style(instance->profiles,list_style)||!mpc_ui_list_place(instance->profiles,{24,78,268,394})||!mpc_ui_list_style(instance->inputs,list_style)||!mpc_ui_list_place(instance->inputs,{312,78,296,394})||!mpc_ui_list_style(instance->outputs,list_style)||!mpc_ui_list_place(instance->outputs,{628,78,296,394})||
+     !mpc_ui_button_style(instance->add,button_style)||!mpc_ui_control_place(instance->add,{24,488,159,52})||!mpc_ui_button_style(instance->edit,button_style)||!mpc_ui_control_place(instance->edit,{195,488,159,52})||!mpc_ui_button_style(instance->toggle,button_style)||!mpc_ui_control_place(instance->toggle,{366,488,159,52})||!mpc_ui_button_style(instance->remove,button_style)||!mpc_ui_control_place(instance->remove,{537,488,159,52})||!mpc_ui_button_style(instance->refresh,button_style)||!mpc_ui_control_place(instance->refresh,{708,488,216,52})||
+     !mpc_ui_button_style(instance->apply,button_style)||!mpc_ui_control_place(instance->apply,{356,488,156,52})||!mpc_ui_button_style(instance->cancel,button_style)||!mpc_ui_control_place(instance->cancel,{528,488,164,52})||!mpc_ui_button_style(instance->policy[0],button_style)||!mpc_ui_control_place(instance->policy[0],{24,488,174,52})||!mpc_ui_button_style(instance->policy[1],button_style)||!mpc_ui_control_place(instance->policy[1],{214,488,126,52})||
+     !mpc_ui_label_style(instance->status_label,label_style)||!mpc_ui_control_place(instance->status_label,{24,552,900,68})||!mpc_ui_label_style(instance->editor_title,label_style)||!mpc_ui_control_place(instance->editor_title,{24,16,268,48})||!mpc_ui_label_style(instance->input_label,label_style)||!mpc_ui_control_place(instance->input_label,{312,16,296,48})||!mpc_ui_label_style(instance->output_label,label_style)||!mpc_ui_control_place(instance->output_label,{628,16,296,48})||!mpc_ui_screen_show(screen))throw NP_CONSTRUCTION;
   tab_table=core.allocate(NATIVE_PREFERENCES_TAB_VTABLE_BYTES);if(!tab_table)throw NP_ALLOCATION;
   memcpy(tab_table,preferences.tab_vtable,NATIVE_PREFERENCES_TAB_VTABLE_BYTES);
   instance->original_active=((TabActive*)tab_table)[4];
@@ -397,6 +602,7 @@ static int insert_tab(Context *c) {
   ((void**)tab_table)[3]=(void*)(uintptr_t)&native_preferences_tab_deleting_destructor;
   *(void**)tab=(unsigned char*)tab_table+8;instance->tab_vtable=tab_table;
   instance->completed_sequence=state?__atomic_load_n(&state->completed_sequence,__ATOMIC_ACQUIRE):0;
+  instance->selected_controller=0;instance->draft_input=instance->draft_output=NATIVE_ENDPOINT_UNCHANGED;
   refresh_selection(instance);
   if(new_vector){
    uint32_t *next=(uint32_t*)new_vector;next[count]=(uint32_t)(uintptr_t)tab;
@@ -405,10 +611,9 @@ static int insert_tab(Context *c) {
   }else{*(uint32_t*)(uintptr_t)end=(uint32_t)(uintptr_t)tab;vector[1]=end+4;}
   set_frame_word(c,0x5c,index+1);
   if(state){
-   increment(&state->tabs_created);__atomic_add_fetch(&state->buttons_created,4u,__ATOMIC_RELAXED);increment(&state->live_tabs);
+   increment(&state->tabs_created);__atomic_add_fetch(&state->buttons_created,9u,__ATOMIC_RELAXED);increment(&state->live_tabs);
    state->last_overlay=overlay;state->last_tab=(uint32_t)(uintptr_t)tab;
-   for(unsigned i=0;i<3;i++)state->buttons[i]=(uint32_t)(uintptr_t)mpc_ui_private_control_host_object(instance->buttons[i]);
-   state->last_button=state->buttons[0];
+   state->buttons[0]=(uint32_t)(uintptr_t)mpc_ui_private_control_host_object(instance->add);state->buttons[1]=(uint32_t)(uintptr_t)mpc_ui_private_control_host_object(instance->edit);state->buttons[2]=(uint32_t)(uintptr_t)mpc_ui_private_control_host_object(instance->toggle);state->buttons[3]=(uint32_t)(uintptr_t)mpc_ui_private_control_host_object(instance->remove);state->last_button=state->buttons[0];
   }
   return 1;
  }catch(Failure why){failure(why);}catch(...){failure(NP_UNEXPECTED_EXCEPTION);}
@@ -893,6 +1098,7 @@ static int global_app_close(void *owner) noexcept {
  auto &instance=*(LauncherInstance*)owner;
  if(!instance.global_screen.screen)return 1;
  if(!mpclearn_global_learn_screen_close(&instance.global_screen)){failure(NP_TOOLKIT_LIFETIME);return false;}
+ instance.wheel_list=0;
  if(state){increment(&state->shells_destroyed);decrement(&state->live_shells);increment(&state->global_screens_destroyed);decrement(&state->live_global_screens);}return 1;
 }
 static int global_app_prepare_close(void *owner,int forced) noexcept {
@@ -972,6 +1178,7 @@ static bool refresh_global_screen(LauncherInstance &instance,bool rebuild_rows,b
  view.edit_type_text=instance.edit_type_text;view.edit_channel_text=instance.edit_channel_text;view.edit_data_text=instance.edit_data_text;
  view.edit_mode_text=instance.edit_mode_text;view.edit_reverse_text=instance.edit_reverse_text;
  view.target_count=rows;view.selected_group=instance.selected_group;view.selected_target_row=selected_row;
+ view.focused_list=instance.wheel_list;
  for(uint32_t row=0;row<rows;row++)view.target_text[row]=instance.row_text[row];
  bool learn_locked=instance.learn_state!=NATIVE_GLOBAL_LEARN_IDLE||instance.learn_intent!=LEARN_INTENT_NONE;
  view.can_learn=instance.selected_target<MPCLEARN_GLOBAL_LEARN_TARGET_COUNT||learn_locked;view.learning=learn_locked;
@@ -1134,22 +1341,28 @@ static bool update_global_draft(LauncherInstance &instance,uint32_t intent) noex
 }
 static void global_screen_intent(void *owner,uint32_t intent) noexcept {
  auto *instance=(LauncherInstance*)owner;if(!instance||!instance->global_screen.screen){failure(NP_GLOBAL_CONTEXT);return;}
+ /* Touch selection chooses which native list receives the next panel wheel
+  * event. Any non-list control releases that focus to avoid changing rows
+  * while the operator edits a field or works with a file. */
+ bool group_intent=intent>=MPCLEARN_GLOBAL_LEARN_GROUP_1&&intent<MPCLEARN_GLOBAL_LEARN_GROUP_1+MPCLEARN_GLOBAL_LEARN_GROUP_COUNT;
+ bool target_intent=intent>=MPCLEARN_GLOBAL_LEARN_TARGET_1&&intent<MPCLEARN_GLOBAL_LEARN_TARGET_1+MPCLEARN_GLOBAL_LEARN_MAX_GROUP_TARGETS;
+ if(!group_intent&&!target_intent)instance->wheel_list=0;
  bool learn_locked=instance->learn_state!=NATIVE_GLOBAL_LEARN_IDLE||instance->learn_intent!=LEARN_INTENT_NONE;
  bool interaction_locked=learn_locked||instance->file_action!=FILE_ACTION_NONE;
- if(intent>=MPCLEARN_GLOBAL_LEARN_GROUP_1&&intent<MPCLEARN_GLOBAL_LEARN_GROUP_1+MPCLEARN_GLOBAL_LEARN_GROUP_COUNT){
+ if(group_intent){
   if(interaction_locked){(void)refresh_global_screen(*instance,false,true);return;}
   uint32_t group_index=intent-MPCLEARN_GLOBAL_LEARN_GROUP_1;
   const MpclearnGlobalLearnGroup *group=mpclearn_global_learn_group(group_index);if(!group){failure(NP_TOOLKIT_NAVIGATION);return;}
   set_file_status(*instance,"");
-  instance->selected_group=group_index;instance->page_start=group->first_target;instance->selected_target=MPCLEARN_GLOBAL_LEARN_NO_SELECTION;
+  instance->selected_group=group_index;instance->page_start=group->first_target;instance->selected_target=MPCLEARN_GLOBAL_LEARN_NO_SELECTION;instance->wheel_list=MPCLEARN_GLOBAL_LEARN_FOCUS_GROUPS;
   if(state)increment(&state->global_page_clicks);(void)refresh_global_screen(*instance,true,true);return;
  }
- if(intent>=MPCLEARN_GLOBAL_LEARN_TARGET_1&&intent<MPCLEARN_GLOBAL_LEARN_TARGET_1+MPCLEARN_GLOBAL_LEARN_MAX_GROUP_TARGETS){
+ if(target_intent){
   if(interaction_locked){(void)refresh_global_screen(*instance,false,true);return;}
   uint32_t row=intent-MPCLEARN_GLOBAL_LEARN_TARGET_1;if(row>=instance->row_count){failure(NP_TOOLKIT_NAVIGATION);return;}
   uint32_t target=instance->page_start+row;if(target>=MPCLEARN_GLOBAL_LEARN_TARGET_COUNT){failure(NP_TOOLKIT_NAVIGATION);return;}
   set_file_status(*instance,"");
-  if(select_global_target(*instance,target)){if(state)increment(&state->global_row_clicks);(void)refresh_global_screen(*instance,false,true);}return;
+  if(select_global_target(*instance,target)){instance->wheel_list=MPCLEARN_GLOBAL_LEARN_FOCUS_TARGETS;if(state)increment(&state->global_row_clicks);(void)refresh_global_screen(*instance,false,true);}return;
  }
  if(intent==MPCLEARN_GLOBAL_LEARN_NEW){(void)run_global_file_action(*instance,FILE_ACTION_NEW);return;}
  if(intent==MPCLEARN_GLOBAL_LEARN_COPY){(void)run_global_file_action(*instance,FILE_ACTION_COPY);return;}
@@ -1193,7 +1406,7 @@ static int global_app_open(void *owner,MpcUiAppHost *host,MpcUiContext *context,
  if(instance.global_screen.screen||instance.app_host!=host||instance.context!=context||
     instance.navigation_parent!=parent||!global_ready()){failure(NP_GLOBAL_CONTEXT);return 0;}
  if(bounds.width<1280||bounds.width>2000||bounds.height<620||bounds.height>1200){failure(NP_LAUNCHER_CONTEXT);return 0;}
- instance.selected_group=0;instance.page_start=0;instance.selected_target=MPCLEARN_GLOBAL_LEARN_NO_SELECTION;
+ instance.selected_group=0;instance.page_start=0;instance.selected_target=MPCLEARN_GLOBAL_LEARN_NO_SELECTION;instance.wheel_list=0;
  instance.learn_state=NATIVE_GLOBAL_LEARN_IDLE;instance.learn_intent=LEARN_INTENT_NONE;instance.learn_waits=0;
  instance.file_action=FILE_ACTION_NONE;instance.selected_file=nullptr;set_file_status(instance,"");
  if(!mpclearn_global_learn_screen_open(&instance.global_screen,context,parent,bounds,global_screen_intent,&instance)||
@@ -1454,12 +1667,40 @@ extern "C" void native_launcher_overlay_deleting_destructor(void *overlay) noexc
 
 extern "C" void native_preferences_set_state(NativePreferencesState *mapped){state=mapped;}
 extern "C" void native_preferences_configure_host(uint32_t bias){configure_host(bias);}
+extern "C" int native_preferences_wheel(int steps) {
+ if(!state||!steps||steps < -128||steps > 127||!__atomic_load_n(&observer_running,__ATOMIC_ACQUIRE)||
+    !global_ready())return 0;
+ for(auto &instance:launcher_instances){
+  if(!instance.overlay||!instance.global_screen.screen||!instance.app_host||
+     !mpc_ui_app_is_open(instance.app_host)||
+     mpc_ui_private_app_host_is_suspended(instance.app_host))continue;
+  /* This visible app owns the panel event even while Learn or a file chooser
+   * temporarily locks selection, during deferred Back, or before the first
+   * list touch. It must not leak to a covered stock page. */
+  if(mpc_ui_app_is_closing(instance.app_host)||!instance.wheel_list||
+     instance.learn_state!=NATIVE_GLOBAL_LEARN_IDLE||
+     instance.learn_intent!=LEARN_INTENT_NONE||instance.file_action!=FILE_ACTION_NONE)return 1;
+  uint32_t count=instance.wheel_list==MPCLEARN_GLOBAL_LEARN_FOCUS_GROUPS?MPCLEARN_GLOBAL_LEARN_GROUP_COUNT:instance.row_count;
+  if(!count)return 1;
+  uint32_t row=instance.wheel_list==MPCLEARN_GLOBAL_LEARN_FOCUS_GROUPS?instance.selected_group:
+   instance.selected_target>=instance.page_start&&instance.selected_target<instance.page_start+count?
+   instance.selected_target-instance.page_start:MPCLEARN_GLOBAL_LEARN_NO_SELECTION;
+  if(row==MPCLEARN_GLOBAL_LEARN_NO_SELECTION||row>=count)return 1;
+  int next=(int)row+steps;
+  if(next<0)next=0;
+  if(next>=(int)count)next=(int)count-1;
+  if(next!=(int)row)global_screen_intent(&instance,
+   (instance.wheel_list==MPCLEARN_GLOBAL_LEARN_FOCUS_GROUPS?MPCLEARN_GLOBAL_LEARN_GROUP_1:MPCLEARN_GLOBAL_LEARN_TARGET_1)+(uint32_t)next);
+  return 1;
+ }
+ return 0;
+}
 extern "C" void native_preferences_refresh(void) {
  if(!state||!__atomic_load_n(&observer_running,__ATOMIC_ACQUIRE))return;
  process_global_pending();
  process_launcher_pending();
  uint32_t completed=__atomic_load_n(&state->completed_sequence,__ATOMIC_ACQUIRE);
- for(auto &instance:preferences_instances)if(instance.tab&&instance.completed_sequence!=completed){refresh_selection(&instance);instance.completed_sequence=completed;}
+ for(auto &instance:preferences_instances)if(instance.tab&&(instance.completed_sequence!=completed||instance.controller_generation!=__atomic_load_n(&state->collection_generation,__ATOMIC_ACQUIRE)||instance.controller_admission_revision!=__atomic_load_n(&state->admission.revision,__ATOMIC_ACQUIRE)||instance.controller_lifetime!=__atomic_load_n(&state->controller_lifetime,__ATOMIC_ACQUIRE))){refresh_selection(&instance);}
 }
 extern "C" void native_preferences_hook(void *saved,unsigned kind) {
  if(!saved||!__atomic_load_n(&observer_running,__ATOMIC_ACQUIRE))return;Context *context=(Context*)saved;

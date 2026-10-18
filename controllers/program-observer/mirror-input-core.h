@@ -2,6 +2,8 @@
 #ifndef MPC_MIRROR_INPUT_CORE_H
 #define MPC_MIRROR_INPUT_CORE_H
 #include "command-state.h"
+#include "step-request.h"
+#include "clip-request.h"
 #ifndef INPUT_STOPPED
 #define INPUT_STOPPED() 0
 #endif
@@ -12,10 +14,13 @@ typedef struct {
  MotorIdentity identity;
  uint32_t bits,expires,field_incarnation,effect[5];
  unsigned held,changed,pending,reported,scope; /* 0 fader, 1 selected subview, 2 navigation, 3 channel strip */
+ uint64_t order;
 } InputGesture;
 #define INPUT_EDGES 64u
 typedef struct {InputGesture desire;unsigned strip,field;} InputEdge;
 typedef struct {
+ void *origin;
+ MirrorBank *origin_bank;
  MotorIdentity target;
  uint32_t cursor[COMMAND_LANES],flight,strip,bits,expires,before_revision;
  uint32_t phase,lane,token,capture,counter,commit_revision,commit_tick,done_tick;
@@ -27,6 +32,7 @@ typedef struct {
  CommandEvent midi_events[5];unsigned midi_seen;
  uint32_t global_owner,global_epoch;
  CommandRequest qlink_request;CommandEvent qlink_events[3][4],qlink_value,mode_accept;unsigned qlink_seen[3],qlink_value_seen,mode_accept_seen,qlink_barriers[COMMAND_LANES],qlink_barriers_seen;
+ CommandRequest step_request;CommandEvent step_events[3];unsigned step_seen;
  CommandRequest io_request;CommandEvent io_events[10];unsigned io_seen;
  CommandRequest effect_request;CommandEvent effect_execution,effect_value;unsigned effect_seen;
 } InputFlight;
@@ -34,9 +40,11 @@ typedef struct {MotorIdentity identity;CommandRequest request;unsigned pending,r
 typedef struct {CommandRequest request;unsigned pending,relative,wait_tick,barriers[COMMAND_LANES];float shift,lower,upper;} InputQLink;
 typedef struct {uint32_t epoch,owner,incarnation,bits,expires;unsigned held,valid,reported,pending;int physical;} InputMaster;
 #define INPUT_JOG_EVENTS 64u
-typedef struct {uint32_t operation,bits,epoch,owner,field,expires;} InputGlobalEvent;
-typedef struct {int32_t delta;uint32_t operation,epoch,expires,origin;} InputJogEvent;
-typedef struct {
+typedef struct {uint32_t operation,bits,epoch,owner,field,expires;uint64_t order;} InputGlobalEvent;
+typedef struct {CommandRequest request;uint64_t order;} InputStepEvent;
+typedef struct {int32_t delta;uint32_t operation,epoch,expires,origin;uint64_t order;} InputJogEvent;
+struct InputCoordinator;
+typedef struct MirrorInput {
  CommandState *commands;
  InputMaster master;
  InputEffect effects[EFFECT_PAGE];
@@ -44,7 +52,15 @@ typedef struct {
  CommandRequest mode_request;int mode_delta;
  CommandRequest io_requests[IO_FIELDS];int io_delta[IO_FIELDS];
  InputGesture gestures[MIRROR_BANK],desires[MIRROR_BANK][CF_COUNT];
+ /* The bridge supplies the sole coordinator's storage. Standalone command
+  * clients retain their single-owner storage and existing receipt interface. */
+#ifdef MIRROR_INPUT
+ InputFlight *flights;
+#else
  InputFlight flights[COMMAND_SLOTS];
+#endif
+ MirrorBank *origin_bank;
+ struct InputCoordinator *coordinator;
  InputEdge edges[INPUT_EDGES];
  unsigned edge_head,edge_count;
  InputJogEvent jog_events[INPUT_JOG_EVENTS];unsigned jog_head,jog_count,jog_shift,jog_rewind,jog_forward,jog_repeat_tick,jog_epoch;
@@ -61,9 +77,62 @@ typedef struct {
   * one banked behind the first would fire into whatever the first selected.
   * Guarded by jog_epoch and cleared with the rest of the jog gesture. */
  unsigned wheel_press;
+ uint64_t wheel_order,press_order;
  InputGlobalEvent global_events[INPUT_JOG_EVENTS];unsigned global_head,global_count;
+ InputStepEvent step_events[INPUT_JOG_EVENTS];unsigned step_head,step_count;
  unsigned error,submitted,settled,refused,next_strip;
 } MirrorInput;
+typedef struct InputCoordinator {
+ InputFlight flights[COMMAND_SLOTS];
+ MirrorInput *origins[17]; /* sixteen surfaces plus the existing Stop relay */
+ unsigned count;
+ uint64_t order;
+ uint32_t jog_wait,jog_wait_owner,jog_wait_epoch,jog_wait_count;
+} InputCoordinator;
+static inline uint64_t input_order(MirrorInput *in){return in->coordinator?++in->coordinator->order:0;}
+static inline unsigned input_same_target(const MotorIdentity *a,const MotorIdentity *b,unsigned field){
+ if(a->epoch!=b->epoch)return 0;
+ if(field==CF_SELECTION)return 1;
+ if(a->pad_owner||b->pad_owner)return a->pad_owner&&b->pad_owner&&a->program_owner==b->program_owner&&a->pad_index==b->pad_index;
+ return field==CF_ARM||field==CF_MIDI_VOLUME?a->track_owner==b->track_owner:a->program_owner==b->program_owner;
+}
+/* Intent storage is attributed to its origin, but coalescing is target/field
+ * keyed across the whole command owner, including project-global Select. */
+static inline void input_coalesce(MirrorInput *in,InputGesture *g,unsigned field){
+ g->order=input_order(in);
+ if(!in->coordinator)return;
+ for(unsigned o=0;o<in->coordinator->count;o++)for(unsigned i=0;i<MIRROR_BANK;i++){
+  InputGesture *other=&in->coordinator->origins[o]->desires[i][field];
+  if(other!=g&&other->pending&&input_same_target(&other->identity,&g->identity,field))other->pending=0;
+ }
+}
+static inline uint32_t input_pending_bits(MirrorInput *in,const MotorIdentity *id,unsigned field,uint32_t fallback){
+ if(!in->coordinator)return fallback;
+ uint64_t order=0;
+ for(unsigned o=0;o<in->coordinator->count;o++){
+  const MirrorInput *peer=in->coordinator->origins[o];
+  for(unsigned i=0;i<MIRROR_BANK;i++){const InputGesture *g=&peer->desires[i][field];if(g->pending&&g->order>=order&&input_same_target(&g->identity,id,field)){fallback=g->bits;order=g->order;}}
+  for(unsigned i=0;i<peer->edge_count;i++){const InputEdge *e=&peer->edges[(peer->edge_head+i)%INPUT_EDGES];if(e->field==field&&e->desire.pending&&e->desire.order>=order&&input_same_target(&e->desire.identity,id,field)){fallback=e->desire.bits;order=e->desire.order;}}
+ }
+ return fallback;
+}
+static inline int input_order_admit(const MirrorInput *in,uint64_t order){
+ if(!in->coordinator||!order)return 1;
+ for(unsigned o=0;o<in->coordinator->count;o++){
+  const MirrorInput *peer=in->coordinator->origins[o];
+  if(peer->global_count&&peer->global_events[peer->global_head].order<order)return 0;
+  if(peer->step_count&&peer->step_events[peer->step_head].order<order)return 0;
+  if(peer->jog_count&&peer->jog_events[peer->jog_head].order<order)return 0;
+  if(peer->wheel_delta&&peer->wheel_order<order)return 0;
+  if(peer->wheel_press&&peer->press_order<order)return 0;
+  for(unsigned i=0;i<peer->edge_count;i++){const InputGesture *g=&peer->edges[(peer->edge_head+i)%INPUT_EDGES].desire;if(g->pending&&g->order<order)return 0;}
+ }
+ return 1;
+}
+static inline void input_flight_init(MirrorInput *in,InputFlight *flight){
+ memset(flight,0,sizeof(*flight));
+ if(in->origin_bank){flight->origin=in;flight->origin_bank=in->origin_bank;}
+}
 static inline void input_meter_interest(MirrorInput *in,const MirrorBank *bank,const CopiedMirror *s,uint32_t now,int connected){
  CommandState *c=in->commands;if(!c)return;MeterInterest *d=&c->meter_interest;
  uint32_t serial[METER_BANK]={0},track[METER_BANK]={0},program[METER_BANK]={0};unsigned n=0;
@@ -173,6 +242,7 @@ static inline void input_master_pitch(MirrorInput *in,const CopiedMirror *s,int 
   * one different from the latest source/motor target. It is a baseline only. */
  if(m->held&&!m->reported){m->reported=1;m->physical=position;return;}
  m->reported=1;m->physical=position;float value=position/16383.0f;memcpy(&m->bits,&value,4);m->expires=now+120000;m->pending=1;
+ if(in->coordinator)for(unsigned i=0;i<in->coordinator->count;i++)if(in->coordinator->origins[i]!=in)in->coordinator->origins[i]->master.pending=0;
 }
 static inline int input_master_blocked(const MirrorInput *in){
  if(in->master.held||in->master.pending)return 1;
@@ -189,7 +259,7 @@ static inline void input_jog_resync(MirrorInput *in,const CopiedMirror *s){
  if(in->jog_epoch==s->epoch)return;
  unsigned held_shift=in->jog_shift;input_jog_discard(in);in->jog_shift=held_shift;in->jog_epoch=s->epoch;
 }
-static inline void input_discard(MirrorInput *in){memset(in->io_delta,0,sizeof(in->io_delta));in->mode_delta=0;for(unsigned i=0;i<QLINK_SLOTS;i++)in->qlinks[i].pending=0;memset(in->effects,0,sizeof(in->effects));memset(in->gestures,0,sizeof(in->gestures));memset(in->desires,0,sizeof(in->desires));memset(in->edges,0,sizeof(in->edges));in->edge_head=in->edge_count=0;}
+static inline void input_discard(MirrorInput *in){in->step_head=in->step_count=0;memset(in->io_delta,0,sizeof(in->io_delta));in->mode_delta=0;for(unsigned i=0;i<QLINK_SLOTS;i++)in->qlinks[i].pending=0;memset(in->effects,0,sizeof(in->effects));memset(in->gestures,0,sizeof(in->gestures));memset(in->desires,0,sizeof(in->desires));memset(in->edges,0,sizeof(in->edges));in->edge_head=in->edge_count=0;}
 /* A strip-bank move changes fader/button bindings, not the selected Track
  * subview or a Channel navigation target. Assignment/view/disconnect still use
  * the full discard above. Published transactions are never discarded. */
@@ -241,7 +311,7 @@ static inline void input_pitch(MirrorInput *in,MirrorBank *bank,unsigned strip,i
  if(now>UINT32_MAX-120000){in->error=C_EXPIRED;return;}
  float value=(float)position/16383.0f;memcpy(&g->bits,&value,4);g->changed=1;g->expires=now+120000;
  unsigned field=bank_field(bank,strip);if(field>=CF_COUNT)return;
- InputGesture *d=&in->desires[strip][field];*d=*g;d->pending=1;d->field_incarnation=field?f->field_incarnation:0;
+ InputGesture *d=&in->desires[strip][field];*d=*g;d->pending=1;d->field_incarnation=field?f->field_incarnation:0;input_coalesce(in,d,field);
 }
 /* Buttons/encoders use copied MPC state and retain the complete current binding.
  * No local button toggle is published as musical state. */
@@ -251,26 +321,38 @@ static inline void input_control_bound(MirrorInput *in,const MirrorBank *bank,co
  MIRROR_FIELD(volume);const CopiedField *f=copied_field(s,t,command_source_field(field),&volume);
  if(!f||!f->available||((command_float(field)||field==CF_MUTE||field==CF_SOLO)&&!(field==CF_MIDI_VOLUME?midi_volume(t->vptr):mixable(t->vptr))))return;
  InputGesture *g=&in->desires[strip][field];if(memcmp(&g->identity,id,sizeof(*id)))memset(g,0,sizeof(*g));InputFlight *flight=input_existing(in,id,field);uint32_t bits;
- if(command_float(field)){float value;uint32_t prior=g->pending?g->bits:flight?flight->bits:f->bits;memcpy(&value,&prior,4);value=push?(field==CF_PAN?0.5f:field==CF_VOLUME&&bank->assignment==BA_SEND&&scope==3?0.707945764f:0.0f):value+(float)delta/127.0f;if(value<0)value=0;if(value>1)value=1;memcpy(&bits,&value,4);}
+ if(command_float(field)){float value;uint32_t prior=input_pending_bits(in,id,field,g->pending?g->bits:flight?flight->bits:f->bits);memcpy(&value,&prior,4);value=push?(field==CF_PAN?0.5f:field==CF_VOLUME&&bank->assignment==BA_SEND&&scope==3?0.707945764f:0.0f):value+(float)delta/127.0f;if(value<0)value=0;if(value>1)value=1;memcpy(&bits,&value,4);}
  else if(field==CF_SELECTION){
   /* Selection is project-global: only the latest accepted press remains
    * pending. A dispatched transaction keeps its separate settlement state. */
   for(unsigned i=0;i<MIRROR_BANK;i++)memset(&in->desires[i][CF_SELECTION],0,sizeof(in->desires[i][CF_SELECTION]));
   bits=1;
  }
- else{const CopiedField *ui=t->fields+field;if(!ui->available)return;uint32_t prior=flight?flight->bits:ui->bits;
-  for(unsigned i=0;i<in->edge_count;i++){InputEdge *e=in->edges+(in->edge_head+i)%INPUT_EDGES;if(e->desire.pending&&e->field==field&&e->desire.identity.pad_owner==id->pad_owner&&(field==CF_ARM?e->desire.identity.track_owner==id->track_owner:e->desire.identity.program_owner==id->program_owner))prior=e->desire.bits;}
+ else{const CopiedField *ui=t->fields+field;if(!ui->available)return;uint32_t prior=input_pending_bits(in,id,field,flight?flight->bits:ui->bits);
+  if(!in->coordinator)for(unsigned i=0;i<in->edge_count;i++){InputEdge *e=in->edges+(in->edge_head+i)%INPUT_EDGES;if(e->desire.pending&&e->field==field&&e->desire.identity.pad_owner==id->pad_owner&&(field==CF_ARM?e->desire.identity.track_owner==id->track_owner:e->desire.identity.program_owner==id->program_owner))prior=e->desire.bits;}
   if(in->edge_count==INPUT_EDGES){in->error=C_CAPACITY;return;}
   InputEdge *e=in->edges+(in->edge_head+in->edge_count++)%INPUT_EDGES;
-  *e=(InputEdge){.desire={.identity=*id,.bits=!prior,.expires=now+120000,.field_incarnation=f->incarnation,.pending=1},.strip=strip,.field=field};return;
+  *e=(InputEdge){.desire={.identity=*id,.bits=!prior,.expires=now+120000,.field_incarnation=f->incarnation,.pending=1},.strip=strip,.field=field};e->desire.order=input_order(in);return;
  }
- *g=(InputGesture){.identity=*id,.bits=bits,.expires=now+120000,.field_incarnation=f->incarnation,.pending=1,.scope=scope};
+ *g=(InputGesture){.identity=*id,.bits=bits,.expires=now+120000,.field_incarnation=f->incarnation,.pending=1,.scope=scope};input_coalesce(in,g,field);
+}
+/* Native absolute controls bind directly to the canonical field. Their wire
+ * resolution and pickup belong to the profile, not to the MCU fader model. */
+static inline void input_absolute_bound(MirrorInput *in,const MirrorBank *bank,const CopiedMirror *s,unsigned strip,unsigned field,unsigned position,uint32_t now){
+ if(strip>=MIRROR_BANK||position>127||!bank->ready||!command_float(field)||in->error||now>UINT32_MAX-120000)return;
+ const MotorIdentity *id=&bank->strips[strip];const CopiedTrack *t=input_track(s,id);
+ if(field==CF_VOLUME&&t&&midi_volume(t->vptr))field=CF_MIDI_VOLUME;
+ if(!t||(id->pad_owner&&!pad_controller(field))||!(field==CF_MIDI_VOLUME?midi_volume(t->vptr):mixable(t->vptr)))return;
+ MIRROR_FIELD(volume);const CopiedField *f=copied_field(s,t,command_source_field(field),&volume);if(!f||!f->available)return;
+ float value=(float)position/127.0f;uint32_t bits;memcpy(&bits,&value,4);
+ InputGesture *g=&in->desires[strip][field];*g=(InputGesture){.identity=*id,.bits=bits,.expires=now+120000,.field_incarnation=f->incarnation,.pending=1,.scope=3};input_coalesce(in,g,field);
 }
 /* Relative encoder intent is scoped to the copied visible processor page.
  * Push toggles only a native two-state parameter. */
 static inline float input_effect_clamp(float value,float low,float high){return value<low?low:value>high?high:value;}
 static inline int input_mode_busy(const MirrorInput *in){
  if(in->mode_delta)return 1;
+ if(in->coordinator)for(unsigned i=0;i<in->coordinator->count;i++)if(in->coordinator->origins[i]->mode_delta)return 1;
  for(unsigned i=0;i<COMMAND_SLOTS;i++)if(in->flights[i].flight&&command_qlink_mode(in->flights[i].field)&&!in->flights[i].acknowledged)return 1;
  return 0;
 }
@@ -291,7 +373,7 @@ static inline void input_mode_submit(MirrorInput *in,const MirrorBank *bank,cons
  unsigned at=command_free(in->commands);if(at>=COMMAND_SLOTS)return;
  r.seq=atomic_load(&in->commands->published)+1;r.pid=in->commands->pid;r.start_lo=in->commands->start_lo;r.start_hi=in->commands->start_hi;r.origin_sec=in->commands->origin_sec;r.origin_nsec=in->commands->origin_nsec;r.created=now;
  if(!command_publish_request_at(in->commands,&r,at))return;
- InputFlight *tx=in->flights+at;memset(tx,0,sizeof(*tx));tx->flight=r.seq;tx->field=r.reserved;tx->bits=r.bits;tx->expires=r.expires;tx->qlink_request=r;tx->field_incarnation=r.field_incarnation;in->mode_delta=0;in->submitted++;
+ InputFlight *tx=in->flights+at;input_flight_init(in,tx);tx->flight=r.seq;tx->field=r.reserved;tx->bits=r.bits;tx->expires=r.expires;tx->qlink_request=r;tx->field_incarnation=r.field_incarnation;in->mode_delta=0;in->submitted++;
  INPUT_LOG("QLINK_MODE_SUBMIT request=%u direction=%d controller=%u; UI owner resolves actual eligible mode\n",r.seq,(int32_t)r.bits,r.global_owner);
 }
 /* Routing choices remain relative until the native UI owner resolves the
@@ -321,7 +403,7 @@ static inline void input_io_submit(MirrorInput *in,const MirrorBank *bank,const 
   unsigned at=command_free(in->commands);if(at>=COMMAND_SLOTS)return;
   r.bits=(uint32_t)in->io_delta[field];r.before_bits=f->value;r.before_revision=f->revision;r.seq=atomic_load(&in->commands->published)+1;r.pid=in->commands->pid;r.start_lo=in->commands->start_lo;r.start_hi=in->commands->start_hi;r.origin_sec=in->commands->origin_sec;r.origin_nsec=in->commands->origin_nsec;r.created=now;
   if(!command_publish_request_at(in->commands,&r,at))continue;
-  InputFlight *tx=in->flights+at;memset(tx,0,sizeof(*tx));tx->flight=r.seq;tx->field=r.reserved;tx->bits=r.bits;tx->expires=r.expires;tx->io_request=r;tx->field_incarnation=r.field_incarnation;in->io_delta[field]=0;in->submitted++;
+  InputFlight *tx=in->flights+at;input_flight_init(in,tx);tx->flight=r.seq;tx->field=r.reserved;tx->bits=r.bits;tx->expires=r.expires;tx->io_request=r;tx->field_incarnation=r.field_incarnation;in->io_delta[field]=0;in->submitted++;
   INPUT_LOG("IO_SUBMIT request=%u field=%u direction=%d track=%u; native UI owner resolves current choice\n",r.seq,field,(int32_t)r.bits,r.serial);
  }
 }
@@ -339,11 +421,17 @@ static inline int input_qlink_wait(MirrorInput *in,const CopiedMirror *s,unsigne
  if(g->wait_tick&&p&&p->refresh_kind)for(unsigned lane=0;lane<COMMAND_LANES;lane++)if(p->refresh_matches[lane]>g->barriers[lane]){g->wait_tick=0;break;}
  return g->wait_tick!=0;
 }
-static inline void input_qlink_edit(MirrorInput *in,const MirrorBank *bank,const CopiedMirror *s,unsigned strip,int delta,int absolute,uint32_t now){
- if(strip>=8||bank->assignment!=BA_QLINK||!bank->ready||in->error||now>UINT32_MAX-120000||(!delta&&absolute<0))return;
+static inline int input_qlink_group_wait(MirrorInput *in,const CopiedMirror *s,unsigned index,uint32_t now){
+ if(!in->coordinator)return input_qlink_wait(in,s,index,now);
+ unsigned wait=0;for(unsigned i=0;i<in->coordinator->count;i++)wait|=input_qlink_wait(in->coordinator->origins[i],s,index,now);return wait!=0;
+}
+static inline void input_qlink_edit_index(MirrorInput *in,const MirrorBank *bank,const CopiedMirror *s,unsigned index,int delta,int absolute,uint32_t now){
+ if(index>=QLINK_SLOTS||(bank->qlink_page!=2&&index/8!=bank->qlink_page)||bank->assignment!=BA_QLINK||!bank->ready||in->error||now>UINT32_MAX-120000||(!delta&&absolute<0))return;
  if(input_mode_busy(in))return;
- unsigned index=bank->qlink_page*8+strip;const QLinkSlot *p=input_qlink_slot(s,index,now);if(!p)return;
- InputQLink *g=in->qlinks+index;unsigned compatible=input_qlink_same(&g->request,s,index),prior=p->bits;
+ const QLinkSlot *p=input_qlink_slot(s,index,now);if(!p)return;
+ InputQLink *g=in->qlinks+index;
+ if(in->coordinator)for(unsigned i=0;i<in->coordinator->count;i++){InputQLink *peer=in->coordinator->origins[i]->qlinks+index;if(peer!=g&&peer->pending&&input_qlink_same(&peer->request,s,index)){*g=*peer;peer->pending=0;}}
+ unsigned compatible=input_qlink_same(&g->request,s,index),prior=p->bits;
  if(!compatible)memset(g,0,sizeof(*g));
  if(compatible&&g->pending)prior=g->request.bits;
  else for(unsigned i=0;i<COMMAND_SLOTS;i++){const InputFlight *t=in->flights+i;if(t->flight&&!t->acknowledged&&command_qlink(t->field)&&input_qlink_same(&t->qlink_request,s,index))prior=t->bits;}
@@ -353,6 +441,9 @@ static inline void input_qlink_edit(MirrorInput *in,const MirrorBank *bank,const
  unsigned bits;memcpy(&bits,&value,4);const QLinkCopy *q=&s->qlinks;
  g->request=(CommandRequest){.epoch=s->epoch,.bits=bits,.expires=now+120000,.before_bits=p->bits,.before_revision=p->revision,.reserved=QLINK_VALUE,.project_owner=s->project_owner,.field_incarnation=q->generation,.qlink_root=q->root,.qlink_wrapper=q->wrapper,.qlink_provider=q->provider,.qlink_generation=q->generation,.qlink_index=index};g->pending=1;
 }
+static inline void input_qlink_edit(MirrorInput *in,const MirrorBank *bank,const CopiedMirror *s,unsigned strip,int delta,int absolute,uint32_t now){
+ if(strip<8&&bank->qlink_page<2)input_qlink_edit_index(in,bank,s,bank->qlink_page*8+strip,delta,absolute,now);
+}
 static inline void input_qlink_pitch(MirrorInput *in,MirrorBank *bank,const CopiedMirror *s,unsigned strip,int position,uint32_t now){
  InputGesture *g=in->gestures+strip;g->changed=0;input_pitch(in,bank,strip,position,now);if(g->changed)input_qlink_edit(in,bank,s,strip,0,position,now);
 }
@@ -360,19 +451,19 @@ static inline void input_qlink_submit(MirrorInput *in,const MirrorBank *bank,con
  if(input_mode_busy(in))return;
  for(unsigned index=0;index<QLINK_SLOTS;index++){
   InputQLink *g=in->qlinks+index;if(!g->pending)continue;
-  if(bank->assignment!=BA_QLINK||!bank->ready||index/8!=bank->qlink_page||!input_qlink_same(&g->request,s,index)||now>g->request.expires){g->pending=0;continue;}
+  if(bank->assignment!=BA_QLINK||!bank->ready||(bank->qlink_page!=2&&index/8!=bank->qlink_page)||!input_qlink_same(&g->request,s,index)||now>g->request.expires){g->pending=0;continue;}
   const QLinkSlot *p=input_qlink_slot(s,index,now);if(!p){g->pending=0;continue;}
   unsigned busy=0;for(unsigned i=0;i<COMMAND_SLOTS;i++)if(in->flights[i].flight&&command_qlink(in->flights[i].field)&&input_qlink_same(&in->flights[i].qlink_request,s,index))busy=1;
   if(busy)continue; /* Native admission checks current activity; a copied gesture byte is not an input delay. */
   /* Relative aftermath admission is completed with source refresh witnesses.
    * Callback/cache readback alone cannot clear this barrier. */
-  if(g->relative&&input_qlink_wait(in,s,index,now))continue;
+  if(g->relative&&input_qlink_group_wait(in,s,index,now))continue;
   CommandRequest r=g->request;
   if(g->relative){float actual;memcpy(&actual,&p->bits,4);float desired=input_effect_clamp(actual+g->shift,g->lower,g->upper);memcpy(&r.bits,&desired,4);}
   if(r.bits==p->bits&&!g->wait_tick){g->pending=0;continue;}
   CommandState *c=in->commands;unsigned at=command_free(c);if(at>=COMMAND_SLOTS||INPUT_STOPPED())return;
   r.seq=atomic_load(&c->published)+1;r.pid=c->pid;r.start_lo=c->start_lo;r.start_hi=c->start_hi;r.origin_sec=c->origin_sec;r.origin_nsec=c->origin_nsec;r.created=now;r.before_bits=p->bits;r.before_revision=p->revision;
-  InputFlight *tx=in->flights+at;memset(tx,0,sizeof(*tx));tx->flight=r.seq;tx->field=QLINK_VALUE;tx->strip=index%8;tx->bits=r.bits;tx->expires=r.expires;tx->qlink_request=r;tx->field_incarnation=r.qlink_generation;
+  InputFlight *tx=in->flights+at;input_flight_init(in,tx);tx->flight=r.seq;tx->field=QLINK_VALUE;tx->strip=index%8;tx->bits=r.bits;tx->expires=r.expires;tx->qlink_request=r;tx->field_incarnation=r.qlink_generation;
   if(!command_publish_request_at(c,&r,at)){memset(tx,0,sizeof(*tx));if(!atomic_load(&c->new_project_intent))in->error=C_CLOSED;return;}
   g->pending=0;in->submitted++;INPUT_LOG("QLINK_SUBMIT request=%u index=%u bits=%u generation=%u; native logical slot\n",r.seq,index,r.bits,r.qlink_generation);
  }
@@ -382,6 +473,7 @@ static inline void input_effect_edit(MirrorInput *in,const MirrorBank *bank,cons
  const EffectsCopy *e=&s->effects;const EffectParameter *p=e->parameters+strip;const EffectSlot *slot=e->slots+e->slot;
  if(p->status!=EF_READY||p->tick>now||now-p->tick>=EFFECT_FRESH_MS||slot->status!=EF_READY||p->index>=slot->count||(push==1&&p->steps!=2)||(push==2&&!p->default_valid))return;
  InputEffect *g=in->effects+strip;unsigned prior=p->bits;
+ if(in->coordinator)for(unsigned o=0;o<in->coordinator->count;o++)for(unsigned i=0;i<EFFECT_PAGE;i++){InputEffect *peer=in->coordinator->origins[o]->effects+i;if(peer!=g&&peer->pending&&peer->request.reserved==EFFECT_PARAMETER&&peer->request.effect_generation==e->generation&&peer->request.effect_slot==e->slot&&peer->request.effect_index==p->index&&peer->request.serial==e->serial){*g=*peer;peer->pending=0;}}
  unsigned compatible=g->pending&&g->request.reserved==EFFECT_PARAMETER&&g->request.effect_generation==e->generation&&g->request.effect_slot==e->slot&&g->request.effect_index==p->index&&g->request.serial==e->serial;
  if(compatible)prior=g->request.bits;
  else for(unsigned i=0;i<COMMAND_SLOTS;i++){InputFlight *f=in->flights+i;if(f->flight&&!f->acknowledged&&f->field==EFFECT_PARAMETER&&f->effect_request.effect_generation==e->generation&&f->effect_request.serial==e->serial&&f->effect_request.effect_slot==e->slot&&f->effect_request.effect_index==p->index)prior=f->bits;}
@@ -409,6 +501,7 @@ static inline void input_effect_enable(MirrorInput *in,const MirrorBank *bank,co
  const EffectsCopy *e=&s->effects;const EffectSlot *slot=e->slots+strip;
  if(slot->status!=EF_READY||!slot->key||!slot->ap||!slot->enable_valid||slot->enable_tick>now||now-slot->enable_tick>=EFFECT_FRESH_MS)return;
  InputEffect *g=in->effects+strip;uint32_t prior=slot->enable_bits;
+ if(in->coordinator)for(unsigned o=0;o<in->coordinator->count;o++)for(unsigned i=0;i<EFFECT_PAGE;i++){InputEffect *peer=in->coordinator->origins[o]->effects+i;if(peer!=g&&peer->pending&&peer->request.reserved==EFFECT_ENABLE&&peer->request.effect_generation==e->generation&&peer->request.effect_slot==strip&&peer->request.serial==e->serial){*g=*peer;peer->pending=0;}}
  if(g->pending&&g->request.reserved==EFFECT_ENABLE&&g->request.effect_generation==e->generation&&g->request.effect_slot==strip&&g->request.serial==e->serial)prior=g->request.bits;
  else for(unsigned i=0;i<COMMAND_SLOTS;i++){const InputFlight *f=in->flights+i;if(f->flight&&!f->acknowledged&&f->field==EFFECT_ENABLE&&f->effect_request.effect_generation==e->generation&&f->effect_request.effect_slot==strip&&f->effect_request.serial==e->serial)prior=f->bits;}
  g->identity=bank->selected;g->relative=0;g->request=(CommandRequest){.epoch=s->epoch,.serial=e->serial,.binding=bank->selected.binding,.incarnation=bank->selected.incarnation,.bits=prior?0:0x3f800000u,.expires=now+120000,.before_bits=slot->enable_bits,.before_revision=slot->enable_revision,.reserved=EFFECT_ENABLE,.track_owner=e->track_owner,.program_owner=e->program_owner,.field_incarnation=e->generation,.project_owner=s->project_owner,.effect_generation=e->generation,.effect_slot=strip,.effect_key=slot->key,.effect_ap=slot->ap};g->pending=1;
@@ -437,7 +530,7 @@ static inline void input_effect_submit(MirrorInput *in,const MirrorBank *bank,co
   if(!chooser&&r.bits==before){g->pending=0;continue;}
   CommandState *c=in->commands;unsigned at=command_free(c);if(at>=COMMAND_SLOTS||INPUT_STOPPED())return;
   r.seq=atomic_load(&c->published)+1;r.pid=c->pid;r.start_lo=c->start_lo;r.start_hi=c->start_hi;r.origin_sec=c->origin_sec;r.origin_nsec=c->origin_nsec;r.created=now;r.before_bits=before;r.before_revision=revision;
-  InputFlight *tx=in->flights+at;memset(tx,0,sizeof(*tx));tx->flight=r.seq;tx->field=r.reserved;tx->target=g->identity;tx->strip=strip;tx->bits=r.bits;tx->expires=r.expires;tx->effect_request=r;tx->field_incarnation=r.field_incarnation;
+  InputFlight *tx=in->flights+at;input_flight_init(in,tx);tx->flight=r.seq;tx->field=r.reserved;tx->target=g->identity;tx->strip=strip;tx->bits=r.bits;tx->expires=r.expires;tx->effect_request=r;tx->field_incarnation=r.field_incarnation;
   if(!command_publish_request_at(c,&r,at)){memset(tx,0,sizeof(*tx));if(!atomic_load(&c->new_project_intent))in->error=C_CLOSED;return;}
   g->pending=0;in->submitted++;INPUT_LOG("EFFECT_SUBMIT request=%u track=%u slot=%u parameter=%u generation=%u bits=%u\n",r.seq,r.serial,r.effect_slot,r.effect_index,r.effect_generation,r.bits);
  }
@@ -470,8 +563,15 @@ static inline void input_channel(MirrorInput *in,const MirrorBank *bank,const Co
  MotorIdentity id={s->epoch,t->serial,t->binding,t->incarnation,t->track,t->program,t->track_owner,t->program_owner,0,0,0};
  input_control_bound(in,bank,s,0,CF_SELECTION,0,1,now,&id,2);
 }
-static inline int input_begin(MirrorInput *in,CommandState *commands){
+static inline int input_begin(MirrorInput *in,CommandState *commands
+#ifdef MIRROR_INPUT
+ ,InputFlight *flights
+#endif
+ ){
  memset(in,0,sizeof(*in));in->commands=commands;
+#ifdef MIRROR_INPUT
+ in->flights=flights;
+#endif
  if(!input_health(in))return 0;
  unsigned n=atomic_load_explicit(&commands->published,memory_order_acquire);
  if(n>COMMAND_SEQUENCE_LAST||!command_idle(commands)){in->error=C_BUSY;return 0;}
@@ -480,13 +580,13 @@ static inline int input_begin(MirrorInput *in,CommandState *commands){
 /* These identities authorize an intent; its value is read only on the native UI owner. */
 static inline unsigned input_global_owner(const CopiedMirror *s,unsigned op){
  if(op==CF_AUTOMATION)return s->automation.available?s->automation.owner_incarnation:0;
- if(op==GLOBAL_RECORD_TOGGLE)return s->record_mode.available?s->record_mode.owner_incarnation:0;
+ if(command_record(op))return s->record_mode.available?s->record_mode.owner_incarnation:0;
  if(op==GLOBAL_CLICK_TOGGLE)return s->click.available?s->click.owner_incarnation:0;
  if(op==GLOBAL_LOOP_TOGGLE)return s->project_owner;
  return op==GLOBAL_TRACK_NEW||op==GLOBAL_TRACK_TYPE||command_transport(op)||command_history(op)||op==GLOBAL_SAVE||command_page(op)||command_key(op)||command_sequence_duplicate(op)?s->editor_owner:s->zoom_owner;
 }
 static inline unsigned input_global_field(const CopiedMirror *s,unsigned op){
- return op==GLOBAL_TRACK_TYPE?s->selected_serial:op==CF_AUTOMATION?s->automation.incarnation:op==GLOBAL_RECORD_TOGGLE?s->record_mode.incarnation:op==GLOBAL_CLICK_TOGGLE?s->click.incarnation:0;
+ return op==GLOBAL_TRACK_TYPE?s->selected_serial:op==CF_AUTOMATION?s->automation.incarnation:command_record(op)?s->record_mode.incarnation:op==GLOBAL_CLICK_TOGGLE?s->click.incarnation:0;
 }
 static inline void input_global_add(MirrorInput *in,const CopiedMirror *s,unsigned op,unsigned bits,uint32_t now){
  if(!s->ready||!s->alive||s->error||!command_global(op)||in->error||now>UINT32_MAX-2000)return;
@@ -494,7 +594,7 @@ static inline void input_global_add(MirrorInput *in,const CopiedMirror *s,unsign
  unsigned owner=input_global_owner(s,op);
  if(!owner||(op==GLOBAL_TRACK_TYPE&&!s->selected_serial)||(op==CF_AUTOMATION&&!s->automation.available))return;
  if(in->global_count==INPUT_JOG_EVENTS){in->error=C_CAPACITY;return;}
- in->global_events[(in->global_head+in->global_count++)%INPUT_JOG_EVENTS]=(InputGlobalEvent){op,bits,s->epoch,owner,input_global_field(s,op),now+2000};
+ in->global_events[(in->global_head+in->global_count++)%INPUT_JOG_EVENTS]=(InputGlobalEvent){op,bits,s->epoch,owner,input_global_field(s,op),now+2000,input_order(in)};
 }
 /* The data-wheel flight's three events: dispatch, the step actually passed to
  * the app's focus controller, and return. The delivered count may be zero (a
@@ -551,12 +651,12 @@ static inline void input_jog_add_origin(MirrorInput *in,const CopiedMirror *s,un
  if(now>UINT32_MAX-120000){in->error=C_EXPIRED;return;}
  if(in->jog_count){InputJogEvent *last=in->jog_events+(in->jog_head+in->jog_count-1)%INPUT_JOG_EVENTS;
   int64_t sum=(int64_t)last->delta+delta;
-  if(last->epoch==s->epoch&&last->operation==operation&&last->origin==origin&&((last->delta>0)==(delta>0))&&sum>=-JOG_DELTA_LIMIT&&sum<=JOG_DELTA_LIMIT){last->delta=(int32_t)sum;last->expires=now+1000;return;}
+  if((!in->coordinator||last->order==in->coordinator->order)&&last->epoch==s->epoch&&last->operation==operation&&last->origin==origin&&((last->delta>0)==(delta>0))&&sum>=-JOG_DELTA_LIMIT&&sum<=JOG_DELTA_LIMIT){last->delta=(int32_t)sum;last->expires=now+1000;return;}
  }
  if(in->jog_count==INPUT_JOG_EVENTS){in->error=C_CAPACITY;return;}
  /* Preserve each packet's magnitude, unit and order: opposite steps cannot
   * cancel across native boundary/clamping/rounding semantics. */
- in->jog_events[(in->jog_head+in->jog_count++)%INPUT_JOG_EVENTS]=(InputJogEvent){delta,operation,s->epoch,now+1000,origin};
+ in->jog_events[(in->jog_head+in->jog_count++)%INPUT_JOG_EVENTS]=(InputJogEvent){delta,operation,s->epoch,now+1000,origin,input_order(in)};
 }
 static inline void input_jog_add(MirrorInput *in,const CopiedMirror *s,unsigned operation,int delta,uint32_t now){input_jog_add_origin(in,s,operation,delta,now,0);}
 /* One X-Touch detent is one data-wheel step. Opposite ticks cancel, the sum
@@ -567,6 +667,7 @@ static inline void input_counted_focus_add(MirrorInput *in,const CopiedMirror *s
  input_jog_resync(in,s);
  if(!s->ready||!s->alive||s->error||in->error||!delta)return;
  if(in->wheel_operation!=operation){in->wheel_delta=0;in->wheel_operation=operation;}
+ if(!in->wheel_delta)in->wheel_order=input_order(in);
  int32_t sum=in->wheel_delta+delta;
  if(sum>INPUT_WHEEL_LIMIT)sum=INPUT_WHEEL_LIMIT;
  if(sum<-INPUT_WHEEL_LIMIT)sum=-INPUT_WHEEL_LIMIT;
@@ -579,6 +680,7 @@ static inline void input_note_add(MirrorInput *in,const CopiedMirror *s,int delt
 static inline void input_press_add(MirrorInput *in,const CopiedMirror *s){
  input_jog_resync(in,s);
  if(!s->ready||!s->alive||s->error||in->error)return;
+ if(!in->wheel_press)in->press_order=input_order(in);
  in->wheel_press=1;
 }
 static inline void input_jog_release(MirrorInput *in,unsigned origin){
@@ -592,12 +694,14 @@ static inline void input_stop_button(MirrorInput *in,const CopiedMirror *s,unsig
   if(!down){in->play_down=0;return;}
   if(in->play_down)return;
   in->play_down=1;in->stop_play_wait=1;in->stop_home=0;input_jog_release(in,3);
+  if(in->coordinator)for(unsigned i=0;i<in->coordinator->count;i++){MirrorInput *peer=in->coordinator->origins[i];peer->stop_home=0;input_jog_release(peer,3);}
   input_global_add(in,s,GLOBAL_PLAY,0,now);return;
  }
  if(!down){in->stop_down=0;return;}
  if(in->stop_down)return;
  in->stop_down=1;
  unsigned pending_play=in->stop_play_wait;in->stop_play_wait=0;
+ if(in->coordinator)for(unsigned i=0;i<in->coordinator->count;i++){pending_play|=in->coordinator->origins[i]->stop_play_wait;in->coordinator->origins[i]->stop_play_wait=0;}
  if(s->playing.available&&(s->playing.bits||pending_play)){input_global_add(in,s,GLOBAL_STOP,0,now);return;}
  if(s->playing.available){
   in->stop_home=1;in->stop_until=now>UINT32_MAX-2000?UINT32_MAX:now+2000;in->stop_position_tick=0;
@@ -618,15 +722,17 @@ static inline void input_stop_home(MirrorInput *in,const CopiedMirror *s,uint32_
 }
 static inline int input_jog_admit(MirrorInput *in,const CopiedMirror *s){
  for(unsigned i=0;i<COMMAND_SLOTS;i++)if(in->flights[i].flight&&command_jog(in->flights[i].field))return 0;
+ InputCoordinator *coordinator=in->coordinator;
+ if(coordinator){in->jog_wait=coordinator->jog_wait;in->jog_wait_owner=coordinator->jog_wait_owner;in->jog_wait_epoch=coordinator->jog_wait_epoch;in->jog_wait_count=coordinator->jog_wait_count;}
  if(!s->playing.available)return 0;
- if(!s->playing.bits){in->jog_wait=0;return 1;}
+ if(!s->playing.bits){in->jog_wait=0;if(coordinator)coordinator->jog_wait=0;return 1;}
  if(!in->jog_wait)return !atomic_load(&in->commands->navigation_error);
  CommandState *c=in->commands;uint32_t rev=atomic_load_explicit(&c->navigation_revision,memory_order_acquire);
  if(!rev||(rev&1)||atomic_load(&c->navigation_error))return 0;
  uint32_t owner=atomic_load(&c->navigation_owner),epoch=atomic_load(&c->navigation_epoch),count=atomic_load(&c->navigation_count);
  atomic_thread_fence(memory_order_acquire);
  if(rev!=atomic_load_explicit(&c->navigation_revision,memory_order_relaxed))return 0;
- if(owner==in->jog_wait_owner&&owner==s->playing.owner_incarnation&&epoch==in->jog_wait_epoch&&epoch==s->epoch&&count>in->jog_wait_count){in->jog_wait=0;return 1;}return 0;
+ if(owner==in->jog_wait_owner&&owner==s->playing.owner_incarnation&&epoch==in->jog_wait_epoch&&epoch==s->epoch&&count>in->jog_wait_count){in->jog_wait=0;if(coordinator)coordinator->jog_wait=0;return 1;}return 0;
 }
 static inline int input_jog_proof(MirrorInput *in,InputFlight *tx){
  if(tx->jog_seen!=7||!tx->jog_outcome_seen){in->error=C_TRACE_AMBIGUOUS;return 0;}
@@ -685,6 +791,16 @@ static inline void input_events(MirrorInput *in,InputFlight *tx,unsigned at){
   if(n>COMMAND_EVENTS||n<tx->cursor[lane]){in->error=C_FORMAT;return;}
   while(tx->cursor[lane]<n){
    CommandEvent copy;if(!command_event_read(l,tx->flight,tx->cursor[lane]++,&copy)){in->error=C_TRACE_AMBIGUOUS;return;}const CommandEvent *e=&copy;
+   if(command_clip(tx->field)){
+    const CommandRequest *r=&tx->step_request;unsigned part=e->kind==CE_CLIP_BEGIN?0:e->kind==CE_CLIP_RETURN?1:e->kind==CE_CLIP_ACCEPT?2:3;
+    if(part==3||(tx->step_seen&(1u<<part))||e->request!=tx->flight||e->reserved!=CLIP_ACTION||e->controller!=r->effect_index||e->program!=r->qlink_root||e->property!=r->effect_generation||e->arg_kind||e->capture||e->counter||e->incarnation||(part<2&&e->revision!=r->epoch)||(part==0?e->bits!=r->before_bits:part==1?e->bits!=r->bits:0)){in->error=C_TRACE_AMBIGUOUS;return;}
+    tx->step_events[part]=*e;tx->step_seen|=1u<<part;continue;
+   }
+   if(command_step(tx->field)){
+    const CommandRequest *r=&tx->step_request;unsigned part=e->kind==CE_STEP_BEGIN?0:e->kind==CE_STEP_RETURN?1:e->kind==CE_STEP_STATE?2:3;
+    if(part==3||(tx->step_seen&(1u<<part))||e->request!=tx->flight||e->reserved!=STEP_TOGGLE||e->controller!=r->qlink_index||e->program!=r->qlink_root||e->property!=r->qlink_wrapper||e->arg_kind||e->capture||e->counter||e->incarnation||(part<2&&e->revision!=r->epoch)||(part==0?e->bits!=r->before_bits:part==1?e->bits!=r->bits:0)){in->error=C_TRACE_AMBIGUOUS;return;}
+    tx->step_events[part]=*e;tx->step_seen|=1u<<part;continue;
+   }
    if(command_io(tx->field)){
     const CommandRequest *r=&tx->io_request;
     unsigned program_field=r->io_field==IO_AUDIO_IN||r->io_field==IO_AUDIO_OUT;
@@ -823,10 +939,13 @@ static inline void input_events(MirrorInput *in,InputFlight *tx,unsigned at){
 }
 /* Called only after current process, both file identities and MMV7 freshness
  * have been checked by the bridge. No desired value is written into MMV7. */
-static inline void input_pump_mode(MirrorInput *in,MirrorBank *bank,const CopiedMirror *s,uint32_t now,int submit_new){
+static inline void input_settle(MirrorInput *in,MirrorBank *bank,const CopiedMirror *s,uint32_t now){
  if(!input_health(in))return;
+ MirrorInput *owner=in;MirrorBank *owner_bank=bank;
  for(unsigned at=0;at<COMMAND_SLOTS;at++){
-  InputFlight *tx=in->flights+at;if(!tx->flight)continue;
+  InputFlight *tx=owner->flights+at;if(!tx->flight)continue;
+  in=tx->origin?(MirrorInput*)tx->origin:owner;
+  bank=tx->origin_bank?tx->origin_bank:owner_bank;
   if(tx->acknowledged){
    if(atomic_load_explicit(&in->commands->slots[at].reclaimed,memory_order_acquire)==tx->flight)memset(tx,0,sizeof(*tx));
    continue;
@@ -848,7 +967,10 @@ static inline void input_pump_mode(MirrorInput *in,MirrorBank *bank,const Copied
    if(now>tx->expires){in->error=rejected;return;}
    continue;
   }
-  if(now>tx->expires){in->error=C_EXPIRED;return;}
+  /* A short step intent can finish before a standalone consumer completes
+   * its executable admission. Its immutable sealed receipt carries the native
+   * completion time; consuming that receipt later does not replay the edit. */
+  if(now>tx->expires&&!((command_step(tx->field)||command_clip(tx->field))&&done&&sealed)){in->error=C_EXPIRED;return;}
   if(command_io(tx->field)){
    if(!done||!sealed)continue;
    const CommandRequest *r=&tx->io_request;const CommandEvent *e=tx->io_events;
@@ -936,6 +1058,30 @@ static inline void input_pump_mode(MirrorInput *in,MirrorBank *bank,const Copied
    if(!command_publish_settlement(in->commands,tx->flight)){in->error=C_CLOSED;return;}
    tx->acknowledged=1;in->settled++;INPUT_LOG("MIDI_DONE request=%u track=%u branch=%u source_revision=%u native_no_set=%u\n",tx->flight,tx->target.serial,tx->midi_events[0].revision,tx->commit_revision,!(tx->midi_seen&4));continue;
   }
+  if(command_clip(tx->field)){
+   if(done&&sealed){
+    const CommandEvent *e=tx->step_events;const CommandRequest *r=&tx->step_request;
+    if(tx->step_seen!=7||e[0].token!=in->commands->owner_token||e[0].token!=e[1].token||e[1].token!=e[2].token||e[0].tick<r->created||e[0].tick>e[1].tick||e[1].tick>e[2].tick){in->error=C_TRACE_AMBIGUOUS;return;}
+    if(e[2].tick>r->expires){in->error=C_EXPIRED;return;}
+    if(e[2].revision){in->error=e[2].revision;return;}
+    if(e[2].bits!=1){in->error=C_SOURCE_FAILURE;return;}
+    if(s->heartbeat<=e[2].tick)continue;
+    if(!command_publish_settlement(in->commands,tx->flight)){in->error=C_CLOSED;return;}
+    tx->acknowledged=1;in->settled++;INPUT_LOG("CLIP_ACCEPT request=%u intent=%u column=%u row=%u; native facade receipt, actual quantized state remains in clips snapshot\n",tx->flight,r->bits,r->pad_index,r->effect_index);
+   }continue;
+  }
+  if(command_step(tx->field)){
+   if(done&&sealed){
+    const CommandEvent *e=tx->step_events;const CommandRequest *r=&tx->step_request;
+    if(tx->step_seen!=7||e[0].token!=in->commands->owner_token||e[0].token!=e[1].token||e[1].token!=e[2].token||e[0].tick<r->created||e[0].tick>e[1].tick||e[1].tick>e[2].tick){in->error=C_TRACE_AMBIGUOUS;return;}
+    if(e[2].tick>r->expires){in->error=C_EXPIRED;return;}
+    if(e[2].revision){in->error=e[2].revision;return;}
+    if(e[2].bits!=r->bits){in->error=C_SOURCE_CHANGED;return;}
+    if(s->heartbeat<=e[2].tick)continue;
+    if(!command_publish_settlement(in->commands,tx->flight)){in->error=C_CLOSED;return;}
+    tx->acknowledged=1;in->settled++;INPUT_LOG("STEP_DONE request=%u pad=%u step=%u native_on=%u epoch=%u tick=%u\n",tx->flight,r->pad_index,r->qlink_index,e[2].bits,r->epoch,now);
+   }continue;
+  }
   if(command_global(tx->field)){
    if(done&&sealed){
     if(!input_global_proof(in,tx))return;
@@ -980,7 +1126,7 @@ static inline void input_pump_mode(MirrorInput *in,MirrorBank *bank,const Copied
     if(s->heartbeat<=tx->done_tick)continue;
     if(!command_publish_settlement(in->commands,tx->flight)){in->error=C_CLOSED;return;}
     tx->acknowledged=1;in->settled++;
-    if(tx->jog_playing||tx->jog_outcome.arg_kind){in->jog_wait=1;in->jog_wait_owner=tx->jog_outcome.property;in->jog_wait_epoch=tx->jog_outcome.revision;in->jog_wait_count=tx->jog_outcome.counter;}
+    if(tx->jog_playing||tx->jog_outcome.arg_kind){in->jog_wait=1;in->jog_wait_owner=tx->jog_outcome.property;in->jog_wait_epoch=tx->jog_outcome.revision;in->jog_wait_count=tx->jog_outcome.counter;if(in->coordinator){in->coordinator->jog_wait=1;in->coordinator->jog_wait_owner=in->jog_wait_owner;in->coordinator->jog_wait_epoch=in->jog_wait_epoch;in->coordinator->jog_wait_count=in->jog_wait_count;}}
     INPUT_LOG("JOG_OUTCOME request=%u flags=%u timeline_owner=%u progress_at_done=%u; restart milestone is not engine readiness\n",tx->flight,tx->jog_outcome.arg_kind,tx->jog_outcome.property,tx->jog_outcome.counter);
     INPUT_LOG("JOG_DONE request=%u operation=%u delta=%d submission_epoch=%u execution_epoch=%u completion_epoch=%u tick=%u; native completion, not desired position\n",tx->flight,tx->field,(int32_t)tx->bits,tx->target.epoch,tx->jog_events[1].revision,tx->jog_events[2].revision,now);
    }
@@ -1029,17 +1175,59 @@ static inline void input_pump_mode(MirrorInput *in,MirrorBank *bank,const Copied
    tx->acknowledged=1;in->settled++;
   }
  }
+ in=owner;
  while(in->edge_count&&!in->edges[in->edge_head].desire.pending){in->edge_head=(in->edge_head+1)%INPUT_EDGES;in->edge_count--;}
- if(!submit_new)return;
+}
+/* Step edges stay with the originating surface and use the existing shared
+ * command queue. Native membership and before-state are checked again at
+ * execution; no pattern copy or speculative LED state is owned here. */
+static inline int input_step_same(const CommandRequest *a,const CommandRequest *b){return a->epoch==b->epoch&&a->effect_generation==b->effect_generation&&a->effect_ap==b->effect_ap&&a->qlink_index==b->qlink_index;}
+static inline void input_step_add(MirrorInput *in,const CopiedMirror *s,unsigned view,unsigned sound,unsigned cell,uint32_t now){
+ CommandRequest r;if(!s->steps_available||!step_request_bind_view(&r,&s->steps,view,sound,cell,now))return;
+ if(in->step_count==INPUT_JOG_EVENTS){in->refused++;return;}
+ unsigned before=r.before_bits;uint64_t latest=0;
+ for(unsigned i=0;i<COMMAND_SLOTS;i++){const InputFlight *tx=in->flights+i;if(tx->flight&&command_step(tx->field)&&input_step_same(&r,&tx->step_request))before=tx->bits;}
+ unsigned count=in->coordinator?in->coordinator->count:1;
+ for(unsigned i=0;i<count;i++){MirrorInput *peer=in->coordinator?in->coordinator->origins[i]:in;for(unsigned j=0;j<peer->step_count;j++){InputStepEvent *e=peer->step_events+(peer->step_head+j)%INPUT_JOG_EVENTS;if(e->order>=latest&&input_step_same(&r,&e->request)){latest=e->order;before=e->request.bits;}}}
+ r.before_bits=before;r.bits=!before;in->step_events[(in->step_head+in->step_count++)%INPUT_JOG_EVENTS]=(InputStepEvent){r,input_order(in)};
+}
+static inline void input_clip_add(MirrorInput *in,const CopiedMirror *s,unsigned view,unsigned intent,unsigned column,unsigned row,uint32_t now){
+ CommandRequest r;if(!s->clips_available||!clip_request_bind(&r,&s->clips,view,intent,column,row,now))return;
+ if(in->step_count==INPUT_JOG_EVENTS){in->refused++;return;}
+ in->step_events[(in->step_head+in->step_count++)%INPUT_JOG_EVENTS]=(InputStepEvent){r,input_order(in)};
+}
+static inline int input_step_source_matches(const CommandRequest *r,const CopiedMirror *s){
+ if(!s->steps_available)return 0;
+ if(r->effect_slot){if(r->effect_slot>STEP_VIEWS)return 0;const StepProjection *v=s->steps.views+r->effect_slot-1;return v->status==STEP_READY&&v->target.event_owner==r->effect_generation&&v->target.track_owner==r->track_owner&&v->target.program_owner==r->program_owner&&v->target.bind_generation==r->effect_position;}
+ return r->effect_generation==s->steps.event_owner&&r->track_owner==s->steps.track_owner&&r->program_owner==s->steps.program_owner;
+}
+static inline void input_step_submit(MirrorInput *in,const CopiedMirror *s,uint32_t now){
+ while(in->step_count){InputStepEvent *e=in->step_events+in->step_head;CommandRequest r=e->request;
+  if(r.epoch!=s->epoch||r.expires<now||(command_clip(r.reserved)?(!s->clips_available||r.qlink_root!=s->clips.lanes||r.project_owner!=s->clips.project_owner):!input_step_source_matches(&r,s))){in->step_head=(in->step_head+1)%INPUT_JOG_EVENTS;in->step_count--;in->refused++;continue;}
+  if(!input_order_admit(in,e->order))return;
+  CommandState *c=in->commands;unsigned at=command_free(c);if(at==COMMAND_SLOTS)return;
+  for(unsigned i=0;i<COMMAND_SLOTS;i++)if(in->flights[i].flight&&(command_step(in->flights[i].field)||command_clip(in->flights[i].field)))return;
+  r.seq=atomic_load(&c->published)+1;r.pid=c->pid;r.start_lo=c->start_lo;r.start_hi=c->start_hi;r.origin_sec=c->origin_sec;r.origin_nsec=c->origin_nsec;
+  InputFlight *tx=in->flights+at;input_flight_init(in,tx);tx->flight=r.seq;tx->field=r.reserved;tx->bits=r.bits;tx->expires=r.expires;tx->step_request=r;
+  if(!command_publish_request_at(c,&r,at)){memset(tx,0,sizeof(*tx));if(!atomic_load(&c->new_project_intent))in->error=C_CLOSED;return;}
+  in->step_head=(in->step_head+1)%INPUT_JOG_EVENTS;in->step_count--;in->submitted++;return;
+ }
+}
+/* Submission is deliberately separate from settlement. A multi-surface
+ * runtime settles the one shared command mailbox once, then gives each active
+ * surface one bounded submission visit without walking every flight again. */
+static inline void input_submit(MirrorInput *in,MirrorBank *bank,const CopiedMirror *s,uint32_t now){
+ if(!input_health(in))return;
  if(!s->ready||atomic_load_explicit(&in->commands->new_project_intent,memory_order_acquire)){input_discard(in);input_jog_discard(in);input_master_invalidate(in);return;}
  input_sync(in,bank);
+ input_step_submit(in,s,now);if(in->error)return;
  input_effect_submit(in,bank,s,now);if(in->error)return;
  input_mode_submit(in,bank,s,now);
  input_io_submit(in,bank,s,now);
  input_qlink_submit(in,bank,s,now);if(in->error)return;
  input_jog_resync(in,s);
  for(unsigned batch=0;batch<8&&in->global_count&&s->ready;batch++){
-  InputGlobalEvent *g=in->global_events+in->global_head;
+  InputGlobalEvent *g=in->global_events+in->global_head;if(!input_order_admit(in,g->order))break;
   unsigned owner=input_global_owner(s,g->operation);
   if(g->epoch!=s->epoch||owner!=g->owner||(g->operation==GLOBAL_TRACK_TYPE&&g->field!=s->selected_serial)){in->global_head=(in->global_head+1)%INPUT_JOG_EVENTS;in->global_count--;continue;}
   if(now>g->expires){in->error=C_EXPIRED;return;}
@@ -1047,7 +1235,7 @@ static inline void input_pump_mode(MirrorInput *in,MirrorBank *bank,const Copied
   CommandState *c=in->commands;unsigned seq=atomic_load(&c->published)+1;
   CommandRequest r={.seq=seq,.pid=c->pid,.start_lo=c->start_lo,.start_hi=c->start_hi,.origin_sec=c->origin_sec,.origin_nsec=c->origin_nsec,.epoch=s->epoch,.bits=g->bits,.created=now,.expires=now+120000,.reserved=g->operation,.project_owner=s->project_owner,.global_owner=g->owner,.field_incarnation=g->field};
   unsigned conflict=0;for(unsigned i=0;i<COMMAND_SLOTS;i++){CommandRequest old;CommandSlot *q=c->slots+i;unsigned n=atomic_load(&q->published);if(n!=atomic_load(&q->reclaimed)&&(!command_request_read(q,n,&old)||command_conflict(&r,&old)))conflict=1;}if(conflict)break;
-  InputFlight *tx=in->flights+at;memset(tx,0,sizeof(*tx));tx->flight=seq;tx->field=g->operation;tx->bits=g->bits;tx->expires=r.expires;tx->global_owner=g->owner;tx->global_epoch=s->epoch;tx->field_incarnation=g->field;tx->property=g->operation==CF_AUTOMATION?s->automation.property:0;
+  InputFlight *tx=in->flights+at;input_flight_init(in,tx);tx->flight=seq;tx->field=g->operation;tx->bits=g->bits;tx->expires=r.expires;tx->global_owner=g->owner;tx->global_epoch=s->epoch;tx->field_incarnation=g->field;tx->property=g->operation==CF_AUTOMATION?s->automation.property:0;
   if(!command_publish_request_at(c,&r,at)){memset(tx,0,sizeof(*tx));if(!atomic_load(&c->new_project_intent))in->error=C_CLOSED;return;}in->submitted++;in->global_head=(in->global_head+1)%INPUT_JOG_EVENTS;in->global_count--;
  }
  input_stop_home(in,s,now);
@@ -1056,26 +1244,26 @@ static inline void input_pump_mode(MirrorInput *in,MirrorBank *bank,const Copied
   input_jog_add_origin(in,s,JOG_BEAT,in->jog_forward?1:-1,now,in->jog_forward?1:2);in->jog_repeat_tick=now>UINT32_MAX-100?UINT32_MAX:now+100;
  }
  for(unsigned batch=0;batch<1&&in->jog_count&&s->ready&&input_jog_admit(in,s);batch++){
-  InputJogEvent *j=in->jog_events+in->jog_head;
+  InputJogEvent *j=in->jog_events+in->jog_head;if(!input_order_admit(in,j->order))break;
   if(j->origin==3&&(!s->playing.available||s->playing.bits))break;
   if(now>j->expires){in->jog_head=(in->jog_head+1)%INPUT_JOG_EVENTS;in->jog_count--;break;}
   unsigned at=command_free(in->commands),seq=atomic_load(&in->commands->published)+1;
   if(at<COMMAND_SLOTS){
    CommandState *c=in->commands;CommandRequest r={.seq=seq,.pid=c->pid,.start_lo=c->start_lo,.start_hi=c->start_hi,.origin_sec=c->origin_sec,.origin_nsec=c->origin_nsec,.epoch=s->epoch,.bits=(uint32_t)j->delta,.created=now,.expires=now+120000,.reserved=j->operation,.project_owner=s->project_owner};
-   InputFlight *tx=in->flights+at;memset(tx,0,sizeof(*tx));tx->flight=seq;tx->field=j->operation;tx->bits=r.bits;tx->expires=r.expires;tx->target.epoch=s->epoch;tx->jog_playing=s->playing.available&&s->playing.bits;
+   InputFlight *tx=in->flights+at;input_flight_init(in,tx);tx->flight=seq;tx->field=j->operation;tx->bits=r.bits;tx->expires=r.expires;tx->target.epoch=s->epoch;tx->jog_playing=s->playing.available&&s->playing.bits;
    if(!command_navigation_watch(c,1)){memset(tx,0,sizeof(*tx));return;}
    if(!command_publish_request_at(c,&r,at)){memset(tx,0,sizeof(*tx));if(!atomic_load(&c->new_project_intent))in->error=C_CLOSED;return;}
    in->submitted++;in->jog_head=(in->jog_head+1)%INPUT_JOG_EVENTS;in->jog_count--;
    INPUT_LOG("JOG_SUBMIT request=%u operation=%u delta=%d submission_epoch=%u tick=%u\n",seq,r.reserved,(int32_t)r.bits,r.epoch,now);
   }else break;
  }
- if(atomic_load(&in->commands->navigation_watch)&&!in->jog_count&&!in->jog_rewind&&!in->jog_forward&&input_jog_admit(in,s))(void)command_navigation_watch(in->commands,0);
+ if(!in->coordinator&&atomic_load(&in->commands->navigation_watch)&&!in->jog_count&&!in->jog_rewind&&!in->jog_forward&&input_jog_admit(in,s))(void)command_navigation_watch(in->commands,0);
  /* One data-wheel request per pump, and only one alive at a time: the app's
   * own accelerator must see one counted call per accepted request. A request
   * carries at most the count one native call may deliver, and the remainder
   * stays in the accumulator, so a hard flick arrives complete and in order
   * across the next pumps instead of being clamped away by the observer. */
- if(in->wheel_delta&&s->ready){
+ if(in->wheel_delta&&s->ready&&input_order_admit(in,in->wheel_order)){
   if(now>UINT32_MAX-120000){in->error=C_EXPIRED;return;}
   unsigned busy=0;for(unsigned i=0;i<COMMAND_SLOTS;i++)busy|=in->flights[i].flight&&command_focus_controller(in->flights[i].field);
   unsigned at=busy?COMMAND_SLOTS:command_free(in->commands);
@@ -1083,7 +1271,7 @@ static inline void input_pump_mode(MirrorInput *in,MirrorBank *bank,const Copied
    CommandState *c=in->commands;unsigned seq=atomic_load(&c->published)+1;
    int32_t step=in->wheel_delta>WHEEL_MAX_STEPS?WHEEL_MAX_STEPS:in->wheel_delta<-WHEEL_MAX_STEPS?-WHEEL_MAX_STEPS:in->wheel_delta;
    CommandRequest r={.seq=seq,.pid=c->pid,.start_lo=c->start_lo,.start_hi=c->start_hi,.origin_sec=c->origin_sec,.origin_nsec=c->origin_nsec,.epoch=s->epoch,.bits=(uint32_t)step,.created=now,.expires=now+120000,.reserved=in->wheel_operation};
-   InputFlight *tx=in->flights+at;memset(tx,0,sizeof(*tx));tx->flight=seq;tx->field=r.reserved;tx->bits=r.bits;tx->expires=r.expires;tx->target.epoch=s->epoch;
+   InputFlight *tx=in->flights+at;input_flight_init(in,tx);tx->flight=seq;tx->field=r.reserved;tx->bits=r.bits;tx->expires=r.expires;tx->target.epoch=s->epoch;
    if(!command_publish_request_at(c,&r,at)){memset(tx,0,sizeof(*tx));if(!atomic_load(&c->new_project_intent))in->error=C_CLOSED;return;}
    /* A refused or suppressed request loses its own detents, as the jog and
     * global lanes do; the ones still banked here are unaffected. */
@@ -1095,14 +1283,14 @@ static inline void input_pump_mode(MirrorInput *in,MirrorBank *bank,const Copied
   * the one active focus controller, so a press never overlaps a step. One
   * request per press, and the flag is cleared only by a publication that
   * succeeded, so a press held back by a busy lane arrives on a later pump. */
- if(in->wheel_press&&s->ready){
+ if(in->wheel_press&&s->ready&&input_order_admit(in,in->press_order)){
   if(now>UINT32_MAX-120000){in->error=C_EXPIRED;return;}
   unsigned busy=0;for(unsigned i=0;i<COMMAND_SLOTS;i++)busy|=in->flights[i].flight&&command_focus_controller(in->flights[i].field);
   unsigned at=busy?COMMAND_SLOTS:command_free(in->commands);
   if(at<COMMAND_SLOTS){
    CommandState *c=in->commands;unsigned seq=atomic_load(&c->published)+1;
    CommandRequest r={.seq=seq,.pid=c->pid,.start_lo=c->start_lo,.start_hi=c->start_hi,.origin_sec=c->origin_sec,.origin_nsec=c->origin_nsec,.epoch=s->epoch,.bits=FOCUS_PRESS_BUTTON,.created=now,.expires=now+120000,.reserved=JOG_PRESS};
-   InputFlight *tx=in->flights+at;memset(tx,0,sizeof(*tx));tx->flight=seq;tx->field=JOG_PRESS;tx->bits=r.bits;tx->expires=r.expires;tx->target.epoch=s->epoch;
+   InputFlight *tx=in->flights+at;input_flight_init(in,tx);tx->flight=seq;tx->field=JOG_PRESS;tx->bits=r.bits;tx->expires=r.expires;tx->target.epoch=s->epoch;
    if(!command_publish_request_at(c,&r,at)){memset(tx,0,sizeof(*tx));if(!atomic_load(&c->new_project_intent))in->error=C_CLOSED;return;}
    in->wheel_press=0;in->submitted++;
    INPUT_LOG("PRESS_SUBMIT request=%u button=%u submission_epoch=%u tick=%u\n",seq,r.bits,r.epoch,now);
@@ -1116,7 +1304,7 @@ static inline void input_pump_mode(MirrorInput *in,MirrorBank *bank,const Copied
   if(!busy&&m->pending){unsigned at=command_free(in->commands);if(at<COMMAND_SLOTS&&!INPUT_STOPPED()){
    CommandState *c=in->commands;unsigned seq=atomic_load(&c->published)+1;
    CommandRequest r={.seq=seq,.pid=c->pid,.start_lo=c->start_lo,.start_hi=c->start_hi,.origin_sec=c->origin_sec,.origin_nsec=c->origin_nsec,.epoch=s->epoch,.bits=m->bits,.created=now,.expires=m->expires,.before_bits=s->master.bits,.before_revision=s->master.revision,.reserved=CF_MASTER,.field_incarnation=m->incarnation,.project_owner=s->project_owner,.global_owner=m->owner};
-   InputFlight *tx=in->flights+at;memset(tx,0,sizeof(*tx));tx->flight=seq;tx->field=CF_MASTER;tx->bits=r.bits;tx->expires=r.expires;tx->global_owner=r.global_owner;tx->global_epoch=r.epoch;tx->field_incarnation=r.field_incarnation;tx->property=s->master.property;tx->before_revision=r.before_revision;
+   InputFlight *tx=in->flights+at;input_flight_init(in,tx);tx->flight=seq;tx->field=CF_MASTER;tx->bits=r.bits;tx->expires=r.expires;tx->global_owner=r.global_owner;tx->global_epoch=r.epoch;tx->field_incarnation=r.field_incarnation;tx->property=s->master.property;tx->before_revision=r.before_revision;
    if(!command_publish_request_at(c,&r,at)){memset(tx,0,sizeof(*tx));if(!atomic_load(&c->new_project_intent))in->error=C_CLOSED;return;}m->pending=0;in->submitted++;INPUT_LOG("MASTER_SUBMIT request=%u owner=%u field_incarnation=%u bits=%u epoch=%u tick=%u\n",seq,r.global_owner,r.field_incarnation,r.bits,r.epoch,now);
   }}
  }
@@ -1128,6 +1316,7 @@ static inline void input_pump_mode(MirrorInput *in,MirrorBank *bank,const Copied
    if(!bank->ready||memcmp(&g->identity,&bank->strips[strip],sizeof(g->identity))){g->pending=0;continue;}
   }else g=&in->desires[strip][field_id];
   if(!g->pending)continue;
+  if(step<edges&&!input_order_admit(in,g->order))continue;
   if(input_existing(in,&g->identity,field_id))continue;
   if(now>g->expires){in->error=C_EXPIRED;return;}
   CopiedTrack pad_target;const CopiedTrack *t=input_target(s,&g->identity,&pad_target);
@@ -1146,7 +1335,7 @@ static inline void input_pump_mode(MirrorInput *in,MirrorBank *bank,const Copied
   if(INPUT_STOPPED())return;
   CommandRequest r={n+1,c->pid,c->start_lo,c->start_hi,c->origin_sec,c->origin_nsec,g->identity.epoch,g->identity.serial,g->identity.binding,g->identity.incarnation,g->bits,now,g->expires,field->bits,field->revision,field_id,t->track_owner,t->program_owner,field_id?field->incarnation:0,s->project_owner,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
   r.pad_owner=g->identity.pad_owner;r.pad_index=g->identity.pad_index;r.pad_generation=g->identity.pad_generation;if(r.pad_owner)r.field_incarnation=field->incarnation;
-  InputFlight *tx=in->flights+slot;memset(tx,0,sizeof(*tx));
+  InputFlight *tx=in->flights+slot;input_flight_init(in,tx);
   tx->flight=n+1;tx->target=g->identity;tx->strip=strip;tx->bits=g->bits;tx->expires=g->expires;tx->before_revision=field->revision;tx->field=field_id;tx->field_incarnation=field->incarnation;tx->property=field->property;tx->phase=tx->commit_revision=tx->commit_tick=tx->done_tick=0;
   memset(tx->cursor,0,sizeof(tx->cursor));if(!command_publish_request_at(c,&r,slot)){memset(tx,0,sizeof(*tx));if(!atomic_load(&c->new_project_intent))in->error=C_CLOSED;return;}
   g->pending=0;in->submitted++;if(step<edges)edges_submitted++;if(step>=edges)in->next_strip=(at+1)%(MIRROR_BANK*CF_COUNT);
@@ -1154,13 +1343,13 @@ static inline void input_pump_mode(MirrorInput *in,MirrorBank *bank,const Copied
  }
  while(in->edge_count&&!in->edges[in->edge_head].desire.pending){in->edge_head=(in->edge_head+1)%INPUT_EDGES;in->edge_count--;}
 }
-static inline void input_pump(MirrorInput *in,MirrorBank *bank,const CopiedMirror *s,uint32_t now){input_pump_mode(in,bank,s,now,1);}
-static inline void input_drain(MirrorInput *in,MirrorBank *bank,const CopiedMirror *s,uint32_t now){input_pump_mode(in,bank,s,now,0);}
+static inline void input_pump(MirrorInput *in,MirrorBank *bank,const CopiedMirror *s,uint32_t now){input_settle(in,bank,s,now);if(!in->error)input_submit(in,bank,s,now);}
+static inline void input_drain(MirrorInput *in,MirrorBank *bank,const CopiedMirror *s,uint32_t now){input_settle(in,bank,s,now);}
 static inline int input_drained(const MirrorInput *in){return !input_pending(in)&&!in->error&&in->commands&&command_idle(in->commands);}
 static inline int input_blocked_field(const MirrorInput *in,unsigned strip,unsigned field){
  if(field>=CF_COUNT)return 0;
  if(in->error||in->desires[strip][field].pending)return 1;
- for(unsigned i=0;i<COMMAND_SLOTS;i++)if(in->flights[i].flight&&!in->flights[i].acknowledged&&in->flights[i].strip==strip&&in->flights[i].field==field)return 1;
+ for(unsigned i=0;i<COMMAND_SLOTS;i++)if(in->flights[i].flight&&!in->flights[i].acknowledged&&in->flights[i].field==field&&(in->origin_bank?input_same_target(&in->origin_bank->faders[strip].identity,&in->flights[i].target,field):in->flights[i].strip==strip))return 1;
  return 0;
 }
 static inline int input_blocked(const MirrorInput *in,unsigned strip){return input_blocked_field(in,strip,CF_VOLUME);}

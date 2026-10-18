@@ -1,93 +1,49 @@
-# MPC 3 Community Edition
+# MPC 3 Community Edition v0.3.0-rc.1
 
-A community build of the MPC 3.9.1 firmware that adds X-Touch control, USB
-mouse support and built-in note selection to standalone MPCs. You build the
-image in your browser from Akai's official update file. Nothing is uploaded,
-and no firmware is hosted here.
+Release candidate for MPC Live II with MPC 3.9.1 Gen1.
 
-**[Website](https://zsoltf.github.io/mpc-3-community-edition/)**
-· **[Build your image](https://zsoltf.github.io/mpc-3-community-edition/builder.html)**
-· **[X-Touch guide](https://zsoltf.github.io/mpc-3-community-edition/guide.html)**
+## Included
 
-https://github.com/user-attachments/assets/d2c28bb4-6c1e-4adf-b646-ca75fded7a5c
-
-## Features
-
-- **Mackie Control (MCU) integration.** Currently for the full-size Behringer
-  X-Touch only. Drives the mixer, sends, drum pad mix, inserts, Q-Links and
-  transport. Motor faders, track names, colors and meters follow the MPC's
-  own state. The jog wheel doubles as the MPC data wheel (the Scrub button
-  toggles it), the cursor cluster does data steps and Tab/Shift+Tab focus
-  navigation, and the footswitches are Play and Record.
-- **USB mouse support.** A cursor after boot or on hot-plug, clicking,
-  drag-to-select, and the scroll wheel acting as the data wheel for the
-  focused control. Right-click and long-tap gestures are not implemented yet.
-- **Built-in note selection.** In the Grid, hold MPC Shift and turn the MPC
-  data wheel to select the previous or next note.
-- **Debug build.** An optional no-SSH image creates
-  `MPCLEARN-DIAGNOSTICS/report.txt` on one connected writable USB drive and
-  keeps the report current.
-
-## Roadmap
-
-- [x] Mackie MCU support
-- [ ] Global MIDI Learn
-- [x] Mouse support
-- [ ] Basic VST2 support
-- [ ] Bonus update 1
-- [ ] Bonus update 2
-- [ ] Bonus update 3
-
-## Requirements
-
-- MPC Live II on firmware 3.9.1. Other Gen1 models are untested. Gen2 and
-  Force are not supported.
-- Full-size Behringer X-Touch in MC mode over USB for controller features.
-  A USB mouse and the MPC Shift+wheel feature work without an X-Touch.
-- The official `MPC-3.9.1-Gen1-update.img` from Akai.
+- Launchpad X and Pro Mk3: Arrangement and clip/scene launching, clip recording,
+  track/scene stop, and playback/record feedback. One Launchpad can launch clips
+  while the other edits MPC drum steps.
+- Drum sequencing: 64 steps for one sound or 16 steps for four sounds, sound and
+  page navigation, coloured active steps, playhead and native Undo/Redo. Pro
+  Sequencer picks up the currently selected MPC Drum track/clip on each press.
+- Launch Control XL3 DAW mode: track and drum-pad mixing, banks, pickup,
+  Solo/Mute, labels and values; track sends, Q-Links and effect parameter pages.
+- Additional MCU/HUI and Akai controller profiles, with explicit setup and
+  matching-program tools. Hardware coverage varies; see the controller guide.
+- Pd and Cardinal Synth/FX with touchscreen patch editing, project recall and
+  an SD-card plugin bundle. Audio scheduling and DSP improvements are included.
+- Existing X-Touch controls, Global MIDI Learn, mouse support, Shift-wheel note
+  selection and native controller preferences.
 
 ## Install
 
-1. Open the [Image Builder](https://zsoltf.github.io/mpc-3-community-edition/builder.html)
-   and choose the official firmware file. Add an SSH key if you want remote
-   access or file transfer.
-2. Save the image to a USB drive and run the MPC's firmware update.
-3. If you use an X-Touch, turn off Track, Global and Control for its
-   `X-TOUCH_INT` input in **Preferences > MIDI/Sync**.
-4. Plug in the controls you use and load a project. The X-Touch connects on
-   its own; a USB mouse can be used by itself.
+Build the image from your own official Akai update using the matching candidate
+builder. Copy the matching `MPCLEARN` plugin folder to the SD card. Follow the
+included controller guide for mode, port and MIDI routing settings.
 
-After installing, Preferences > Info identifies the image as `MPC CE v0.2.6`
-for installation checks and support.
+The candidate retains the existing `MPC CE v0.2.6` label in Preferences > Info;
+use the candidate's filenames and checksums to identify this package.
 
-Your settings and projects are kept. Back up your projects first, and keep the
-official firmware so you can go back.
+## Known limits
 
-See the [v0.2.6 release notes](docs/releases/v0.2.6.md) for changes and limits.
+- Cardinal can overload the audio engine with demanding patches. Reduced
+  polyphony or simpler patches may be necessary. There is no automatic overload
+  protection; avoid the known over-budget Waves patch.
+- Akai program installation and some compact MCU/HUI/extender hardware workflows
+  remain unverified. Profiles do not imply automatic preset upload or universal
+  controller compatibility.
+- Launchpad drum colours use a repeating CE palette, not MPC custom pad colours.
+  X retargeting uses Session then Note/Custom. SQ-64 integration is excluded.
+- XL3 Pad mode has volume, pan, Solo and Mute; pad sends, arm and selection are
+  unavailable. Its Control mode uses the top encoder row only.
+- Named Cardinal host-parameter controls and remaining patch compatibility work
+  are not included. Save from the MPC screen if a controller Save action stalls.
+- Broader controller reconnect/concurrent-use coverage and long-session audio
+  qualification remain incomplete. Other MPC models are untested.
 
-## Files over SSH
-
-An image built with your SSH key can also copy files. Connect with `sftp`,
-`scp` or an app such as Cyberduck, WinSCP or FileZilla: user `root`, your
-private key, and the address shown in the MPC's Wi-Fi settings. Your USB drive
-is `/media/MPC`, named after its label, and the internal storage is
-`/media/az01-internal-sd`. Copied files show up in the Browser right away.
-Expect 1-2 MB/s over Wi-Fi, and don't replace a file a loaded project is using.
-
-## Links
-
-- [Releases](https://github.com/zsoltf/mpc-3-community-edition/releases)
-- [Report a bug](https://github.com/zsoltf/mpc-3-community-edition/issues).
-  Please don't post private keys, settings or projects.
-- [Building from source](docs/BUILDING.md) ·
-  [Architecture](docs/mcu-architecture.md) ·
-  [Recovery](controllers/program-observer/MCU-START.md) ·
-  [Contributing](CONTRIBUTING.md)
-
-## Credits and license
-
-Built on research from
-[TheKikGen / MPC-LiveXplore](https://github.com/TheKikGen/MPC-LiveXplore).
-[MIT licensed](LICENSE), with [third-party notices](builder/THIRD_PARTY_NOTICES.md)
-for bundled parts. Unofficial, and not affiliated with Akai, inMusic or
-Behringer. Please don't share the images you build.
+This is a candidate for testing, not a general stability guarantee. Keep the
+original Akai update for recovery. Do not redistribute generated Akai images.

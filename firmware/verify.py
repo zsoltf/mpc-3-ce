@@ -2,6 +2,9 @@
 """Verify added bytes and metadata, permitting only necessary directory link changes."""
 import hashlib, json, pathlib, subprocess, sys, tempfile
 
+prerelease = '--prerelease' in sys.argv
+if prerelease: sys.argv.remove('--prerelease')
+
 def inventory(path):
     out = {}
     for line in pathlib.Path(path).read_text().splitlines():
@@ -16,12 +19,23 @@ old, new = map(inventory, sys.argv[1:3])
 expected = json.loads(pathlib.Path(sys.argv[3]).read_text())
 rootfs = sys.argv[4]
 mpc = json.loads(pathlib.Path(sys.argv[5]).read_text()) if len(sys.argv) == 6 else None
+if mpc:
+    admitted = json.loads(pathlib.Path(__file__).with_name('mpc-ce.json').read_text())
+    assert mpc['version'] == admitted['version'] == 2 and mpc['path'] == '/usr/bin/MPC'
+    for key in ['size', 'input_sha256', 'output_sha256', 'slots']:
+        assert mpc[key] == admitted[key], ('unadmitted MPC expectation', key)
+    allowed = [slot['offset'] + i for slot in admitted['slots']
+               for i, (a, b) in enumerate(zip(bytes.fromhex(slot['before_hex']), bytes.fromhex(slot['after_hex']))) if a != b]
+    assert mpc['changed_offsets'] == allowed
 base = '/usr/share/mpclearn/mcu/'
 # Shipped modes, stated here independently of patch.py: the image runs these
 # files in place, so a wrong mode is a runtime that cannot start.
 executable = 'command-client mirror-input mirror-read mcu-session.sh mcu mpclearn-controls main-button mcu-boot.sh mcu-boot-install.sh'.split()
 private = 'command-observer.so config.h session-package.sha256'.split()
 public = 'LICENSE BUILD.json payload.sha256'.split()
+if prerelease:
+    executable.append('plugin-setup')
+    private.append('plugin-bundle.json')
 modes = {base+n:0o100700 for n in executable} | {base+n:0o100600 for n in private} | {base+n:0o100644 for n in public}
 modes |= {base.rstrip('/'):0o40700, '/usr/libexec/mpclearn/provision.sh':0o100755, '/usr/lib/systemd/system/mpclearn-provision.service':0o100644, '/usr/lib/systemd/system/mpclearn-boot.service':0o100644}
 required = {base+n for n in executable+private+public} | {'/usr/libexec/mpclearn/provision.sh','/usr/lib/systemd/system/mpclearn-provision.service','/usr/lib/systemd/system/mpclearn-boot.service','/usr/lib/systemd/system/multi-user.target.wants/mpclearn-provision.service','/usr/lib/systemd/system/multi-user.target.wants/mpclearn-boot.service'}
@@ -71,6 +85,8 @@ with tempfile.TemporaryDirectory() as temp:
         data = output.read_bytes()
         assert len(data) == mpc['size']
         assert hashlib.sha256(data).hexdigest() == mpc['output_sha256']
-        assert data[mpc['offset']:mpc['offset']+len(bytes.fromhex(mpc['after_hex']))] == bytes.fromhex(mpc['after_hex'])
-suffix = '; exact admitted CE label delta and all other stock content unchanged' if mpc else '; stock MPC and all other stock content unchanged'
+        for slot in mpc['slots']:
+            after = bytes.fromhex(slot['after_hex'])
+            assert data[slot['offset']:slot['offset']+len(after)] == after
+suffix = '; exact admitted CE label and Az01 EHCI CPU deltas and all other stock content unchanged' if mpc else '; stock MPC and all other stock content unchanged'
 print('PASS: exact MCU payload bytes/owners and shipped modes (executables 0700, payload folder 0700); only added paths and parent links changed'+suffix)

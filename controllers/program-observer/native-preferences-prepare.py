@@ -24,6 +24,27 @@ current_loads,stock_loads=loads(current),loads(stock)
 # provenance used by the injected call. The remaining ranges cover every host
 # entry and vtable consumed by the experiment.
 ranges=[
+ (0x00b3a010,0x214,'Component add deep MouseListener'),
+ (0x00b3a224,0x1a0,'Component remove MouseListener'),
+ (0x00b9b250,0x120,'MouseEvent relative aggregate return'),
+ (0x00b673ac,0x008,'ListBox select on mouse down setter'),
+ (0x00c61498,0x12c,'ListBox row down owner row and deferred selection'),
+ (0x00c61788,0x0b4,'ListBox row up click settlement'),
+ (0x0688d4e0,0x034,'ListBox row vtable prefix and pointer slots'),
+ (0x00a2b124,0x13c,'NativeImageType create hidden Image return'),
+ (0x00ab114c,0x0b0,'SoftwarePixelData initialise BitmapData'),
+ (0x00a2e034,0x03c,'ImagePixelData reference release'),
+ (0x00a4fb94,0x178,'Graphics drawImageAt'),
+ (0x00a94610,0x020,'stock hidden image return caller'),
+ (0x00a33634,0x050,'stock BitmapData width height mode caller'),
+ (0x00aadd38,0x038,'stock image transfer and data release'),
+ (0x00b279c4,0x01c,'stock drawImageAt caller'),
+ (0x00b283b8,0x01c,'stock cached drawImageAt caller'),
+ (0x00a33890,0x060,'stock RGBA to premultiplied BGRA'),
+ (0x00b9cca8,0x054,'Button drag MouseEvent local float position'),
+ (0x00bbd850,0x07c,'Button up MouseEvent local float position'),
+ (0x0688bd38,0x01c,'NativeImageType vtable'),
+ (0x0688bb08,0x030,'SoftwarePixelData vtable'),
  (0x03667964,0x108,'stock NotImplementedTab call and append'),
  (0x03667a90,0x0d8,'final Splice construction and append'),
  (0x03668df8,0x15c,'overlay teardown'),
@@ -164,6 +185,27 @@ ranges=[
  (0x0689c134,0x020,'Global MIDI Learn chooser primary vtable'),
 ]
 expected_digests={
+ (0x00b3a010,0x214):'85ee90c364beb0b04e583612c57de473705eaa7e4d039c0cff349b0750f20072',
+ (0x00b3a224,0x1a0):'aacd956a477bfd791d0ae29a8cbd7570cdb854c63ea6516caf81c1a13505a4c7',
+ (0x00b9b250,0x120):'fb987eb60708d33d8827f88d52c0e04675d74d19517d55e3a73095cbee8a6feb',
+ (0x00b673ac,0x008):'f54b2d8a3ad9a156ae4592784d8c0481cd43cab2f53878e106e9e96f71c62595',
+ (0x00c61498,0x12c):'be43419c8f326b36a7d1fd743b6629933df63f31791ffc492e4dfb599888a7a2',
+ (0x00c61788,0x0b4):'b3722fff70802ac6377ca1da8273276097b36ce70a2502438edfb83c0e9fe9e8',
+ (0x0688d4e0,0x034):'de854760755c1b39a7b7cb850a0391ce7f2827129c8229e90492fc86438fd538',
+ (0x00a2b124,0x13c):'44238c4f7b0194f375b6fd2d4b7d636ba761bfd1310f5f15431055b7bba52bb0',
+ (0x00ab114c,0x0b0):'7f813deedfd091e0c1901e94f6d2461a1b83f3415d13e8a6ab5521d2fe478157',
+ (0x00a2e034,0x03c):'6359d582acb945dd7cbee23ea488c7d876687951bfb5974c973dda4e443c65a0',
+ (0x00a4fb94,0x178):'61f7f17e260c01b5ad1d1ab346621b24afb8fd176169955954a92f642746a572',
+ (0x00a94610,0x020):'213027d4cc2098eb999cc6381984c8084ad60e7d0f345f10a6ea22b8b9281bfa',
+ (0x00a33634,0x050):'9f6d6ac79086db4e7f1de6e0b739490632e5dcac5f315c4d5ebff3893642512d',
+ (0x00aadd38,0x038):'704602036ece86668c8c96567cdb7e0c79ca7b3bc53bd63cd35e8771e8d99b3e',
+ (0x00b279c4,0x01c):'35626d552a4fe67662ca48491125db746105e4cdf081916a2217fe41e5a8d907',
+ (0x00b283b8,0x01c):'6a3be3e52672a9b14e1cb1dcc6fe5a1124cfaa1e62d47601ef3a9e6efe4ebd62',
+ (0x00a33890,0x060):'ef5a5c1f39f05457638397fc082c28ee4f96f5b9130bf800d2eb3c1177cc2e8a',
+ (0x00b9cca8,0x054):'761b1ce870173033aee26ad3d86eb76e1ec4ef0df8bdf3cbd605207ef7803489',
+ (0x00bbd850,0x07c):'ef8580e25f5a19bf14b60ec3f7379f5d1d3e1e31d963215e7c42b5dd5c58cb77',
+ (0x0688bd38,0x01c):'8f646e6588188475cf82ddf08e27e0e2917200a7a6365d729138f221fb4cf1ca',
+ (0x0688bb08,0x030):'15e6bca275836da1c824488d9b3db83b17eeee6e3eb6c52e531c6987fb0858f4',
  (0x00c02648,0x028):'76b8738a5de8b5707e0afd7af791f9743ba5e20b1c24da1383e02a2d445c8978',
  (0x00c4b498,0x00c):'b718f2c618919fe1ceb7c253994be1a022c8cba499e5a4577d8534f8dc013310',
  (0x00c4b32c,0x024):'dac00b00c1a25a173ce8db09bd4f13faeebd55c5398b6c97a694a019528f4f78',
@@ -381,6 +423,14 @@ for address,expected,name in sites:
  if data.hex()!=expected:raise SystemExit(f'{name} hook site changed')
  site_bytes.append(data)
 pointers=[
+ (0x0688d4fc,0x00c61498,'ListBox row mouseDown'),
+ (0x0688d504,0x00c61788,'ListBox row mouseUp'),
+ (0x0688bd38+16,0x00a2b124,'NativeImageType create'),
+ (0x0688bb08+8+5*4,0x00ab114c,'SoftwarePixelData bitmap initializer'),
+ (0x0688bb08+12,0x00ab153c,'SoftwarePixelData deleting destructor'),
+ (0x068905a8+5*4,0x00b92d60,'TextButton mouseDown'),
+ (0x068905a8+6*4,0x00b9cca8,'TextButton mouseDrag'),
+ (0x068905a8+7*4,0x00bbd850,'TextButton mouseUp'),
  (0x069cd0b4+8,0x0369cdec,'tab complete destructor'),
  (0x069cd0b4+12,0x0369cf60,'tab deleting destructor'),
  (0x068905a8+46*4,0x00b24f60,'TextButton clicked'),
@@ -438,7 +488,7 @@ lines.append('};')
 # above, while comparing the still-original tail in the live process. The
 # command mirror's own generated anchor admits the displaced eight bytes
 # before it changes them.
-vtable_addresses={0x069cd0b4,0x068905a0,0x068ca8c4,0x0688eb70,0x069cabac,0x0689c878,0x0689c134}
+vtable_addresses={0x0688d4e0,0x069cd0b4,0x068905a0,0x068ca8c4,0x0688eb70,0x069cabac,0x0689c878,0x0689c134,0x0688bd38,0x0688bb08}
 runtime_ranges=[]
 for address,length,name in ranges:
  if address in vtable_addresses:continue

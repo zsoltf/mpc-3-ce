@@ -17,7 +17,9 @@ enum {
  MCU_CAP_TOUCH=1u<<10
 };
 
-enum {MCU_PROTOCOL_MCU,MCU_PROTOCOL_HUI};
+enum {MCU_PROTOCOL_MCU,MCU_PROTOCOL_HUI,MCU_PROTOCOL_LCXL3,MCU_PROTOCOL_LPX,MCU_PROTOCOL_LPP3,MCU_PROTOCOL_MPK_MINI3,MCU_PROTOCOL_LPD8_MK2,MCU_PROTOCOL_MPK249};
+enum {MCU_ENDPOINT_ANY=0,MCU_ENDPOINT_KERNEL=1,MCU_ENDPOINT_USER=2};
+enum {MCU_HUI_NONE=0,MCU_HUI_PICKUP=1,MCU_HUI_MOTORIZED=2};
 
 typedef struct {
  const char *name;
@@ -74,8 +76,9 @@ static const McuProfile mcu_profile_xtouch_mini={
  .master_input_max=16256
 };
 
-/* Standard HUI is an explicit, exactly named bidirectional endpoint. Device
- * endpoint and heartbeat-loss policy remain unselected until physical capture. */
+/* Standard HUI uses an explicitly selected bidirectional endpoint, without a
+ * vendor name. Motorized versus pickup behavior is a persisted session policy,
+ * not a guessed device capability or endpoint-name convention. */
 static const McuProfile mcu_profile_hui={
  .name="hui",
  .capabilities=MCU_CAP_GLOBAL|MCU_CAP_STRIP_FADER|MCU_CAP_TOUCH,
@@ -87,19 +90,36 @@ static const McuProfile mcu_profile_hui={
  .protocol=MCU_PROTOCOL_HUI
 };
 
+/* Native protocol ports must be chosen explicitly. No names or USB identity are
+ * inferred here; physical admission is a separate hardware qualification. */
+static const McuProfile mcu_profile_lcxl3={.name="lcxl3-daw",.physical_only=1,.protocol=MCU_PROTOCOL_LCXL3};
+static const McuProfile mcu_profile_lpx={.name="launchpad-x-programmer",.physical_only=1,.protocol=MCU_PROTOCOL_LPX};
+static const McuProfile mcu_profile_lpp3={.name="launchpad-pro-mk3-programmer",.physical_only=1,.protocol=MCU_PROTOCOL_LPP3};
+/* User-selected CE programs. Musical messages stay outside these CC codecs;
+ * no host mode/preset writes or unsupported feedback are sent. */
+static const McuProfile mcu_profile_mpk_mini3={.name="mpk-mini-mk3",.physical_only=1,.protocol=MCU_PROTOCOL_MPK_MINI3};
+static const McuProfile mcu_profile_lpd8_mk2={.name="lpd8-mk2",.physical_only=1,.protocol=MCU_PROTOCOL_LPD8_MK2};
+static const McuProfile mcu_profile_mpk249={.name="mpk249",.physical_only=1,.protocol=MCU_PROTOCOL_MPK249};
+static inline int mcu_profile_program(const McuProfile *p){return p&&p->protocol>=MCU_PROTOCOL_MPK_MINI3&&p->protocol<=MCU_PROTOCOL_MPK249;}
+static inline int mcu_profile_native(const McuProfile *profile){return profile&&profile->protocol>=MCU_PROTOCOL_LCXL3&&profile->protocol<=MCU_PROTOCOL_LPP3;}
+
 static inline const McuProfile *mcu_profile_named(const char *name){
  if(!strcmp(name,"xtouch"))return &mcu_profile_xtouch;
  if(!strcmp(name,"generic"))return &mcu_profile_generic;
  if(!strcmp(name,"xtouch-mini"))return &mcu_profile_xtouch_mini;
  if(!strcmp(name,"hui"))return &mcu_profile_hui;
+ if(!strcmp(name,"lcxl3-daw"))return &mcu_profile_lcxl3;
+ if(!strcmp(name,"launchpad-x-programmer"))return &mcu_profile_lpx;
+ if(!strcmp(name,"launchpad-pro-mk3-programmer"))return &mcu_profile_lpp3;
+ if(!strcmp(name,"mpk-mini-mk3"))return &mcu_profile_mpk_mini3;
+ if(!strcmp(name,"lpd8-mk2"))return &mcu_profile_lpd8_mk2;
+ if(!strcmp(name,"mpk249"))return &mcu_profile_mpk249;
  return NULL;
 }
 
 static inline int mcu_endpoint_valid(const McuEndpoint *endpoint){
  if(!endpoint||!endpoint->profile||!endpoint->client||!endpoint->port)return 0;
- if(endpoint->profile->default_client||endpoint->profile->default_port)
-  return endpoint->profile->default_client&&endpoint->profile->default_port&&endpoint->physical_only&&!strcmp(endpoint->client,endpoint->profile->default_client)&&!strcmp(endpoint->port,endpoint->profile->default_port);
- return endpoint->client&&*endpoint->client&&endpoint->port&&*endpoint->port;
+ return endpoint->physical_only<=MCU_ENDPOINT_USER&&*endpoint->client&&*endpoint->port;
 }
 
 static inline int mcu_has(const McuEndpoint *endpoint,unsigned capability){
@@ -114,9 +134,11 @@ static inline int mcu_master_input_position(const McuEndpoint *endpoint,unsigned
 }
 
 enum {MCU_ENDPOINT_READ=1u<<0,MCU_ENDPOINT_SUBS_READ=1u<<1,MCU_ENDPOINT_WRITE=1u<<2};
+static inline int mcu_endpoint_match_caps(const McuEndpoint *endpoint,const char *client,unsigned kernel,const char *port,unsigned capabilities,unsigned required){
+ return mcu_endpoint_valid(endpoint)&&(endpoint->physical_only==MCU_ENDPOINT_ANY||(endpoint->physical_only==MCU_ENDPOINT_KERNEL&&kernel)||(endpoint->physical_only==MCU_ENDPOINT_USER&&!kernel))&&!strcmp(endpoint->client,client)&&!strcmp(endpoint->port,port)&&(capabilities&required)==required;
+}
 static inline int mcu_endpoint_match(const McuEndpoint *endpoint,const char *client,unsigned kernel,const char *port,unsigned capabilities){
- unsigned need=MCU_ENDPOINT_READ|MCU_ENDPOINT_SUBS_READ|MCU_ENDPOINT_WRITE;
- return mcu_endpoint_valid(endpoint)&&(!endpoint->physical_only||kernel)&&!strcmp(endpoint->client,client)&&!strcmp(endpoint->port,port)&&(capabilities&need)==need;
+ return mcu_endpoint_match_caps(endpoint,client,kernel,port,capabilities,MCU_ENDPOINT_READ|MCU_ENDPOINT_SUBS_READ|MCU_ENDPOINT_WRITE);
 }
 
 #endif

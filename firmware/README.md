@@ -1,6 +1,18 @@
 # MCU image and release
 
-Release identity: `v0.2.6`, CMD31/MMV17, run in place from
+The current personal test candidate is `gpu-sd-usb-cpu0-test1`, with provision
+revision `gpu_sd_usb_cpu0_test1`. It changes the stock Az01 EHCI policy to CPU0
+and retains the exact GPU prerelease2 [SD-card Pd/Cardinal bundle](plugin-setup/README.md).
+`build-prerelease.sh` produces
+`MPC-3.9.1-Gen1-CE-GPU-SD-USB-CPU0-test1-update.img` in a separate output folder.
+The on-screen CE label stays unchanged. This is not a published release.
+
+The frozen public `v0.2.6` browser recipes still contain the older CPU2 host and
+their matching runtime. They do not include this CPU0 change. The current global
+`mpc-ce.json` and C admission header describe the CPU0 candidate; running the
+public build recipe from this checkout does not recreate released v0.2.6.
+
+Public release identity: `v0.2.6`, CMD31/MMV17, run in place from
 `/usr/share/mpclearn/mcu`. It supports MPC Live II firmware 3.9.1 and the
 full-size Behringer X-Touch in MC mode over USB. Do not infer other MPC or MCU
 hardware compatibility from the Gen1 image header.
@@ -27,9 +39,11 @@ These Docker commands are for maintainers preparing and verifying patch data.
 The browser-only end-user builder is developed separately under `builder/`; its users
 must not need Docker, Python, a compiler, VM, WSL or terminal commands.
 
-### Build the reference image locally
+### Reproduce the frozen public reference image
 
-Work from the repository root on `main`. First follow the complete
+Run the commands in this subsection only from the frozen v0.2.6 release source
+with its matching manifest, admission and qualified runtime pins, not current
+`main`. First follow the complete
 [runtime build instructions](../docs/BUILDING.md). Docker is required. Supply your own official3.9.1 Gen1 USB update, pinned SHA256:
 `4c0f7797a006313fad206f9513eca8b3823e834c9e0941a6b5f088386cb835d6`.
 Do not substitute another firmware version.
@@ -55,8 +69,27 @@ python3 firmware/patch-mpc-ce.py build/MPC build/v0_2_6/MPC
 sh firmware/build-v0.2.6.sh
 ```
 
+### Build the personal CPU0 test candidate
+
+Use a generated copy of the frozen GPU prerelease2 host source, with only the
+new host manifest and admission identity overlaid. Rebuild and qualify its
+matching observer, command client and bridge before integrating runtime pins.
+Keep the original host and bundle intact; do not build from unrelated controller
+or UI work in the primary checkout. From the separately prepared image-builder
+source with those qualified pins and the candidate MPC in `build/v0_2_6/MPC`
+(the existing internal input path):
+
+```sh
+bash firmware/build-prerelease.sh /absolute/path/to/qualified-frozen-host-copy \
+  /absolute/path/to/prerelease-gpu2/plugins.squashfs build/cpu0-test1-delivery
+```
+
+The bundle remains104112128 bytes, SHA256
+`2401ad9ebf999cdf84e262525e922f14039ab52ad5174d998c08e7dbb9d46fa8`.
+No MIDI repair candidate is included. The build does not authorize installation.
+
 `package.py` accepts only the qualified native Preferences observer and matched
-nine-file package. It intentionally refuses an arbitrary unqualified runtime.
+runtime package. It intentionally refuses an arbitrary unqualified runtime.
 The production builder uses the exact stock MPC executable and its separately
 patched CE executable, targets `/usr/share/mpclearn/mcu`, and gives the package
 the required manual lifetime.
@@ -69,10 +102,17 @@ license or require users to obtain it from upstream; do not silently relicense i
 Generated files are under `artifacts/`; the USB image name retains `-update.img`.
 Verification checks the exact official input, XZ/SHA1 image structure, geometry,
 filesystem consistency, full semantic delta, each payload byte/mode/owner and
-the exact nine-byte CE label delta in `/usr/bin/MPC`, with its stock metadata
-preserved. It does not prove the image flashed or booted.
+the exact CE label and Az01 EHCI CPU slots in `/usr/bin/MPC`, with its stock
+metadata preserved. `mpc-ce.json` pins both intervals and the complete input/output
+identities. The Az01 policy word selects CPU0 instead of CPU2 for EHCI servicing;
+it changes no worker affinity or priority. This remains a prerelease candidate
+qualified on the tested Live II workload, not a guarantee for every load. Building
+and checking an image does not prove it flashed or booted.
 
-### Browser patch variants
+### Frozen public browser patch variants
+
+The following recipe workflow describes the frozen public release. Do not
+regenerate or publish these assets as part of the personal CPU0 test.
 
 Maintainers prepare the SSH-enabled reference root with the canonical 81-byte
 Ed25519 placeholder instead of a real owner's key. `make-patch.py` emits only

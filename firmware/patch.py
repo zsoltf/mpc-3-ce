@@ -18,6 +18,10 @@ PAYLOAD = '/usr/share/mpclearn/mcu'
 MODES = dict.fromkeys('command-client mirror-input mirror-read mcu-session.sh mcu mpclearn-controls main-button mcu-boot.sh mcu-boot-install.sh'.split(), 0o100700)
 MODES.update(dict.fromkeys('command-observer.so config.h session-package.sha256'.split(), 0o100600))
 MODES.update(dict.fromkeys('LICENSE BUILD.json payload.sha256'.split(), 0o100644))
+metadata = json.loads((payload/'BUILD.json').read_text())
+prerelease = 'plugin_bundle' in metadata
+if prerelease:
+    MODES.update({'plugin-setup':0o100700, 'plugin-bundle.json':0o100600})
 
 def directory(path):
     if 'Inode:' in debug('stat '+path, False).stdout:
@@ -46,7 +50,17 @@ if {p.name for p in payload.iterdir()} != set(MODES): raise RuntimeError('Unexpe
 for p in sorted(payload.iterdir()):
     if not p.is_file() or p.is_symlink(): raise RuntimeError('Only plain payload files allowed')
     file(p, PAYLOAD+'/'+p.name, MODES[p.name])
-file(repo/'firmware/provision.sh', '/usr/libexec/mpclearn/provision.sh', 0o100755)
+with tempfile.TemporaryDirectory() as temp:
+    provisioner = pathlib.Path(temp)/'provision.sh'
+    content = (repo/'firmware/provision.sh').read_text()
+    if prerelease:
+        assert content.count('revision=v0_2_6\n') == 1
+        revision = metadata['image_revision']
+        if not revision or any(c not in 'abcdefghijklmnopqrstuvwxyz0123456789_' for c in revision):
+            raise RuntimeError('Invalid image revision')
+        content = content.replace('revision=v0_2_6\n', 'revision='+revision+'\n')
+    provisioner.write_text(content)
+    file(provisioner, '/usr/libexec/mpclearn/provision.sh', 0o100755)
 file(repo/'firmware/mpclearn-provision.service', '/usr/lib/systemd/system/mpclearn-provision.service')
 with tempfile.TemporaryDirectory() as temp:
     source = repo/'controllers/program-observer/mpclearn-boot.service'

@@ -145,7 +145,7 @@ static void note_native_wheel(Context *c){
  int steps=(int32_t)c->r[1];
  /* Relevance before any pointer read or fault: unrelated native input has its
   * own owner. No input is banked or retried; each callback carries its count. */
- if(c->r[2]!=1||steps < -128||steps > 127||c->r[3]!=observer_image_bias+WHEEL_ROTATE_RVA||
+ if(c->r[2]>1||steps < -128||steps > 127||c->r[3]!=observer_image_bias+WHEEL_ROTATE_RVA||
     token()!=command_owner||!atomic_load_explicit(&observer_running,memory_order_seq_cst)||
     atomic_load_explicit(&command_in_hook,memory_order_seq_cst))return;
  /* Reuse the command owner's SC entry/close handshake, so observer shutdown
@@ -154,6 +154,18 @@ static void note_native_wheel(Context *c){
  if(!atomic_load_explicit(&observer_running,memory_order_seq_cst))goto done;
  if(!active()||!ready||loading||reset_pending||depth||atomic_load(&command_state->error)||
     atomic_load(&command_state->trace_error)||atomic_load(&command_violation))goto done;
+ #ifdef NATIVE_PREFERENCES
+ /* The page-two editor owns focused list selection while it is visible.
+  * Preserve the signed count shape of the physical wheel and leave every
+  * other native focus path to its original owner. */
+ if(native_preferences_wheel(steps)){
+  c->r[3]=(uint32_t)(uintptr_t)note_wheel_consumed;
+  goto done;
+ }
+ #endif
+ /* The existing Grid shortcut is coarse/Shift-only; the app's selected list
+  * above also accepts the unmodified panel wheel. */
+ if(c->r[2]!=1)goto done;
  if(word(observer_image_bias+FOCUS_SLOT_RVA)!=c->r[0]||!note_grid())goto done;
  /* Recognition is separate from movement. Empty grids, endpoints and active
   * note gestures must not fall through to the native note-editing handler. */

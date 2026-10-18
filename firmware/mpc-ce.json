@@ -1,9 +1,22 @@
 {
-  "version": 1,
+  "version": 2,
   "input_sha256": "bc054a3f3ba02c2d33ac9a515a4a8638964da779223502286d6a64b517bf1426",
-  "output_sha256": "a7690d51ff905bfb7d637f86714596deb205dc72c02ec04dd1b038c2ad45b5a2",
+  "output_sha256": "2fa5e9818c3a3beedfcb3fafe34f5b3f9a07295a3b68fb9e7949be6b64fa8daf",
   "size": 112222004,
-  "offset": 78736052,
-  "before_hex": "204669726d77617265000000",
-  "after_hex": "2043452076302e322e360000"
+  "slots": [
+    {
+      "offset": 78736052,
+      "before_hex": "204669726d77617265000000",
+      "after_hex": "2043452076302e322e360000",
+      "name": "ce-label",
+      "unique": true
+    },
+    {
+      "name": "az01-ehci-cpu",
+      "offset": 109720160,
+      "before_hex": "02000000",
+      "after_hex": "00000000",
+      "unique": false
+    }
+  ]
 }

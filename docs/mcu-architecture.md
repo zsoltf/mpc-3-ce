@@ -6,9 +6,9 @@ project loading, plug-ins, automation and the musical state.
 
 ```mermaid
 flowchart LR
-  X[X-Touch MCU] <-->|USB MIDI| B[MCU bridge]
+  C[Configured control surfaces] <-->|USB MIDI| B[One multi-surface bridge]
   B -->|Typed command requests| O[Observer and command service inside MPC]
-  O -->|Copied authoritative state and receipts| B
+  O -->|One copied authoritative state and receipts| B
   O <-->|Qualified native state and commands| M[MPC application]
   Mini[Optional X-Touch Mini] --> A[Optional MIDI mapping adapter]
   A --> G[Global MIDI Learn - separate feature]
@@ -34,11 +34,16 @@ flowchart LR
    unchanged. The service copies state for the bridge and executes typed
    commands through qualified MPC owner paths. It checks target identity,
    lifetime and command completion rather than retaining arbitrary old pointers.
-3. **MCU bridge.** `mirror-input` is a separate process. It interprets faders,
-   encoders and buttons; owns controller banks/pages; submits native commands;
-   and converts observed MPC state into motor positions, LED/ring states, LCD
-   names/values/colors, meters and position feedback. Touchscreen and automation
-   changes can therefore feed the controller without originating from it.
+3. **Control-surface bridge.** `mirror-input` is currently a separate singleton
+   process. It interprets faders, encoders and buttons; owns controller
+   banks/pages; submits native commands; and converts observed MPC state into
+   motor positions, LED/ring states, LCD names/values/colors, meters and
+   position feedback. Touchscreen and automation changes can therefore feed the
+   controller without originating from it. The accepted next-release
+   architecture keeps one process, snapshot owner, ALSA loop and command
+   coordinator while adding a bounded collection of per-controller profile,
+   bank/layer and output-cache state. See the
+   [multi-controller design](plans/2026-09-29__multi-controller-profiles.md).
 4. **Optional MIDI mapping adapter.** `mpclearn-controls` retains the Mini
    encoder-to-Q-Link route. It does not forward full X-Touch Play, Stop, Undo
    or Redo. Those commands go through the MCU bridge and native command service,
@@ -68,9 +73,14 @@ is not a guarantee of constant 100 Hz physical motion.
 
 This is a firmware-specific community extension for the qualified Live II
 3.9.1 app, not an official Akai SDK or a complete API for every app operation.
-Only decoded, qualified state/command paths are exposed. Device discovery and
-color feedback currently target the full X-Touch; standard MCU messaging makes
-other controllers feasible, not already supported. HUI remains unimplemented.
+Only decoded, qualified state/command paths are exposed. The full X-Touch,
+X-Touch Mini, generic MCU and the software-qualified generic HUI path exist in
+the current singleton runtime. Its core and session owner accept independently
+named input/output ports and persist a bounded 16-record collection, while the
+current native screen and live router still use its first record. HUI
+physical/audio acceptance, the multi-controller list/router and the known-device
+profiles are still open. A codec or manual alone is not a hardware compatibility
+claim.
 
 The boot entry survives normal reboot and is already user-tested. A firmware
 update may replace it and requires compatibility checking before reinstallation.

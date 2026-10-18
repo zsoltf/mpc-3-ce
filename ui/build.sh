@@ -7,6 +7,7 @@ clang++ $flags -c mpclearn-ui.cc -o package/mpclearn-ui.o
 clang++ $flags -c examples/third-screen.cc -o package/third-screen.o
 clang++ $flags -c examples/slider-screen.cc -o package/slider-screen.o
 clang++ $flags -c examples/toolkit-example.cc -o package/toolkit-example.o
+clang++ $flags -c examples/image-diagnostic/toolkit-example.cc -o package/image-diagnostic.o
 clang++ $flags -c screens/global-midi-learn-groups.cc -o package/global-midi-learn-groups.o
 clang++ $flags -c screens/global-midi-learn-screen.cc -o package/global-midi-learn-screen.o
 clang++ $flags -c tests/component.cc -o package/component.o

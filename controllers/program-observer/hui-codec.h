@@ -75,6 +75,9 @@ static inline int hui_decode(HuiInput *input,const unsigned char bytes[3],uint32
 }
 
 static inline HuiWire hui_heartbeat(void){return (HuiWire){.bytes={0x90,0,0},.length=3};}
+static inline HuiWire hui_fader(unsigned strip,unsigned position){
+ HuiWire wire={{0xb0,(unsigned char)(strip&7),(unsigned char)((position>>7)&0x7f),0xb0,(unsigned char)(0x20+(strip&7)),(unsigned char)(position&0x7f)},6};return wire;
+}
 static inline HuiWire hui_led(unsigned zone,unsigned port,unsigned on){
  HuiWire wire={{0xb0,0x0c,(unsigned char)zone,0xb0,0x2c,(unsigned char)((on?0x40:0)|(port&0x0f))},6};return wire;
 }

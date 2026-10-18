@@ -3,6 +3,7 @@
  * files with a component process in place of MPC and no physical ALSA device. */
 #define _GNU_SOURCE
 #include <alsa/asoundlib.h>
+#include <sys/wait.h>
 static int captured_output(snd_seq_t*,snd_seq_event_t*);
 static int fake_query_next_client(snd_seq_t*,snd_seq_client_info_t*);
 static int fake_query_next_port(snd_seq_t*,snd_seq_port_info_t*);
@@ -16,6 +17,23 @@ static unsigned fake_port_capability(const snd_seq_port_info_t*);
 static const snd_seq_addr_t *fake_port_addr(const snd_seq_port_info_t*);
 static int fake_port_number(const snd_seq_port_info_t*);
 static const char *fake_port_name(const snd_seq_port_info_t*);
+static int fake_event_input(snd_seq_t*,snd_seq_event_t**);
+static int fake_event_pending(snd_seq_t*,int);
+static int fake_get_client_info(snd_seq_t*,snd_seq_client_info_t*);
+static int fake_event_lost(const snd_seq_client_info_t*);
+static int fake_seq_close(snd_seq_t*);
+static int fake_seq_open(snd_seq_t**,const char*,int,int);
+static int fake_seq_name(snd_seq_t*,const char*);
+static int fake_connect_from(snd_seq_t*,int,int,int);
+static int fake_disconnect_from(snd_seq_t*,int,int,int);
+static int fake_seq_id(snd_seq_t*);
+static int fake_create_port(snd_seq_t*,const char*,unsigned,unsigned);
+#define snd_seq_create_simple_port fake_create_port
+#define snd_seq_connect_from fake_connect_from
+#define snd_seq_disconnect_from fake_disconnect_from
+#define snd_seq_client_id fake_seq_id
+#define snd_seq_open fake_seq_open
+#define snd_seq_set_client_name fake_seq_name
 #define snd_seq_event_output_direct captured_output
 #define snd_seq_query_next_client fake_query_next_client
 #define snd_seq_query_next_port fake_query_next_port
@@ -29,10 +47,18 @@ static const char *fake_port_name(const snd_seq_port_info_t*);
 #define snd_seq_port_info_get_addr fake_port_addr
 #define snd_seq_port_info_get_port fake_port_number
 #define snd_seq_port_info_get_name fake_port_name
+#define snd_seq_event_input fake_event_input
+#define snd_seq_event_input_pending fake_event_pending
+#define snd_seq_get_client_info fake_get_client_info
+#define snd_seq_client_info_get_event_lost fake_event_lost
+#define snd_seq_close fake_seq_close
+static void admission_write_checkpoint(void);
+#define CONTROLLER_ADMISSION_CHECKPOINT() admission_write_checkpoint()
 #define MIRROR_INPUT
 #define main input_bridge_main_not_called
 #include "mirror-motor.c"
 #undef main
+#include "../mcu-simulator/mcu-codec.c"
 #undef snd_seq_event_output_direct
 #undef snd_seq_query_next_client
 #undef snd_seq_query_next_port
@@ -46,10 +72,23 @@ static const char *fake_port_name(const snd_seq_port_info_t*);
 #undef snd_seq_port_info_get_addr
 #undef snd_seq_port_info_get_port
 #undef snd_seq_port_info_get_name
+#undef snd_seq_event_input
+#undef snd_seq_event_input_pending
+#undef snd_seq_get_client_info
+#undef snd_seq_client_info_get_event_lost
+#undef snd_seq_close
+#undef snd_seq_open
+#undef snd_seq_set_client_name
+#undef snd_seq_connect_from
+#undef snd_seq_disconnect_from
+#undef snd_seq_client_id
+#undef snd_seq_create_simple_port
+static unsigned relay_ports;
+static int fake_create_port(snd_seq_t *seq,const char *name,unsigned caps,unsigned type){(void)seq;(void)type;if(strcmp(name,STOP_RELAY_PORT)||caps!=(SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_NO_EXPORT))return -1;relay_ports++;return 4;}
 typedef struct {const char *name;unsigned capabilities;unsigned port;} FakePort;
-typedef struct {const char *name;int type;unsigned client,count;FakePort ports[2];} FakeClient;
-static FakeClient fake_clients[3];static unsigned fake_client_count,fake_port_queries[3];static int fake_ci=-1,fake_pi=-1,fake_pc=-1;static snd_seq_addr_t fake_address;
-static void fake_enumeration(const FakeClient *clients,unsigned count){memset(fake_clients,0,sizeof(fake_clients));memcpy(fake_clients,clients,count*sizeof(*clients));fake_client_count=count;memset(fake_port_queries,0,sizeof(fake_port_queries));fake_ci=fake_pi=fake_pc=-1;}
+typedef struct {const char *name;int type;unsigned client,count;FakePort ports[32];} FakeClient;
+static FakeClient fake_clients[8];static unsigned fake_client_count,fake_port_queries[8];static int fake_ci=-1,fake_pi=-1,fake_pc=-1;static snd_seq_addr_t fake_address;
+static void fake_enumeration(const FakeClient *clients,unsigned count){if(count>8)abort();memset(fake_clients,0,sizeof(fake_clients));memcpy(fake_clients,clients,count*sizeof(*clients));fake_client_count=count;memset(fake_port_queries,0,sizeof(fake_port_queries));fake_ci=fake_pi=fake_pc=-1;}
 static int fake_query_next_client(snd_seq_t *seq,snd_seq_client_info_t *info){(void)seq;(void)info;return ++fake_ci<(int)fake_client_count?0:-ENOENT;}
 static int fake_query_next_port(snd_seq_t *seq,snd_seq_port_info_t *info){(void)seq;(void)info;if(fake_pc<0||fake_pc>=(int)fake_client_count)return -ENOENT;fake_port_queries[fake_pc]++;return ++fake_pi<(int)fake_clients[fake_pc].count?0:-ENOENT;}
 static void fake_client_set(snd_seq_client_info_t *info,int client){(void)info;if(client<0)fake_ci=-1;}
@@ -62,18 +101,53 @@ static unsigned fake_port_capability(const snd_seq_port_info_t *info){(void)info
 static const snd_seq_addr_t *fake_port_addr(const snd_seq_port_info_t *info){(void)info;fake_address=(snd_seq_addr_t){.client=fake_clients[fake_pc].client,.port=fake_clients[fake_pc].ports[fake_pi].port};return &fake_address;}
 static int fake_port_number(const snd_seq_port_info_t *info){(void)info;return (int)fake_clients[fake_pc].ports[fake_pi].port;}
 static const char *fake_port_name(const snd_seq_port_info_t *info){(void)info;return fake_clients[fake_pc].ports[fake_pi].name;}
+static snd_seq_event_t fake_input_events[16];static unsigned fake_input_count,fake_input_at,fake_close_count;
+static void fake_input_reset(void){fake_input_count=fake_input_at=0;}
+static void fake_input_push(snd_seq_event_t event){if(fake_input_count>=16)abort();fake_input_events[fake_input_count++]=event;}
+static int fake_event_input(snd_seq_t *seq,snd_seq_event_t **event){(void)seq;if(fake_input_at>=fake_input_count)return -EAGAIN;*event=fake_input_events+fake_input_at++;return 1;}
+static int fake_event_pending(snd_seq_t *seq,int fetch){(void)seq;(void)fetch;return (int)(fake_input_count-fake_input_at);}
+static int fake_get_client_info(snd_seq_t *seq,snd_seq_client_info_t *info){(void)seq;(void)info;return 0;}
+static int fake_event_lost(const snd_seq_client_info_t *info){(void)info;return 0;}
+static int fake_seq_close(snd_seq_t *seq){(void)seq;fake_close_count++;return 0;}
+static unsigned fake_inventory_open;
+static int fake_seq_open(snd_seq_t **seq,const char *name,int streams,int mode){(void)name;(void)streams;(void)mode;if(!fake_inventory_open)return -ENOENT;*seq=(snd_seq_t*)1;return 0;}
+static int fake_seq_name(snd_seq_t *seq,const char *name){(void)seq;(void)name;return 0;}
+static unsigned fake_subscriptions,fake_unsubscriptions;
+static int fake_connect_from(snd_seq_t *seq,int sink,int client,int port){(void)seq;(void)sink;(void)client;(void)port;fake_subscriptions++;return 0;}
+static int fake_disconnect_from(snd_seq_t *seq,int sink,int client,int port){(void)seq;(void)sink;(void)client;(void)port;fake_unsubscriptions++;return 0;}
+static int fake_seq_id(snd_seq_t *seq){(void)seq;return 200;}
 static snd_seq_event_t last_output;static unsigned output_count;static CopiedMirror *stop_on_output;
 static unsigned observed_led[128],observed_pitch_count[9];static int observed_pitch[9];static unsigned char observed_lcd[112];
 static unsigned observed_hui_zone,observed_hui_zone_valid,observed_hui_led_count,observed_hui_heartbeat;
 static unsigned char observed_hui_led[16][16];
+static unsigned observed_hui_fader_msb_count[8],observed_hui_fader_lsb_count[8];static unsigned char observed_hui_fader_msb[8],observed_hui_fader_lsb[8];
 static unsigned observed_color_count,observed_lcd_count,observed_ring_count[8];static int observed_ring[8];
+static unsigned observed_destinations[256],observed_destination_pitch_count[256][8];
+static int observed_destination_pitch[256][8];
+static unsigned native_capture_count,native_capture_enabled,native_output_fail_after;
+static struct {snd_seq_addr_t destination;unsigned length;unsigned char bytes[64];} native_capture[512];
 /* Outbound census: channel-pressure meter levels per strip and the ten
  * playhead controllers, so a suppressed resend is observable as a count. */
 static unsigned observed_press_count[8],observed_position_count;static int observed_press_level[8];
+static McuFeedbackState hui_consumer;
 static int captured_output(snd_seq_t *seq,snd_seq_event_t *event){(void)seq;last_output=*event;output_count++;
+ if(native_output_fail_after&&!--native_output_fail_after)return -EIO;
+ if(event->type==SND_SEQ_EVENT_CONTROLLER){unsigned char wire[]={0xb0|event->data.control.channel,(unsigned char)event->data.control.param,(unsigned char)event->data.control.value};(void)hui_feedback_decode(&hui_consumer,wire,sizeof(wire));}
+ if(native_capture_enabled&&native_capture_count<512){unsigned at=native_capture_count++;native_capture[at].destination=event->dest;
+  if(event->type==SND_SEQ_EVENT_SYSEX){unsigned length=event->data.ext.len;if(length>64)abort();native_capture[at].length=length;memcpy(native_capture[at].bytes,event->data.ext.ptr,length);}
+  else{native_capture[at].length=3;unsigned char *b=native_capture[at].bytes;
+   if(event->type==SND_SEQ_EVENT_CONTROLLER){b[0]=0xb0|event->data.control.channel;b[1]=(unsigned char)event->data.control.param;b[2]=(unsigned char)event->data.control.value;}
+   else if(event->type==SND_SEQ_EVENT_NOTEON){b[0]=0x90|event->data.note.channel;b[1]=event->data.note.note;b[2]=event->data.note.velocity;}
+   else native_capture[at].length=0;
+  }
+ }
+ observed_destinations[event->dest.client]++;
+ if(event->type==SND_SEQ_EVENT_PITCHBEND&&event->data.control.channel<8){observed_destination_pitch_count[event->dest.client][event->data.control.channel]++;observed_destination_pitch[event->dest.client][event->data.control.channel]=event->data.control.value+8192;}
  if(event->type==SND_SEQ_EVENT_NOTEON&&event->data.note.note==0&&event->data.note.velocity==0)observed_hui_heartbeat++;
  if(event->type==SND_SEQ_EVENT_CONTROLLER&&event->data.control.param==0x0c){observed_hui_zone=(unsigned)event->data.control.value;observed_hui_zone_valid=1;}
  if(event->type==SND_SEQ_EVENT_CONTROLLER&&event->data.control.param==0x2c&&observed_hui_zone_valid){unsigned raw=(unsigned)event->data.control.value;observed_hui_led[observed_hui_zone&15][raw&15]=(raw&0x40)!=0;observed_hui_led_count++;observed_hui_zone_valid=0;}
+ if(event->type==SND_SEQ_EVENT_CONTROLLER&&event->data.control.param<8){unsigned strip=(unsigned)event->data.control.param;observed_hui_fader_msb_count[strip]++;observed_hui_fader_msb[strip]=(unsigned char)event->data.control.value;}
+ if(event->type==SND_SEQ_EVENT_CONTROLLER&&event->data.control.param>=0x20&&event->data.control.param<0x28){unsigned strip=(unsigned)event->data.control.param-0x20;observed_hui_fader_lsb_count[strip]++;observed_hui_fader_lsb[strip]=(unsigned char)event->data.control.value;}
  if(event->type==SND_SEQ_EVENT_CHANPRESS){unsigned v=(unsigned)event->data.control.value;observed_press_count[(v>>4)&7]++;observed_press_level[(v>>4)&7]=(int)(v&0xf);}
  if(event->type==SND_SEQ_EVENT_CONTROLLER&&event->data.control.param>=0x40&&event->data.control.param<=0x49)observed_position_count++;
  if(event->type==SND_SEQ_EVENT_CONTROLLER&&event->data.control.param>=0x30&&event->data.control.param<0x38){unsigned strip=(unsigned)event->data.control.param-0x30;observed_ring_count[strip]++;observed_ring[strip]=event->data.control.value;}
@@ -89,7 +163,43 @@ static void snapshot_fixture(CopiedMirror *s,unsigned n){
  for(unsigned i=0;i<n;i++)for(unsigned f=CF_PAN;f<CF_COUNT;f++)s->tracks[i].fields[f]=(CopiedField){.property=(channel_kind(f)==CO_TRACK?s->tracks[i].track:s->tracks[i].program)+channel_offset(f),.incarnation=10+i*CF_COUNT+f,.owner_incarnation=channel_kind(f)==CO_TRACK?s->tracks[i].track_owner:s->tracks[i].program_owner,.revision=2,.bits=f==CF_PAN?0x3f000000:0,.available=1,.seed=1};
 }
 static void reset_fixture(CommandState *commands,MirrorInput *in,MirrorBank *bank,CopiedMirror *s,unsigned n){
- following.enabled=1;motor_follow_reset(&following);memset(commands,0,sizeof(*commands));commands->seconds=900;commands->owner_token=123;atomic_store(&commands->alive,1);need(input_begin(in,commands),"fresh synthetic input state");bank_init(bank);snapshot_fixture(s,n);bank_apply(bank,s,100);
+ following.enabled=1;motor_follow_reset(&following);memset(commands,0,sizeof(*commands));memset(&command_coordinator,0,sizeof(command_coordinator));commands->seconds=900;commands->owner_token=123;atomic_store(&commands->alive,1);need(input_begin(in,commands,coordinator_flights),"fresh synthetic input state");bank_init(bank);snapshot_fixture(s,n);bank_apply(bank,s,100);
+}
+static uint32_t shared_fixture_time(MirrorState *state,uint32_t requested){
+ struct timespec clock;need(!clock_gettime(CLOCK_MONOTONIC,&clock),"fixture monotonic clock");uint64_t current=(uint64_t)clock.tv_sec*1000+(uint64_t)clock.tv_nsec/1000000;need(current>=requested,"fixture source origin range");uint64_t origin=current-requested;state->origin_sec=(uint32_t)(origin/1000);state->origin_nsec=(uint32_t)(origin%1000)*1000000;uint32_t now=source_now(state);need(now!=UINT32_MAX,"fixture source clock");atomic_store(&state->heartbeat,now);return now;
+}
+static void runtime_cycle_checks(void){
+ CommandState *commands=calloc(1,sizeof(*commands));MirrorState *state=calloc(1,sizeof(*state));need(commands&&state,"runtime cycle fixtures");
+ MirrorInput in;MirrorBank bank;MIRROR_COPY(snapshot);reset_fixture(commands,&in,&bank,&snapshot,0);
+ state->magic=MIRROR_MAGIC;state->version=MIRROR_VERSION;state->bytes=sizeof(*state);state->capacity=MIRROR_CELLS;
+ atomic_store(&state->alive,1);atomic_store(&state->revision,2);atomic_store(&state->ready,0);shared_fixture_time(state,1000);
+ ControllerRuntime runtime={.snapshot=&snapshot};runtime_cycle_begin(&runtime);
+ int first=runtime_snapshot(&runtime,state,0),second=runtime_snapshot(&runtime,state,0);
+ need(first==second&&first>=0&&runtime.snapshot_requests==2&&runtime.snapshot_copies==1,"one runtime cycle performs one full snapshot copy even when two consumers request it");
+ runtime_settle(&runtime,&in,&bank);runtime_settle(&runtime,&in,&bank);runtime_submit(&runtime,&in,&bank);
+ need(!in.error&&runtime.settlement_requests==3&&runtime.settlement_scans==1&&runtime.submission_visits==1,"one runtime cycle scans shared command settlement once before its submission visit");
+ runtime_cycle_begin(&runtime);shared_fixture_time(state,1010);need(runtime_snapshot(&runtime,state,0)>=0,"next runtime cycle takes a fresh snapshot");
+ need(runtime_snapshot(&runtime,state,1)==0&&runtime.deferred_pad_views==1,"a pad view entered mid-cycle defers instead of taking or misusing a second full snapshot");runtime_submit(&runtime,&in,&bank);
+ need(runtime.snapshot_copies==2&&runtime.settlement_scans==2&&runtime.submission_visits==2,"the next runtime cycle gets exactly one new snapshot and settlement scan");
+ free(state);free(commands);
+ puts("PASS shared runtime cycle instrumentation: duplicate snapshot and settlement requests collapse to one copy/scan per cycle; submission stays separate (synthetic source/mailbox)");
+}
+static void hui_unready_liveness_checks(void){
+ char *hui[]={(char*)"mirror-input",(char*)"/volume",(char*)"/command",(char*)"--profile=hui",(char*)"--endpoint-client=HUI Device",(char*)"--endpoint-port=DAW",(char*)"--endpoint-type=kernel",(char*)"--hui-mode=pickup"};need(servo_arguments(8,hui)==3,"HUI unready-liveness profile");
+ CommandState *commands=calloc(1,sizeof(*commands));MirrorState *state=calloc(1,sizeof(*state));need(commands&&state,"HUI unready-liveness fixtures");MirrorBank bank;MIRROR_COPY(snapshot);reset_fixture(commands,&input,&bank,&snapshot,0);
+ state->magic=MIRROR_MAGIC;state->version=MIRROR_VERSION;state->bytes=sizeof(*state);state->capacity=MIRROR_CELLS;atomic_store(&state->alive,1);atomic_store(&state->revision,2);atomic_store(&state->ready,0);atomic_store(&state->epoch,0);atomic_store(&state->count,0);
+ Surface surface={.seq=(snd_seq_t*)1,.full={32,0},.source=3,.hui_connected_tick=0};fake_close_count=0;
+ const uint32_t replies[]={1000,3200,5400};
+ for(unsigned i=0;i<3;i++){
+  uint32_t now=shared_fixture_time(state,replies[i]);snd_seq_event_t event;snd_seq_ev_clear(&event);snd_seq_ev_set_noteon(&event,0,0,0x7f);event.source=surface.full;fake_input_reset();fake_input_push(event);
+  need(surface_drain(&surface,&bank,state,0,NULL),"exact HUI reply drains while source is unready");now=source_now(state);need(surface.hui_reply_count==i+1&&hui_liveness_current(&surface,now),"unready exact-source HUI replies keep bounded liveness current");need(!input.submitted&&!atomic_load(&commands->published),"unready HUI drain publishes no musical control intent");
+ }
+ shared_fixture_time(state,5600);snd_seq_event_t msb,lsb;snd_seq_ev_clear(&msb);snd_seq_ev_set_controller(&msb,0,0,64);msb.source=surface.full;snd_seq_ev_clear(&lsb);snd_seq_ev_set_controller(&lsb,0,0x20,1);lsb.source=surface.full;fake_input_reset();fake_input_push(msb);fake_input_push(lsb);need(surface_drain(&surface,&bank,state,0,NULL),"unready HUI fader intent follows the ordinary drain");need(!input.submitted&&!atomic_load(&commands->published)&&surface.hui_pickup[0].physical_valid,"unready non-liveness intent updates only its physical baseline and publishes no command");
+ uint32_t expired=shared_fixture_time(state,8000);fake_input_reset();need(surface_drain(&surface,&bank,state,0,NULL)&&!hui_liveness_current(&surface,expired),"stopped HUI replies expire after the reply timeout");surface_close(&surface,&bank);need(fake_close_count==1&&!surface.seq&&!surface.hui_reply_count&&!bank.ready&&!bank.chooser&&input_drained(&input),"one timeout close clears protocol state, disconnects the bank and retains a drained command owner");
+ uint32_t parked=shared_fixture_time(state,8100);need(fresh_copy_view(state,&snapshot,&parked,0)==1,"disconnected path reacquires a fresh chooser snapshot");bank_apply(&bank,&snapshot,parked);input_drain(&input,&bank,&snapshot,parked);need(bank.chooser&&!bank.ready&&input_drained(&input),"disconnected path drains commands before parking the fresh chooser snapshot");
+ atomic_store(&state->epoch,1);atomic_store(&state->ready,1);atomic_store(&state->revision,4);uint32_t reacquired=shared_fixture_time(state,8200);bank_disconnect(&bank);need(fresh_copy_view(state,&snapshot,&reacquired,0)==1,"reconnect path reacquires a fresh ready source");bank_apply(&bank,&snapshot,reacquired);need(bank.ready&&!bank.chooser,"fresh ready source applies only after reconnect reset");
+ free(state);free(commands);char *defaults[]={(char*)"mirror-input",(char*)"/volume",(char*)"/command"};need(servo_arguments(3,defaults)==3,"restore default profile after HUI unready-liveness check");
+ puts("PASS production surface drain: exact HUI heartbeat replies retain liveness through unready chooser time, no control bypasses readiness, reply loss closes once, then command drain/chooser park/fresh ready-source reacquire remain ordered (ALSA queue and source snapshots substituted)");
 }
 static void gesture(MirrorInput *in,MirrorBank *bank,CopiedMirror *s,unsigned strip,int position,uint32_t now){
  input_touch(in,bank,s,strip,1,now);input_pitch(in,bank,strip,8192,now);input_pitch(in,bank,strip,position,now);input_touch(in,bank,s,strip,0,now+1);
@@ -110,6 +220,115 @@ static void complete(CommandState *c,unsigned request,unsigned tick){
 }
 static void reclaim_fixture(CommandState *c,unsigned seq){
  unsigned at=command_find(c,seq);need(at<COMMAND_SLOTS&&atomic_load(&c->slots[at].settled)==seq,"reclaim only settled fixture");atomic_store(&c->reclaimed,atomic_load(&c->reclaimed)+1);atomic_store_explicit(&c->slots[at].reclaimed,seq,memory_order_release);
+}
+static void collection_fixture_source(MirrorState *state){
+ state->magic=MIRROR_MAGIC;state->version=MIRROR_VERSION;state->bytes=sizeof(*state);state->capacity=MIRROR_CELLS;
+ atomic_store(&state->alive,1);atomic_store(&state->ready,1);atomic_store(&state->epoch,1);atomic_store(&state->revision,2);atomic_store(&state->count,16);atomic_store(&state->channel.project_owner,1);
+ /* Native startup has a real selected Track even when B pages away from it.
+  * An unavailable selection masks a disconnect reset of selection history. */
+ ChannelOwner *project=state->channel.owners;atomic_store(&project->live,1);atomic_store(&project->kind,CO_PROJECT);atomic_store(&project->address,0x70000);atomic_store(&project->incarnation,1);
+ ChannelCell *selection=state->channel.fields;atomic_store(&selection->property,0x70078);atomic_store(&selection->owner_incarnation,1);atomic_store(&selection->incarnation,1);atomic_store(&selection->field,CF_SELECTION);atomic_store(&selection->revision,2);atomic_store(&selection->live,1);atomic_store(&selection->bits,0x10000);atomic_store(&selection->seed,1);
+ atomic_store(state->channel.field_directory+(((0x70078u>>4)*2654435761u)&(CHANNEL_HASH-1)),1);
+ for(unsigned i=0;i<16;i++){
+  MirrorBinding *t=state->tracks+i;unsigned program=0x90000+i*0x1000,track=0x10000+i*0x1000;
+  atomic_store(&t->serial,i+1);atomic_store(&t->track,track);atomic_store(&t->program,program);atomic_store(&t->incarnation,i+1);atomic_store(&t->binding,i+1);atomic_store(&t->vptr,0x6930c00);atomic_store(&t->track_owner,2+i*2);atomic_store(&t->program_owner,3+i*2);
+  MirrorCell *cell=state->cells+i;atomic_store(&cell->revision,2);atomic_store(&cell->live,1);atomic_store(&cell->incarnation,i+1);atomic_store(&cell->program,program);atomic_store(&cell->property,program+0x5b0);atomic_store(&cell->seed,1);atomic_store(&cell->bits,i<8?0x3f000000:0x3e800000);
+  ChannelOwner *owner=state->channel.owners+2+i*2;atomic_store(&owner->live,1);atomic_store(&owner->incarnation,3+i*2);atomic_store(&owner->kind,CO_PROGRAM);atomic_store(&owner->address,program);
+ }
+}
+static void collection_production_checks(void){
+ CommandState *commands=calloc(1,sizeof(*commands));MirrorState *state=calloc(1,sizeof(*state));need(commands&&state,"collection command/source fixture");
+ MirrorBank unused;MIRROR_COPY(snapshot);reset_fixture(commands,&input,&unused,&snapshot,16);collection_fixture_source(state);shared_fixture_time(state,1000);
+ McuControllerCollection saved={.count=3};
+ saved.records[0]=(McuControllerPreference){.enabled=1,.input={&mcu_profile_generic,"Surface A","From A",MCU_ENDPOINT_USER},.output={&mcu_profile_generic,"Feedback A","To A",MCU_ENDPOINT_USER}};
+ saved.records[1]=(McuControllerPreference){.enabled=1,.input={&mcu_profile_generic,"Surface B","From B",MCU_ENDPOINT_USER},.output={&mcu_profile_generic,"Feedback B","To B",MCU_ENDPOINT_USER}};
+ saved.records[2]=saved.records[0];saved.records[2].enabled=0;
+ char directory[]="/tmp/mpclearn-two-surface-XXXXXX";need(mkdtemp(directory)!=NULL,"collection preference directory");char path[256],option[300];snprintf(path,sizeof(path),"%s/controller-preferences",directory);snprintf(option,sizeof(option),"--controller-preferences=%s",path);
+ need(mcu_controller_preferences_write_collection(path,&saved),"persist exact three-record collection");char *args[]={(char*)"mirror-input",(char*)"/volume",(char*)"/command",option};need(servo_arguments(4,args)==3&&runtime_collection.count==3,"production arguments retain all persisted records, not just first enabled");
+ collection_init(&surfaces,&runtime_collection);surfaces.seq=(snd_seq_t*)1;surfaces.sink=1;surfaces.source=2;fake_subscriptions=fake_unsubscriptions=fake_close_count=0;
+ const char *prior_adapter=stop_adapter_exe;stop_adapter_exe="/absent-adapter";fake_enumeration(NULL,0);relay_ports=0;
+ need(collection_stop_ingress(&surfaces)&&surfaces.stop_sink==4&&relay_ports==1,"production private Stop ingress starts before adapter/MPC route exists");
+ Surface relay={.seq=surfaces.seq};need(!surface_stop_route(&relay,state),"actual Stop delivery still rejects the absent exact adapter/MPC subscription");stop_adapter_exe=prior_adapter;
+ const unsigned read=SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ,write=SND_SEQ_PORT_CAP_WRITE;
+ FakeClient clients[]={{"Surface A",SND_SEQ_USER_CLIENT,129,1,{{"From A",read,0}}},{"Feedback A",SND_SEQ_USER_CLIENT,130,1,{{"To A",write,1}}},{"Surface B",SND_SEQ_USER_CLIENT,131,1,{{"From B",read,2}}},{"Feedback B",SND_SEQ_USER_CLIENT,132,1,{{"To B",write,3}}}};
+ fake_enumeration(clients,4);need(collection_topology(&surfaces,state)&&surfaces.connected==2&&fake_subscriptions==2,"production collection attaches both enabled split-port surfaces and ignores disabled duplicate");
+ need(surfaces.topology_scans==1&&surfaces.topology_rows==4,"one topology inventory for the entire collection");
+ need(surfaces.contexts[0].input.flights==surfaces.contexts[1].input.flights&&surfaces.contexts[0].input.flights==input.flights,"all origins use sole coordinator flight storage");
+ surfaces.focus=0;surfaces.banks[1].assignment=BA_EFFECT;need(collection_interest_view(&surfaces,BA_EFFECT)==surfaces.banks+1,"mixer interaction on A retains B's only effects demand");surfaces.banks[0].assignment=BA_EFFECT;need(collection_interest_view(&surfaces,BA_EFFECT)==surfaces.banks,"interaction chooses one competing expensive view");surfaces.banks[0].assignment=surfaces.banks[1].assignment=BA_TRACK;
+ memset(observed_destinations,0,sizeof(observed_destinations));memset(observed_destination_pitch_count,0,sizeof(observed_destination_pitch_count));
+ ControllerRuntime runtime={.snapshot=&snapshot};runtime_cycle_begin(&runtime);need(runtime_snapshot(&runtime,state,collection_pads(&surfaces))==1,"shared fresh source before two-surface input");
+ snd_seq_event_t event;snd_seq_ev_clear(&event);snd_seq_ev_set_noteon(&event,0,47,127);event.source=surfaces.surfaces[1].full;fake_input_reset();fake_input_push(event);
+ snd_seq_ev_clear(&event);snd_seq_ev_set_pitchbend(&event,0,-4096);event.source=surfaces.surfaces[0].full;fake_input_push(event);snd_seq_ev_set_pitchbend(&event,0,4096);event.source=surfaces.surfaces[1].full;fake_input_push(event);
+ need(collection_drain(&surfaces,state,&runtime)&&collection_cycle(&surfaces,state,&runtime),"production source routing and shared cycle submit both banks");
+ need(surfaces.banks[0].offset==0&&surfaces.banks[1].offset==8,"surface B banks without moving A");
+ need(surfaces.submit_cursor==1,"shared mailbox first admission rotates across configured origins");
+ need(atomic_load(&commands->published)==2&&input_pending(&input)==2,"two surfaces publish independent simultaneous commands through one coordinator");
+ unsigned targets=0;for(unsigned i=0;i<COMMAND_SLOTS;i++)if(coordinator_flights[i].flight){InputFlight *flight=coordinator_flights+i;targets|=1u<<(flight->target.serial-1);need(flight->origin==&surfaces.contexts[flight->target.serial==1?0:1].input,"flight retains exact originating input");need(flight->origin_bank==surfaces.banks+(flight->target.serial==1?0:1),"flight retains exact originating bank");}
+ need(targets==0x101&&runtime.snapshot_copies==1&&runtime.settlement_scans==1&&surfaces.interest_visits==1,"independent tracks 1/9 share one actual snapshot, one settlement scan and one interest visit");
+ need(observed_destinations[130]&&observed_destinations[132]&&!observed_destinations[129]&&!observed_destinations[131],"feedback uses each configured To role, never the From role");
+ for(unsigned request=1;request<=2;request++){unsigned at=command_find(commands,request);InputFlight *flight=coordinator_flights+at;complete(commands,request,1001);atomic_store(&state->cells[flight->target.serial-1].bits,flight->bits);atomic_store(&state->cells[flight->target.serial-1].revision,4);}
+ shared_fixture_time(state,1020);runtime_cycle_begin(&runtime);need(runtime_snapshot(&runtime,state,0)==1&&collection_cycle(&surfaces,state,&runtime),"one settlement scan handles both origin receipts");
+ need(surfaces.contexts[0].input.settled==1&&surfaces.contexts[1].input.settled==1&&surfaces.banks[0].faders[0].wait&&surfaces.banks[1].faders[0].wait,"settlement applies barriers to both correct originating banks");
+ reclaim_fixture(commands,1);reclaim_fixture(commands,2);shared_fixture_time(state,1100);runtime_cycle_begin(&runtime);need(runtime_snapshot(&runtime,state,0)==1&&collection_cycle(&surfaces,state,&runtime),"shared coordinator reclaims both source-settled flights");
+ need(input_drained(&input)&&observed_destination_pitch[130][0]==4096&&observed_destination_pitch[132][0]==12288,"independent final fader values return only to their surfaces");
+ MirrorInput *a=&surfaces.contexts[0].input,*b=&surfaces.contexts[1].input;
+ surfaces.banks[1].offset=0;bank_apply(surfaces.banks+1,&snapshot,runtime.now);
+ input_control(a,surfaces.banks,&snapshot,0,CF_VOLUME,1,0,runtime.now);
+ float first;memcpy(&first,&a->desires[0][CF_VOLUME].bits,4);
+ input_control(b,surfaces.banks+1,&snapshot,0,CF_VOLUME,1,0,runtime.now);
+ float combined;memcpy(&combined,&b->desires[0][CF_VOLUME].bits,4);
+ need(!a->desires[0][CF_VOLUME].pending&&b->desires[0][CF_VOLUME].pending&&combined>first,"cross-origin relative control accumulates and coalesces by target/field");
+ snapshot.selection=(CopiedField){.available=1,.incarnation=1,.owner_incarnation=1,.revision=2,.property=0x70078};
+ input_control(b,surfaces.banks+1,&snapshot,1,CF_SELECTION,0,1,runtime.now);
+ input_control(a,surfaces.banks,&snapshot,0,CF_SELECTION,0,1,runtime.now);
+ need(!b->desires[1][CF_SELECTION].pending&&a->desires[0][CF_SELECTION].pending,"latest Select wins globally even when origin visit order is reversed");
+ snapshot.editor_owner=700;input_global_add(b,&snapshot,GLOBAL_UNDO,0,runtime.now);input_global_add(a,&snapshot,GLOBAL_REDO,0,runtime.now);
+ need(!input_order_admit(a,a->global_events[a->global_head].order)&&input_order_admit(b,b->global_events[b->global_head].order),"bounded edge order is global, not surface-array order");
+ input_stop_button(b,&snapshot,94,1,runtime.now);snapshot.playing.available=1;snapshot.playing.bits=0;input_stop_button(a,&snapshot,93,1,runtime.now);
+ need(!a->stop_home&&a->global_events[(a->global_head+a->global_count-1)%INPUT_JOG_EVENTS].operation==GLOBAL_STOP,"cross-origin Stop after unsampled Play remains Stop, never homes");
+ input_discard(a);input_jog_discard(a);input_discard(b);input_jog_discard(b);surfaces.banks[1].offset=8;
+ input_wheel_add(b,&snapshot,1);input_global_add(a,&snapshot,GLOBAL_KEY_TAB,0,runtime.now);
+ need(input_order_admit(b,b->wheel_order)&&!input_order_admit(a,a->global_events[a->global_head].order),"older peer data-wheel steps precede focus-changing edges");
+ input_jog_discard(a);input_jog_discard(b);input_press_add(b,&snapshot);input_wheel_add(a,&snapshot,1);
+ need(input_order_admit(b,b->press_order)&&!input_order_admit(a,a->wheel_order),"older peer focus press precedes later data-wheel steps");
+ input_jog_discard(a);input_jog_discard(b);
+ command_coordinator.jog_wait=1;command_coordinator.jog_wait_owner=900;command_coordinator.jog_wait_epoch=snapshot.epoch;command_coordinator.jog_wait_count=7;snapshot.playing.bits=1;
+ need(!input_jog_admit(a,&snapshot)&&!input_jog_admit(b,&snapshot),"both origins share the unresolved native transport restart barrier");
+ snapshot.playing.bits=0;need(input_jog_admit(b,&snapshot)&&!command_coordinator.jog_wait,"actual stopped source clears the shared transport barrier");
+ unsigned b_sent=observed_destinations[132],a_connections=fake_subscriptions;
+ fake_enumeration(clients,2);need(collection_topology(&surfaces,state)&&surfaces.connected==1&&surfaces.surfaces[0].seq&&!surfaces.surfaces[1].seq,"absent B disconnects only B");
+ shared_fixture_time(state,1120);runtime_cycle_begin(&runtime);need(runtime_snapshot(&runtime,state,0)==1&&collection_cycle(&surfaces,state,&runtime),"A remains live while B is absent");need(observed_destinations[132]==b_sent&&fake_subscriptions==a_connections&&!fake_close_count,"absent B emits nothing and does not reopen shared ALSA or reconnect A");
+ const unsigned absent_positions[]={6144,4096};
+ for(unsigned step=0;step<2;step++){
+  unsigned tick=1140+step*60,request=3+step;shared_fixture_time(state,tick);runtime_cycle_begin(&runtime);
+  snd_seq_ev_clear(&event);snd_seq_ev_set_pitchbend(&event,0,(int)absent_positions[step]-8192);event.source=surfaces.surfaces[0].full;fake_input_reset();fake_input_push(event);
+  need(collection_drain(&surfaces,state,&runtime)&&collection_cycle(&surfaces,state,&runtime),"A input continues through shared router while B is absent");
+  unsigned at=command_find(commands,request);need(at<COMMAND_SLOTS&&coordinator_flights[at].target.serial==1&&coordinator_flights[at].origin==a,"absent-peer trial admits only A's original target");
+  uint32_t bits=coordinator_flights[at].bits;complete(commands,request,tick+1);atomic_store(&state->cells[0].bits,bits);atomic_store(&state->cells[0].revision,6+step*2);
+  shared_fixture_time(state,tick+20);runtime_cycle_begin(&runtime);need(runtime_snapshot(&runtime,state,0)==1&&collection_cycle(&surfaces,state,&runtime),"A command source-settles while B absent");reclaim_fixture(commands,request);
+  shared_fixture_time(state,tick+40);runtime_cycle_begin(&runtime);need(runtime_snapshot(&runtime,state,0)==1&&collection_cycle(&surfaces,state,&runtime),"A fresh feedback resumes after absent-peer command settlement");
+  need(input_drained(&input)&&observed_destination_pitch[130][0]==(int)absent_positions[step]&&observed_destinations[132]==b_sent,"A's two later values return only to A while disconnected B receives nothing");
+ }
+ clients[2].client=141;clients[3].client=142;fake_enumeration(clients,4);need(collection_topology(&surfaces,state)&&surfaces.connected==2&&surfaces.surfaces[1].full.client==141&&surfaces.surfaces[1].output.client==142,"B reconnect resolves changed independent addresses");
+ need(surfaces.banks[0].offset==0&&surfaces.banks[1].offset==8&&!surfaces.contexts[1].input.gestures[0].held,"B reconnect retains independent bank but clears old gesture state");
+ shared_fixture_time(state,1300);runtime_cycle_begin(&runtime);need(runtime_snapshot(&runtime,state,0)==1&&collection_cycle(&surfaces,state,&runtime),"reconnected B receives only fresh shared feedback");need(observed_destinations[142]&&observed_destinations[132]==b_sent,"reconnected feedback targets new output only");
+ need(snapshot.selection.available&&snapshot.selected_serial==1&&surfaces.banks[0].offset==0&&surfaces.banks[1].offset==8&&surfaces.banks[1].faders[0].identity.serial==9,"post-reconnect fresh selected Track1 must not undo B's retained bank8");
+ need(!observed_destination_pitch_count[142][0],"B reacquires a fresh post-remap heartbeat before fader output");
+ shared_fixture_time(state,1320);runtime_cycle_begin(&runtime);need(runtime_snapshot(&runtime,state,0)==1&&collection_cycle(&surfaces,state,&runtime),"reconnected B reaches fresh motor feedback without another bank command");
+ need(observed_destination_pitch[142][0]==12288&&observed_destination_pitch[130][0]==4096&&surfaces.banks[1].offset==8,"reconnected B receives retained Track9 value while A stays Track1");
+ MirrorBank retained=surfaces.banks[1];bank_disconnect(&retained);need(!retained.ready&&retained.faders[0].touch==MT_UNKNOWN&&retained.faders[0].last_sent==-1&&!retained.faders[0].identity.serial,"retained selection history does not retain physical state or trusted output target");
+ snapshot.selection.bits=snapshot.tracks[1].track;bank_apply(&retained,&snapshot,1320);need(retained.offset==0&&retained.selected.serial==2,"actual changed selection while disconnected still follows the newly selected Track");
+ retained.offset=8;bank_disconnect(&retained);snapshot.epoch++;bank_apply(&retained,&snapshot,1320);need(retained.offset==0,"new project epoch still resets a disconnected bank");snapshot.epoch--;snapshot.selection.bits=snapshot.tracks[0].track;
+ collection_disconnect(&surfaces,0);collection_disconnect(&surfaces,1);need(!surfaces.connected&&fake_unsubscriptions==3&&!fake_close_count&&input_drained(&input),"exact per-origin teardown retains one drained shared client");
+ uint64_t copies=runtime.snapshot_copies,scans=runtime.settlement_scans,interests=surfaces.interest_visits,topology=surfaces.topology_scans;
+ for(unsigned cycle=0;cycle<100;cycle++){runtime_cycle_begin(&runtime);need(!collection_needs_snapshot(&surfaces),"all-absent drained collection parks full source work");}
+ need(runtime.snapshot_copies==copies&&runtime.settlement_scans==scans&&surfaces.interest_visits==interests&&surfaces.topology_scans==topology,"disabled/disconnected slots add no snapshot, settlement, interest or topology work per parked cycle");
+ coordinator_flights[0].flight=999;need(collection_needs_snapshot(&surfaces),"absent collection keeps copying until sole coordinator drains");coordinator_flights[0].flight=0;
+ McuControllerCollection capacity={.count=MCU_CONTROLLER_CAPACITY};for(unsigned i=0;i<capacity.count;i++){capacity.records[i]=saved.records[0];capacity.records[i].enabled=0;}
+ collection_init(&surfaces,&capacity);need(surfaces.count==16&&command_coordinator.count==1&&!collection_needs_snapshot(&surfaces),"sixteen disabled records remain bounded and parked");
+ need(!unlink(path)&&!rmdir(directory),"remove exact collection fixture preference");free(state);free(commands);memset(&surfaces,0,sizeof(surfaces));memset(&input,0,sizeof(input));memset(&command_coordinator,0,sizeof(command_coordinator));
+ char *defaults[]={(char*)"mirror-input",(char*)"/volume",(char*)"/command"};need(servo_arguments(3,defaults)==3,"restore default after collection fixture");
+ puts("PASS production persisted collection -> shared topology -> source router -> independent banks/commands -> origin settlement -> exact split feedback -> one-side absent/reconnect -> bounded teardown; actual source copier/coordinator/codec, substituted ALSA and native receipts");
 }
 static void policy_checks(void){
  char *plain[]={"mirror-input","/volume","/command"},*off[]={"mirror-input","/volume","/command","--servo=off"},*on[]={"mirror-input","/volume","/command","900","--servo=on"};
@@ -261,30 +480,61 @@ static void profile_policy_checks(void){
   {.name="MCU Device",.type=SND_SEQ_USER_CLIENT,.client=11,.count=1,.ports={{.name="MCU Port",.capabilities=caps,.port=2}}},
   {.name="MCU Device",.type=SND_SEQ_KERNEL_CLIENT,.client=20,.count=1,.ports={{.name="MCU Port",.capabilities=caps,.port=3}}}
  };
- fake_enumeration(unique,3);need(discover((snd_seq_t*)1,&controller,&found)&&found.client==20&&found.port==3&&!fake_port_queries[0]&&!fake_port_queries[1]&&fake_port_queries[2],"production discovery filters unrelated clients and nonphysical same-name clients before enumerating exact endpoint ports");first=found;
+ fake_enumeration(unique,3);need(discover_endpoints((snd_seq_t*)1,&controller,MCU_ENDPOINT_READ|MCU_ENDPOINT_SUBS_READ|MCU_ENDPOINT_WRITE,&found,NULL,0,NULL)&&found.client==20&&found.port==3&&!fake_port_queries[0]&&!fake_port_queries[1]&&fake_port_queries[2],"production discovery filters unrelated clients and nonphysical same-name clients before enumerating exact endpoint ports");first=found;
  FakeClient duplicate[]={
   {.name="MCU Device",.type=SND_SEQ_KERNEL_CLIENT,.client=20,.count=1,.ports={{.name="MCU Port",.capabilities=caps,.port=3}}},
   {.name="MCU Device",.type=SND_SEQ_KERNEL_CLIENT,.client=21,.count=1,.ports={{.name="MCU Port",.capabilities=caps,.port=4}}}
  };
- fake_enumeration(duplicate,2);need(!discover((snd_seq_t*)1,&controller,&found),"production discovery rejects duplicate exact endpoint identities rather than selecting by ALSA scan order");
+ fake_enumeration(duplicate,2);need(!discover_endpoints((snd_seq_t*)1,&controller,MCU_ENDPOINT_READ|MCU_ENDPOINT_SUBS_READ|MCU_ENDPOINT_WRITE,&found,NULL,0,NULL),"production discovery rejects duplicate exact endpoint identities rather than selecting by ALSA scan order");
  FakeClient absent[]={{.name="Unrelated",.type=SND_SEQ_KERNEL_CLIENT,.client=30,.count=1,.ports={{.name="MCU Port",.capabilities=caps,.port=5}}}};
- fake_enumeration(absent,1);need(!discover((snd_seq_t*)1,&controller,&found)&&!fake_port_queries[0],"production discovery reports exact endpoint absent without enumerating unrelated ports");
+ fake_enumeration(absent,1);need(!discover_endpoints((snd_seq_t*)1,&controller,MCU_ENDPOINT_READ|MCU_ENDPOINT_SUBS_READ|MCU_ENDPOINT_WRITE,&found,NULL,0,NULL)&&!fake_port_queries[0],"production discovery reports exact endpoint absent without enumerating unrelated ports");
  FakeClient reconnected[]={{.name="MCU Device",.type=SND_SEQ_KERNEL_CLIENT,.client=47,.count=1,.ports={{.name="MCU Port",.capabilities=caps,.port=9}}}};
- fake_enumeration(reconnected,1);need(discover((snd_seq_t*)1,&controller,&found)&&found.client==47&&found.port==9&&!address_equal(first,found),"production discovery resolves the same stable endpoint identity after its numeric ALSA address changes");
- McuControllerPreference native_generic;
- FakeClient native_unique[]={
+ fake_enumeration(reconnected,1);need(discover_endpoints((snd_seq_t*)1,&controller,MCU_ENDPOINT_READ|MCU_ENDPOINT_SUBS_READ|MCU_ENDPOINT_WRITE,&found,NULL,0,NULL)&&found.client==47&&found.port==9&&!address_equal(first,found),"production discovery resolves the same stable endpoint identity after its numeric ALSA address changes");
+ char *split[]={(char*)"mirror-input",(char*)"/volume",(char*)"/command",(char*)"--profile=generic",(char*)"--input-client=Split Device",(char*)"--input-port=From Controller",(char*)"--input-type=kernel",(char*)"--output-client=Split Device",(char*)"--output-port=To Controller",(char*)"--output-type=kernel"};
+ need(servo_arguments(10,split)==3&&!strcmp(controller.port,"From Controller")&&!strcmp(controller_output.port,"To Controller"),"generic profile accepts independent From Controller and To Controller identities");
+ FakeClient split_ports[]={{.name="Split Device",.type=SND_SEQ_KERNEL_CLIENT,.client=52,.count=2,.ports={{.name="From Controller",.capabilities=SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ,.port=6},{.name="To Controller",.capabilities=SND_SEQ_PORT_CAP_WRITE,.port=7}}}};
+ snd_seq_addr_t split_input,split_output;fake_enumeration(split_ports,1);
+ need(discover_endpoints((snd_seq_t*)1,&controller,MCU_ENDPOINT_READ|MCU_ENDPOINT_SUBS_READ,&split_input,&controller_output,MCU_ENDPOINT_WRITE,&split_output)&&split_input.client==52&&split_input.port==6&&split_output.client==52&&split_output.port==7&&fake_port_queries[0]==3,"one topology walk resolves input-only and output-only ports by their independent ALSA capabilities");
+ Surface split_surface={.seq=(snd_seq_t*)1,.source=3,.full=split_input,.output=split_output};snd_seq_event_t split_event;unsigned split_kind,split_channel;int split_value;
+ snd_seq_ev_clear(&split_event);snd_seq_ev_set_noteon(&split_event,0,0,127);split_event.source=split_output;
+ need(!surface_event(&split_event,split_surface.full,&split_kind,&split_channel,&split_value),"To Controller traffic is not decoded as controller input");
+ split_event.source=split_input;need(surface_event(&split_event,split_surface.full,&split_kind,&split_channel,&split_value)==1,"From Controller traffic reaches the generic input decoder");
+ unsigned split_before=output_count;need(channel_send(&split_surface,&split_event)&&output_count==split_before+1&&address_equal(last_output.dest,split_output),"controller feedback targets only the configured To Controller address");
+ split_ports[0].ports[1].port=11;fake_enumeration(split_ports,1);snd_seq_addr_t reconnected_input,reconnected_output;
+ need(discover_endpoints((snd_seq_t*)1,&controller,MCU_ENDPOINT_READ|MCU_ENDPOINT_SUBS_READ,&reconnected_input,&controller_output,MCU_ENDPOINT_WRITE,&reconnected_output)&&address_equal(reconnected_input,split_input)&&!address_equal(reconnected_output,split_output)&&reconnected_output.port==11,"input and output reconnect addresses resolve independently from one stable topology walk");
+ need(servo_arguments(6,generic)==3,"restore same-port generic profile after split endpoint checks");
+ NativeEndpointInventory hui_inventory;FakeClient hui_candidates[]={
   {.name="System",.type=SND_SEQ_KERNEL_CLIENT,.client=0,.count=1,.ports={{.name="Timer",.capabilities=caps,.port=0}}},
-  {.name="MPC Live II",.type=SND_SEQ_KERNEL_CLIENT,.client=20,.count=2,.ports={{.name="MPC Public",.capabilities=caps,.port=0},{.name="MPC MIDI Port A",.capabilities=caps,.port=2}}},
-  {.name="X-TOUCH MINI",.type=SND_SEQ_KERNEL_CLIENT,.client=24,.count=1,.ports={{.name="X-TOUCH MINI MIDI 1",.capabilities=caps,.port=0}}}
+  {.name="MPC Live II",.type=SND_SEQ_KERNEL_CLIENT,.client=20,.count=1,.ports={{.name="MPC MIDI Port A",.capabilities=caps,.port=2}}},
+  {.name="JUCE",.type=SND_SEQ_USER_CLIENT,.client=21,.count=1,.ports={{.name="Internal Musical",.capabilities=caps,.port=0}}},
+  {.name="mpclearn-mcu-discovery",.type=SND_SEQ_USER_CLIENT,.client=22,.count=1,.ports={{.name="Owned",.capabilities=caps,.port=0}}},
+  {.name="Kernel HUI",.type=SND_SEQ_KERNEL_CLIENT,.client=30,.count=2,.ports={{.name="DAW",.capabilities=caps,.port=1},{.name="mpclearn-owned",.capabilities=caps,.port=2}}},
+  {.name="User HUI",.type=SND_SEQ_USER_CLIENT,.client=31,.count=2,.ports={{.name="DAW",.capabilities=caps,.port=3},{.name="Input Only",.capabilities=SND_SEQ_PORT_CAP_READ,.port=4}}}
  };
- fake_enumeration(native_unique,3);need(generic_external_unique((snd_seq_t*)1,&native_generic)==1&&!strcmp(native_generic.endpoint.client,"X-TOUCH MINI")&&!strcmp(native_generic.endpoint.port,"X-TOUCH MINI MIDI 1")&&!fake_port_queries[0]&&!fake_port_queries[1]&&fake_port_queries[2],"native Generic selection excludes fixed System/MPC ports and resolves the single external physical bidirectional endpoint");
- FakeClient native_ambiguous[]={
-  {.name="Controller A",.type=SND_SEQ_KERNEL_CLIENT,.client=24,.count=1,.ports={{.name="Port A",.capabilities=caps,.port=0}}},
-  {.name="Controller B",.type=SND_SEQ_KERNEL_CLIENT,.client=25,.count=1,.ports={{.name="Port B",.capabilities=caps,.port=0}}}
+ fake_enumeration(hui_candidates,6);need(!enumerate_external((snd_seq_t*)1,&hui_inventory)&&hui_inventory.count==2&&!hui_inventory.overflow&&hui_inventory.rows[0].endpoint_type==NATIVE_ENDPOINT_KERNEL&&hui_inventory.rows[0].client_number==30&&hui_inventory.rows[0].port_number==1&&!strcmp((char*)hui_inventory.rows[0].client,"Kernel HUI")&&!strcmp((char*)hui_inventory.rows[0].port,"DAW")&&hui_inventory.rows[1].endpoint_type==NATIVE_ENDPOINT_USER&&hui_inventory.rows[1].client_number==31&&hui_inventory.rows[1].port_number==3&&!strcmp((char*)hui_inventory.rows[1].client,"User HUI"),"HUI inventory lists qualified kernel and user endpoints with stable names/type/address while excluding System, MPC, JUCE, owned and non-bidirectional ports");
+ NativePreferencesEndpoint expected=hui_inventory.rows[1];need(inventory_exact_role(&hui_inventory,&expected,NATIVE_ENDPOINT_FROM_CONTROLLER)==1,"generation row resolves one exact typed input identity");
+ expected.endpoint_type=NATIVE_ENDPOINT_KERNEL;need(!inventory_exact_role(&hui_inventory,&expected,NATIVE_ENDPOINT_FROM_CONTROLLER),"same stable names with a different endpoint type remain absent");
+ NativeEndpointInventory duplicate_hui={.count=2};duplicate_hui.rows[0]=hui_inventory.rows[1];duplicate_hui.rows[1]=hui_inventory.rows[1];need(inventory_exact_role(&duplicate_hui,&hui_inventory.rows[1],NATIVE_ENDPOINT_TO_CONTROLLER)==2,"duplicate stable typed output identities remain ambiguous");
+ fake_enumeration(split_ports,1);need(!enumerate_external((snd_seq_t*)1,&hui_inventory)&&hui_inventory.count==2&&hui_inventory.rows[0].capabilities==NATIVE_ENDPOINT_FROM_CONTROLLER&&hui_inventory.rows[1].capabilities==NATIVE_ENDPOINT_TO_CONTROLLER,"Preferences inventory retains independent READ/SUBS_READ-only and WRITE-only port roles");
+ McuEndpoint any={.profile=&mcu_profile_generic,.client="Split Device",.port="From Controller",.physical_only=MCU_ENDPOINT_ANY};
+ need(inventory_has_endpoint(&hui_inventory,&any,NATIVE_ENDPOINT_FROM_CONTROLLER)&&!inventory_has_endpoint(&hui_inventory,&any,NATIVE_ENDPOINT_TO_CONTROLLER),"legacy ANY endpoint availability matches its exact logical name and role");
+ duplicate_hui.rows[0]=duplicate_hui.rows[1]=hui_inventory.rows[0];need(!inventory_has_endpoint(&duplicate_hui,&any,NATIVE_ENDPOINT_FROM_CONTROLLER),"duplicate logical identities never report available");
+ FakeClient crowded[5];memset(crowded,0,sizeof(crowded));for(unsigned i=0;i<5;i++){crowded[i].name="External HUI";crowded[i].type=i&1?SND_SEQ_USER_CLIENT:SND_SEQ_KERNEL_CLIENT;crowded[i].client=40+i;crowded[i].count=3;for(unsigned p=0;p<3;p++)crowded[i].ports[p]=(FakePort){.name=p==0?"DAW A":p==1?"DAW B":"DAW C",.capabilities=caps,.port=p};}
+ fake_enumeration(crowded,5);need(!enumerate_external((snd_seq_t*)1,&hui_inventory)&&hui_inventory.count==NATIVE_PREFERENCES_ENDPOINTS&&hui_inventory.overflow,"HUI inventory reports overflow instead of publishing an unbounded endpoint set");
+ /* Exact LCXL3/MPK249 native inventory: internal MPC mirrors must not consume
+    the twelve external endpoint slots or reject Apply before persistence. */
+ FakeClient lcxl_native[]={
+  {"System",SND_SEQ_KERNEL_CLIENT,0,2,{{"Timer",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ|SND_SEQ_PORT_CAP_WRITE,0},{"Announce",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ,1}}},
+  {"MPC Live II",SND_SEQ_KERNEL_CLIENT,20,4,{{"MPC Public",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ|SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,0},{"MPC Private",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ|SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,1},{"MPC MIDI Port A",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ|SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,2},{"MPC MIDI Port B",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ|SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,3}}},
+  {"MPK249",SND_SEQ_KERNEL_CLIENT,24,4,{{"Port A",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ|SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,0},{"Port B",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ|SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,1},{"MIDI",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ|SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,2},{"Remote",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ|SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,3}}},
+  {"LCXL3 1",SND_SEQ_KERNEL_CLIENT,28,4,{{"LCXL3 1 MIDI In",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ|SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,0},{"LCXL3 1 DAW In",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ|SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,1},{"LCXL3 1 To DIN Out",SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,2},{"LCXL3 1 To DIN Out 2",SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,3}}},
+  {"JUCE",SND_SEQ_USER_CLIENT,128,4,{{"Virtual MIDI Output 1",SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,0},{"Virtual MIDI Output 2",SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,1},{"Virtual MIDI Input 1",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ,2},{"Virtual MIDI Input 2",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ,3}}},
+  {"MPC",SND_SEQ_USER_CLIENT,129,23,{{"MPC Live II MPC MIDI Port A",SND_SEQ_PORT_CAP_WRITE,0},{"MPC Live II MPC MIDI Port B",SND_SEQ_PORT_CAP_WRITE,1},{"MPK249 Port A",SND_SEQ_PORT_CAP_WRITE,2},{"MPK249 Port B",SND_SEQ_PORT_CAP_WRITE,3},{"MPK249 MIDI",SND_SEQ_PORT_CAP_WRITE,4},{"MPK249 Remote",SND_SEQ_PORT_CAP_WRITE,5},{"LCXL3 1 MIDI In",SND_SEQ_PORT_CAP_WRITE,6},{"LCXL3 1 DAW In",SND_SEQ_PORT_CAP_WRITE,7},{"JUCE Virtual MIDI Input 2",SND_SEQ_PORT_CAP_WRITE,8},{"MPC Live II MPC MIDI Port A",SND_SEQ_PORT_CAP_READ,9},{"MPC Live II MPC MIDI Port B",SND_SEQ_PORT_CAP_READ,10},{"MPK249 Port A",SND_SEQ_PORT_CAP_READ,11},{"MPK249 Port B",SND_SEQ_PORT_CAP_READ,12},{"MPK249 MIDI",SND_SEQ_PORT_CAP_READ,13},{"MPK249 Remote",SND_SEQ_PORT_CAP_READ,14},{"LCXL3 1 MIDI In",SND_SEQ_PORT_CAP_READ,15},{"LCXL3 1 DAW In",SND_SEQ_PORT_CAP_READ,16},{"LCXL3 1 To DIN Out",SND_SEQ_PORT_CAP_READ,17},{"LCXL3 1 To DIN Out 2",SND_SEQ_PORT_CAP_READ,18},{"JUCE Virtual MIDI Output 2",SND_SEQ_PORT_CAP_READ,19},{"JUCE Virtual MIDI Input 1",SND_SEQ_PORT_CAP_WRITE,20},{"JUCE Virtual MIDI Output 1",SND_SEQ_PORT_CAP_READ,21},{"mpclearn-controls MIDI",SND_SEQ_PORT_CAP_WRITE,22}}},
+  {"mpclearn-controls",SND_SEQ_USER_CLIENT,130,2,{{"private ingress",SND_SEQ_PORT_CAP_WRITE,0},{"mpclearn-controls MIDI",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ,1}}},
+  {"mpclearn-mirror-motors",SND_SEQ_USER_CLIENT,131,3,{{"private MCU touch and bank",SND_SEQ_PORT_CAP_WRITE,0},{"MCU eight motor output",SND_SEQ_PORT_CAP_READ,1},{"mpclearn Stop relay v1",SND_SEQ_PORT_CAP_WRITE,2}}}
  };
- fake_enumeration(native_ambiguous,2);need(generic_external_unique((snd_seq_t*)1,&native_generic)==-1,"native Generic selection refuses two external physical bidirectional endpoints");
- FakeClient native_absent[]={{.name="System",.type=SND_SEQ_KERNEL_CLIENT,.client=0,.count=1,.ports={{.name="Timer",.capabilities=caps,.port=0}}},{.name="MPC Live II",.type=SND_SEQ_KERNEL_CLIENT,.client=20,.count=1,.ports={{.name="MPC Public",.capabilities=caps,.port=0}}}};
- fake_enumeration(native_absent,2);need(generic_external_unique((snd_seq_t*)1,&native_generic)==0&&!fake_port_queries[0]&&!fake_port_queries[1],"native Generic selection reports unavailable without enumerating fixed internal ports");
+ fake_enumeration(lcxl_native,sizeof(lcxl_native)/sizeof(lcxl_native[0]));
+ need(!enumerate_external((snd_seq_t*)1,&hui_inventory)&&hui_inventory.count==8&&!hui_inventory.overflow,"observed LCXL3 plus MPK249 inventory excludes MPC mirror ports instead of overflowing twelve external slots");
  char *virtual_endpoint[]={"mirror-input","/volume","/command","--profile=generic","--endpoint-client=Virtual MCU","--endpoint-port=Port 0","--endpoint-type=any"};
  need(servo_arguments(7,virtual_endpoint)==3&&!controller.physical_only&&mcu_endpoint_match(&controller,"Virtual MCU",0,"Port 0",MCU_ENDPOINT_READ|MCU_ENDPOINT_SUBS_READ|MCU_ENDPOINT_WRITE),"explicit virtual emulation selection accepts only its exact named endpoint");
  char *missing[]={"mirror-input","/volume","/command","--profile=generic"};
@@ -297,15 +547,86 @@ static void profile_policy_checks(void){
  char controller_option_text[300];snprintf(controller_option_text,sizeof(controller_option_text),"--controller-preferences=%s",controller_path);char *saved_default[]={"mirror-input","/volume","/command",controller_option_text};
  need(servo_arguments(4,saved_default)==3&&controller.profile==&mcu_profile_xtouch&&!strcmp(controller.client,"X-Touch"),"missing saved selection retains unchanged X-Touch default through production option parser");
  char *set_generic[]={"mirror-input","--controller-set",controller_path,"--profile=generic","--endpoint-client=Controller With Spaces","--endpoint-port=Port Name","--endpoint-type=any"};
- need(input_bridge_main_not_called(7,set_generic)==0,"production controller-set stores generic exact endpoint");struct stat controller_stat;need(!stat(controller_path,&controller_stat)&&(controller_stat.st_mode&0777)==0600&&controller_stat.st_size==(off_t)sizeof(McuControllerPreferenceFile),"saved controller selection has fixed bounded bytes and private mode");
+ need(input_bridge_main_not_called(7,set_generic)==0,"production controller-set stores generic exact endpoint");struct stat controller_stat;need(!stat(controller_path,&controller_stat)&&(controller_stat.st_mode&0777)==0600&&controller_stat.st_size==(off_t)sizeof(McuControllerCollectionFile),"saved controller collection has fixed bounded bytes and private mode");
  need(servo_arguments(4,saved_default)==3&&controller.profile==&mcu_profile_generic&&!strcmp(controller.client,"Controller With Spaces")&&!strcmp(controller.port,"Port Name")&&!controller.physical_only&&!servo_disabled,"production bridge loads saved generic identity including spaces and explicit virtual opt-in");
+ char *set_split_generic[]={"mirror-input","--controller-set",controller_path,"--profile=generic","--input-client=Split Saved","--input-port=From Port","--input-type=kernel","--output-client=Split Saved","--output-port=To Port","--output-type=user"};
+ need(input_bridge_main_not_called(10,set_split_generic)==0&&servo_arguments(4,saved_default)==3&&!strcmp(controller.port,"From Port")&&controller.physical_only==MCU_ENDPOINT_KERNEL&&!strcmp(controller_output.port,"To Port")&&controller_output.physical_only==MCU_ENDPOINT_USER,"production persistence retains independent input/output names and types");
+ McuControllerCollection stored;need(mcu_controller_preferences_read_collection(controller_path,&stored)&&stored.count==1&&!stored.imported_legacy&&!strcmp(stored.records[0].input.port,"From Port")&&!strcmp(stored.records[0].output.port,"To Port"),"MCUCFG2 readback exposes one split endpoint record without legacy migration state");
+ McuControllerCollection full={.count=MCU_CONTROLLER_CAPACITY};for(unsigned i=0;i<full.count;i++){mcu_controller_default(full.records+i);full.records[i].enabled=i%3!=0;}
+ need(mcu_controller_preferences_write_collection(controller_path,&full)&&mcu_controller_preferences_read_collection(controller_path,&stored)&&stored.count==MCU_CONTROLLER_CAPACITY&&stored.records[0].enabled==0&&stored.records[1].enabled==1,"fixed collection atomically persists all sixteen bounded records including disabled entries");
+ full.count=MCU_CONTROLLER_CAPACITY+1;need(!mcu_controller_preferences_write_collection(controller_path,&full)&&mcu_controller_preferences_read_collection(controller_path,&stored)&&stored.count==MCU_CONTROLLER_CAPACITY,"a seventeenth record is rejected without replacing the valid collection");
+ need(input_bridge_main_not_called(10,set_split_generic)==0,"restore split singleton after collection capacity check");
  char *invalid_set[]={"mirror-input","--controller-set",controller_path,"--profile=generic"};need(input_bridge_main_not_called(4,invalid_set)==2,"invalid generic selection is rejected without replacing saved selection");need(servo_arguments(4,saved_default)==3&&controller.profile==&mcu_profile_generic,"rejected selection leaves prior saved controller intact");
+ int corrupt_checksum=open(controller_path,O_RDWR);unsigned char changed;need(corrupt_checksum>=0&&pread(corrupt_checksum,&changed,1,32)==1,"read full-size preference checksum fixture");changed^=1;need(pwrite(corrupt_checksum,&changed,1,32)==1&&!close(corrupt_checksum)&&!mcu_controller_preferences_read_collection(controller_path,&stored),"full-size MCUCFG2 with changed content and stale checksum is rejected");
+ need(input_bridge_main_not_called(10,set_split_generic)==0,"valid split selection atomically recovers checksum-corrupt MCUCFG2");
  int corrupt=open(controller_path,O_WRONLY|O_TRUNC);need(corrupt>=0&&write(corrupt,"broken",6)==6&&!close(corrupt),"malformed saved controller fixture");need(servo_arguments(4,saved_default)<0,"malformed existing selection is rejected rather than interpreted as a MIDI device");
  char *set_mini[]={"mirror-input","--controller-set",controller_path,"--profile=xtouch-mini"};need(input_bridge_main_not_called(4,set_mini)==0&&servo_arguments(4,saved_default)==3&&controller.profile==&mcu_profile_xtouch_mini,"valid Mini selection atomically recovers a malformed regular preference");
  char *set_xtouch[]={"mirror-input","--controller-set",controller_path,"--profile=xtouch"};need(input_bridge_main_not_called(4,set_xtouch)==0&&servo_arguments(4,saved_default)==3&&controller.profile==&mcu_profile_xtouch,"explicit saved X-Touch restores the default hardware profile");
- char native_path[256];snprintf(native_path,sizeof(native_path),"%s/native-preferences.state",controller_directory);int native_fd=open(native_path,O_RDWR|O_CREAT|O_EXCL,0600);need(native_fd>=0&&!ftruncate(native_fd,NATIVE_PREFERENCES_BYTES),"native request state fixture");NativePreferencesState *native=mmap(NULL,sizeof(*native),PROT_READ|PROT_WRITE,MAP_SHARED,native_fd,0);close(native_fd);need(native!=MAP_FAILED,"native request state mapping");memset(native,0,sizeof(*native));native->magic=NATIVE_PREFERENCES_MAGIC;native->version=NATIVE_PREFERENCES_VERSION;native->bytes=sizeof(*native);native->request_sequence=1;native->request_profile=NATIVE_CONTROLLER_XTOUCH_MINI;
+ char native_path[256];snprintf(native_path,sizeof(native_path),"%s/native-preferences.state",controller_directory);int native_fd=open(native_path,O_RDWR|O_CREAT|O_EXCL,0600);need(native_fd>=0&&!ftruncate(native_fd,NATIVE_PREFERENCES_BYTES),"native request state fixture");NativePreferencesState *native=mmap(NULL,sizeof(*native),PROT_READ|PROT_WRITE,MAP_SHARED,native_fd,0);close(native_fd);need(native!=MAP_FAILED,"native request state mapping");memset(native,0,sizeof(*native));native->magic=NATIVE_PREFERENCES_MAGIC;native->version=NATIVE_PREFERENCES_VERSION;native->bytes=sizeof(*native);native->request_sequence=1;native->request_kind=NATIVE_REQUEST_APPLY;native->request_profile=NATIVE_CONTROLLER_XTOUCH_MINI;native->request_controller_index=0;native->request_enabled=1;native->request_input_endpoint_index=NATIVE_ENDPOINT_UNCHANGED;native->request_output_endpoint_index=NATIVE_ENDPOINT_UNCHANGED;
  need(native_preferences_apply(native_path,controller_path)==0&&native->claimed_sequence==1&&native->saved_profile==NATIVE_CONTROLLER_XTOUCH_MINI&&native->status==NATIVE_PREFERENCES_APPLYING&&!native->completed_sequence,"production owner helper claims one bounded Mini request and persists before restart");need(native_preferences_finish(native_path,1)==0&&native->completed_sequence==1&&native->active_profile==NATIVE_CONTROLLER_XTOUCH_MINI&&native->status==NATIVE_PREFERENCES_ACTIVE,"production owner helper records active restart completion");
- native->request_sequence=2;native->request_profile=99;need(native_preferences_apply(native_path,controller_path)==NATIVE_APPLY_INVALID&&native->claimed_sequence==2&&native->completed_sequence==2&&native->status==NATIVE_PREFERENCES_INVALID,"production owner helper completes an invalid request without replacing selection");need(servo_arguments(4,saved_default)==3&&controller.profile==&mcu_profile_xtouch_mini,"invalid native request retains the saved Mini selection");
+ native->request_collection_generation=native->collection_generation;native->request_sequence=2;native->request_profile=99;need(native_preferences_apply(native_path,controller_path)==NATIVE_APPLY_INVALID&&native->claimed_sequence==2&&native->completed_sequence==2&&native->status==NATIVE_PREFERENCES_INVALID,"production owner helper completes an invalid request without replacing selection");need(servo_arguments(4,saved_default)==3&&controller.profile==&mcu_profile_xtouch_mini,"invalid native request retains the saved Mini selection");
+ native->request_sequence=3;native->request_profile=NATIVE_CONTROLLER_HUI;native->request_input_inventory_generation=7;native->request_input_endpoint_index=0;native->request_input_endpoint_type=NATIVE_ENDPOINT_USER;native->request_output_inventory_generation=7;native->request_output_endpoint_index=0;native->request_output_endpoint_type=NATIVE_ENDPOINT_USER;native->request_hui_policy=NATIVE_HUI_MOTORIZED;need(native_preferences_apply(native_path,controller_path)==NATIVE_APPLY_STALE&&native->claimed_sequence==3&&native->completed_sequence==3&&native->status==NATIVE_PREFERENCES_STALE,"production owner rejects stale generation-tagged split HUI endpoints without opening discovery or replacing the active selection");need(servo_arguments(4,saved_default)==3&&controller.profile==&mcu_profile_xtouch_mini,"stale HUI request retains the saved Mini selection");
+ fake_inventory_open=1;fake_enumeration(split_ports,1);need(!native_preferences_sync(native_path,controller_path,"saved"),"production owner refresh exposes split port inventory");
+ native->request_sequence=4;native->request_collection_generation=native->collection_generation;native->request_controller_index=NATIVE_CONTROLLER_NEW;native->request_input_inventory_generation=native->request_output_inventory_generation=native->inventory_generation;native->request_input_endpoint_index=0;native->request_output_endpoint_index=1;native->request_input_endpoint_type=native->request_output_endpoint_type=NATIVE_ENDPOINT_KERNEL;
+ need(!native_preferences_apply(native_path,controller_path)&&!native_preferences_finish(native_path,1)&&mcu_controller_preferences_read_collection(controller_path,&stored)&&stored.count==2&&stored.records[1].input.profile==&mcu_profile_hui&&!strcmp(stored.records[1].input.port,"From Controller")&&!strcmp(stored.records[1].output.port,"To Controller")&&stored.records[1].hui_policy==MCU_HUI_MOTORIZED,"production Add persists HUI with independent role-only ports without replacing Mini");
+ native->request_sequence=5;native->request_collection_generation=native->collection_generation;native->request_kind=NATIVE_REQUEST_TOGGLE;native->request_controller_index=0;native->request_enabled=0;
+ need(!native_preferences_apply(native_path,controller_path)&&!native_preferences_finish(native_path,1)&&native->active_controller_index==1&&native->active_profile==NATIVE_CONTROLLER_HUI&&native->active_hui_policy==NATIVE_HUI_MOTORIZED,"disabling record zero selects the first enabled record and its own HUI policy");
+ need(!native_preferences_sync(native_path,controller_path,"saved")&&native->active_profile==NATIVE_CONTROLLER_HUI&&native->active_hui_policy==NATIVE_HUI_MOTORIZED,"owner sync retains first-enabled compatibility metadata");
+ native->request_sequence=6;native->request_kind=NATIVE_REQUEST_REMOVE;native->request_collection_generation=native->collection_generation-1;
+ need(native_preferences_apply(native_path,controller_path)==NATIVE_APPLY_STALE&&mcu_controller_preferences_read_collection(controller_path,&stored)&&stored.count==2,"a delayed collection mutation cannot retarget a changed row");
+ native->request_sequence=7;native->request_kind=NATIVE_REQUEST_APPLY;native->request_collection_generation=native->collection_generation;native->request_controller_index=1;native->request_profile=NATIVE_CONTROLLER_XTOUCH;native->request_hui_policy=0;native->request_enabled=1;native->request_input_inventory_generation=native->request_output_inventory_generation=native->inventory_generation;
+ need(!native_preferences_apply(native_path,controller_path)&&!native_preferences_finish(native_path,1)&&mcu_controller_preferences_read_collection(controller_path,&stored)&&stored.count==2&&stored.records[1].input.profile==&mcu_profile_xtouch&&!strcmp(stored.records[1].input.port,"From Controller")&&!strcmp(stored.records[1].output.port,"To Controller"),"production Edit supports manual split endpoint override for a known profile");
+ native->request_sequence=8;native->request_kind=NATIVE_REQUEST_TOGGLE;native->request_enabled=0;native->request_collection_generation=native->collection_generation;
+ char *any_enabled[]={"mirror-input","--controller-any-enabled",controller_path};
+ need(!native_preferences_apply(native_path,controller_path)&&!native_preferences_finish(native_path,1)&&!native->active_profile&&input_bridge_main_not_called(3,any_enabled)==3,"all-disabled collection has no active compatibility profile and signals owner to stay stopped");
+ for(unsigned n=0;n<2;n++){native->request_sequence=9+n;native->request_kind=NATIVE_REQUEST_REMOVE;native->request_controller_index=0;native->request_collection_generation=native->collection_generation;need(!native_preferences_apply(native_path,controller_path)&&!native_preferences_finish(native_path,1),"production Remove drains the collection without stale internal endpoint pointers");}
+ need(mcu_controller_preferences_read_collection(controller_path,&stored)&&!stored.count&&input_bridge_main_not_called(3,any_enabled)==3,"empty collection survives checksum readback and stays stopped");fake_inventory_open=0;
+ for(unsigned profile=NATIVE_CONTROLLER_GENERIC;profile<=NATIVE_CONTROLLER_PROFILE_COUNT;profile++){
+  need(!input_bridge_main_not_called(4,set_xtouch)&&!native_preferences_sync(native_path,controller_path,"saved"),"disconnected known-profile edit fixture");
+  McuControllerCollectionFile before_bytes,after_bytes;int capture=open(controller_path,O_RDONLY);need(capture>=0&&read(capture,&before_bytes,sizeof(before_bytes))==sizeof(before_bytes)&&!close(capture),"capture exact known-profile collection bytes");
+  native->request_sequence++;native->request_kind=NATIVE_REQUEST_APPLY;native->request_controller_index=0;native->request_profile=profile;native->request_hui_policy=profile==NATIVE_CONTROLLER_HUI?NATIVE_HUI_PICKUP:0;native->request_enabled=1;native->request_collection_generation=native->collection_generation;native->request_input_endpoint_index=native->request_output_endpoint_index=NATIVE_ENDPOINT_UNCHANGED;
+  need(native_preferences_apply(native_path,controller_path)==NATIVE_APPLY_INVALID&&native->completed_sequence==native->request_sequence,"owner rejects known-to-generic transition with both ports unchanged");
+  capture=open(controller_path,O_RDONLY);need(capture>=0&&read(capture,&after_bytes,sizeof(after_bytes))==sizeof(after_bytes)&&!close(capture)&&!memcmp(&before_bytes,&after_bytes,sizeof(before_bytes)),"rejected protocol transition preserves exact collection bytes");
+  fake_inventory_open=1;fake_enumeration(split_ports,1);need(!native_preferences_sync(native_path,controller_path,"saved"),"publish independent role-only endpoints for explicit transition");
+  native->request_sequence++;native->request_input_inventory_generation=native->request_output_inventory_generation=native->inventory_generation;native->request_input_endpoint_type=native->request_output_endpoint_type=NATIVE_ENDPOINT_KERNEL;native->request_input_endpoint_index=0;
+  need(native_preferences_apply(native_path,controller_path)==NATIVE_APPLY_INVALID,"owner requires explicit To as well as From on generic transition");
+  native->request_sequence++;native->request_input_endpoint_index=NATIVE_ENDPOINT_UNCHANGED;native->request_output_endpoint_index=1;
+  need(native_preferences_apply(native_path,controller_path)==NATIVE_APPLY_INVALID,"owner requires explicit From as well as To on generic transition");
+  native->request_sequence++;native->request_input_endpoint_index=1;native->request_output_endpoint_index=0;
+  need(native_preferences_apply(native_path,controller_path)==NATIVE_APPLY_INVALID,"owner rejects reversed endpoint roles on generic transition");
+  native->request_sequence++;native->request_input_endpoint_index=0;native->request_output_endpoint_index=1;
+  need(!native_preferences_apply(native_path,controller_path)&&!native_preferences_finish(native_path,1)&&mcu_controller_preferences_read_collection(controller_path,&stored)&&stored.records[0].input.profile==mcu_controller_profile(profile)&&!strcmp(stored.records[0].input.port,"From Controller")&&!strcmp(stored.records[0].output.port,"To Controller"),"owner accepts generic transition only after explicit independent role-valid selections");
+  capture=open(controller_path,O_RDONLY);need(capture>=0&&read(capture,&before_bytes,sizeof(before_bytes))==sizeof(before_bytes)&&!close(capture),"capture explicitly selected generic collection");
+  fake_inventory_open=0;native->request_sequence++;native->request_collection_generation=native->collection_generation;native->request_input_endpoint_index=native->request_output_endpoint_index=NATIVE_ENDPOINT_UNCHANGED;
+  need(!native_preferences_apply(native_path,controller_path)&&!native_preferences_finish(native_path,1),"same-profile offline generic edit can retain its explicit endpoints");
+  capture=open(controller_path,O_RDONLY);need(capture>=0&&read(capture,&after_bytes,sizeof(after_bytes))==sizeof(after_bytes)&&!close(capture)&&!memcmp(&before_bytes,&after_bytes,sizeof(before_bytes)),"same-profile offline edit preserves exact saved endpoint bytes");
+  NativeEndpointInventory poisoned;memset(&poisoned,0xa5,sizeof(poisoned));need(!native_inventory_refresh(native,&poisoned)&&!poisoned.count&&!poisoned.overflow&&native->inventory_status==NATIVE_PREFERENCES_UNAVAILABLE,"ALSA open failure clears a poisoned inventory before any caller inspects overflow");
+  unsigned active_before=native->active_controller_index;
+  for(unsigned retry=0;retry<3;retry++){native->request_sequence++;native->request_kind=NATIVE_REQUEST_REFRESH;need(native_preferences_apply(native_path,controller_path)==NATIVE_APPLY_NONE&&native->status==NATIVE_PREFERENCES_UNAVAILABLE&&native->completed_sequence==native->request_sequence&&native->active_controller_index==active_before,"failed Refresh deterministically completes UNAVAILABLE with no restart request and retains current controller");}
+  capture=open(controller_path,O_RDONLY);need(capture>=0&&read(capture,&after_bytes,sizeof(after_bytes))==sizeof(after_bytes)&&!close(capture)&&!memcmp(&before_bytes,&after_bytes,sizeof(before_bytes)),"failed Refresh leaves persisted collection bytes unchanged");
+ }
+ {
+  need(input_bridge_main_not_called(4,set_mini)==0,"restore existing Mini before native LCXL3 Add regression");
+  fake_inventory_open=1;fake_enumeration(lcxl_native,sizeof(lcxl_native)/sizeof(lcxl_native[0]));
+  need(!native_preferences_sync(native_path,controller_path,"saved")&&native->inventory_status==NATIVE_PREFERENCES_ACTIVE&&native->inventory_count==8,"production inventory publishes eight external endpoints with MPC mirror ports present");
+  unsigned daw=NATIVE_ENDPOINT_UNCHANGED;
+  for(unsigned i=0;i<native->inventory_count;i++)if(native->endpoints[i].client_number==28&&native->endpoints[i].port_number==1)daw=i;
+  need(daw!=NATIVE_ENDPOINT_UNCHANGED,"LCXL3 exact DAW endpoint remains selectable");
+  native->request_sequence++;native->request_kind=NATIVE_REQUEST_APPLY;native->request_profile=NATIVE_CONTROLLER_LCXL3;
+  native->request_controller_index=NATIVE_CONTROLLER_NEW;native->request_enabled=1;native->request_hui_policy=0;
+  native->request_collection_generation=native->collection_generation;
+  native->request_input_inventory_generation=native->request_output_inventory_generation=native->inventory_generation;
+  native->request_input_endpoint_index=native->request_output_endpoint_index=daw;
+  native->request_input_endpoint_type=native->request_output_endpoint_type=NATIVE_ENDPOINT_KERNEL;
+  need(!native_preferences_apply(native_path,controller_path)&&!native_preferences_finish(native_path,1),"production LCXL3 Apply succeeds through inventory refresh, exact role resolution, persistence and session completion");
+  need(mcu_controller_preferences_read_collection(controller_path,&stored)&&stored.count==2&&stored.records[0].input.profile==&mcu_profile_xtouch_mini&&stored.records[1].input.profile==&mcu_profile_lcxl3&&
+       !strcmp(stored.records[1].input.client,"LCXL3 1")&&!strcmp(stored.records[1].input.port,"LCXL3 1 DAW In")&&
+       !strcmp(stored.records[1].output.client,"LCXL3 1")&&!strcmp(stored.records[1].output.port,"LCXL3 1 DAW In")&&
+       native->collection_count==2&&native->controllers[1].profile==NATIVE_CONTROLLER_LCXL3&&native->completed_sequence==native->request_sequence,
+       "LCXL3 Add retains Mini and publishes saved LCXL3 row with exact bidirectional DAW names");
+  fake_inventory_open=0;
+ }
+ puts("PASS native Preferences repairs: explicit role-valid generic transitions, same-profile offline retention, and initialized ALSA-open failure with deterministic UNAVAILABLE completion and unchanged persistence (ALSA substituted)");
  need(!munmap(native,sizeof(*native))&&!unlink(native_path)&&input_bridge_main_not_called(4,set_xtouch)==0,"native request fixture cleanup and saved default restoration");
  need(!unlink(controller_path)&&!rmdir(controller_directory),"controller preference fixture cleanup");
  need(servo_arguments(3,restore)==3&&controller.profile==&mcu_profile_xtouch&&mcu_has(&controller,MCU_CAP_COLOR),"profile output fixture restores default X-Touch capability policy");
@@ -340,9 +661,11 @@ static void profile_policy_checks(void){
  unsigned mini_after_pitch=0,mini_after_meter=0,mini_after_rings=0;for(unsigned i=0;i<9;i++)mini_after_pitch+=observed_pitch_count[i];for(unsigned i=0;i<8;i++){mini_after_meter+=observed_press_count[i];mini_after_rings+=observed_ring_count[i];need(!following.motors[i].bound,"Mini skips strip motor eligibility and due state");}
  need(mini_after_pitch==mini_pitch&&!following.motors[8].bound,"Mini emits no chooser, source-following, master or strip motor pitch output");need(observed_lcd_count==mini_lcd&&observed_position_count==mini_time&&mini_after_meter==mini_meter&&observed_color_count==mini_colors,"Mini suppresses LCD, time, meters and vendor color feedback");need(mini_after_rings>mini_rings&&observed_led[93]==127,"Mini retains production V-Pot ring and global button feedback");
 
- char *hui[]={(char*)"mirror-input",(char*)"/volume",(char*)"/command",(char*)"--profile=hui",(char*)"--endpoint-client=HUI Device",(char*)"--endpoint-port=DAW",(char*)"--endpoint-type=any"};
- need(servo_arguments(7,hui)==3&&controller.profile==&mcu_profile_hui&&controller.profile->protocol==MCU_PROTOCOL_HUI&&!controller.physical_only&&servo_disabled,"explicit HUI profile selects one exact development endpoint without motor echo");
- need(mcu_endpoint_match(&controller,"HUI Device",0,"DAW",MCU_ENDPOINT_READ|MCU_ENDPOINT_SUBS_READ|MCU_ENDPOINT_WRITE)&&!mcu_endpoint_match(&controller,"Other",0,"DAW",MCU_ENDPOINT_READ|MCU_ENDPOINT_SUBS_READ|MCU_ENDPOINT_WRITE),"explicit HUI endpoint remains exact and bidirectional");
+ char *hui[]={(char*)"mirror-input",(char*)"/volume",(char*)"/command",(char*)"--profile=hui",(char*)"--endpoint-client=HUI Device",(char*)"--endpoint-port=DAW",(char*)"--endpoint-type=kernel",(char*)"--hui-mode=pickup"};
+ need(servo_arguments(8,hui)==3&&controller.profile==&mcu_profile_hui&&controller.profile->protocol==MCU_PROTOCOL_HUI&&controller.physical_only==MCU_ENDPOINT_KERNEL&&controller_hui_policy==MCU_HUI_PICKUP&&servo_disabled,"explicit HUI profile selects one exact kernel endpoint and Pickup policy without MCU motor echo");
+ need(mcu_endpoint_match(&controller,"HUI Device",1,"DAW",MCU_ENDPOINT_READ|MCU_ENDPOINT_SUBS_READ|MCU_ENDPOINT_WRITE)&&!mcu_endpoint_match(&controller,"HUI Device",0,"DAW",MCU_ENDPOINT_READ|MCU_ENDPOINT_SUBS_READ|MCU_ENDPOINT_WRITE)&&!mcu_endpoint_match(&controller,"Other",1,"DAW",MCU_ENDPOINT_READ|MCU_ENDPOINT_SUBS_READ|MCU_ENDPOINT_WRITE),"explicit HUI endpoint remains exact by stable names, type and bidirectional capabilities");
+ char *hui_any[]={(char*)"mirror-input",(char*)"/volume",(char*)"/command",(char*)"--profile=hui",(char*)"--endpoint-client=HUI Device",(char*)"--endpoint-port=DAW",(char*)"--endpoint-type=any"};need(servo_arguments(7,hui_any)<0,"new HUI selections cannot omit the exact kernel/user endpoint type");
+ char *hui_user[]={(char*)"mirror-input",(char*)"/volume",(char*)"/command",(char*)"--profile=hui",(char*)"--endpoint-client=HUI Device",(char*)"--endpoint-port=DAW",(char*)"--endpoint-type=user",(char*)"--hui-mode=pickup"};need(servo_arguments(8,hui_user)==3&&controller.physical_only==MCU_ENDPOINT_USER&&mcu_endpoint_match(&controller,"HUI Device",0,"DAW",MCU_ENDPOINT_READ|MCU_ENDPOINT_SUBS_READ|MCU_ENDPOINT_WRITE)&&!mcu_endpoint_match(&controller,"HUI Device",1,"DAW",MCU_ENDPOINT_READ|MCU_ENDPOINT_SUBS_READ|MCU_ENDPOINT_WRITE),"exact user HUI endpoint remains distinct from the same kernel identity");need(servo_arguments(8,hui)==3,"restore Pickup HUI policy");
  reset_fixture(c,&in,&b,&s,8);Surface hui_surface={.source=3,.full={32,0}};snd_seq_event_t hui_event;unsigned hui_kind,hui_channel;int hui_value;
 #define HUI_CC(param,data,tick) do{snd_seq_ev_clear(&hui_event);hui_event.source=hui_surface.full;snd_seq_ev_set_controller(&hui_event,0,(param),(data));}while(0)
  HUI_CC(3,0x12,100);need(!surface_hui_event(&hui_surface,&hui_event,100,&hui_kind,&hui_channel,&hui_value),"production HUI parser retains per-strip fader MSB");
@@ -363,13 +686,37 @@ static void profile_policy_checks(void){
  unsigned hui_before_output=output_count,hui_pitch_before=0;for(unsigned i=0;i<9;i++)hui_pitch_before+=observed_pitch_count[i];need(hui_pickup_position(&hui_surface,0,9000)&&surface_pitch(&hui_surface,&in,&b,&s,0,9000,110)&&output_count==hui_before_output,"travelled segment crossing acquires HUI input without motor or raw echo");input_pump(&in,&b,&s,111);need(in.flights[0].flight&&in.flights[0].field==CF_VOLUME,"acquired HUI fader publishes through the existing native command owner");
  s.tracks[0].bits=in.flights[0].bits;s.tracks[0].revision+=2;s.heartbeat=112;bank_apply(&b,&s,112);input_sync(&in,&b);hui_pickup_sync(&hui_surface,&in,&b,112);need(hui_surface.hui_pickup[0].acquired,"own pending request source value does not rearm pickup");
  s.tracks[0].bits=0x3e800000;s.tracks[0].revision+=2;s.heartbeat=113;bank_apply(&b,&s,113);input_sync(&in,&b);hui_pickup_sync(&hui_surface,&in,&b,113);need(!hui_surface.hui_pickup[0].acquired&&hui_surface.hui_pickup[0].target==4096,"external authoritative source change rearms pickup at the new target");
- memset(observed_hui_led,0,sizeof(observed_hui_led));observed_hui_led_count=observed_hui_heartbeat=0;memset(hui_surface.hui_led_valid,0,sizeof(hui_surface.hui_led_valid));hui_surface.hui_transport_valid=hui_surface.hui_heartbeat_valid=0;
- need(hui_channel_output(&hui_surface,&b,&s,113)&&observed_hui_heartbeat==1&&observed_hui_led_count==35,"HUI output emits one standard heartbeat and bounded strip/transport LED pairs");unsigned hui_output_after=output_count;need(hui_channel_output(&hui_surface,&b,&s,114)&&output_count==hui_output_after,"unchanged HUI feedback and sub-second heartbeat coalesce");need(hui_channel_output(&hui_surface,&b,&s,1113)&&observed_hui_heartbeat==2&&output_count==hui_output_after+1,"standard host heartbeat repeats once per second without selecting a reply timeout");
+ memset(observed_hui_led,0,sizeof(observed_hui_led));memset(observed_hui_fader_msb_count,0,sizeof(observed_hui_fader_msb_count));memset(observed_hui_fader_lsb_count,0,sizeof(observed_hui_fader_lsb_count));observed_hui_led_count=observed_hui_heartbeat=0;memset(hui_surface.hui_led_valid,0,sizeof(hui_surface.hui_led_valid));hui_surface.hui_transport_valid=hui_surface.hui_heartbeat_valid=0;
+ need(hui_channel_output(&hui_surface,&b,&s,113)&&observed_hui_heartbeat==1&&observed_hui_led_count==35&&!observed_hui_fader_msb_count[0]&&!observed_hui_fader_lsb_count[0],"Pickup HUI output emits heartbeat and bounded LEDs but no fader feedback");unsigned hui_output_after=output_count;need(hui_channel_output(&hui_surface,&b,&s,114)&&output_count==hui_output_after,"unchanged Pickup HUI feedback and sub-second heartbeat coalesce");need(hui_channel_output(&hui_surface,&b,&s,1113)&&observed_hui_heartbeat==2&&output_count==hui_output_after+1,"standard host heartbeat repeats once per second");
+ Surface liveness={.hui_connected_tick=100};need(hui_liveness_current(&liveness,3099)&&!hui_liveness_current(&liveness,3100),"HUI startup grace is bounded before any heartbeat or reply");liveness.hui_heartbeat_valid=1;liveness.hui_reply_count=1;liveness.hui_reply_tick=1000;need(hui_liveness_current(&liveness,3499)&&!hui_liveness_current(&liveness,3500),"a HUI reply moves liveness to the bounded reply timeout");liveness.hui_reply_tick=3400;liveness.hui_reply_count++;need(hui_liveness_current(&liveness,3500),"a fresh HUI heartbeat reply reacquires the liveness window");
  unsigned hui_pitch_after=0;for(unsigned i=0;i<9;i++)hui_pitch_after+=observed_pitch_count[i];need(hui_pitch_after==hui_pitch_before&&!following.motors[0].bound,"HUI profile emits no motor/raw fader output and never enters strip motor due work");
+ char *hui_motor[]={(char*)"mirror-input",(char*)"/volume",(char*)"/command",(char*)"--profile=hui",(char*)"--endpoint-client=HUI Device",(char*)"--endpoint-port=DAW",(char*)"--endpoint-type=kernel",(char*)"--hui-mode=motorized"};need(servo_arguments(8,hui_motor)==3&&controller_hui_policy==MCU_HUI_MOTORIZED,"generic Motorized HUI policy selects the same standard codec path");reset_fixture(c,&in,&b,&s,8);s.heartbeat=200;bank_apply(&b,&s,200);Surface motorized={.source=3,.full={32,0}};need(hui_pickup_position(&motorized,0,1000)&&!motorized.hui_pickup[0].physical_valid,"Motorized HUI input bypasses Pickup crossing state");need(hui_channel_output(&motorized,&b,&s,200),"Motorized HUI emits fresh source feedback");for(unsigned strip=0;strip<8;strip++)need(observed_hui_fader_msb_count[strip]==1&&observed_hui_fader_lsb_count[strip]==1&&observed_hui_fader_msb[strip]==64&&!observed_hui_fader_lsb[strip],"Motorized HUI emits one standard paired 14-bit fader value per fresh strip");s.tracks[0].bits=0x3e800000;s.tracks[0].revision+=2;s.heartbeat=210;bank_apply(&b,&s,210);need(hui_channel_output(&motorized,&b,&s,210)&&observed_hui_fader_msb_count[0]==2&&observed_hui_fader_lsb_count[0]==2&&observed_hui_fader_msb[0]==32&&!observed_hui_fader_lsb[0],"Motorized HUI follows a changed fresh authoritative MPC value with another paired fader value");need(servo_arguments(8,hui)==3,"restore Pickup HUI policy after Motorized output check");
+ /* Independent simulator decoder consumes the real bridge's ALSA wire. */
+ for(unsigned policy=MCU_HUI_PICKUP;policy<=MCU_HUI_MOTORIZED;policy++){
+  controller_hui_policy=policy;reset_fixture(c,&in,&b,&s,16);Surface rings={.source=3,.full={32,0}};mcu_feedback_init(&hui_consumer);
+  s.tracks[0].fields[CF_PAN].bits=0;s.tracks[2].fields[CF_PAN].bits=0x3f800000;s.tracks[3].fields[CF_PAN].available=0;s.tracks[4].vptr=0x6932338;bank_apply(&b,&s,100);
+  need(hui_channel_output(&rings,&b,&s,100)&&hui_consumer.counts[MCU_FEEDBACK_RING]==8&&hui_consumer.ring[0]==1&&hui_consumer.ring[1]==6&&hui_consumer.ring[2]==11&&!hui_consumer.ring[3]&&!hui_consumer.ring[4],"HUI consumer receives left/centre/right and unavailable/nonmixable off in either policy");
+  unsigned ring_count=hui_consumer.counts[MCU_FEEDBACK_RING];need(hui_channel_output(&rings,&b,&s,101)&&hui_consumer.counts[MCU_FEEDBACK_RING]==ring_count,"unchanged HUI rings do not resend");
+  s.tracks[1].fields[CF_PAN].bits=0x3f400000;s.tracks[1].fields[CF_PAN].revision+=2;bank_apply(&b,&s,102);
+  need(hui_channel_output(&rings,&b,&s,102)&&hui_consumer.counts[MCU_FEEDBACK_RING]==++ring_count&&hui_consumer.ring[1]==9,"one authoritative pan change emits one independently decoded HUI ring");
+  s.tracks[1].fields[CF_PAN].revision+=2;bank_apply(&b,&s,103);need(hui_channel_output(&rings,&b,&s,103)&&hui_consumer.counts[MCU_FEEDBACK_RING]==ring_count,"same quantized position with a new revision is silent");
+  s.tracks[1].fields[CF_PAN].incarnation++;bank_apply(&b,&s,104);need(hui_channel_output(&rings,&b,&s,104)&&hui_consumer.counts[MCU_FEEDBACK_RING]==++ring_count,"pan property rebind reasserts the unchanged ring");
+  bank_navigate(&b,1,105);bank_apply(&b,&s,106);need(hui_channel_output(&rings,&b,&s,106)&&hui_consumer.counts[MCU_FEEDBACK_RING]==ring_count+8,"new bank reasserts all bound HUI rings including unchanged centres");ring_count+=8;for(unsigned strip=0;strip<8;strip++)need(hui_consumer.ring[strip]==6,"new bank consumer receives centre for every strip");
+  b.ready=0;need(hui_channel_output(&rings,&b,&s,107)&&hui_consumer.counts[MCU_FEEDBACK_RING]==ring_count+8,"unavailable source clears all HUI rings");ring_count+=8;for(unsigned strip=0;strip<8;strip++)need(!hui_consumer.ring[strip],"unavailable ring reaches the consumer as off");
+  need(hui_channel_output(&rings,&b,&s,108)&&hui_consumer.counts[MCU_FEEDBACK_RING]==ring_count,"continued unavailable source does not resend off");bank_apply(&b,&s,109);need(hui_channel_output(&rings,&b,&s,109)&&hui_consumer.counts[MCU_FEEDBACK_RING]==ring_count+8,"fresh source reacquisition restores all HUI rings");ring_count+=8;
+  surface_close(&rings,&b);bank_apply(&b,&s,110);need(hui_channel_output(&rings,&b,&s,110)&&hui_consumer.counts[MCU_FEEDBACK_RING]==ring_count+8,"production disconnect and fresh rebind resend all ring feedback");
+ }
+ need(servo_arguments(8,hui)==3,"restore Pickup policy after ring consumer checks");
+
  Surface disconnected={.full={32,0}};MirrorBank disconnected_bank={0};snd_seq_ev_clear(&hui_event);hui_event.source=disconnected.full;snd_seq_ev_set_controller(&hui_event,0,0,1);need(!surface_hui_event(&disconnected,&hui_event,120,&hui_kind,&hui_channel,&hui_value)&&disconnected.hui_input.fader_valid[0],"disconnect fixture holds a partial HUI fader");snd_seq_ev_set_controller(&hui_event,0,0x0f,1);need(!surface_hui_event(&disconnected,&hui_event,121,&hui_kind,&hui_channel,&hui_value)&&disconnected.hui_input.zone_valid,"disconnect fixture holds a partial HUI switch zone");disconnected.hui_pickup[0].source_valid=disconnected.hui_pickup[0].physical_valid=disconnected.hui_pickup[0].acquired=1;surface_close(&disconnected,&disconnected_bank);need(!disconnected.hui_input.fader_valid[0]&&!disconnected.hui_input.zone_valid&&!disconnected.hui_pickup[0].source_valid&&!disconnected.hui_pickup[0].physical_valid&&!disconnected.hui_pickup[0].acquired,"production disconnect clears partial HUI wire and transient pickup state");
  char hui_directory[]="/tmp/mpclearn-hui.XXXXXX",hui_path[256],hui_option_text[300];need(mkdtemp(hui_directory)!=NULL,"private HUI preference fixture directory");snprintf(hui_path,sizeof(hui_path),"%s/controller-preferences",hui_directory);snprintf(hui_option_text,sizeof(hui_option_text),"--controller-preferences=%s",hui_path);
- char *set_hui[]={(char*)"mirror-input",(char*)"--controller-set",hui_path,(char*)"--profile=hui",(char*)"--endpoint-client=HUI Saved",(char*)"--endpoint-port=DAW Port",(char*)"--endpoint-type=kernel"},*saved_hui[]={(char*)"mirror-input",(char*)"/volume",(char*)"/command",hui_option_text};
- need(input_bridge_main_not_called(7,set_hui)==0&&servo_arguments(4,saved_hui)==3&&controller.profile==&mcu_profile_hui&&!strcmp(controller.client,"HUI Saved")&&!strcmp(controller.port,"DAW Port"),"session preference owner persists exact HUI profile and endpoint");need(!unlink(hui_path)&&!rmdir(hui_directory),"HUI preference fixture cleanup");
+ char *set_hui[]={(char*)"mirror-input",(char*)"--controller-set",hui_path,(char*)"--profile=hui",(char*)"--endpoint-client=HUI Saved",(char*)"--endpoint-port=DAW Port",(char*)"--endpoint-type=kernel",(char*)"--hui-mode=motorized"},*saved_hui[]={(char*)"mirror-input",(char*)"/volume",(char*)"/command",hui_option_text};
+ need(input_bridge_main_not_called(8,set_hui)==0&&servo_arguments(4,saved_hui)==3&&controller.profile==&mcu_profile_hui&&controller.physical_only==MCU_ENDPOINT_KERNEL&&controller_hui_policy==MCU_HUI_MOTORIZED&&!strcmp(controller.client,"HUI Saved")&&!strcmp(controller.port,"DAW Port"),"session preference owner explicitly persists exact HUI profile, type, endpoint and Motorized policy");
+ McuControllerPreferenceFile legacy={.magic="MCUCFG1",.profile=4,.physical_only=MCU_ENDPOINT_KERNEL,.client_length=9,.port_length=8};memcpy(legacy.client,"HUI Saved",9);memcpy(legacy.port,"DAW Port",8);legacy.checksum=mcu_controller_checksum(&legacy);
+ int legacy_fd=open(hui_path,O_WRONLY|O_TRUNC);need(legacy_fd>=0&&write(legacy_fd,&legacy,sizeof(legacy))==(ssize_t)sizeof(legacy)&&!close(legacy_fd),"write old MCUCFG1 HUI compatibility fixture");
+ need(servo_arguments(4,saved_hui)==3&&controller_hui_policy==MCU_HUI_PICKUP&&!stat(hui_path,&controller_stat)&&controller_stat.st_size==(off_t)sizeof(McuControllerPreferenceFile),"old MCUCFG1 imports as Pickup without rewriting bytes during read");
+ McuControllerCollection migrated;need(mcu_controller_preferences_read_collection(hui_path,&migrated)&&migrated.count==1&&migrated.imported_legacy&&!strcmp(migrated.records[0].input.port,"DAW Port")&&!strcmp(migrated.records[0].output.port,"DAW Port"),"legacy singleton migrates in memory to one same-port input/output record");
+ char *set_hui_pickup[]={(char*)"mirror-input",(char*)"--controller-set",hui_path,(char*)"--profile=hui",(char*)"--input-client=HUI Saved",(char*)"--input-port=DAW In",(char*)"--input-type=user",(char*)"--output-client=HUI Saved",(char*)"--output-port=DAW Out",(char*)"--output-type=kernel",(char*)"--hui-mode=pickup"};need(input_bridge_main_not_called(11,set_hui_pickup)==0&&servo_arguments(4,saved_hui)==3&&controller.physical_only==MCU_ENDPOINT_USER&&!strcmp(controller.port,"DAW In")&&controller_output.physical_only==MCU_ENDPOINT_KERNEL&&!strcmp(controller_output.port,"DAW Out")&&controller_hui_policy==MCU_HUI_PICKUP&&!stat(hui_path,&controller_stat)&&controller_stat.st_size==(off_t)sizeof(McuControllerCollectionFile),"first Apply replaces imported MCUCFG1 with split MCUCFG2 and explicit Pickup policy");need(!unlink(hui_path)&&!rmdir(hui_directory),"HUI preference fixture cleanup");
 
  static const McuProfile strips_only={.name="strips-only",.capabilities=MCU_CAP_STRIP_FADER,.raw_fader_echo=1,.master_input_max=16383};controller=(McuEndpoint){.profile=&strips_only,.client="Fixture",.port="Port",.physical_only=1};
  snd_seq_addr_t address={32,0};snd_seq_event_t event;snd_seq_ev_clear(&event);event.source=address;event.type=SND_SEQ_EVENT_PITCHBEND;event.data.control.channel=8;event.data.control.value=0;
@@ -382,7 +729,7 @@ static void profile_policy_checks(void){
  Surface limited={.source=3,.full=address};for(unsigned i=0;i<8;i++)need(channel_output(&limited,&b,&s,100),"strips-only capability output pass");unsigned limited_after_pressure=0;for(unsigned i=0;i<8;i++)limited_after_pressure+=observed_press_count[i];
  need(observed_lcd_count==lcd&&observed_position_count==position&&limited_after_pressure==limited_pressure&&observed_color_count==colors&&observed_pitch_count[8]==master,"absent LCD/time/meters/color/master capabilities emit none of those outputs");
  need(servo_arguments(3,restore)==3,"restore default profile after capability checks");free(c);
- puts("PASS MCU/HUI profiles, bounded saved selection and endpoint boundary with synthetic enumeration/captured ALSA sink: exact identities, standard HUI paired input/direct intents/exact-crossing pickup/LED heartbeat output, unchanged X-Touch/generic/Mini behavior, and optional capability gates");
+ puts("PASS MCU/HUI profiles, split endpoint roles/reconnect, fixed sixteen-record MCUCFG2 plus MCUCFG1 migration, and bounded typed inventory with synthetic enumeration/captured ALSA sink: exact identities, stale/absent/ambiguous refusal, standard HUI paired input, Pickup crossing, Motorized feedback, bounded heartbeat liveness, unchanged X-Touch/generic/Mini behavior, and optional capability gates");
 }
 /* The musical snapshot/native method remain substituted. These assertions
  * inspect production handlers' request identities and emitted MCU bytes. */
@@ -393,7 +740,7 @@ static void send_returns_fixture(CopiedMirror *s){
   s->send_programs[i]=t->program;s->send_owners[i]=t->program_owner;
  }
 }
-static void display_pass(Surface *surface,const MirrorBank *bank,CopiedMirror *s,unsigned now){
+static void display_pass(Surface *surface,MirrorBank *bank,CopiedMirror *s,unsigned now){
  for(unsigned i=0;i<8;i++)need(channel_output(surface,bank,s,now),"paired display production output");
 }
 static void assignment_checks(void){
@@ -1132,7 +1479,7 @@ static void drum_channel_checks(void){
 static void fixture_motor_pass(Surface *surface,MirrorBank *bank,CopiedMirror *snapshot,uint32_t now){
  bank_apply(bank,snapshot,now);
  need(channel_output(surface,bank,snapshot,now),"master/presentation production output pass");
- for(unsigned i=0;i<MIRROR_BANK;i++)if(strip_motor_ready(bank,i,now))need(strip_motor_output(surface,bank,i,now)>=0,"production strip output pass");
+ for(unsigned i=0;i<MIRROR_BANK;i++)if(strip_motor_ready(surface,bank,i,now))need(strip_motor_output(surface,bank,i,now)>=0,"production strip output pass");
 }
 static void binding_sync_checks(void){
  CommandState *c=calloc(1,sizeof(*c));need(c!=NULL,"binding sync command fixture");MirrorBank bank;MIRROR_COPY(snapshot);Surface surface={.source=3,.full={32,0}};
@@ -1153,17 +1500,17 @@ static void binding_sync_checks(void){
  for(unsigned i=0;i<9;i++)if(i!=3)need(observed_pitch_count[i]==2&&observed_pitch[i]==8192,"each eligible channel and master synchronizes once after protection clears");
  snapshot.heartbeat=300;fixture_motor_pass(&surface,&bank,&snapshot,300);snapshot.heartbeat=310;fixture_motor_pass(&surface,&bank,&snapshot,310);
  for(unsigned i=0;i<9;i++)need(observed_pitch_count[i]==2&&observed_pitch[i]==8192,"constant project target produces no trailing staircase after one final sync");
- for(unsigned i=0;i<8;i++)need(!strip_motor_ready(&bank,i,310),"idle production eligibility gate skips per-channel refresh work");
+ for(unsigned i=0;i<8;i++)need(!strip_motor_ready(&surface,&bank,i,310),"idle production eligibility gate skips per-channel refresh work");
  /* Native r3 idle defect: a bank reset cleared its sent position while the
   * physical motor owner retained the same identity and emitted target. */
  bank_drop(&bank,311);snapshot.heartbeat=314;bank_apply(&bank,&snapshot,314);snapshot.heartbeat=315;bank_apply(&bank,&snapshot,315);
  for(unsigned i=0;i<8;i++){
   need(bank.faders[i].last_sent==-1&&!following.motors[i].sync&&following.motors[i].target==following.motors[i].last_sent,"reproduce observed split bank/motor sent-state after same-identity drop");
-  need(bank_due(&bank,i,315)==8192&&!strip_motor_ready(&bank,i,315),"bank alone appears due but actual early motor gate rejects redundant copy work");
+  need(bank_due(&bank,i,315)==8192&&!strip_motor_ready(&surface,&bank,i,315),"bank alone appears due but actual early motor gate rejects redundant copy work");
   need(bank.faders[i].last_sent==-1,"readiness does not fake bank output acknowledgement");
  }
  unsigned idle_messages=output_count;
- for(unsigned tick=316;tick<320;tick++)for(unsigned i=0;i<8;i++)need(!strip_motor_ready(&bank,i,tick),"repeated idle iterations stay in cheap negative gate");
+ for(unsigned tick=316;tick<320;tick++)for(unsigned i=0;i<8;i++)need(!strip_motor_ready(&surface,&bank,i,tick),"repeated idle iterations stay in cheap negative gate");
  need(output_count==idle_messages&&!atomic_load(&c->published),"idle readiness emits neither motor echo nor musical command");
  bank_navigate(&bank,1,320);snapshot.heartbeat=330;fixture_motor_pass(&surface,&bank,&snapshot,330);snapshot.heartbeat=340;fixture_motor_pass(&surface,&bank,&snapshot,340);
  for(unsigned i=0;i<8;i++)need(observed_pitch_count[i]==3&&observed_pitch[i]==4096,"new bank sends exactly one final target per channel");
@@ -1171,7 +1518,7 @@ static void binding_sync_checks(void){
  for(unsigned i=8;i<16;i++)snapshot.tracks[i].bits=0x3f400000;
  snapshot.heartbeat=345;fixture_motor_pass(&surface,&bank,&snapshot,345);for(unsigned i=0;i<8;i++)need(observed_pitch_count[i]==3,"production same-binding update respects 10ms output ceiling");
  for(unsigned i=8;i<16;i++)snapshot.tracks[i].bits=0x3f600000;
- snapshot.heartbeat=350;bank_apply(&bank,&snapshot,350);for(unsigned i=0;i<8;i++)need(strip_motor_ready(&bank,i,350),"next iteration source change immediately reopens final-validation path");
+ snapshot.heartbeat=350;bank_apply(&bank,&snapshot,350);for(unsigned i=0;i<8;i++)need(strip_motor_ready(&surface,&bank,i,350),"next iteration source change immediately reopens final-validation path");
  fixture_motor_pass(&surface,&bank,&snapshot,350);snapshot.heartbeat=360;fixture_motor_pass(&surface,&bank,&snapshot,360);
  for(unsigned i=0;i<8;i++)need(observed_pitch_count[i]==4&&observed_pitch[i]==14335,"production output coalesces to latest authoritative source and never emits intermediate positions");
  memset(&input,0,sizeof(input));free(c);following.enabled=1;motor_follow_reset(&following);
@@ -1406,10 +1753,19 @@ static void outbound_update_checks(void){
  free(c);
  puts("PASS outbound update policy: repeated zero meter levels suppressed while sustained nonzero levels keep refreshing, enable/identity/source changes re-arm the bar, bank strips resolve through a revalidated recorded row in track/paged/Send/pad banks, and the playhead is formatted only when its bar, beat, pulse or availability changed (ALSA hardware and source values substituted)");
 }
+#include "novation-production-test.inc"
+static unsigned admission_interrupt_after,admission_write_count;
+static void admission_write_checkpoint(void){if(admission_interrupt_after&&++admission_write_count==admission_interrupt_after)raise(SIGKILL);}
+#include "control-program-production-test.inc"
 int main(int argc,char **argv){
- if(argc==2&&!strcmp(argv[1],"--policy")){alarm(20);profile_policy_checks();outbound_update_checks();native_text_wire_checks();binding_sync_checks();binding_reversal_checks();qlink_mode_routing_checks();input_page_checks();following_reenable_checks();milestone_checks();drum_channel_checks();drum_surface_checks();policy_checks();toggle_midi_checks();assignment_checks();effects_policy_checks();jog_policy_checks();data_wheel_checks();sequence_duplicate_bridge_checks();blocking_gate_checks();stop_type_checks();stop_relay_checks();master_policy_checks();return 0;}
+ if(argc==2&&!strcmp(argv[1],"--profiles")){profile_policy_checks();return 0;}
+ if(argc==2&&!strcmp(argv[1],"--programs")){control_program_production_checks();return 0;}
+ if(argc==2&&!strcmp(argv[1],"--novation")){novation_production_checks();return 0;}
+ control_program_production_checks();
+ novation_production_checks();
+ if(argc==2&&!strcmp(argv[1],"--policy")){alarm(20);profile_policy_checks();runtime_cycle_checks();collection_production_checks();hui_unready_liveness_checks();outbound_update_checks();native_text_wire_checks();binding_sync_checks();binding_reversal_checks();qlink_mode_routing_checks();input_page_checks();following_reenable_checks();milestone_checks();drum_channel_checks();drum_surface_checks();policy_checks();toggle_midi_checks();assignment_checks();effects_policy_checks();jog_policy_checks();data_wheel_checks();sequence_duplicate_bridge_checks();blocking_gate_checks();stop_type_checks();stop_relay_checks();master_policy_checks();return 0;}
  if(argc!=3)return 2;
- alarm(20);profile_policy_checks();outbound_update_checks();native_text_wire_checks();binding_sync_checks();binding_reversal_checks();qlink_mode_routing_checks();input_page_checks();following_reenable_checks();milestone_checks();drum_channel_checks();drum_surface_checks();policy_checks();toggle_midi_checks();assignment_checks();effects_policy_checks();jog_policy_checks();data_wheel_checks();sequence_duplicate_bridge_checks();blocking_gate_checks();stop_type_checks();stop_relay_checks();master_policy_checks();
+ alarm(20);profile_policy_checks();runtime_cycle_checks();collection_production_checks();hui_unready_liveness_checks();outbound_update_checks();native_text_wire_checks();binding_sync_checks();binding_reversal_checks();qlink_mode_routing_checks();input_page_checks();following_reenable_checks();milestone_checks();drum_channel_checks();drum_surface_checks();policy_checks();toggle_midi_checks();assignment_checks();effects_policy_checks();jog_policy_checks();data_wheel_checks();sequence_duplicate_bridge_checks();blocking_gate_checks();stop_type_checks();stop_relay_checks();master_policy_checks();
  char *defaults[]={"mirror-input","/volume","/command"};need(servo_arguments(3,defaults)==3&&servo_disabled,"separate-process composition uses default no-echo policy");
  int fd=open(argv[1],O_RDONLY|O_CLOEXEC);struct stat st;need(fd>=0&&!fstat(fd,&st)&&st.st_size==sizeof(MirrorState),"actual producer mirror file");
  const MirrorState *state=mmap(NULL,sizeof(*state),PROT_READ,MAP_SHARED,fd,0);need(state!=MAP_FAILED,"actual read-only mirror mapping");

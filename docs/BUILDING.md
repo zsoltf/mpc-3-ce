@@ -52,7 +52,7 @@ python3 firmware/patch-mpc-ce.py build/MPC build/v0_2_6/MPC
 ```
 
 The output must be 112,222,004 bytes with SHA-256
-`a7690d51ff905bfb7d637f86714596deb205dc72c02ec04dd1b038c2ad45b5a2`.
+`2fa5e9818c3a3beedfcb3fafe34f5b3f9a07295a3b68fb9e7949be6b64fa8daf`.
 
 Build and run the release component tests:
 

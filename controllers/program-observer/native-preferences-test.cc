@@ -7,6 +7,7 @@ extern "C" void free(void *);
 extern "C" int printf(const char *,...);
 extern "C" void exit(int);
 extern "C" int strcmp(const char *,const char *);
+extern "C" const char *strstr(const char *,const char *);
 extern "C" int memcmp(const void *,const void *,size_t) noexcept;
 extern "C" void *memset(void *,int,size_t) noexcept;
 extern "C" { uint32_t observer_running=1; }
@@ -17,18 +18,25 @@ static unsigned list_viewport_gets,list_drag_enables,list_drag_disables,list_bac
 static unsigned label_ctors,label_dtors,label_text_updates,slider_ctors,slider_dtors,slider_silent_updates;
 static unsigned tab_removes,child_adds,child_removes,overlay_dtors,colour_sets,repaints,toggles,active_calls,front_keeps;
 static unsigned paint_fills,paint_colours,paint_fonts,paint_texts;static uint32_t last_fill;static const char *last_paint_text;
+static const char *last_primary_text;static float paint_font;static uint32_t paint_colour;
+struct PaintedText {int x,y,w,h,justification,lines;float font,scale;uint32_t colour;const char *text;};
+static PaintedText drawn[8];static unsigned drawn_count;
+static struct {void *object;int height;} row_heights[32];static unsigned row_height_count;
+
 static unsigned char tab_vtable_fixture[NATIVE_PREFERENCES_TAB_VTABLE_BYTES];
 static unsigned char button_vtable_fixture[MPC_UI_BUTTON_VTABLE_BYTES];
 static unsigned char list_model_vtable_fixture[MPC_UI_LIST_MODEL_VTABLE_BYTES];
 static unsigned char overlay_vtable_fixture[NATIVE_LAUNCHER_OVERLAY_VTABLE_BYTES];
-static void *relationships[96][2];static unsigned relationship_count;
-static void *ordered_parent,*ordered_children[16];static unsigned ordered_count;
-static void *visible_objects[2048];static int visible_values[2048];static unsigned visible_count;
+static void *relationships[256][2];static unsigned relationship_count;
+static void *ordered_parent,*ordered_children[64];static unsigned ordered_count;
+static void *visible_objects[8192];static int visible_values[8192];static unsigned visible_count;
 struct Bounds {void *object;int x,y,w,h;};static Bounds bounds_calls[256];static unsigned bounds_count;
 static void *launcher_owner_component,*expected_selected;
-static void *overlay_children[32];static unsigned overlay_child_count;
+static void *overlay_children[256];static unsigned overlay_child_count;
 static unsigned fail_remove_after;
 static bool expect_retained_overlay;
+static bool controller_feedback_enabled,controller_feedback_emitting;
+static unsigned controller_update_feedback,controller_visibility_feedback;
 
 static void require(bool ok,const char *why){if(!ok){printf("FAIL %s\n",why);exit(1);}}
 static void *test_allocate(uint32_t bytes){allocations++;void *p=malloc(bytes);if(p)memset(p,0,bytes);return p;}
@@ -39,12 +47,18 @@ static void test_set_colour(void *object,int id,uint32_t colour){
  require(object,"qualified Component colour receiver");
  if(id==MPC_UI_LIST_BACKGROUND_COLOUR_ID){list_background_colours++;return;}
  if(id==MPC_UI_LABEL_BACKGROUND_COLOUR_ID||id==MPC_UI_LABEL_TEXT_COLOUR_ID){
-  require(colour==0xff202126u||colour==0xffffffffu,"qualified Label colour");
+  require(colour==0xff17181bu||colour==0xff202126u||
+   colour==0xff24252au||colour==0xff303137u||
+   colour==0xffaeb0b7u||colour==0xffd5d6d9u||
+   colour==0xffe1e2e5u||colour==0xffffffffu,
+   "qualified Label colour");
   colour_sets++;return;
  }
  require(id>=0x1000100&&id<=0x1000103,"qualified TextButton colour");
- if(id==0x1000102||id==0x1000103)require(colour==0xffffffffu,"legible white text");
- else require(colour==0xff202126u||colour==0xff2f2f34u||colour==0xffd31145u,"bounded button fill");
+ if(id==0x1000102||id==0x1000103)require(colour==0xffffffffu||colour==0xff73757eu,"active or visibly inactive text");
+ else require(colour==0xff24252au||colour==0xff202126u||colour==0xff2f2f34u||
+              colour==0xff303137u||colour==0xffd31145u,
+              "bounded button fill");
  colour_sets++;
 }
 static void test_std_string(void *storage,const char *text){require(!strcmp(text,"CONTROLLERS"),"tab label");uint32_t *s=(uint32_t*)storage;s[0]=(uint32_t)(uintptr_t)((unsigned char*)storage+8);s[1]=11;memcpy((unsigned char*)storage+8,text,12);}
@@ -53,13 +67,22 @@ static void test_button_dtor(void *button){require(*(void**)button==button_vtabl
 static void test_label_ctor(void *label,const void *name,const void *text){require(label&&*(const char*const*)name&&*(const char*const*)text,"Label construction");label_ctors++;}
 static void test_label_dtor(void *label){require(label,"Label destruction");label_dtors++;}
 static void test_label_text(void *label,const void *text,int notify){require(label&&*(const char*const*)text&&notify==0,"Label silent text");label_text_updates++;}
-static void test_label_justification(void *label,int){require(label,"Label justification");}
+static struct {void *object;int value;} label_alignments[64];static unsigned label_alignment_count;
+static void test_label_justification(void *label,int value){require(label,"Label justification");if(label_alignment_count<64)label_alignments[label_alignment_count++]={label,value};}
 static void test_mouse_intercepts(void *component,int self,int children){require(component&&!self&&!children,"Label touch pass-through");}
 static void test_list_ctor(void *list,const void *name,void *model){require(list&&*(const char*const*)name&&model,"named ListBox construction");*(void**)((unsigned char*)list+0x78)=model;*(int*)((unsigned char*)list+0xa4)=-1;list_ctors++;}
 static void test_list_dtor(void *list){require(list&&!*(void**)((unsigned char*)list+0x78),"ListBox model cleared before complete destructor");list_dtors++;}
 static void test_list_set_model(void *list,void *model){*(void**)((unsigned char*)list+0x78)=model;}
-static void test_list_update(void *list){void *model=*(void**)((unsigned char*)list+0x78);require(model&&((int(*)(void*))(*(void***)model)[2])(model)>=0,"ListBox update reads model count");list_updates++;}
-static void test_list_row_height(void *,int height){require(height>0&&height<=256,"bounded ListBox row height");}
+static void test_controller_feedback(bool visibility){
+ if(!controller_feedback_enabled||controller_feedback_emitting)return;
+ controller_feedback_emitting=true;
+ auto &instance=preferences_instances[0];MpcUiList *lists[]={instance.controllers,instance.profiles,instance.inputs,instance.outputs};
+ for(auto *list:lists){void *object=mpc_ui_private_list_host_object(list);void *model=*(void**)((unsigned char*)object+0x78);require(model,"presentation feedback has a live model");((void(*)(void*,int))(*(void***)model)[8])(model,0);}
+ if(visibility)controller_visibility_feedback++;else controller_update_feedback++;
+ controller_feedback_emitting=false;
+}
+static void test_list_update(void *list){void *model=*(void**)((unsigned char*)list+0x78);require(model&&((int(*)(void*))(*(void***)model)[2])(model)>=0,"ListBox update reads model count");list_updates++;test_controller_feedback(false);}
+static void test_list_row_height(void *object,int height){require(height>0&&height<=256,"bounded ListBox row height");if(row_height_count<32)row_heights[row_height_count++]={object,height};}
 static void test_list_select(void *list,int row,int dont_scroll,int deselect){require((dont_scroll==0||dont_scroll==1)&&deselect==1,"qualified ListBox select flags");int *selected=(int*)((unsigned char*)list+0xa4);if(*selected==row)return;*selected=row;void *model=*(void**)((unsigned char*)list+0x78);if(model)((void(*)(void*,int))(*(void***)model)[8])(model,row);list_selections++;}
 static void *test_list_get_viewport(void *list){require(list,"ListBox owns viewport");list_viewport_gets++;return list;}
 static void test_viewport_set_drag(void *viewport,int enabled,float threshold){require(viewport&&threshold==MPC_UI_LIST_DRAG_THRESHOLD,"qualified viewport drag threshold");if(enabled)list_drag_enables++;else list_drag_disables++;}
@@ -74,7 +97,7 @@ static double test_slider_get(void *){return 0.0;}
 static void test_slider_set(void *slider,double,int notify){require(slider&&notify==0,"Slider silent set");slider_silent_updates++;}
 static bool test_always_on_top(void *child){return (*(uint32_t*)((unsigned char*)child+0x68)&0x100u)!=0;}
 static void order_add(void *parent,void *child){
- if(parent!=ordered_parent)return;require(ordered_count<16,"bounded ordered children");unsigned index=ordered_count;
+ if(parent!=ordered_parent)return;require(ordered_count<64,"bounded ordered children");unsigned index=ordered_count;
  if(!test_always_on_top(child))while(index&&test_always_on_top(ordered_children[index-1]))index--;
  for(unsigned i=ordered_count;i>index;i--)ordered_children[i]=ordered_children[i-1];ordered_children[index]=child;ordered_count++;
 }
@@ -82,8 +105,8 @@ static void order_remove(void *parent,void *child){
  if(parent!=ordered_parent)return;for(unsigned i=0;i<ordered_count;i++)if(ordered_children[i]==child){for(unsigned j=i+1;j<ordered_count;j++)ordered_children[j-1]=ordered_children[j];ordered_count--;return;}require(false,"ordered child removal");
 }
 static void test_add_child(void *parent,void *child,int z){
- require(parent&&child&&z==-1&&relationship_count<96,"Component add");relationships[relationship_count][0]=parent;relationships[relationship_count++][1]=child;
- *(void**)((unsigned char*)child+0x0c)=parent;order_add(parent,child);if(parent==launcher_owner_component)overlay_children[overlay_child_count++]=child;child_adds++;
+ require(parent&&child&&z==-1&&relationship_count<256,"Component add");relationships[relationship_count][0]=parent;relationships[relationship_count++][1]=child;
+ *(void**)((unsigned char*)child+0x0c)=parent;order_add(parent,child);if(parent==launcher_owner_component){require(overlay_child_count<256,"bounded overlay children");overlay_children[overlay_child_count++]=child;}child_adds++;
 }
 static void test_remove_child(void *parent,void *child){
  for(unsigned i=0;i<relationship_count;i++){
@@ -98,7 +121,7 @@ static void *test_tab_remove(void *parent,void *child){test_remove_child(parent,
 static bool attached(void *parent,void *child){for(unsigned i=0;i<relationship_count;i++)if(relationships[i][0]==parent&&relationships[i][1]==child)return true;return false;}
 static void test_bounds(void *object,int x,int y,int w,int h){require(object&&w>0&&h>0&&x>=0&&y>=0&&bounds_count<256,"positive native bounds");bounds_calls[bounds_count++]={object,x,y,w,h};}
 static Bounds last_bounds(void *object){for(int i=(int)bounds_count-1;i>=0;i--)if(bounds_calls[i].object==object)return bounds_calls[i];return {};}
-static void test_visible(void *object,int visible){require(object&&visible_count<2048,"bounded visibility");visible_objects[visible_count]=object;visible_values[visible_count++]=visible;}
+static void test_visible(void *object,int visible){require(object&&visible_count<8192,"bounded visibility");visible_objects[visible_count]=object;visible_values[visible_count++]=visible;test_controller_feedback(true);}
 static int last_visible(void *object){for(int i=(int)visible_count-1;i>=0;i--)if(visible_objects[i]==object)return visible_values[i];return -1;}
 static void test_set_always_on_top(void *object,int enabled){
  require(object&&enabled==1,"launcher always-on-top");*(uint32_t*)((unsigned char*)object+0x68)|=0x100u;
@@ -106,11 +129,11 @@ static void test_set_always_on_top(void *object,int enabled){
 }
 static void test_toggle(void *,int selected,int notification){require((selected==0||selected==1)&&notification==0,"selection toggle");toggles++;}
 static void test_repaint(void *object){require(object,"repaint object");repaints++;}
-static void test_graphics_set_colour(void *graphics,uint32_t colour){require(graphics&&colour==0xffffffffu,"paint text colour");paint_colours++;}
-static void test_graphics_set_font(void *graphics,float height){require(graphics&&height==22.0f,"paint font");paint_fonts++;}
-static void test_graphics_fill_all(void *graphics,uint32_t colour){require(graphics&&(colour==0xff202126u||colour==0xff24252au||colour==0xff2f2f34u||colour==0xffd31145u),"paint fill");last_fill=colour;paint_fills++;}
+static void test_graphics_set_colour(void *graphics,uint32_t colour){require(graphics&&(colour==0xffffffffu||colour==0xffe6e6ebu||colour==0xffbfc0c8u||colour==0xff73757eu),"paint text colour");paint_colour=colour;paint_colours++;}
+static void test_graphics_set_font(void *graphics,float height){require(graphics&&(height==22.0f||height==18.0f),"paint font");paint_font=height;paint_fonts++;}
+static void test_graphics_fill_all(void *graphics,uint32_t colour){require(graphics&&(colour==0xff202126u||colour==0xff24252au||colour==0xff2f2f34u||colour==0xff595a62u||colour==0xffd31145u),"paint fill");last_fill=colour;paint_fills++;}
 static void test_graphics_draw_fitted_text(void *graphics,const void *text,int x,int y,int width,int height,int justification,int lines,float scale){
- require(graphics&&text&&x==8&&y==0&&width>0&&height>0&&justification==36&&lines==1&&scale==0.0f,"fitted label ABI");last_paint_text=*(const char*const*)text;require(last_paint_text,"paint label String");paint_texts++;
+ require(graphics&&text&&width>0&&height>0&&((x==8&&y==0&&justification==36&&lines==1&&scale==0.0f)||(x==16&&y>=0&&justification==33&&lines>=1&&lines<=2&&scale==1.0f)),"fitted label ABI and opt-in readable rows");last_paint_text=*(const char*const*)text;require(last_paint_text,"paint label String");if(paint_font==22.0f)last_primary_text=last_paint_text;if(drawn_count<8)drawn[drawn_count++]={x,y,width,height,justification,lines,paint_font,scale,paint_colour,last_paint_text};paint_texts++;
 }
 
 static void test_tab_ctor(void *tab,uint32_t index,void *scroll,void *parent,float,float,float,float,float,float,void *label,void *selected,void *icon){
@@ -266,7 +289,61 @@ static void __attribute__((unused)) settle_global_learn(bool enabled){
 static void click(void *button){void **slots=*(void***)button;auto callback=(void(*)(void*))slots[46];require(callback,"copied click slot");callback(button);}
 static void paint(void *button){void **slots=*(void***)button;auto callback=(void(*)(void*,void*,int,int))slots[48];require(callback,"copied paint slot");callback(button,(void*)0x77770000,0,0);}
 static void __attribute__((unused)) select_list(void *list,int row){test_list_select(list,row,0,1);}
-static void __attribute__((unused)) paint_list(void *list,int row,int selected,int width,int height){void *model=*(void**)((unsigned char*)list+0x78);require(model,"live ListBox presentation model");auto callback=(void(*)(void*,int,void*,int,int,int))(*(void***)model)[3];require(callback,"copied ListBox paint slot");callback(model,row,(void*)0x77770000,width,height,selected);}
+static void __attribute__((unused)) paint_list(void *list,int row,int selected,int width,int height){drawn_count=0;void *model=*(void**)((unsigned char*)list+0x78);require(model,"live ListBox presentation model");auto callback=(void(*)(void*,int,void*,int,int,int))(*(void***)model)[3];require(callback,"copied ListBox paint slot");callback(model,row,(void*)0x77770000,width,height,selected);}
+
+#ifdef MPCLEARN_CONTROLLERS_CAPTURE
+extern "C" int snprintf(char *,size_t,const char *,...);
+static void capture_text(const char *text){for(unsigned n=0;text&&text[n];n++){if(text[n]=='\n')printf("\\n");else printf("%c",text[n]);}printf("\n");}
+static void capture_box(const char *kind,Bounds b,uint32_t colour){require(b.x>=0&&b.y>=0&&b.x+b.w<=948&&b.y+b.h<=628,"production Controllers bounds fit retained native content region");printf("BOX\t%s\t%d\t%d\t%d\t%d\t%08x\n",kind,b.x,b.y,b.w,b.h,colour);}
+static void capture_draws(Bounds b){for(unsigned n=0;n<drawn_count;n++){auto &d=drawn[n];printf("TEXT\tpaint\t%d\t%d\t%d\t%d\t%08x\t%.0f\t%d\t%d\t%.1f\t",b.x+d.x,b.y+d.y,d.w,d.h,d.colour,d.font,d.justification,d.lines,d.scale);capture_text(d.text);}}
+static void layout_scene(const char *name){
+ auto &i=preferences_instances[0];printf("SCENE\t%s\t948\t628\n",name);
+ MpcUiList *lists[]={i.controllers,i.profiles,i.inputs,i.outputs};
+ for(auto *list:lists){void *object=mpc_ui_private_list_host_object(list);if(last_visible(object)!=1)continue;Bounds b=last_bounds(object);capture_box("list",b,0xff2f2f34u);
+  void *model=*(void**)((unsigned char*)object+0x78);int count=((int(*)(void*))(*(void***)model)[2])(model);int height=0,selected=*(int*)((unsigned char*)object+0xa4);
+  for(unsigned n=0;n<row_height_count;n++)if(row_heights[n].object==object)height=row_heights[n].height;require(height>0,"captured actual production row height");
+  for(int row=0;row<count&&(row+1)*height<=b.h;row++){paint_list(object,row,row==selected,b.w,height);Bounds rb={object,b.x,b.y+row*height,b.w,height};capture_box("row",rb,last_fill);capture_draws(rb);}
+ }
+ MpcUiControl *buttons[]={i.add,i.edit,i.toggle,i.remove,i.refresh,i.apply,i.cancel,i.policy[0],i.policy[1]};int y=-1,min=948,max=0;Bounds placed[9];unsigned used=0;
+ for(auto *control:buttons){void *object=mpc_ui_private_control_host_object(control);if(last_visible(object)!=1)continue;Bounds b=last_bounds(object);if(y<0)y=b.y;require(y==b.y,"visible actions share one row");for(unsigned n=0;n<used;n++)require(b.x>=placed[n].x+placed[n].w||b.x+b.w<=placed[n].x,"visible actions do not overlap");placed[used++]=b;if(b.x<min)min=b.x;if(b.x+b.w>max)max=b.x+b.w;drawn_count=0;paint(object);capture_box("button",b,last_fill);capture_draws(b);}
+ require(min==948-max,"action row has balanced native-parent margins");
+ MpcUiControl *labels[]={i.status_label,i.editor_title,i.input_label,i.output_label,i.from_detail,i.to_detail,i.empty_label};const char *texts[]={i.status_text,i.editor_text,"From controller","To controller",i.connection_text[0],i.connection_text[1],"No controllers yet\nChoose Add to connect your first controller."};
+ for(unsigned n=0;n<7;n++){void *object=mpc_ui_private_control_host_object(labels[n]);if(last_visible(object)!=1)continue;Bounds b=last_bounds(object);capture_box("label",b,0xff202126u);int align=1;for(unsigned a=0;a<label_alignment_count;a++)if(label_alignments[a].object==object)align=label_alignments[a].value;printf("TEXT\tlabel-substitute\t%d\t%d\t%d\t%d\tffffffff\t15\t%d\t2\t1.0\t",b.x,b.y,b.w,b.h,align);capture_text(texts[n]);}
+ printf("END\t%s\n",name);
+}
+static void capture_controller_layout(NativePreferencesState &fixture){
+ NativePreferencesState saved=fixture;fixture.collection_count=4;fixture.collection_generation++;
+ for(unsigned n=1;n<4;n++)fixture.controllers[n]=fixture.controllers[0];
+ fixture.controllers[1].profile=NATIVE_CONTROLLER_LPP3;fixture.controllers[2].profile=NATIVE_CONTROLLER_LCXL3;fixture.controllers[3].profile=NATIVE_CONTROLLER_HUI;
+ fixture.controllers[1].status=NATIVE_CONTROLLER_DISCONNECTED;fixture.controllers[2].enabled=0;fixture.controllers[2].status=NATIVE_CONTROLLER_DISABLED;
+ const char *clients[]={"X-Touch Mini","Launchpad Pro Mk3","Launch Control XL 3","HUI surface"};const char *ports[]={"X-TOUCH MINI MIDI 1","Launchpad Pro Mk3 MIDI 2","Launch Control XL 3 DAW","HUI DAW"};
+ for(unsigned n=0;n<4;n++){auto &row=fixture.controllers[n];row.input_client_length=row.output_client_length=snprintf((char*)row.input_client,sizeof(row.input_client),"%s",clients[n]);snprintf((char*)row.output_client,sizeof(row.output_client),"%s",clients[n]);row.input_port_length=row.output_port_length=snprintf((char*)row.input_port,sizeof(row.input_port),"%s",ports[n]);snprintf((char*)row.output_port,sizeof(row.output_port),"%s",ports[n]);}
+ fixture.admission.collection_generation=fixture.collection_generation;fixture.admission.count=4;fixture.admission.status[0]=NATIVE_CONTROLLER_ACTIVE;fixture.admission.status[1]=NATIVE_CONTROLLER_DISCONNECTED;fixture.admission.status[2]=NATIVE_CONTROLLER_DISABLED;fixture.admission.status[3]=NATIVE_CONTROLLER_READY;fixture.admission.revision+=2;
+ native_preferences_refresh();refresh_selection(&preferences_instances[0]);select_list(mpc_ui_private_list_host_object(preferences_instances[0].controllers),1);layout_scene("main-populated");
+ fixture.collection_count=0;fixture.collection_generation++;refresh_selection(&preferences_instances[0]);layout_scene("main-empty");
+ unsigned no_selection_request=fixture.request_sequence;click(mpc_ui_private_control_host_object(preferences_instances[0].edit));click(mpc_ui_private_control_host_object(preferences_instances[0].toggle));click(mpc_ui_private_control_host_object(preferences_instances[0].remove));require(!preferences_instances[0].editing&&fixture.request_sequence==no_selection_request,"dimmed no-selection actions remain inert through existing input guards");paint(mpc_ui_private_control_host_object(preferences_instances[0].edit));require(last_fill==0xff24252au&&paint_colour==0xff73757eu,"empty-state Edit is visibly dimmed at the paint boundary");
+ fixture=saved;refresh_selection(&preferences_instances[0]);select_list(mpc_ui_private_list_host_object(preferences_instances[0].controllers),0);paint(mpc_ui_private_control_host_object(preferences_instances[0].edit));require(last_fill==0xff2f2f34u&&paint_colour==0xffffffffu,"selecting a controller restores ordinary action styling");
+ // Retained native inventory from 2026-10-14; not a current connected claim.
+ fixture.inventory_count=12;fixture.inventory_generation++;memset(fixture.endpoints,0,sizeof(fixture.endpoints));
+ fixture.endpoints[0].endpoint_type=1;fixture.endpoints[0].capabilities=3;fixture.endpoints[0].client_number=24;fixture.endpoints[0].port_number=0;snprintf((char*)fixture.endpoints[0].client,sizeof(fixture.endpoints[0].client),"%s","Launchpad Pro MK3");snprintf((char*)fixture.endpoints[0].port,sizeof(fixture.endpoints[0].port),"%s","LPProMK3 MIDI");
+ fixture.endpoints[1].endpoint_type=1;fixture.endpoints[1].capabilities=3;fixture.endpoints[1].client_number=24;fixture.endpoints[1].port_number=1;snprintf((char*)fixture.endpoints[1].client,sizeof(fixture.endpoints[1].client),"%s","Launchpad Pro MK3");snprintf((char*)fixture.endpoints[1].port,sizeof(fixture.endpoints[1].port),"%s","LPProMK3 DIN");
+ fixture.endpoints[2].endpoint_type=1;fixture.endpoints[2].capabilities=3;fixture.endpoints[2].client_number=24;fixture.endpoints[2].port_number=2;snprintf((char*)fixture.endpoints[2].client,sizeof(fixture.endpoints[2].client),"%s","Launchpad Pro MK3");snprintf((char*)fixture.endpoints[2].port,sizeof(fixture.endpoints[2].port),"%s","LPProMK3 DAW");
+ fixture.endpoints[3].endpoint_type=1;fixture.endpoints[3].capabilities=3;fixture.endpoints[3].client_number=28;fixture.endpoints[3].port_number=0;snprintf((char*)fixture.endpoints[3].client,sizeof(fixture.endpoints[3].client),"%s","SQ-64");snprintf((char*)fixture.endpoints[3].port,sizeof(fixture.endpoints[3].port),"%s","SQ-64 _ MIDI OUT 1");
+ fixture.endpoints[4].endpoint_type=1;fixture.endpoints[4].capabilities=3;fixture.endpoints[4].client_number=28;fixture.endpoints[4].port_number=1;snprintf((char*)fixture.endpoints[4].client,sizeof(fixture.endpoints[4].client),"%s","SQ-64");snprintf((char*)fixture.endpoints[4].port,sizeof(fixture.endpoints[4].port),"%s","SQ-64 _ MIDI OUT 2");
+ fixture.endpoints[5].endpoint_type=1;fixture.endpoints[5].capabilities=2;fixture.endpoints[5].client_number=28;fixture.endpoints[5].port_number=2;snprintf((char*)fixture.endpoints[5].client,sizeof(fixture.endpoints[5].client),"%s","SQ-64");snprintf((char*)fixture.endpoints[5].port,sizeof(fixture.endpoints[5].port),"%s","SQ-64 _ SEQ");
+ fixture.endpoints[6].endpoint_type=1;fixture.endpoints[6].capabilities=3;fixture.endpoints[6].client_number=32;fixture.endpoints[6].port_number=0;snprintf((char*)fixture.endpoints[6].client,sizeof(fixture.endpoints[6].client),"%s","Launchpad X");snprintf((char*)fixture.endpoints[6].port,sizeof(fixture.endpoints[6].port),"%s","LPX DAW In");
+ fixture.endpoints[7].endpoint_type=1;fixture.endpoints[7].capabilities=3;fixture.endpoints[7].client_number=32;fixture.endpoints[7].port_number=1;snprintf((char*)fixture.endpoints[7].client,sizeof(fixture.endpoints[7].client),"%s","Launchpad X");snprintf((char*)fixture.endpoints[7].port,sizeof(fixture.endpoints[7].port),"%s","LPX MIDI In");
+ fixture.endpoints[8].endpoint_type=1;fixture.endpoints[8].capabilities=3;fixture.endpoints[8].client_number=36;fixture.endpoints[8].port_number=0;snprintf((char*)fixture.endpoints[8].client,sizeof(fixture.endpoints[8].client),"%s","LCXL3 1");snprintf((char*)fixture.endpoints[8].port,sizeof(fixture.endpoints[8].port),"%s","LCXL3 1 MIDI In");
+ fixture.endpoints[9].endpoint_type=1;fixture.endpoints[9].capabilities=3;fixture.endpoints[9].client_number=36;fixture.endpoints[9].port_number=1;snprintf((char*)fixture.endpoints[9].client,sizeof(fixture.endpoints[9].client),"%s","LCXL3 1");snprintf((char*)fixture.endpoints[9].port,sizeof(fixture.endpoints[9].port),"%s","LCXL3 1 DAW In");
+ fixture.endpoints[10].endpoint_type=1;fixture.endpoints[10].capabilities=2;fixture.endpoints[10].client_number=36;fixture.endpoints[10].port_number=2;snprintf((char*)fixture.endpoints[10].client,sizeof(fixture.endpoints[10].client),"%s","LCXL3 1");snprintf((char*)fixture.endpoints[10].port,sizeof(fixture.endpoints[10].port),"%s","LCXL3 1 To DIN Out");
+ fixture.endpoints[11].endpoint_type=1;fixture.endpoints[11].capabilities=2;fixture.endpoints[11].client_number=36;fixture.endpoints[11].port_number=3;snprintf((char*)fixture.endpoints[11].client,sizeof(fixture.endpoints[11].client),"%s","LCXL3 1");snprintf((char*)fixture.endpoints[11].port,sizeof(fixture.endpoints[11].port),"%s","LCXL3 1 To DIN Out 2");
+ refresh_selection(&preferences_instances[0]);click(mpc_ui_private_control_host_object(preferences_instances[0].add));select_list(mpc_ui_private_list_host_object(preferences_instances[0].profiles),NATIVE_CONTROLLER_LCXL3-1);layout_scene("editor");
+ select_list(mpc_ui_private_list_host_object(preferences_instances[0].profiles),NATIVE_CONTROLLER_HUI-1);layout_scene("hui-editor");
+ for(unsigned n=0;n<fixture.inventory_count;n++){snprintf((char*)fixture.endpoints[n].client,sizeof(fixture.endpoints[n].client),"Launchpad Pro Mk3 external controller");snprintf((char*)fixture.endpoints[n].port,sizeof(fixture.endpoints[n].port),"Long physical controller MIDI input/output port number %u",n+1);}
+ fixture.inventory_generation++;fixture.status=NATIVE_PREFERENCES_INVALID;fixture.inventory_status=NATIVE_PREFERENCES_INVALID;refresh_selection(&preferences_instances[0]);layout_scene("long-ports");
+ click(mpc_ui_private_control_host_object(preferences_instances[0].cancel));fixture=saved;refresh_selection(&preferences_instances[0]);
+}
+#endif
 
 struct Frame {Context context;unsigned char stack[0x240];};
 static void setup_preferences_frame(Frame &frame,unsigned char *overlay){
@@ -290,7 +367,10 @@ int main(){
   test_slider_ctor,test_slider_dtor,test_slider_style,test_slider_range,test_slider_textbox,
   test_slider_add,test_slider_remove,test_slider_get,test_slider_set,
   test_add_child,test_remove_child,test_bounds,test_visible,test_set_always_on_top,test_toggle,test_repaint,
-  test_graphics_set_colour,test_graphics_set_font,test_graphics_fill_all,test_graphics_draw_fitted_text,button_vtable_fixture,list_model_vtable_fixture};
+  test_graphics_set_colour,test_graphics_set_font,test_graphics_fill_all,test_graphics_draw_fitted_text,button_vtable_fixture,list_model_vtable_fixture,
+  nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,
+  nullptr,nullptr,nullptr,nullptr,nullptr,
+  nullptr,nullptr,nullptr,nullptr,nullptr};
  toolkit_component_host=&host;core={test_allocate,test_delete,test_visible,test_repaint};
  preferences={test_std_string,test_tab_ctor,test_tab_dtor,test_tab_remove,tab_vtable_fixture};
  launcher={test_overlay_add,test_remove_child,test_overlay_destructor,test_overlay_destructor,overlay_vtable_fixture};
@@ -314,23 +394,154 @@ int main(){
  type=3;control=5;channel=2;data1=0;unsigned char reverse=1;memcpy(global_mappings[7]+0x9c,&type,4);memcpy(global_mappings[7]+0xa0,&control,4);memcpy(global_mappings[7]+0xa4,&channel,4);memcpy(global_mappings[7]+0xa8,&data1,1);memcpy(global_mappings[7]+0xa9,&reverse,1);
 
  alignas(8) unsigned char preferences_overlay[0x200]={};*(uint32_t*)(preferences_overlay+0x1a4)=0x11110000;*(uint32_t*)(preferences_overlay+0x1a8)=0x22220000;
+ fixture.inventory_generation=1;fixture.inventory_count=3;fixture.inventory_status=NATIVE_PREFERENCES_ACTIVE;
+ fixture.endpoints[0].endpoint_type=NATIVE_ENDPOINT_KERNEL;fixture.endpoints[0].capabilities=NATIVE_ENDPOINT_FROM_CONTROLLER;fixture.endpoints[0].client_number=24;fixture.endpoints[0].port_number=0;memcpy(fixture.endpoints[0].client,"Physical HUI",13);memcpy(fixture.endpoints[0].port,"DAW In",7);
+ fixture.endpoints[1].endpoint_type=NATIVE_ENDPOINT_USER;fixture.endpoints[1].capabilities=NATIVE_ENDPOINT_TO_CONTROLLER;fixture.endpoints[1].client_number=130;fixture.endpoints[1].port_number=1;memcpy(fixture.endpoints[1].client,"Software HUI",13);memcpy(fixture.endpoints[1].port,"DAW Out",8);
+ fixture.endpoints[2].endpoint_type=NATIVE_ENDPOINT_KERNEL;fixture.endpoints[2].capabilities=NATIVE_ENDPOINT_FROM_CONTROLLER|NATIVE_ENDPOINT_TO_CONTROLLER;fixture.endpoints[2].client_number=25;fixture.endpoints[2].port_number=0;memcpy(fixture.endpoints[2].client,"X-TOUCH MINI",13);memcpy(fixture.endpoints[2].port,"X-TOUCH MINI MIDI 1",20);
+ fixture.collection_generation=1;fixture.collection_count=1;fixture.active_controller_index=0;
+ fixture.controller_lifetime=1;fixture.admission.lifetime=1;fixture.admission.collection_generation=1;fixture.admission.count=1;fixture.admission.status[0]=NATIVE_CONTROLLER_ACTIVE;
+ fixture.controllers[0].enabled=1;fixture.controllers[0].profile=NATIVE_CONTROLLER_XTOUCH_MINI;fixture.controllers[0].status=NATIVE_CONTROLLER_ACTIVE;fixture.controllers[0].input_type=fixture.controllers[0].output_type=NATIVE_ENDPOINT_KERNEL;
+ fixture.controllers[0].input_client_length=fixture.controllers[0].output_client_length=12;fixture.controllers[0].input_port_length=fixture.controllers[0].output_port_length=19;
+ memcpy(fixture.controllers[0].input_client,"X-TOUCH MINI",12);memcpy(fixture.controllers[0].output_client,"X-TOUCH MINI",12);memcpy(fixture.controllers[0].input_port,"X-TOUCH MINI MIDI 1",19);memcpy(fixture.controllers[0].output_port,"X-TOUCH MINI MIDI 1",19);
  uint32_t *old=(uint32_t*)test_allocate(4);old[0]=0x55550000;*(uint32_t*)(preferences_overlay+0x1b8)=(uint32_t)(uintptr_t)old;*(uint32_t*)(preferences_overlay+0x1bc)=(uint32_t)(uintptr_t)(old+1);*(uint32_t*)(preferences_overlay+0x1c0)=(uint32_t)(uintptr_t)(old+1);
  Frame frame;memset(&frame,0,sizeof(frame));frame.context.r[4]=(uint32_t)(uintptr_t)global_app_storage;frame.context.r[5]=(uint32_t)(uintptr_t)global_vc_storage;
  frame.context.r[6]=(uint32_t)(uintptr_t)global_file_handler_storage;frame.context.r[7]=(uint32_t)(uintptr_t)global_owner_storage;native_preferences_hook(&frame.context,3);
  *(void**)(global_app_storage+0x7cc)=global_vc_storage;
  require(fixture.global_owner_captures==1&&fixture.last_global_owner==(uint32_t)(uintptr_t)global_owner_storage&&fixture.last_global_file==(uint32_t)(uintptr_t)global_file_handler_storage&&!fixture.failures,"startup hook captures qualified Global MIDI Learn owner and file handler");
  expected_selected=preferences_overlay+0x160;setup_preferences_frame(frame,preferences_overlay);native_preferences_hook(&frame.context,0);
- require(fixture.tabs_created==1&&fixture.buttons_created==4&&fixture.live_tabs==1&&!fixture.failures&&colour_sets==16,"Controllers composed by canonical toolkit");
+ require(fixture.tabs_created==1&&fixture.buttons_created==9&&fixture.live_tabs==1&&!fixture.failures&&colour_sets>=38&&preferences_instances[0].endpoint_count==3&&preferences_instances[0].controller_count==1,"Controllers composes collection, split endpoint lists, policy and status through canonical toolkit");
  require(tab_removes==1,"stock placeholder detached once");
  void *tab=(void*)(uintptr_t)fixture.last_tab;void **tab_slots=*(void***)tab;fixture.saved_profile=fixture.active_profile=NATIVE_CONTROLLER_XTOUCH_MINI;fixture.status=NATIVE_PREFERENCES_ACTIVE;
- ((void(*)(void*,int))tab_slots[2])(tab,1);require(active_calls==1&&toggles==6,"stock-first activation refresh");
- void *mini=mpc_ui_private_control_host_object(preferences_instances[0].buttons[1]);paint(mini);
- require(last_fill==0xffd31145u&&!strcmp(last_paint_text,"X-TOUCH MINI")&&paint_fills==1&&paint_colours==1&&paint_fonts==1&&paint_texts==1,"selected controller uses shared full paint");
- click((void*)(uintptr_t)fixture.buttons[2]);require(fixture.request_profile==NATIVE_CONTROLLER_GENERIC&&fixture.request_sequence==1,"controller intent reaches existing session owner");
- fixture.saved_profile=fixture.active_profile=NATIVE_CONTROLLER_GENERIC;fixture.completed_sequence=1;native_preferences_refresh();
- void *marker=mpc_ui_private_control_host_object(preferences_instances[0].marker);Bounds marker_bounds=last_bounds(marker);
- require(marker_bounds.y==180&&last_visible(marker)==1&&toggles==9,"confirmed selection marker updates on UI drain");
+ ((void(*)(void*,int))tab_slots[2])(tab,1);require(active_calls==1&&!fixture.failures,"stock-first activation refresh");
+ require(strstr(preferences_instances[0].controller_text[0],"X-Touch Mini")&&strstr(preferences_instances[0].controller_detail[0],"Connected"),"collection row presents enabled state, profile and status");
+#ifdef MPCLEARN_CONTROLLERS_CAPTURE
+ capture_controller_layout(fixture);
+#endif
+ unsigned controller_paints=paint_texts;
+ paint_list(mpc_ui_private_list_host_object(preferences_instances[0].controllers),0,1,900,72);
+ require(paint_texts==controller_paints+2&&strstr(last_primary_text,"X-Touch Mini"),"nonempty Controllers collection paints its actual row through the production model");
+ require(!strcmp(last_primary_text,"X-Touch Mini")&&!strcmp(last_paint_text,"Connected"),"main row paints controller name and state separately without a port dump");
+
+ NativePreferencesController saved_row=fixture.controllers[0];fixture.controllers[0].profile=NATIVE_CONTROLLER_LPP3;
+ const uint32_t admissions[]={NATIVE_CONTROLLER_WAIT_MODE,NATIVE_CONTROLLER_UNKNOWN_MODE,NATIVE_CONTROLLER_ACTIVE};const char *labels[]={"Waiting for controller mode","Controller mode changed","Connected"};
+ for(unsigned i=0;i<3;i++){fixture.admission.status[0]=admissions[i];fixture.admission.revision+=2;native_preferences_refresh();paint_list(mpc_ui_private_list_host_object(preferences_instances[0].controllers),0,1,900,72);require(strstr(last_primary_text,"Launchpad Pro Mk3")&&strstr(last_paint_text,labels[i]),"actual Controllers row renders waiting, inactive mode reason, then delayed admission");}
+ fixture.controller_lifetime++;native_preferences_refresh();paint_list(mpc_ui_private_list_host_object(preferences_instances[0].controllers),0,1,900,72);require(strstr(last_paint_text,"Bridge not running"),"same-MPC bridge exit invalidates rendered ACTIVE");
+ fixture.controllers[0]=saved_row;fixture.admission.lifetime=fixture.controller_lifetime;fixture.admission.status[0]=NATIVE_CONTROLLER_ACTIVE;controller_paints=paint_texts;
+ fixture.controllers[0].status=NATIVE_CONTROLLER_DISCONNECTED;fixture.collection_generation++;native_preferences_refresh();
+ paint_list(mpc_ui_private_list_host_object(preferences_instances[0].controllers),0,1,900,72);
+ require(paint_texts==controller_paints+2&&!strcmp(last_paint_text,"Disconnected"),"same-count disconnected collection refresh paints the new secondary state");
+ fixture.controllers[0].status=NATIVE_CONTROLLER_ACTIVE;fixture.collection_generation++;native_preferences_refresh();
+ NativePreferencesEndpoint short_endpoint=fixture.endpoints[0];
+ memset(fixture.endpoints[0].port,'P',sizeof(fixture.endpoints[0].port));fixture.inventory_generation++;refresh_selection(&preferences_instances[0]);
+ unsigned long_endpoint_paints=paint_texts;
+ paint_list(mpc_ui_private_list_host_object(preferences_instances[0].inputs),0,0,296,96);
+ require(paint_texts==long_endpoint_paints+2&&!strcmp(last_paint_text,"USB 24:0")&&strstr(last_primary_text,"..."),"maximum-length endpoint paints bounded primary text and separate address detail");
+ require(!memcmp(preferences_instances[0].endpoint_rows[0].port,fixture.endpoints[0].port,sizeof(fixture.endpoints[0].port)),"display truncation never truncates the endpoint identity used for selection");
+ fixture.endpoints[0]=short_endpoint;fixture.inventory_generation=1;refresh_selection(&preferences_instances[0]);
+ click(mpc_ui_private_control_host_object(preferences_instances[0].add));require(preferences_instances[0].editing&&preferences_instances[0].editing_index==NATIVE_CONTROLLER_NEW&&last_visible(mpc_ui_private_list_host_object(preferences_instances[0].controllers))==0,"Add opens the bounded controller editor");
+ select_list(mpc_ui_private_list_host_object(preferences_instances[0].profiles),3);select_list(mpc_ui_private_list_host_object(preferences_instances[0].inputs),0);select_list(mpc_ui_private_list_host_object(preferences_instances[0].outputs),0);
+ require(last_visible(mpc_ui_private_control_host_object(preferences_instances[0].policy[0]))==1,"selecting HUI immediately exposes Motorized and Pickup");
+ Bounds motor=last_bounds(mpc_ui_private_control_host_object(preferences_instances[0].policy[0])),pickup=last_bounds(mpc_ui_private_control_host_object(preferences_instances[0].policy[1]));
+ require(motor.w>pickup.w&&motor.x+motor.w<pickup.x,"Motorized retains wider text space without overlapping Pickup");
+ unsigned endpoint_paints=paint_texts;
+ paint_list(mpc_ui_private_list_host_object(preferences_instances[0].inputs),0,1,296,96);
+ require(paint_texts==endpoint_paints+2&&!strcmp(last_primary_text,"DAW In")&&!strcmp(last_paint_text,"USB 24:0"),"From row paints the exact endpoint type/address and port name");
+ paint_list(mpc_ui_private_list_host_object(preferences_instances[0].outputs),0,1,296,96);
+ require(paint_texts==endpoint_paints+4&&!strcmp(last_primary_text,"DAW Out")&&!strcmp(last_paint_text,"App 130:1"),"To row paints its independent endpoint type/address and port name");
+ click(mpc_ui_private_control_host_object(preferences_instances[0].policy[0]));click(mpc_ui_private_control_host_object(preferences_instances[0].apply));
+ require(fixture.request_sequence==1&&fixture.request_kind==NATIVE_REQUEST_APPLY&&fixture.request_controller_index==NATIVE_CONTROLLER_NEW&&fixture.request_profile==NATIVE_CONTROLLER_HUI&&fixture.request_input_inventory_generation==1&&fixture.request_input_endpoint_index==0&&fixture.request_input_endpoint_type==NATIVE_ENDPOINT_KERNEL&&fixture.request_output_endpoint_index==1&&fixture.request_output_endpoint_type==NATIVE_ENDPOINT_USER&&fixture.request_hui_policy==NATIVE_HUI_MOTORIZED,"Add publishes independent generation-tagged From and To ports plus explicit HUI policy");
+ fixture.collection_count=2;fixture.collection_generation=2;fixture.controllers[1].enabled=1;fixture.controllers[1].profile=NATIVE_CONTROLLER_HUI;fixture.controllers[1].hui_policy=NATIVE_HUI_MOTORIZED;fixture.controllers[1].status=NATIVE_CONTROLLER_READY;fixture.controllers[1].input_type=NATIVE_ENDPOINT_KERNEL;fixture.controllers[1].output_type=NATIVE_ENDPOINT_USER;fixture.controllers[1].input_client_length=fixture.controllers[1].output_client_length=12;fixture.controllers[1].input_port_length=6;fixture.controllers[1].output_port_length=7;memcpy(fixture.controllers[1].input_client,"Physical HUI",12);memcpy(fixture.controllers[1].output_client,"Software HUI",12);memcpy(fixture.controllers[1].input_port,"DAW In",6);memcpy(fixture.controllers[1].output_port,"DAW Out",7);fixture.completed_sequence=1;fixture.status=NATIVE_PREFERENCES_ACTIVE;native_preferences_refresh();
+ require(!preferences_instances[0].editing&&preferences_instances[0].controller_count==2&&last_visible(mpc_ui_private_list_host_object(preferences_instances[0].controllers))==1,"completed Add returns to the two-row collection");
+ unsigned added_row_paints=paint_texts;
+ paint_list(mpc_ui_private_list_host_object(preferences_instances[0].controllers),1,0,900,72);
+ require(paint_texts==added_row_paints+2&&!strcmp(last_primary_text,"Generic HUI")&&!strcmp(last_paint_text,"Bridge not running"),"newly added second row paints profile and bridge availability separately");
+ select_list(mpc_ui_private_list_host_object(preferences_instances[0].controllers),1);click(mpc_ui_private_control_host_object(preferences_instances[0].edit));require(preferences_instances[0].editing&&preferences_instances[0].draft_input==0&&preferences_instances[0].draft_output==1,"Edit restores independent saved ports into the role-filtered lists");click(mpc_ui_private_control_host_object(preferences_instances[0].cancel));
+ click(mpc_ui_private_control_host_object(preferences_instances[0].toggle));require(fixture.request_sequence==2&&fixture.request_kind==NATIVE_REQUEST_TOGGLE&&fixture.request_controller_index==1&&!fixture.request_enabled,"Enable/Disable targets only the selected controller");
+ click(mpc_ui_private_control_host_object(preferences_instances[0].remove));require(fixture.request_sequence==2&&fixture.request_kind==NATIVE_REQUEST_TOGGLE,"a rapid second mutation cannot overwrite the pending collection request");
+ fixture.completed_sequence=2;fixture.status=NATIVE_PREFERENCES_ACTIVE;native_preferences_refresh();
+ click(mpc_ui_private_control_host_object(preferences_instances[0].remove));require(fixture.request_sequence==3&&fixture.request_kind==NATIVE_REQUEST_REMOVE&&fixture.request_controller_index==1,"Remove targets only the selected controller");
+ click(mpc_ui_private_control_host_object(preferences_instances[0].remove));require(fixture.request_sequence==3,"repeated Remove while completion is delayed cannot publish again");
+ fixture.completed_sequence=3;fixture.status=NATIVE_PREFERENCES_ACTIVE;
+ click(mpc_ui_private_control_host_object(preferences_instances[0].remove));require(fixture.request_sequence==3&&preferences_instances[0].selected_controller==MPC_UI_NO_SELECTION,"fast completion before UI refresh cannot admit another Remove without a fresh row selection");
+ native_preferences_refresh();
+ fixture.collection_count=1;fixture.collection_generation++;native_preferences_refresh();
+ require(*(int*)((unsigned char*)mpc_ui_private_list_host_object(preferences_instances[0].controllers)+0xa4)==-1,"removed row does not visually select the adjacent remaining row");
+ click(mpc_ui_private_control_host_object(preferences_instances[0].remove));require(fixture.request_sequence==3,"rendering the shifted collection still requires a fresh row selection before Remove");
+ select_list(mpc_ui_private_list_host_object(preferences_instances[0].controllers),0);require(preferences_instances[0].selected_controller==0,"explicit remaining-row selection re-enables collection actions");
+ void *refresh=mpc_ui_private_control_host_object(preferences_instances[0].refresh);click(refresh);
+ require(fixture.request_sequence==4&&fixture.request_kind==NATIVE_REQUEST_REFRESH,"Refresh delegates one role-capable endpoint enumeration to the session owner");
+ fixture.completed_sequence=4;fixture.status=NATIVE_PREFERENCES_REFRESHED;native_preferences_refresh();
+ click(mpc_ui_private_control_host_object(preferences_instances[0].add));select_list(mpc_ui_private_list_host_object(preferences_instances[0].profiles),2);click(mpc_ui_private_control_host_object(preferences_instances[0].apply));
+ require(fixture.request_sequence==4&&!fixture.failures&&strstr(preferences_instances[0].status_text,"Choose both"),"incomplete generic Add presents guidance without an internal failure or request");
+ select_list(mpc_ui_private_list_host_object(preferences_instances[0].inputs),0);select_list(mpc_ui_private_list_host_object(preferences_instances[0].outputs),0);
+ require(last_visible(refresh)==1,"Refresh remains reachable inside the port editor");click(refresh);
+ NativePreferencesEndpoint previous=fixture.endpoints[0];fixture.endpoints[0]=fixture.endpoints[1];fixture.endpoints[1]=previous;fixture.inventory_generation++;fixture.completed_sequence=5;fixture.status=NATIVE_PREFERENCES_REFRESHED;native_preferences_refresh();
+ require(preferences_instances[0].editing&&preferences_instances[0].draft_profile==NATIVE_CONTROLLER_GENERIC&&preferences_instances[0].draft_input==1&&preferences_instances[0].draft_output==0,"Refresh preserves the draft and remaps its independent logical endpoints after inventory reordering");
+ click(mpc_ui_private_control_host_object(preferences_instances[0].apply));require(fixture.request_sequence==6&&fixture.request_collection_generation==fixture.collection_generation&&fixture.request_input_endpoint_index==1&&fixture.request_output_endpoint_index==0,"refreshed generic Add retains collection identity and publishes remapped ports");
+ fixture.completed_sequence=fixture.request_sequence;fixture.status=NATIVE_PREFERENCES_ACTIVE;fixture.inventory_count=2;fixture.inventory_generation++;native_preferences_refresh();
+ for(unsigned profile=NATIVE_CONTROLLER_GENERIC;profile<=NATIVE_CONTROLLER_PROFILE_COUNT;profile++){
+  unsigned before=fixture.request_sequence;select_list(mpc_ui_private_list_host_object(preferences_instances[0].controllers),0);click(mpc_ui_private_control_host_object(preferences_instances[0].edit));
+  require(preferences_instances[0].draft_input==NATIVE_ENDPOINT_UNCHANGED&&preferences_instances[0].draft_output==NATIVE_ENDPOINT_UNCHANGED,"known-profile edit starts with its absent ports retained offline");
+  select_list(mpc_ui_private_list_host_object(preferences_instances[0].profiles),profile-1);if(profile==NATIVE_CONTROLLER_LPX||profile==NATIVE_CONTROLLER_LPP3)require(strstr(preferences_instances[0].status_text,"Set this MIDI port to Control only"),"Programmer profile presents selected-port musical-routing prerequisite");if(profile==NATIVE_CONTROLLER_MPK249)require(strstr(preferences_instances[0].status_text,"Turn Receive MMC off in MIDI/Sync"),"MPK249 presents exclusive MMC handler prerequisite");click(mpc_ui_private_control_host_object(preferences_instances[0].apply));
+  require(fixture.request_sequence==before&&!fixture.failures&&strstr(preferences_instances[0].status_text,"Choose both"),"known-to-generic edit publishes nothing without explicit port selections");
+  select_list(mpc_ui_private_list_host_object(preferences_instances[0].inputs),0);click(mpc_ui_private_control_host_object(preferences_instances[0].apply));require(fixture.request_sequence==before,"generic edit still requires its independent To Controller selection");
+  select_list(mpc_ui_private_list_host_object(preferences_instances[0].outputs),0);click(mpc_ui_private_control_host_object(preferences_instances[0].apply));
+  require(fixture.request_sequence==before+1&&fixture.request_profile==profile&&fixture.request_input_endpoint_index==1&&fixture.request_output_endpoint_index==0,"both explicit role-valid selections admit the generic edit");
+  fixture.completed_sequence=fixture.request_sequence;fixture.status=NATIVE_PREFERENCES_INVALID;native_preferences_refresh();click(mpc_ui_private_control_host_object(preferences_instances[0].cancel));
+ }
+ for(unsigned profile=NATIVE_CONTROLLER_GENERIC;profile<=NATIVE_CONTROLLER_HUI;profile++){
+  fixture.controllers[0].profile=profile;fixture.controllers[0].hui_policy=profile==NATIVE_CONTROLLER_HUI?NATIVE_HUI_PICKUP:0;fixture.collection_generation++;native_preferences_refresh();
+  unsigned before=fixture.request_sequence;click(mpc_ui_private_control_host_object(preferences_instances[0].edit));click(mpc_ui_private_control_host_object(preferences_instances[0].apply));
+  require(fixture.request_sequence==before+1&&fixture.request_profile==profile&&fixture.request_input_endpoint_index==NATIVE_ENDPOINT_UNCHANGED&&fixture.request_output_endpoint_index==NATIVE_ENDPOINT_UNCHANGED,"same-profile offline edit retains already explicit saved generic endpoints");
+  fixture.completed_sequence=fixture.request_sequence;fixture.status=NATIVE_PREFERENCES_ACTIVE;native_preferences_refresh();
+ }
+ require(!fixture.failures,"profile-transition guidance never counts as an internal failure");
+ NativePreferencesEndpoint saved_endpoints[NATIVE_PREFERENCES_ENDPOINTS];memcpy(saved_endpoints,fixture.endpoints,sizeof(saved_endpoints));
+ uint32_t saved_endpoint_count=fixture.inventory_count;NativePreferencesController before_refresh_controller=fixture.controllers[0];
+ memset(fixture.endpoints,0,sizeof(fixture.endpoints));fixture.inventory_count=6;
+ for(unsigned i=0;i<6;i++){auto &endpoint=fixture.endpoints[i];endpoint.endpoint_type=NATIVE_ENDPOINT_USER;endpoint.capabilities=NATIVE_ENDPOINT_TO_CONTROLLER;endpoint.client_number=129;endpoint.port_number=i;memcpy(endpoint.client,"MPC",4);memcpy(endpoint.port,"MPC MIDI Port",14);}
+ auto &simulator=fixture.endpoints[5];simulator.capabilities|=NATIVE_ENDPOINT_FROM_CONTROLLER;simulator.client_number=132;simulator.port_number=0;memcpy(simulator.client,"MPClearn MCU Simulator",23);memcpy(simulator.port,"MCU Simulator",14);
+ auto &edited=fixture.controllers[0];edited.profile=NATIVE_CONTROLLER_HUI;edited.hui_policy=NATIVE_HUI_MOTORIZED;edited.input_type=edited.output_type=NATIVE_ENDPOINT_USER;
+ edited.input_client_length=edited.output_client_length=22;edited.input_port_length=edited.output_port_length=13;memcpy(edited.input_client,simulator.client,64);memcpy(edited.output_client,simulator.client,64);memcpy(edited.input_port,simulator.port,64);memcpy(edited.output_port,simulator.port,64);
+ fixture.inventory_generation++;fixture.collection_generation++;native_preferences_refresh();select_list(mpc_ui_private_list_host_object(preferences_instances[0].controllers),0);
+ controller_feedback_enabled=true;click(mpc_ui_private_control_host_object(preferences_instances[0].edit));
+ require(preferences_instances[0].draft_profile==NATIVE_CONTROLLER_HUI&&preferences_instances[0].draft_input==5&&preferences_instances[0].draft_output==5&&!preferences_instances[0].presentation_depth,"Edit ignores cross-list native selection notifications throughout presentation");
+ for(unsigned reordered=0;reordered<2;reordered++){
+  click(mpc_ui_private_control_host_object(preferences_instances[0].refresh));
+  if(reordered){auto first=fixture.endpoints[0];fixture.endpoints[0]=fixture.endpoints[5];fixture.endpoints[5]=first;}
+  fixture.inventory_generation++;fixture.collection_generation++;fixture.status=NATIVE_PREFERENCES_REFRESHED;fixture.completed_sequence=fixture.request_sequence;native_preferences_refresh();
+  void *from_list=mpc_ui_private_list_host_object(preferences_instances[0].inputs),*to_list=mpc_ui_private_list_host_object(preferences_instances[0].outputs);
+  int from_selected=*(int*)((unsigned char*)from_list+0xa4),to_selected=*(int*)((unsigned char*)to_list+0xa4);
+  require(from_selected==0&&to_selected==(reordered?0:5)&&preferences_instances[0].draft_input==(reordered?0u:5u)&&preferences_instances[0].draft_output==(reordered?0u:5u)&&preferences_instances[0].draft_policy==NATIVE_HUI_MOTORIZED,"same-count Refresh retains independent visible From/To selection and Motorized policy, including reorder");
+  paint_list(from_list,from_selected,1,296,96);require(!strcmp(last_primary_text,"MCU Simulator")&&!strcmp(last_paint_text,"App 132:0"),"refreshed visible From selection paints simulator identity");
+  paint_list(to_list,to_selected,1,296,96);require(!strcmp(last_primary_text,"MCU Simulator")&&!strcmp(last_paint_text,"App 132:0"),"refreshed visible To selection paints simulator identity, not the first unrelated port");
+  paint(mpc_ui_private_control_host_object(preferences_instances[0].policy[0]));require(last_fill==0xffd31145u,"refreshed Motorized control remains visibly selected");
+ }
+ require(controller_update_feedback&&controller_visibility_feedback&&!preferences_instances[0].presentation_depth,"regression exercises both update and visibility feedback and releases the presentation guard");
+ select_list(mpc_ui_private_list_host_object(preferences_instances[0].outputs),4);
+ require(preferences_instances[0].draft_output==4&&preferences_instances[0].draft_input==0&&preferences_instances[0].draft_profile==NATIVE_CONTROLLER_HUI&&preferences_instances[0].draft_policy==NATIVE_HUI_MOTORIZED&&!preferences_instances[0].presentation_depth,"real To selection outside presentation changes only its draft while nested update notifications remain inert");
+ unsigned explicit_request=fixture.request_sequence;click(mpc_ui_private_control_host_object(preferences_instances[0].apply));
+ require(fixture.request_sequence==explicit_request+1&&fixture.request_input_endpoint_index==0&&fixture.request_output_endpoint_index==4&&fixture.request_hui_policy==NATIVE_HUI_MOTORIZED,"explicit user selection still publishes distinct From/To and policy after guarded refresh");
+ fixture.completed_sequence=fixture.request_sequence;fixture.status=NATIVE_PREFERENCES_ACTIVE;native_preferences_refresh();controller_feedback_enabled=false;
+ memcpy(fixture.endpoints,saved_endpoints,sizeof(saved_endpoints));fixture.inventory_count=saved_endpoint_count;fixture.controllers[0]=before_refresh_controller;fixture.inventory_generation++;fixture.collection_generation++;native_preferences_refresh();
+ NativePreferencesController saved_controller=fixture.controllers[0];
+ fixture.controllers[0].profile=NATIVE_CONTROLLER_HUI;fixture.controllers[0].input_port_length=fixture.controllers[0].output_port_length=63;
+ memset(fixture.controllers[0].input_port,'F',63);memset(fixture.controllers[0].output_port,'T',63);
+ memcpy(fixture.controllers[0].input_port,"From-",5);memcpy(fixture.controllers[0].output_port,"To---",5);
+ memcpy(fixture.controllers[0].input_port+60,"-A1",3);memcpy(fixture.controllers[0].output_port+60,"-B2",3);
+ const uint32_t row_states[]={NATIVE_CONTROLLER_ACTIVE,NATIVE_CONTROLLER_DISCONNECTED,NATIVE_CONTROLLER_DISABLED};
+ const char *row_statuses[]={"Connected","Disconnected","Disabled"};
+ for(unsigned i=0;i<3;i++){
+  fixture.controllers[0].enabled=i!=2;fixture.controllers[0].status=row_states[i];fixture.collection_generation++;fixture.admission.collection_generation=fixture.collection_generation;fixture.admission.count=fixture.collection_count;fixture.admission.status[0]=row_states[i];fixture.admission.revision+=2;native_preferences_refresh();
+  unsigned before=paint_texts;paint_list(mpc_ui_private_list_host_object(preferences_instances[0].controllers),0,1,900,72);
+  require(paint_texts==before+2&&!strcmp(last_primary_text,"Generic HUI")&&strstr(last_paint_text,row_statuses[i]),"connected, disconnected and disabled rows retain readable primary name and secondary state");
+  select_list(mpc_ui_private_list_host_object(preferences_instances[0].controllers),0);
+  require(strstr(preferences_instances[0].connection_text[0],"From-")&&strstr(preferences_instances[0].connection_text[0],"-A1")&&strstr(preferences_instances[0].connection_text[1],"To---")&&strstr(preferences_instances[0].connection_text[1],"-B2"),"selected details preserve full distinct From/To suffixes outside uncluttered rows");
+  require(!memcmp(&preferences_instances[0].controller_rows[0],&fixture.controllers[0],sizeof(fixture.controllers[0])),"row presentation preserves both full saved endpoint identities for Edit");
+ }
+ fixture.controllers[0]=saved_controller;fixture.collection_generation++;native_preferences_refresh();
  ((void(*)(void*))tab_slots[1])(tab);require(fixture.tabs_created==fixture.tabs_destroyed&&fixture.buttons_created==fixture.buttons_destroyed&&!fixture.live_tabs&&!fixture.failures,"Controllers toolkit teardown balances");
+ visible_count=0; /* Controllers are closed; the next phase observes launcher objects. */
  uint32_t pref_begin=*(uint32_t*)(preferences_overlay+0x1b8),pref_cap=*(uint32_t*)(preferences_overlay+0x1c0);test_delete((void*)(uintptr_t)pref_begin,pref_cap-pref_begin);
 
  alignas(8) unsigned char page[0x220]={},child_a[0x20]={},child_b[0x20]={},unrelated_page[0x220]={},overlay[0x220]={},owner_storage[0x90]={};launcher_owner_component=owner_storage+8;*(void**)(overlay+0x134)=owner_storage;
@@ -388,10 +599,10 @@ int main(){
  void *action_one=mpc_ui_private_control_host_object(li.example_app.view.action_one);
  void *action_two=mpc_ui_private_control_host_object(li.example_app.view.action_two);
  void *example_back=mpc_ui_private_control_host_object(li.example_app.view.back);
- unsigned example_slider_updates=slider_silent_updates;
+ unsigned example_slider_updates=slider_silent_updates,example_label_updates=label_text_updates;
  click(action_one);click(action_two);
  require(fixture.example_intents==2&&fixture.last_example_intent==MPCLEARN_TOOLKIT_EXAMPLE_ACTION_TWO&&
-  label_text_updates==2&&slider_silent_updates==example_slider_updates+2,"public example actions publish distinct intents and silently refresh Label and Slider");
+  label_text_updates==example_label_updates+2&&slider_silent_updates==example_slider_updates+2,"public example actions publish distinct intents and silently refresh Label and Slider");
  setup_outer_layout(frame,page);native_preferences_hook(&frame.context,2);
  require(mpc_ui_app_is_open(li.app_host)&&mpc_ui_private_app_host_is_suspended(li.app_host)&&
   li.example_app.view.screen&&fixture.example_opens==1&&fixture.live_examples==1&&last_visible(page+8)==1&&!fixture.failures,
@@ -439,7 +650,7 @@ int main(){
  require(global_labels==16&&global_lookups==16&&global_target_dtors==16&&global_formats==3&&global_file_names==1&&global_string_dtors==20,"borrowed lookup, file-name and host String lifetimes balance for first group");
  void *groups=mpc_ui_private_list_host_object(li.global_screen.groups),*targets=mpc_ui_private_list_host_object(li.global_screen.targets);
  unsigned repaint_before_same_count=repaints;require(mpc_ui_list_update(li.global_screen.targets,16,MPC_UI_NO_SELECTION)&&repaints==repaint_before_same_count+1,"same-count target data update invalidates native list paint");
- paint_list(groups,0,1,248,52);require(last_fill==0xffd31145u&&!strcmp(last_paint_text,"PADS"),"selected native group row paints through shared list model");
+ paint_list(groups,0,1,248,52);require(last_fill==0xff595a62u&&!strcmp(last_paint_text,"PADS"),"selected native group is muted before either list owns the wheel");
  select_list(groups,1);require(fixture.global_page_clicks==1&&fixture.global_page_start==16&&!strcmp(li.page_text,"PAD BANKS 17-24")&&li.selected_target==MPCLEARN_GLOBAL_LEARN_NO_SELECTION,"group selection changes only transient navigation");
  select_list(groups,0);require(fixture.global_page_clicks==2&&fixture.global_page_start==0,"group list returns to Pads without selecting a target");
  select_list(targets,1);
@@ -479,6 +690,8 @@ int main(){
  require(mpc_ui_private_app_host_is_suspended(li.app_host)&&li.global_screen.screen&&
   li.selected_target==1&&!strcmp(li.mapping_text,"MAPPING: USER TEST COPY")&&last_visible(page+8)==1&&!fixture.failures,
   "idle Global editor suspension exposes stock Menu without discarding transient selection");
+ require(!native_preferences_wheel(1)&&li.selected_target==1,
+  "suspended editor leaves the data wheel with the visible stock Menu");
  click(launcher_button);native_preferences_refresh();
  require(!mpc_ui_private_app_host_is_suspended(li.app_host)&&li.global_screen.screen,
   "launcher resumes the existing Global editor host");
@@ -509,12 +722,14 @@ int main(){
   "settled armed screen polls one selected pairing without rebuilding labels or formatting unchanged values");
  type=2;control=5;channel=1;data1=13;memcpy(global_mappings[1]+0x9c,&type,4);memcpy(global_mappings[1]+0xa0,&control,4);
  memcpy(global_mappings[1]+0xa4,&channel,4);memcpy(global_mappings[1]+0xa8,&data1,1);
+ unsigned detail_updates_before=label_text_updates;
  for(unsigned i=0;i<4;i++)native_preferences_refresh();
  require(fixture.global_pairing_polls==polls_before+2&&fixture.global_pairing_changes==1&&fixture.global_row_repaints==1&&
   fixture.global_assigned_rows==4&&global_labels==labels_before&&global_formats==formats_before+1&&global_learn_calls==learn_calls_before&&
   !strcmp(li.row_text[1],"002 TARGET")&&!strcmp(li.assignment_text,"ASSIGNMENT: CH1 CC13 ABS")&&fixture.global_learn_state==NATIVE_GLOBAL_LEARN_ARMED,
   "owner pairing change repaints selected assignment detail without a new Learn intent");
- paint(mpc_ui_private_control_host_object(li.global_screen.assignment));require(!strcmp(last_paint_text,"ASSIGNMENT: CH1 CC13 ABS"),"changed owner pairing is present in separate detail control");
+ require(label_text_updates>detail_updates_before,
+  "changed owner pairing refreshes the native assignment Label");
  click(cancel);require(global_learn_calls==2&&!requested_global_learn&&fixture.global_learn_cancels==1&&fixture.global_learn_state==NATIVE_GLOBAL_LEARN_CANCELING&&li.global_screen.screen,"Cancel queues false and retains the screen");
  settle_global_learn(false);native_preferences_refresh();
  require(fixture.global_learn_state==NATIVE_GLOBAL_LEARN_IDLE&&fixture.global_learn_settled==2&&!fixture.global_learn_owner_value&&!fixture.global_learn_mirror_value&&last_visible(learn)==1&&!strcmp(li.status_text,"SELECTED TARGET 2"),"cancel settles back to the selected idle target");
@@ -542,10 +757,27 @@ int main(){
  click(learn);settle_global_learn(true);native_preferences_refresh();require(fixture.global_learn_state==NATIVE_GLOBAL_LEARN_ARMED&&fixture.global_learn_settled==3,"second arm settles before armed Back");
  void *back=mpc_ui_private_control_host_object(li.global_screen.back);click(back);
  require(fixture.back_clicks==1&&fixture.global_learn_cancels==2&&fixture.global_learn_state==NATIVE_GLOBAL_LEARN_CANCELING&&fixture.live_shells==1&&li.global_screen.screen&&!strcmp(li.status_text,"CANCELING BEFORE BACK"),"armed Back queues false and retains its binding");
+ require(native_preferences_wheel(1)&&li.selected_target==1,
+  "deferred Back keeps wheel input off the covered stock page until closure");
  native_preferences_refresh();require(li.global_screen.screen&&fixture.global_learn_pending==1,"Back cannot close on intent return");
  settle_global_learn(false);native_preferences_refresh();
  require(!li.global_screen.screen&&fixture.global_learn_settled==4&&fixture.shells_created==fixture.shells_destroyed&&!fixture.live_shells&&last_visible(page+8)==1,"Back closes only after false owner/mirror settlement and pending drain");
  click(launcher_button);require(fixture.shells_created==2&&fixture.live_shells==1,"launcher reopens a fresh toolkit shell");
+ require(native_preferences_wheel(1)&&li.selected_target==MPCLEARN_GLOBAL_LEARN_NO_SELECTION,
+  "visible editor consumes wheel before a list has focus without selecting a row");
+ select_list(mpc_ui_private_list_host_object(li.global_screen.groups),1);
+ require(native_preferences_wheel(1)&&li.selected_group==2&&li.page_start==24,
+  "signed wheel step moves the touched group list through its native selection intent");
+ require(native_preferences_wheel(-1)&&li.selected_group==1&&li.page_start==16,
+  "reverse wheel step returns to the prior group");
+ select_list(mpc_ui_private_list_host_object(li.global_screen.targets),0);
+ require(native_preferences_wheel(2)&&li.selected_target==18&&selected_global_target==18,
+  "counted wheel input selects a later target through the existing mapping owner");
+ require(native_preferences_wheel(-1)&&li.selected_target==17&&selected_global_target==17,
+  "reverse target input updates both list selection and owner target");
+ click(mpc_ui_private_control_host_object(li.global_screen.edit_type));
+ require(native_preferences_wheel(1)&&li.selected_target==17,
+  "editing another control releases list focus but keeps wheel off the hidden page");
  ((void(*)(void*))(*(void***)overlay)[1])(overlay);
  require(fixture.launcher_overlays_created==fixture.launcher_overlays_destroyed&&fixture.launcher_tiles_created==fixture.launcher_tiles_destroyed&&fixture.shells_created==fixture.shells_destroyed&&fixture.global_screens_created==fixture.global_screens_destroyed&&!fixture.live_launcher_overlays&&!fixture.live_launcher_tiles&&!fixture.live_shells&&!fixture.live_global_screens&&!fixture.failures,"overlay teardown balances toolkit ownership");
  require(fixture.overlay_destroy_entries==1&&fixture.overlay_destroy_ui_thread_matches==1&&fixture.overlay_destroy_observer_running==1&&

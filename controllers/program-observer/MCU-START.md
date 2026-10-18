@@ -75,24 +75,18 @@ installed for; with any other image it is ignored. See
 [building from source](../../docs/BUILDING.md#trying-a-build-on-your-own-mpc).
 Remove it with `/usr/share/mpclearn/mcu/mcu-boot-install.sh override clear`.
 
-The development candidate adds **CONTROLLERS** to MPC Preferences. Its
-**X-TOUCH**, **X-TOUCH MINI** and **GENERIC MCU** buttons hand the request to
-the running controller session; the Preferences callback itself does not scan
-MIDI or restart anything. A successful choice is saved for later sessions and
-boots. **GENERIC MCU** applies only when exactly one external physical
-bidirectional MIDI endpoint is present. If none or more than one is present,
-the current bridge is retained and MPC remains usable.
-
-When the CONTROLLERS tab opens, the highlighted button reflects the session
-owner's confirmed active profile. A tap does not optimistically change that
-highlight while the owner handles the request. Switch to another Preferences
-tab and back to refresh it. An unavailable or ambiguous GENERIC MCU request
-leaves the previous active profile highlighted.
+The development candidate adds **CONTROLLERS** to MPC Preferences. Add a row,
+choose its profile and exact **From Controller** and **To Controller** ports,
+then apply it. Up to 16 rows are saved for later sessions and boots. Each row
+needs its own input and output; selecting an endpoint twice leaves the
+conflicting rows inactive. Status reflects the running bridge, including mode
+admission for Novation profiles. Device modes, control assignments and musical
+routing are in [controller programs](../../docs/controller-programs.md).
 
 For inspection and recovery, the bridge can still list ALSA MIDI endpoints and
 accept the same selection from the command line. `configure` saves the
-selection; `start` with controller options remains a temporary one-session
-override:
+selection as a one-row collection; use the Preferences list to retain multiple
+rows. `start` with controller options remains a temporary one-session override:
 
 ```sh
 /usr/share/mpclearn/mcu/mcu list-midi
@@ -106,6 +100,23 @@ override:
   --endpoint-port='EXACT PORT NAME'
 ```
 
+The same-port form above remains convenient for ordinary MCU devices. When a
+controller exposes separate DAW ports, select them independently. The input is
+the port read **From Controller**; the output is the port written **To
+Controller**:
+
+```sh
+/usr/share/mpclearn/mcu/mcu configure \
+  --profile=hui \
+  --input-client='EXACT CLIENT NAME' \
+  --input-port='DAW OUT FROM CONTROLLER' \
+  --input-type=kernel \
+  --output-client='EXACT CLIENT NAME' \
+  --output-port='DAW IN TO CONTROLLER' \
+  --output-type=kernel \
+  --hui-mode=pickup
+```
+
 When starting a session with the X-Touch Mini, first confirm its MC MODE LED is
 lit. If it is not, disconnect USB, hold the bottom-left MC button while
 reconnecting, and release it when MC MODE stays lit. Then save the Mini profile:
@@ -117,17 +128,19 @@ reconnecting, and release it when MC MODE stays lit. Then save the Mini profile:
 Return to the full X-Touch with
 `/usr/share/mpclearn/mcu/mcu configure --profile=xtouch`. If a controller
 session is active, `configure` drains and restarts its bridge; otherwise the
-saved choice applies at the next session. The fixed 288-byte preference is
-`/data/mpclearn/controller-preferences`.
+saved choice applies at the next session. The fixed 8992-byte collection is
+`/data/mpclearn/controller-preferences`; it can hold at most 16 records.
 
 The exact names are resolved again after a disconnect, so ALSA client and port
-numbers may change. The match must remain unique and bidirectional. Physical
-ALSA clients are required by default; `--endpoint-type=any` is an explicit
-development opt-in for a virtual endpoint. The generic profile uses standard
-MCU fader echo and has eight logical strips, master/global/jog controls, LCD and
-time display. It does not send the X-Touch color extension. Generic meters are
-disabled because MCU devices differ in meter/LCD layout; the X-Touch keeps its
-existing separate-meter bytes and policy.
+numbers may change. Each selected identity must remain unique; an input needs
+ALSA `read,subs-read` capability and an output needs `write`. A same-port
+selection must therefore provide all three. Physical ALSA clients are required
+by default; `--endpoint-type=any` is an explicit development opt-in for a
+virtual endpoint. The generic profile uses standard MCU fader echo and has
+eight logical strips, master/global/jog controls, LCD and time display. It does
+not send the X-Touch color extension. Generic meters are disabled because MCU
+devices differ in meter/LCD layout; the X-Touch keeps its existing
+separate-meter bytes and policy.
 
 The `xtouch-mini` profile has a fixed physical endpoint, `X-TOUCH MINI` /
 `X-TOUCH MINI MIDI 1`. It keeps eight logical V-Pots, their rings, supported

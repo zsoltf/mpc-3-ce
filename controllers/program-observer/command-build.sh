@@ -18,7 +18,7 @@ arm-linux-gnueabihf-gcc -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon -DVO
 arm-linux-gnueabihf-gcc -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon /src/command-client.c -o /out/command-client
 arm-linux-gnueabihf-gcc -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon /src/project-client-test.c -o /out/project-client-test
 arm-linux-gnueabihf-gcc -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon /src/effects-client-test.c -o /out/effects-client-test
-arm-linux-gnueabihf-gcc -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon -DVOLUME_MIRROR -DMIRROR_COMMAND -DCOMMAND_COMPONENT -no-pie -I/src/package/command /src/command-component.c /src/component.S /src/gate.S /src/transport-queue.c -o /out/command-component -pthread -ldl
+arm-linux-gnueabihf-gcc -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon -DVOLUME_MIRROR -DMIRROR_COMMAND -DCOMMAND_COMPONENT -no-pie -Wl,-Ttext-segment=0x10000000 -I/src/package/command /src/command-component.c /src/component.S /src/gate.S /src/transport-queue.c -o /out/command-component -pthread -ldl
 arm-linux-gnueabihf-gcc -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon /src/mirror-read.c -o /out/mirror-read
 arm-linux-gnueabihf-gcc -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon -DVOLUME_MIRROR -DMIRROR_COMMAND -I/src/package/command /src/processor-component.c -o /out/processor-component -pthread -lm
 file /out/command-observer.so /out/command-client /out/command-component

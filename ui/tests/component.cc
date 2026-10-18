@@ -13,6 +13,7 @@ extern "C" void *malloc(size_t);
 extern "C" void free(void *);
 extern "C" void *memset(void *, int, size_t) noexcept;
 extern "C" void *memcpy(void *, const void *, size_t) noexcept;
+extern "C" int memcmp(const void *, const void *, size_t) noexcept;
 extern "C" int strcmp(const char *, const char *);
 extern "C" int printf(const char *, ...);
 extern "C" void exit(int);
@@ -38,6 +39,7 @@ static void *paint_button;
 static uint32_t paint_fill, paint_text;
 static int paint_width, paint_height;
 static const char *paint_label;
+static float paint_font,paint_scale;static int paint_x,paint_y,paint_justification,paint_lines;
 
 static void require(bool value, const char *message) {
     if (!value) { printf("FAIL %s\n", message); exit(1); }
@@ -51,6 +53,133 @@ static void *fixture_allocate(uint32_t bytes) {
 static void fixture_delete(void *value, uint32_t) { if (value) { frees++; free(value); } }
 static void fixture_string_ctor(void *storage, const char *text) { *(const char **)storage = text; }
 static void fixture_string_dtor(void *) {}
+/* Stock keyboard session substitute, using the native observed copied
+ * callbacks and aggregate-return UTF-8 ABI. No native keyboard rendering. */
+struct FixtureTextFunction {
+    void *capture;
+    uint32_t unused;
+    int (*manage)(void *, const void *, int);
+    void (*invoke)(const void *, const void *);
+};
+struct FixtureTextSession {
+    const char *title, *initial;
+    uint32_t scalar0;
+    const char *auxiliary;
+    uint32_t scalar1, flags;
+    FixtureTextFunction submit, cancel, change;
+};
+struct FixtureTextCore {
+    unsigned char prefix[0x28];
+    FixtureTextSession *active;
+    FixtureTextSession session;
+};
+static_assert(sizeof(FixtureTextSession) == 0x48, "ARM keyboard fixture");
+static FixtureTextCore fixture_text_core{};
+static unsigned text_callbacks, text_accepts, text_closes, text_utf8_calls;
+static char text_result[1024];
+static void fixture_text_release(FixtureTextCore *core) {
+    FixtureTextFunction *functions[] = {&core->session.submit, &core->session.cancel,
+                                        &core->session.change};
+    for (auto *function : functions) {
+        if (function->manage) function->manage(function, function, 3);
+        *function = {};
+    }
+}
+static void fixture_text_ctor(void *storage) {
+    memset(storage, 0, sizeof(FixtureTextSession));
+}
+static void fixture_string_assign(void *out, const void *source) {
+    *(const char **)out = *(const char *const *)source;
+}
+static void fixture_string_utf8(const char **out, const void *source) {
+    require(out && source && (const void *)out != source,
+            "UTF-8 accessor receives distinct return storage and String input");
+    *out = *(const char *const *)source;
+    ++text_utf8_calls;
+}
+static void fixture_text_open(void *opaque, const void *storage) {
+    auto *core = (FixtureTextCore *)opaque;
+    require(core == &fixture_text_core && !core->active, "keyboard has one owner");
+    fixture_text_release(core);
+    core->session = *(const FixtureTextSession *)storage;
+    FixtureTextFunction *functions[] = {&core->session.submit, &core->session.cancel,
+                                        &core->session.change};
+    for (auto *function : functions)
+        if (function->manage) function->manage(function, function, 2);
+    core->active = &core->session;
+}
+static void fixture_text_close(void *opaque) {
+    auto *core = (FixtureTextCore *)opaque;
+    require(core == &fixture_text_core, "close keeps keyboard owner");
+    core->active = nullptr;
+    ++text_closes;
+    // Like the observed host, inactive session captures survive until reuse.
+}
+static void fixture_text_done(void *, int accepted, const char *text) {
+    require(!fixture_text_core.active, "completion follows native keyboard close");
+    ++text_callbacks;
+    text_accepts += accepted;
+    unsigned i = 0;
+    while (i < sizeof(text_result) - 1 && text[i]) {
+        text_result[i] = text[i]; ++i;
+    }
+    text_result[i] = 0;
+}
+/* Explicit image/Graphics/MouseEvent substitutes; not native ABI evidence. */
+static unsigned char image_type_table[28], pixel_table[48];
+struct FixtureImage { void *vptr; unsigned char pixels[7*2*4]; int width; };
+struct FixtureBitmap { unsigned char *data; int format,stride,pixel,width,height; void *release; };
+static FixtureImage *fixture_image;
+static unsigned image_creates,image_releases,image_draws;
+static unsigned pointer_events[5];
+static float pointer_x,pointer_y;
+static MpcUiControl *pointer_image;
+static int hide_on_down;
+static unsigned image_refreshes;
+static int invalidate_during_refresh;
+static void fixture_image_refresh(void *) {
+    unsigned char rgba[24];
+    for (unsigned i = 0; i < sizeof(rgba); i += 4) {
+        rgba[i] = (unsigned char)image_refreshes;
+        rgba[i+1] = 64; rgba[i+2] = 128; rgba[i+3] = 255;
+    }
+    ++image_refreshes;
+    require(mpc_ui_image_update(pointer_image, rgba, 12, sizeof(rgba),
+                               10 + image_refreshes), "refresh publishes owner pixels");
+    if (invalidate_during_refresh) {
+        invalidate_during_refresh = 0;
+        require(mpc_ui_image_invalidate(pointer_image), "reentrant frame invalidation");
+    }
+}
+static void fixture_image_create(void *out,void *,int format,int w,int h,int clear) {
+    require(format==2 && (w==3 || w==7) && h==2 && clear==1,"fixed image construction arguments");
+    fixture_image=(FixtureImage *)fixture_allocate(sizeof(FixtureImage));
+    fixture_image->width=w;
+    fixture_image->vptr=pixel_table+8;*(void **)out=fixture_image;++image_creates;
+}
+static void fixture_image_bitmap(void *image,void *out,int x,int y,int mode) {
+    auto *b=(FixtureBitmap *)out;
+    require(image==fixture_image && x==0 && y==0 && mode==1 &&
+        b->width==fixture_image->width && b->height==2 && !b->release,"bitmap initialized dimensions/mode");
+    b->data=fixture_image->pixels;b->format=2;b->stride=fixture_image->width*4;b->pixel=4;
+}
+static void fixture_image_release(void *image) {
+    require(image==fixture_image,"release receives data not wrapper");
+    fixture_delete(image,sizeof(FixtureImage));fixture_image=nullptr;++image_releases;
+}
+static void fixture_draw_image(void *,const void *image,int x,int y,int fill) {
+    require(*(void *const *)image==fixture_image && !x && !y && !fill,"draw image wrapper and origin");++image_draws;
+}
+static void fixture_pointer(void *,uint32_t event,float x,float y) {
+    require(event>=1 && event<=4,"bounded pointer event");
+    ++pointer_events[event];pointer_x=x;pointer_y=y;
+    if(event==MPC_UI_POINTER_DOWN && hide_on_down)
+        require(mpc_ui_control_visible(pointer_image,0),"hide during pointer callback");
+}
+static void pointer_call(void *object,unsigned slot,float x,float y) {
+    float event[2]={x,y};
+    ((void (*)(void *,const void *))(*(void ***)object)[slot])(object,event);
+}
 static void fixture_set_colour(void *, int colour, uint32_t) {
     if (colour == MPC_UI_LIST_BACKGROUND_COLOUR_ID) {
         list_background_colours++;
@@ -97,11 +226,16 @@ static void fixture_label_set_text(void *label, const void *text,
     label_text_updates++;
 }
 static void fixture_label_set_justification(void *label, int justification) {
-    require(label && justification == 36,
+    require(label && (justification == 33 || justification == 36),
             "native Label bounded justification");
 }
 static void fixture_component_set_intercepts_mouse(void *component,
                                                    int self, int children) {
+    if (self == 1) {
+        require(component && fixture_image && children == 0,
+                "image receives single-contact input itself");
+        return;
+    }
     require(component && self == 0 && children == 0,
             "native Label passes touch to the owning screen");
 }
@@ -151,6 +285,46 @@ static void fixture_viewport_set_drag(void *viewport, int enabled,
             "qualified viewport drag threshold");
     if (enabled) list_drag_enables++;
     else list_drag_disables++;
+}
+/* Event layout from the qualified MPC row drag. Native capture/scrolling is
+ * substituted here; this checks cancellation and the public callback boundary. */
+static void *list_mouse_listener;
+static unsigned list_mouse_adds, list_mouse_removes, list_drop_events[5];
+static unsigned char list_row_type[8];
+static uint32_t list_drop_row;
+static float list_drop_x, list_drop_y;
+static void fixture_mouse_add(void *parent, void *listener, int deep) {
+    require(parent && listener && !list_mouse_listener && deep == 1,
+            "one deep native-parent listener");
+    list_mouse_listener = listener; ++list_mouse_adds;
+}
+static void fixture_mouse_remove(void *parent, void *listener) {
+    require(parent && listener == list_mouse_listener, "remove the borrowed mouse listener");
+    list_mouse_listener = nullptr; ++list_mouse_removes;
+}
+static void fixture_mouse_relative(void *out, const void *event, void *list) {
+    require(out && event && list, "mouse aggregate return has separate storage");
+    memcpy(out, event, 80);
+}
+static void fixture_select_on_down(void *list, int enabled) {
+    require(list && (enabled == 0 || enabled == 1), "native row selection timing");
+}
+static const char *fixture_palette_text(void *, uint32_t) { return "Item"; }
+static void fixture_palette_drag(void *, uint32_t row, uint32_t event, float x, float y) {
+    require(event >= 1 && event <= 4, "bounded public drag event");
+    ++list_drop_events[event]; list_drop_row = row; list_drop_x = x; list_drop_y = y;
+}
+static void palette_event(void *list, unsigned slot, unsigned id, float x, float y) {
+    alignas(8) unsigned char event[80] = {}, row[0x80] = {}, source[16] = {};
+    *(void **)row = list_row_type;
+    *(void **)(row + 0x74) = list;
+    *(int32_t *)(row + 0x7c) = 1;
+    *(uint32_t *)(source + 8) = id; *(uint32_t *)(source + 12) = 2;
+    *(float *)event = x; *(float *)(event + 4) = y;
+    *(void **)(event + 52) = row; *(void **)(event + 72) = source;
+    require(list_mouse_listener, "live listener receives substituted input");
+    ((void (*)(void *, const void *))(*(void ***)list_mouse_listener)[slot])(
+        list_mouse_listener, event);
 }
 static void fixture_slider_ctor(void *slider) {
     require(slider, "native Slider construction");
@@ -207,7 +381,7 @@ struct Attached {
     int visible;
 };
 struct ParentFixture {
-    Attached children[64];
+    Attached children[96];
     unsigned count;
     int focused;
     int detach_reentered;
@@ -270,16 +444,19 @@ static void fixture_graphics_set_colour(void *graphics, uint32_t colour) {
     paint_text = colour;
 }
 static void fixture_graphics_set_font(void *graphics, float height) {
-    require(graphics == &paint_calls && height == 22.0f,
+    paint_font=height;
+    require(graphics == &paint_calls && (height == 22.0f || height == 18.0f),
             "qualified Graphics font fixture");
 }
 static void fixture_graphics_draw_fitted_text(
     void *graphics, const void *text, int x, int y, int width, int height,
     int justification, int lines, float scale) {
     require(graphics == &paint_calls && paint_button &&
-            *(const char *const *)text != nullptr && x == 8 && y == 0 &&
-            justification == 36 && lines == 1 && scale == 0.0f,
+            *(const char *const *)text != nullptr &&
+            ((x == 8 && y == 0 && justification == 36 && lines == 1 && scale == 0.0f) ||
+             (x == 16 && y >= 0 && justification == 33 && lines >= 1 && lines <= 2 && scale == 1.0f)),
             "qualified fitted label fixture");
+    paint_x=x;paint_y=y;paint_justification=justification;paint_lines=lines;paint_scale=scale;
     paint_width = width;
     paint_height = height;
     paint_label = *(const char *const *)text;
@@ -288,7 +465,7 @@ static void fixture_graphics_draw_fitted_text(
 
 static int fixture_attach(void *owner, void *child) {
     ParentFixture *parent = (ParentFixture *)owner;
-    require(parent == parent_fixture && parent->count < 64, "adapter-owned bounded attach");
+    require(parent == parent_fixture && parent->count < 96, "adapter-owned bounded attach");
     parent->children[parent->count++].object = child;
     attach_calls++;
     return 1;
@@ -565,6 +742,12 @@ int main() {
         fixture_graphics_set_colour, fixture_graphics_set_font,
         fixture_graphics_fill_all, fixture_graphics_draw_fitted_text,
         base_button_vtable, base_list_model_vtable,
+        fixture_image_create, fixture_image_bitmap, fixture_image_release,
+        fixture_draw_image, image_type_table, pixel_table,
+        fixture_text_ctor, fixture_text_open, fixture_text_close,
+        fixture_string_assign, fixture_string_utf8,
+        fixture_mouse_add, fixture_mouse_remove, fixture_mouse_relative,
+        fixture_select_on_down, list_row_type,
     };
     uint32_t thread = (uint32_t)syscall(224);
     require(mpc_ui_private_context_for_component(&host, thread + 1) == nullptr,
@@ -702,13 +885,26 @@ int main() {
             mpc_ui_context_error(context) == MPC_UI_CALLBACK_ACTIVE,
             "Slider example cannot close inside its active Back callback");
     mpc_ui_context_clear_error(context);
+    char long_status[513];
+    memset(long_status, 's', sizeof(long_status));
+    long_status[64] = 0;
+    require(mpc_ui_label_text(slider_screen.title, long_status),
+            "64-byte patch status is not rejected as a short button label");
+    long_status[64] = 's'; long_status[511] = 0;
+    require(mpc_ui_label_text(slider_screen.title, long_status),
+            "511-byte display text reaches the native Label setter");
+    long_status[511] = 's'; long_status[512] = 0;
+    require(!mpc_ui_label_text(slider_screen.title, long_status) &&
+            mpc_ui_context_error(context) == MPC_UI_INVALID_ARGUMENT,
+            "display text remains bounded at 511 bytes");
+    mpc_ui_context_clear_error(context);
     require(mpclearn_slider_screen_close(&slider_screen) &&
                 !slider_screen.screen &&
                 callback_calls == callbacks_before_slider &&
                 slider_ctors == 1 && slider_dtors == 1 &&
                 slider_adds == 1 && slider_removes == 1 &&
                 label_ctors == 1 && label_dtors == 1 &&
-                label_text_updates == 1 && slider_user_events == 3,
+                label_text_updates == 3 && slider_user_events == 3,
             "Label/Slider example removes listener, detaches and balances lifetime");
 
     ToolkitOwner toolkit_owner = {};
@@ -783,16 +979,17 @@ int main() {
     MpclearnGlobalLearnLayout grouped_layout = {};
     require(mpclearn_global_learn_layout(
                 {0, 0, 1280, 690}, &grouped_layout) &&
-            grouped_layout.title.x == 32 &&
-            grouped_layout.mapping_previous.x == 296 &&
-            grouped_layout.mapping.x == 380 &&
-            grouped_layout.mapping_next.x == 644 &&
-            grouped_layout.file_new.x == 732 &&
-            grouped_layout.file_export.x == 1128 &&
-            grouped_layout.groups.x == 32 && grouped_layout.groups.width == 248 &&
-            grouped_layout.targets.x == 296 && grouped_layout.targets.width == 420 &&
-            grouped_layout.detail.x == 732 && grouped_layout.detail.width == 516 &&
-            grouped_layout.learn.y == 578 && grouped_layout.back.x == 1028 &&
+            grouped_layout.background.width == 1280 &&
+            grouped_layout.title.x == 24 &&
+            grouped_layout.mapping_previous.x == 248 &&
+            grouped_layout.mapping.x == 304 &&
+            grouped_layout.mapping_next.x == 694 &&
+            grouped_layout.file_new.x == 768 &&
+            grouped_layout.file_export.x == 1124 &&
+            grouped_layout.groups.x == 24 && grouped_layout.groups.width == 270 &&
+            grouped_layout.targets.x == 310 && grouped_layout.targets.width == 386 &&
+            grouped_layout.detail.x == 712 && grouped_layout.detail.width == 544 &&
+            grouped_layout.learn.y == 636 && grouped_layout.back.x == 1040 &&
             !mpclearn_global_learn_layout({0, 0, 800, 480}, &grouped_layout),
             "three-column assignment layout reserves group, target and detail areas");
 
@@ -820,6 +1017,7 @@ int main() {
     global_view.target_count = 3;
     global_view.selected_group = 2;
     global_view.selected_target_row = 1;
+    global_view.focused_list = MPCLEARN_GLOBAL_LEARN_FOCUS_TARGETS;
     global_view.can_learn = 1;
     global_view.can_new = 1;
     global_view.can_copy = 1;
@@ -841,7 +1039,35 @@ int main() {
     paint_list(mpc_ui_private_list_host_object(global.targets), 1, 1, 420, 52);
     require(paint_fill == 0xffd31145u &&
             paint_label && !strcmp(paint_label, rows[1]),
-            "selected native target row uses accent paint");
+            "wheel-focused target row uses accent paint");
+    paint_list(mpc_ui_private_list_host_object(global.groups), 2, 1, 270, 52);
+    require(paint_fill == 0xff595a62u,
+            "selected parent group stays visible but muted while targets own the wheel");
+    unsigned detail_paints=paint_calls;
+    require(!mpc_ui_list_detail_rows(global.groups,fixture_palette_text,0) &&
+            !mpc_ui_list_detail_rows(global.groups,fixture_palette_text,3) &&
+            mpc_ui_list_detail_rows(global.groups,fixture_palette_text,2),
+            "opt-in row detail bounds primary line count without changing model");
+    paint_list(mpc_ui_private_list_host_object(global.groups),2,1,296,96);
+    require(paint_calls==detail_paints+2 && paint_font==18.0f && paint_x==16 &&
+            paint_y==63 && paint_width==264 && paint_height==22 &&
+            paint_justification==33 && paint_lines==1 && paint_scale==1.0f &&
+            paint_text==0xffe6e6ebu && !strcmp(paint_label,"Item") && !global_owner.count,
+            "real native paint boundary emits separate muted detail with padding and no horizontal shrink or intent");
+    require(mpc_ui_list_detail_rows(global.groups,nullptr,1),"ordinary row painting restored explicitly");
+    paint_list(mpc_ui_private_list_host_object(global.groups),2,1,270,52);
+    require(paint_calls==detail_paints+3 && paint_font==22.0f && paint_x==8 &&
+            paint_y==0 && paint_justification==36 && paint_scale==0.0f,
+            "unopted default row typography and model are preserved");
+    global_view.focused_list = MPCLEARN_GLOBAL_LEARN_FOCUS_GROUPS;
+    require(mpclearn_global_learn_screen_update(&global, &global_view),
+            "touching groups transfers wheel focus");
+    paint_list(mpc_ui_private_list_host_object(global.groups), 2, 1, 270, 52);
+    require(paint_fill == 0xffd31145u,
+            "focused group uses the accent paint");
+    paint_list(mpc_ui_private_list_host_object(global.targets), 1, 1, 420, 52);
+    require(paint_fill == 0xff595a62u,
+            "previous target selection remains readable without competing for focus");
     select_list(mpc_ui_private_list_host_object(global.groups), 3);
     select_list(mpc_ui_private_list_host_object(global.targets), 2);
     click(mpc_ui_private_control_host_object(global.file_new));
@@ -1058,6 +1284,147 @@ int main() {
     mpc_ui_context_clear_error(context);
     require(mpc_ui_screen_close(&entry_screen) && !entry_screen,
             "invalidated launcher entry detaches after callback return");
+    MpcUiAppHost *text_host = mpc_ui_private_app_host_create(context, parent, bounds);
+    MpcUiScreen *text_screen = mpc_ui_screen_create(context, parent, bounds);
+    require(text_host && text_screen && mpc_ui_screen_show(text_screen) &&
+            mpc_ui_private_context_text_owner(context, &fixture_text_core) &&
+            mpc_ui_text_open(text_screen, "Search", "Vco", fixture_text_done, nullptr),
+            "keyboard opens through the supplied host owner");
+    require(!strcmp(fixture_text_core.session.title, "Search") &&
+            !strcmp(fixture_text_core.session.initial, "Vco") &&
+            !mpc_ui_text_open(text_screen, "Other", "", fixture_text_done, nullptr),
+            "title/initial copied and busy keyboard not replaced");
+    const char *native_result = "osc~ 220";
+    auto *submit = &fixture_text_core.session.submit;
+    submit->invoke(submit, &native_result);
+    require(!strcmp(native_result, "osc~ 220") && text_utf8_calls == 1 &&
+            mpc_ui_private_app_host_drain(text_host) && !text_callbacks,
+            "submit preserves native String and waits for keyboard close");
+    fixture_text_close(&fixture_text_core);
+    require(mpc_ui_private_app_host_drain(text_host) && text_callbacks == 1 &&
+            text_accepts == 1 && !strcmp(text_result, "osc~ 220") &&
+            mpc_ui_private_app_host_drain(text_host) && text_callbacks == 1,
+            "accepted input reaches the consumer exactly once");
+    require(mpc_ui_text_open(text_screen, "Search", "Vco", fixture_text_done, nullptr),
+            "new keyboard replaces only inactive captures");
+    auto *cancel = &fixture_text_core.session.cancel;
+    cancel->invoke(cancel, nullptr);
+    fixture_text_close(&fixture_text_core);
+    require(mpc_ui_private_app_host_drain(text_host) && text_callbacks == 2 &&
+            text_accepts == 1 && !text_result[0], "native Cancel delivers no input");
+    require(mpc_ui_text_open(text_screen, "Object", "", fixture_text_done, nullptr) &&
+            mpc_ui_screen_hide(text_screen) && !fixture_text_core.active,
+            "hide cancels the owned native keyboard");
+    submit = &fixture_text_core.session.submit;
+    submit->invoke(submit, &native_result);
+    require(mpc_ui_private_app_host_drain(text_host) && text_callbacks == 2 &&
+            text_utf8_calls == 1 && text_closes == 3,
+            "retained native callbacks cannot touch a hidden consumer");
+    fixture_text_release(&fixture_text_core);
+    require(mpc_ui_screen_close(&text_screen) &&
+            mpc_ui_private_app_host_destroy(&text_host, 0),
+            "keyboard capture and editor ownership release independently");
+    MpcUiScreen *image_screen=mpc_ui_screen_create(context,parent,{0,0,120,80});
+    pointer_image=mpc_ui_image_create(image_screen,3,2,fixture_pointer,nullptr);
+    require(pointer_image && !mpc_ui_control_place(pointer_image,{0,0,4,2}) &&
+        mpc_ui_control_place(pointer_image,{0,0,3,2}) && mpc_ui_screen_show(image_screen),
+        "fixed-size image placement");
+    unsigned char rgba[24]={255,0,0,255, 0,255,0,255, 0,0,255,255,
+                           12,34,56,255, 78,90,123,255, 210,220,230,255};
+    unsigned old_repaint=repaint_calls;
+    require(mpc_ui_image_update(pointer_image,rgba,12,24,1) &&
+        fixture_image->pixels[2]==255 && fixture_image->pixels[8]==255 &&
+        fixture_image->pixels[12]==56 && fixture_image->pixels[14]==12,
+        "top-down opaque RGBA becomes BGRA including odd width");
+    require(mpc_ui_image_update(pointer_image,rgba,12,24,1) &&
+        repaint_calls==old_repaint+1,"unchanged revision has no copy/repaint");
+    rgba[3]=0;
+    require(!mpc_ui_image_update(pointer_image,rgba,12,24,2) &&
+        !mpc_ui_image_update(pointer_image,rgba,12,23,2),"reject alpha and short buffer");
+    void *image_object=mpc_ui_private_control_host_object(pointer_image);
+    paint(image_object,0,0);
+    old_repaint=repaint_calls;
+    require(mpc_ui_image_on_refresh(pointer_image,fixture_image_refresh),
+        "register deferred image refresh");
+    for (unsigned i=0;i<16;++i)
+        require(mpc_ui_image_invalidate(pointer_image), "coalesced frame invalidation");
+    require(!image_refreshes && repaint_calls==old_repaint+1,
+        "input burst requests one frame without rendering on each input");
+    paint(image_object,0,0);
+    require(image_refreshes==1 && repaint_calls==old_repaint+1,
+        "paint refreshes once and pixel publication does not repaint itself");
+    paint(image_object,0,0);
+    require(image_refreshes==1, "exposure paints retained pixels without rerendering");
+    invalidate_during_refresh=1;
+    require(mpc_ui_image_invalidate(pointer_image), "next changed frame");
+    old_repaint=repaint_calls;
+    paint(image_object,0,0);
+    require(image_refreshes==2 && repaint_calls==old_repaint+1,
+        "change during refresh retains one later paint");
+    paint(image_object,0,0);
+    require(image_refreshes==3 && repaint_calls==old_repaint+1,
+        "retained change renders once without a perpetual idle loop");
+    require(mpc_ui_control_visible(pointer_image,0) &&
+        mpc_ui_image_invalidate(pointer_image), "hidden control retains invalidation");
+    paint(image_object,0,0);
+    require(image_refreshes==3 && image_draws==5,
+        "stale hidden-control paint cannot consume pending owner refresh");
+    require(mpc_ui_control_visible(pointer_image,1), "show invalidated image");
+    paint(image_object,0,0);
+    require(image_refreshes==4, "show renders retained change");
+    require(mpc_ui_screen_hide(image_screen) && mpc_ui_image_invalidate(pointer_image),
+        "hidden screen retains invalidation");
+    paint(image_object,0,0);
+    require(image_refreshes==4 && image_draws==6,
+        "stale hidden-screen paint cannot invoke its consumer");
+    require(mpc_ui_screen_show(image_screen), "show invalidated screen");
+    paint(image_object,0,0);
+    require(image_refreshes==5, "screen resume refreshes retained change");
+    pointer_call(image_object,5,1,1);pointer_call(image_object,6,-7,80);
+    require(pointer_events[1]==1 && pointer_events[2]==1 && pointer_x==-7 && pointer_y==80,
+        "out-of-bounds local drag retained");
+    require(mpc_ui_screen_hide(image_screen) && pointer_events[4]==1 &&
+        mpc_ui_screen_show(image_screen),"hide cancels contact exactly once");
+    pointer_call(image_object,7,0,0);
+    require(pointer_events[3]==0,"old release ignored after hide/reopen");
+    hide_on_down=1;pointer_call(image_object,5,1,1);hide_on_down=0;
+    require(pointer_events[4]==2 && mpc_ui_control_visible(pointer_image,1),
+        "callback-local hide defers one cancel until callback returns");
+    pointer_call(image_object,5,2,1);pointer_call(image_object,7,2,1);
+    require(pointer_events[3]==1,"fresh complete contact releases once");
+    pointer_call(image_object,5,1,1);
+    require(mpc_ui_screen_close(&image_screen) && pointer_events[4]==3 &&
+        image_creates==1 && image_releases==1 && image_draws==7,
+        "close cancels before release and balances image ownership");
+    image_screen=mpc_ui_screen_create(context,parent,{0,0,120,80});
+    pointer_image=mpc_ui_image_create(image_screen,7,2,nullptr,nullptr);
+    require(pointer_image,"image spans vector and scalar pixel paths");
+    unsigned char padded[65]={};
+    unsigned char *unaligned=padded+1;
+    for(unsigned y=0;y<2;++y)for(unsigned x=0;x<7;++x){
+        unsigned char *pixel=unaligned+y*32+x*4;
+        pixel[0]=(unsigned char)(y*41+x*3);pixel[1]=(unsigned char)(x*11);
+        pixel[2]=(unsigned char)(231-x*17);pixel[3]=255;
+    }
+    require(mpc_ui_image_update(pointer_image,unaligned,32,60,1),
+            "unaligned padded rows accept vector pixels and tail");
+    unsigned char retained[56];
+    for(unsigned y=0;y<2;++y)for(unsigned x=0;x<7;++x){
+        const unsigned char *src=unaligned+y*32+x*4;
+        const unsigned char *dst=fixture_image->pixels+(y*7+x)*4;
+        require(dst[0]==src[2]&&dst[1]==src[1]&&dst[2]==src[0]&&dst[3]==255,
+                "every pixel preserves channels across vector/tail and row padding");
+    }
+    memcpy(retained,fixture_image->pixels,sizeof(retained));
+    for(unsigned y=0;y<2;++y)for(unsigned x=0;x<7;++x){
+        unaligned[y*32+x*4+3]=254;
+        require(!mpc_ui_image_update(pointer_image,unaligned,32,60,2)&&
+                !memcmp(retained,fixture_image->pixels,sizeof(retained)),
+                "each nonopaque vector/tail lane rejects before any host pixel changes");
+        unaligned[y*32+x*4+3]=255;
+    }
+    require(mpc_ui_screen_close(&image_screen)&&image_creates==2&&image_releases==2,
+            "vector image releases with balanced ownership");
     require(mpc_ui_private_parent_destroy(&parent) && !parent,
             "adapter parent released after screen");
 
@@ -1107,12 +1474,60 @@ int main() {
             keep_front_calls == 1 &&
             component_fixture.children[0].object == nullptr,
             "default adapter confirms relationship clearing before teardown");
+    MpcUiScreen *palette_screen = mpc_ui_screen_create(
+        context, component_parent, {0, 0, 120, 80});
+    MpcUiList *palette = mpc_ui_list_create(palette_screen, "Palette", 3, 24,
+        fixture_palette_text, nullptr, list_drop_events);
+    require(palette && mpc_ui_list_place(palette, {20, 10, 100, 60}) &&
+        mpc_ui_list_drag_out(palette, fixture_palette_drag) && mpc_ui_screen_show(palette_screen),
+        "opt-in row drag attaches through the existing component parent");
+    void *palette_object = mpc_ui_private_list_host_object(palette);
+    palette_event(palette_object, 5, 0, 80, 25);
+    palette_event(palette_object, 6, 0, 80, 4);
+    palette_event(palette_object, 7, 0, 80, 4);
+    require(!list_drop_events[1] && !list_drop_events[3], "vertical swipe emits no placement");
+    palette_event(palette_object, 5, 0, 80, 25);
+    palette_event(palette_object, 6, 0, 50, 25);
+    palette_event(palette_object, 6, 0, -15, 25);
+    palette_event(palette_object, 7, 0, -15, 25);
+    palette_event(palette_object, 7, 0, -15, 25);
+    require(list_drop_events[1] == 1 && list_drop_events[3] == 1 &&
+        list_drop_row == 1 && list_drop_x == 5 && list_drop_y == 35,
+        "one outward drop in screen-local coordinates; late release is inert");
+    palette_event(palette_object, 5, 0, 80, 25);
+    palette_event(palette_object, 6, 0, 50, 25);
+    palette_event(palette_object, 5, 1, 70, 25);
+    palette_event(palette_object, 7, 1, 70, 25);
+    palette_event(palette_object, 7, 0, -15, 25);
+    require(list_drop_events[4] == 1 && list_drop_events[3] == 1,
+        "second contact cancels without dropping when either finger lifts");
+    palette_event(palette_object, 5, 0, 80, 25);
+    palette_event(palette_object, 6, 0, 50, 25);
+    require(mpc_ui_list_update(palette, 3, UINT32_MAX), "silent catalog refresh during a drag");
+    palette_event(palette_object, 7, 0, -15, 25);
+    require(list_drop_events[4] == 2 && list_drop_events[3] == 1,
+        "refresh cancels the old row without committing into the new catalog");
+    palette_event(palette_object, 5, 0, 80, 25);
+    palette_event(palette_object, 6, 0, 50, 25);
+    require(mpc_ui_screen_hide(palette_screen) && mpc_ui_screen_show(palette_screen),
+        "hide/reopen during an outward drag");
+    palette_event(palette_object, 7, 0, -15, 25);
+    require(list_drop_events[4] == 3 && list_drop_events[3] == 1,
+        "hide cancels once and reopening does not revive a stale release");
+    palette_event(palette_object, 5, 0, 80, 25);
+    palette_event(palette_object, 6, 0, 50, 25);
+    require(mpc_ui_screen_close(&palette_screen) && list_drop_events[4] == 4 &&
+        !list_mouse_listener && list_mouse_adds == 1 && list_mouse_removes == 1,
+        "close cancels before removing the native listener");
     require(mpc_ui_private_parent_destroy(&component_parent) && !component_parent,
             "default Component parent released after screen");
     require(mpc_ui_private_context_destroy(&context) && !context,
             "context released after all instance ownership");
     require(allocations == frees && focus_calls >= 4,
             "balanced per-instance allocations and adapter focus lifecycle");
+    printf("PASS keyboard: aggregate-return UTF-8 ABI, copied callbacks, submit after close, busy rejection, Cancel, hide and late callback invalidation (native keyboard/session substituted)\n");
+    printf("PASS Add drag: scroll stays quiet, one drop, screen coordinates, second-contact/refresh/hide/close cancellation and listener teardown (native event delivery/scrolling substituted)\n");
+    printf("PASS fixed image: opaque RGBA/BGRA odd-width rows, revision suppression, bounds, release, drag outside bounds, hide/callback cancel and stale up (Image/Graphics/input substituted)\n");
     printf("PASS canonical ARM UI toolkit: opaque context/parent/app host, public button, Label/Slider and grouped assignment screens, one-consumer registration, multi-screen suspend/resume with hidden-page preservation and refusal unwind, deferred Back, failed-open unwind, forced-owner closure, silent owner refresh, native-list selection suppression, Slider value/drag intents, local layout, listener removal, invalidation-before-detach, retryable detach and balanced teardown (host widgets/Component/Graphics/touch substituted)\n");
     return 0;
 }
