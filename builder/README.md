@@ -34,7 +34,7 @@ memory while it builds the image.
 
 ## GitHub Pages
 
-Public site: https://zsoltf.github.io/mpc-3-community-edition/
+Public site: https://mpc3ce.com/
 
 Choose Settings > Pages > Source > GitHub Actions in
 `zsoltf/mpc-3-community-edition`. See [publishing instructions](../docs/PUBLISHING.md).

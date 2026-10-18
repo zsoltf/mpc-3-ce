@@ -5,7 +5,7 @@ about: Report a problem or tell us which MPC hardware you tested
 
 **MPC model / firmware:**
 **Controller / mode:**
-**Community Edition release:**
+**MPC 3 CE release:**
 **Image installed from:**
 
 **What did you do?**

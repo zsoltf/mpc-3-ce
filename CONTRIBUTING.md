@@ -7,7 +7,7 @@ reports or source improvements.
 ## Report a problem
 
 Use the repository's issue template. Include the MPC model and firmware,
-Community Edition revision, controller/mode, steps to reproduce and expected
+MPC 3 CE revision, controller/mode, steps to reproduce and expected
 behavior. Say whether the issue involves project loading, reconnection or
 audio glitches. A short description or controller/screen recording is useful.
 Do not post credentials, complete settings or private projects.

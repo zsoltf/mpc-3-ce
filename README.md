@@ -1,17 +1,17 @@
-# MPC 3 Community Edition
+# MPC 3 CE
 
 MPC 3.9.1 with controller feedback, clip and drum sequencing, touchscreen Pd and
 Cardinal, USB mouse support and easier note selection. Build your own image in
 your browser from the official Akai update. Firmware stays on your computer.
 
-**[Website](https://zsoltf.github.io/mpc-3-community-edition/)** |
-**[Image builder](https://zsoltf.github.io/mpc-3-community-edition/builder.html)** |
+**[Website](https://mpc3ce.com/)** |
+**[Image builder](https://mpc3ce.com/builder.html)** |
 **[Controller setup](docs/controller-programs.md)**
 
 ## What's included
 
 - Full-size X-Touch: motor faders, names, meters, mixer, sends, inserts, Q-Links,
-  transport and jog controls. See the [X-Touch guide](https://zsoltf.github.io/mpc-3-community-edition/guide.html).
+  transport and jog controls. See the [X-Touch guide](https://mpc3ce.com/guide.html).
 - Launchpad X and Pro Mk3: clips, scenes, Arrangement and drum-step editing.
   Two Launchpads can work on clips and drums together.
 - Launch Control XL3: track and drum-pad mixing, sends, Q-Links and effect
@@ -29,13 +29,13 @@ MPC Live II with the official **3.9.1 Gen1** update is the tested device.
 Other Gen1 models are untested; Gen2 and Force are unsupported.
 
 1. Back up your projects and keep the official Akai update for recovery.
-2. Open the [image builder](https://zsoltf.github.io/mpc-3-community-edition/builder.html)
+2. Open the [image builder](https://mpc3ce.com/builder.html)
    and select `MPC-3.9.1-Gen1-update.img`. SSH is optional; supply your own public
    key if you want it.
 3. Copy the generated `*-update.img` to the root of a USB drive. Keep its name.
    Connect AC power and use Preferences > Info > Update > USB Drive Update.
 4. Download `mpc-ce-v0.3.0-sd-plugins.zip` from the
-   [matching release](https://github.com/zsoltf/mpc-3-community-edition/releases/tag/v0.3.0)
+   [matching release](https://github.com/zsoltf/mpc-3-ce/releases/tag/v0.3.0)
    and unzip it. With the MPC off, copy its `MPCLEARN` folder to the root
    of your SD card. Insert it before startup and leave it in while using plugins.
 5. Set your controller's mode and MPC MIDI routing using the
@@ -59,7 +59,7 @@ right-click and long-press gestures are unavailable. See the
 ## Source and support
 
 [Build from source](docs/BUILDING.md) |
-[Report a bug](https://github.com/zsoltf/mpc-3-community-edition/issues) |
+[Report a bug](https://github.com/zsoltf/mpc-3-ce/issues) |
 [Recovery](controllers/program-observer/MCU-START.md)
 
 Built on [MPC-LiveXplore](https://github.com/TheKikGen/MPC-LiveXplore).

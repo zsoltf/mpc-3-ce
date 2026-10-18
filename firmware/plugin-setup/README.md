@@ -5,7 +5,7 @@ Cardinal FX as insert effects. Cardinal supports GPU panning. Existing
 controller support and Global MIDI Learn remain available.
 
 Download the matching SD plugin ZIP from the
-[v0.3.0 release](https://github.com/zsoltf/mpc-3-community-edition/releases/tag/v0.3.0)
+[v0.3.0 release](https://github.com/zsoltf/mpc-3-ce/releases/tag/v0.3.0)
 and unzip it. Use its `MPCLEARN` folder with the matching firmware image.
 Do not mix the image with a plugin bundle from another release.
 

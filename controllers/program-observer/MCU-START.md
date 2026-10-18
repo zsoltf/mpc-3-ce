@@ -1,6 +1,6 @@
 # Startup, manual control and recovery
 
-After installing Community Edition, turn on MPC, create a blank project or
+After installing MPC 3 CE, turn on MPC, create a blank project or
 load a template/saved project, and use the X-Touch. The controller waits while
 the project chooser is open. No computer or manual command is needed in normal use.
 

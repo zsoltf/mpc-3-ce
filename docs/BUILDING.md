@@ -1,7 +1,7 @@
 # Build from source
 
 The website and native MCU runtime have separate builds. End users need only
-[the browser builder](https://zsoltf.github.io/mpc-3-community-edition/builder.html).
+[the browser builder](https://mpc3ce.com/builder.html).
 
 ## Website
 

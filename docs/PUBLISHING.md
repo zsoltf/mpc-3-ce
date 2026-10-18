@@ -1,35 +1,30 @@
 # Publishing the public release
 
 Development stays in the private mpclearn project. The clean release checkout
-is a publication snapshot for **zsoltf/mpc-3-community-edition**, not a replacement
+is a publication snapshot for **zsoltf/mpc-3-ce**, not a replacement
 for the development repository. Its local location is
 `artifacts/mpc-3-community-edition` under the main mpclearn checkout. Release
 attachments are in `artifacts/community-release-<version>` alongside it, where
 `<version>` is the `release` field of `release/public-source.json`.
 Never push the private repository's history.
 
-## 1. Create the GitHub repository
+## 1. Use the public GitHub repository
 
-While signed in as **zsoltf**, create `mpc-3-community-edition`:
+The public repository is [zsoltf/mpc-3-ce](https://github.com/zsoltf/mpc-3-ce).
+Its site is [mpc3ce.com](https://mpc3ce.com/). Keep the established local export
+folder `artifacts/mpc-3-community-edition`; the GitHub rename does not change
+that local path.
 
-- Visibility: **Public** for the community release.
-- Leave README, .gitignore and license initialization **unchecked**; the
-  prepared local checkout supplies its own files.
-- Description: `Hands-on X-Touch control and a browser firmware image builder for MPC standalone.`
-- After creation, set the About website to
-  `https://zsoltf.github.io/mpc-3-community-edition/`.
-- Suggested topics: `mpc`, `akai`, `midi`, `mackie-control`, `xtouch`, `music`.
-
-The prepared release checkout already has a local `main` commit and no remote.
-From that checkout, with credentials for your **zsoltf** account:
+From that public checkout, with credentials for your **zsoltf** account,
+confirm that origin points to `https://github.com/zsoltf/mpc-3-ce.git`, then
+push the reviewed public commit:
 
 ```sh
-git remote add origin https://github.com/zsoltf/mpc-3-community-edition.git
+git remote get-url origin
 git push -u origin main
 ```
 
-Use GitHub Desktop if preferred: add the prepared local repository and publish
-it to the intended account. Do not run these commands in the private project.
+Do not run these commands in the private development checkout.
 
 ## 2. Enable GitHub Pages
 
@@ -44,7 +39,7 @@ The workflow tests the Go builder, builds WebAssembly and deploys only the
 static `builder/dist` files. Firmware, keys and local generated images are not
 uploaded. The site will be:
 
-`https://zsoltf.github.io/mpc-3-community-edition/`
+`https://mpc3ce.com/`
 
 Check the landing page, builder, guide, repository links and official Akai
 download link on the deployed site. Deployment has not been observed until
@@ -57,7 +52,7 @@ Reference: [GitHub Pages custom workflows](https://docs.github.com/en/pages/gett
 Open **Releases > Draft a new release**:
 
 - New tag: the `release` field of `release/public-source.json`, target: **main**.
-- Title: `MPC 3 Community Edition <version>`.
+- Title: `MPC 3 CE <version>`.
 - Copy the body from the matching `docs/releases/<version>.md`.
 - Check **Set as a pre-release**.
 - Attach only the prepared website ZIP, runtime payload archive and SHA256SUMS.
