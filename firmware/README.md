@@ -1,9 +1,9 @@
 # MCU image and release
 
-The current candidate is `v0.3.0-rc.1`, CMD31/MMV21, with provision revision
-`v0_3_0_rc_1`. It runs from `/usr/share/mpclearn/mcu` and uses the matching
+The current candidate is `v0.3.0`, CMD31/MMV21, with provision revision
+`v0_3_0`. It runs from `/usr/share/mpclearn/mcu` and uses the matching
 [SD-card Pd/Cardinal bundle](plugin-setup/README.md). See the
-[release notes](../docs/releases/v0.3.0-rc.1.md) for features and limits.
+[release notes](../docs/releases/v0.3.0.md) for features and limits.
 The native Info screen retains the `MPC CE v0.2.6` base label; the update filename
 and payload `BUILD.json` identify this candidate.
 
@@ -64,7 +64,7 @@ python3 firmware/patch-mpc-ce.py build/MPC build/v0_2_6/MPC
 sh firmware/build-v0.2.6.sh
 ```
 
-### Build v0.3.0-rc.1
+### Build v0.3.0
 
 First follow the [runtime build instructions](../docs/BUILDING.md), including
 its component checks. Use this candidate's source tree and generated
@@ -81,16 +81,16 @@ available as a regular file, run from the repository root:
 
 ```sh
 bash firmware/build-prerelease.sh "$PWD" \
-  /absolute/path/to/MPCLEARN/plugins.squashfs build/v0_3_0_rc_1
+  /absolute/path/to/MPCLEARN/plugins.squashfs build/v0_3_0
 ```
 
 The output is
-`build/v0_3_0_rc_1/MPC-3.9.1-Gen1-CE-v0.3.0-rc.1-update.img`, its payload and
+`build/v0_3_0/MPC-3.9.1-Gen1-CE-v0.3.0-update.img`, its payload and
 verification report, and the matching `MPCLEARN` folder. This is a local image
 for the owner's use; do not redistribute Akai firmware.
 
-The bundle must be 146,268,160 bytes, SHA256
-`3ec130ed82a1d5db301be54999a5936e3200b45ddf2c4806a463d1d2841ebc58`.
+The bundle must be 146,313,216 bytes, SHA256
+`5338999914bad437c05542e1abb13392f7d994351f8b50e2e21eb276d72e0c4a`.
 The build checks this identity and the eleven-file prerelease runtime manifest
 before assembling the image. It refuses changed runtime bytes; do not repin
 an unqualified build to force admission. Building does not qualify flashing,
@@ -120,7 +120,7 @@ and checking an image does not prove it flashed or booted.
 
 ### Browser patch variants
 
-The checked-in recipes match v0.3.0-rc.1. Rebuilding the browser does not require
+The checked-in recipes match v0.3.0. Rebuilding the browser does not require
 regenerating them. The following describes their root and patch inputs; keep
 all variants matched when preparing another qualified candidate.
 

@@ -219,6 +219,18 @@ static void native_intent(Surface *surface,MirrorBank *bank,const CopiedMirror *
    if(n->layer==NOV_CLIPS&&n->protocol==MCU_PROTOCOL_LPX&&!event->value)return;
   }
   unsigned play=n->protocol==MCU_PROTOCOL_LCXL3?116:n->protocol==MCU_PROTOCOL_LPP3?20:39,stop=n->protocol==MCU_PROTOCOL_LCXL3?0:n->protocol==MCU_PROTOCOL_LPP3?8:29;
+  if(index==play&&(n->protocol==MCU_PROTOCOL_LCXL3||n->protocol==MCU_PROTOCOL_LPP3)){
+   if(!event->value){in->play_down=0;return;}
+   if(prior||!snapshot->playing.available)return;
+   input_jog_resync(in,snapshot);
+   unsigned playing=snapshot->playing.bits||in->stop_play_wait;
+   if(in->coordinator)for(unsigned i=0;i<in->coordinator->count;i++){MirrorInput *peer=in->coordinator->origins[i];if(peer->jog_epoch==snapshot->epoch)playing|=peer->stop_play_wait;}
+   if(!playing){input_stop_button(in,snapshot,94,1,now);return;}
+   /* Pause in place; never invoke Stop's separate return-to-start gesture. */
+   in->play_down=1;in->stop_play_wait=in->stop_home=0;input_jog_release(in,3);
+   if(in->coordinator)for(unsigned i=0;i<in->coordinator->count;i++){MirrorInput *peer=in->coordinator->origins[i];peer->stop_play_wait=peer->stop_home=0;input_jog_release(peer,3);}
+   input_global_add(in,snapshot,GLOBAL_STOP,0,now);return;
+  }
   if(index==play||index==stop){input_stop_button(in,snapshot,index==play?94:93,event->value,now);return;}
   if(!event->value||prior)return;
   if(index==(n->protocol==MCU_PROTOCOL_LCXL3?118u:n->protocol==MCU_PROTOCOL_LPP3?10u:19u)){input_global_add(in,snapshot,GLOBAL_RECORD_TOGGLE,0,now);return;}

@@ -122,7 +122,7 @@ built for the override folder, so the exact release bytes are tested only by
 flashing an image.
 
 `firmware/package.py` is a release qualification gate, not a general installer.
-For v0.3.0-rc.1, its `--prerelease` mode accepts only the eleven files pinned by
+For v0.3.0, its `--prerelease` mode accepts only the eleven files pinned by
 `firmware/prerelease-runtime.sha256`, built for the image location with the
 manual lifetime. The canonical [firmware build](../firmware/README.md) adds
 the plugin admission helper and matching bundle descriptor before this check.

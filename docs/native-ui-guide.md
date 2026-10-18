@@ -102,9 +102,10 @@ those observations remain required before T12.4 acceptance.
 The same fixed page holds a disjoint bridge-owned admission projection, keyed to
 collection generation and a session-owned lifetime. The session invalidates
 that lifetime before bridge start and after its exact child exits. Endpoint
-presence alone cannot render ACTIVE. Waiting Novation admission shows WAIT MODE;
-an unknown or unrestorable prior layout shows NO MODE, and a missing/stale
-bridge publication shows Bridge not running. A delayed valid reply updates the same row.
+presence alone cannot render Connected. Waiting Novation admission shows
+Waiting for controller mode; the inactive mode state shows Controller mode
+changed, and a missing/stale bridge publication shows Bridge not running.
+A delayed valid reply updates the same row.
 Version admission rejects an old UI/runtime page pairing. There is no second
 state file, service, discovery pass or recurring executable hash.
 

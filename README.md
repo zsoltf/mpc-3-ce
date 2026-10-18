@@ -1,49 +1,68 @@
-# MPC 3 Community Edition v0.3.0-rc.1
+# MPC 3 Community Edition
 
-Release candidate for MPC Live II with MPC 3.9.1 Gen1.
+MPC 3.9.1 with controller feedback, clip and drum sequencing, touchscreen Pd and
+Cardinal, USB mouse support and easier note selection. Build your own image in
+your browser from the official Akai update. Firmware stays on your computer.
 
-## Included
+**[Website](https://zsoltf.github.io/mpc-3-community-edition/)** |
+**[Image builder](https://zsoltf.github.io/mpc-3-community-edition/builder.html)** |
+**[Controller setup](docs/controller-programs.md)**
 
-- Launchpad X and Pro Mk3: Arrangement and clip/scene launching, clip recording,
-  track/scene stop, and playback/record feedback. One Launchpad can launch clips
-  while the other edits MPC drum steps.
-- Drum sequencing: 64 steps for one sound or 16 steps for four sounds, sound and
-  page navigation, coloured active steps, playhead and native Undo/Redo. Pro
-  Sequencer picks up the currently selected MPC Drum track/clip on each press.
-- Launch Control XL3 DAW mode: track and drum-pad mixing, banks, pickup,
-  Solo/Mute, labels and values; track sends, Q-Links and effect parameter pages.
-- Additional MCU/HUI and Akai controller profiles, with explicit setup and
-  matching-program tools. Hardware coverage varies; see the controller guide.
-- Pd and Cardinal Synth/FX with touchscreen patch editing, project recall and
-  an SD-card plugin bundle. Audio scheduling and DSP improvements are included.
-- Existing X-Touch controls, Global MIDI Learn, mouse support, Shift-wheel note
-  selection and native controller preferences.
+## What's included
 
-## Install
+- Full-size X-Touch: motor faders, names, meters, mixer, sends, inserts, Q-Links,
+  transport and jog controls. See the [X-Touch guide](https://zsoltf.github.io/mpc-3-community-edition/guide.html).
+- Launchpad X and Pro Mk3: clips, scenes, Arrangement and drum-step editing.
+  Two Launchpads can work on clips and drums together.
+- Launch Control XL3: track and drum-pad mixing, sends, Q-Links and effect
+  controls. Play starts, pauses and resumes, with matching feedback.
+- More MCU/HUI and Akai profiles, with explicit mode and program setup.
+  Hardware coverage varies; a profile does not mean every device is tested.
+- Pd Sketch Synth/FX and Cardinal Synth/FX: touchscreen patch editing and
+  project recall, installed by copying the matching plugin bundle to an SD card.
+- Native controller preferences and Global MIDI Learn, USB mouse editing,
+  and Shift + data-wheel note selection in the Grid.
 
-Build the image from your own official Akai update using the matching candidate
-builder. Copy the matching `MPCLEARN` plugin folder to the SD card. Follow the
-included controller guide for mode, port and MIDI routing settings.
+## Install v0.3.0
 
-The candidate retains the existing `MPC CE v0.2.6` label in Preferences > Info;
-use the candidate's filenames and checksums to identify this package.
+MPC Live II with the official **3.9.1 Gen1** update is the tested device.
+Other Gen1 models are untested; Gen2 and Force are unsupported.
+
+1. Back up your projects and keep the official Akai update for recovery.
+2. Open the [image builder](https://zsoltf.github.io/mpc-3-community-edition/builder.html)
+   and select `MPC-3.9.1-Gen1-update.img`. SSH is optional; supply your own public
+   key if you want it.
+3. Copy the generated `*-update.img` to the root of a USB drive. Keep its name.
+   Connect AC power and use Preferences > Info > Update > USB Drive Update.
+4. Download `mpc-ce-v0.3.0-sd-plugins.zip` from the
+   [matching release](https://github.com/zsoltf/mpc-3-community-edition/releases/tag/v0.3.0)
+   and unzip it. With the MPC off, copy its `MPCLEARN` folder to the root
+   of your SD card. Insert it before startup and leave it in while using plugins.
+5. Set your controller's mode and MPC MIDI routing using the
+   [controller guide](docs/controller-programs.md). For X-Touch, use MC/USB and
+   turn Track, Global and Control off for `X-TOUCH_INT` in MIDI/Sync.
+
+Preferences > Info retains the `MPC CE v0.2.6` base label. Use the v0.3.0 filename
+and checksums to identify this release. Settings and projects are kept.
 
 ## Known limits
 
-- Cardinal can overload the audio engine with demanding patches. Reduced
-  polyphony or simpler patches may be necessary. There is no automatic overload
-  protection; avoid the known over-budget Waves patch.
-- Akai program installation and some compact MCU/HUI/extender hardware workflows
-  remain unverified. Profiles do not imply automatic preset upload or universal
-  controller compatibility.
-- Launchpad drum colours use a repeating CE palette, not MPC custom pad colours.
-  X retargeting uses Session then Note/Custom. SQ-64 integration is excluded.
-- XL3 Pad mode has volume, pan, Solo and Mute; pad sends, arm and selection are
-  unavailable. Its Control mode uses the top encoder row only.
-- Named Cardinal host-parameter controls and remaining patch compatibility work
-  are not included. Save from the MPC screen if a controller Save action stalls.
-- Broader controller reconnect/concurrent-use coverage and long-session audio
-  qualification remain incomplete. Other MPC models are untested.
+Cardinal's MIDI and Terrorform polyphony is limited to four voices. Demanding
+patches can still overload audio; simplify the patch or reduce polyphony. Avoid
+the Waves example. Named Cardinal host-parameter controls are not included.
 
-This is a candidate for testing, not a general stability guarantee. Keep the
-original Akai update for recovery. Do not redistribute generated Akai images.
+Some compact MCU/HUI and Akai workflows remain unverified. Wider reconnect,
+concurrent-controller and long-session audio coverage is incomplete. Mouse
+right-click and long-press gestures are unavailable. See the
+[release notes](docs/releases/v0.3.0.md) for controller-specific limits.
+
+## Source and support
+
+[Build from source](docs/BUILDING.md) |
+[Report a bug](https://github.com/zsoltf/mpc-3-community-edition/issues) |
+[Recovery](controllers/program-observer/MCU-START.md)
+
+Built on [MPC-LiveXplore](https://github.com/TheKikGen/MPC-LiveXplore).
+[MIT license](LICENSE), with [third-party notices](builder/THIRD_PARTY_NOTICES.md).
+Unofficial; not affiliated with Akai, inMusic, Behringer or Novation.
+Do not redistribute generated Akai firmware images.

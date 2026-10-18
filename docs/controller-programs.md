@@ -67,7 +67,8 @@ Q-Links 1-8 / 9-16.
 
 On Pro, the bottom Volume, Pan, Sends and Device buttons select those layers;
 Arm, Mute and Solo return to the mixer grid. Left/Right bank mixer tracks.
-The left Play and Record buttons control transport, and bottom Stop Clip stops
+The left Play button starts playback, pauses it in place when already playing,
+and resumes on the next press. Record controls recording; bottom Stop Clip stops
 MPC. In Q-Link, the left Up/Down buttons select Q-Links 1-8 / 9-16.
 
 For drum steps, select a Drum track in MPC. X Note enters a 64-step view for
@@ -141,8 +142,9 @@ mode and assignments on MPC first. The middle and bottom encoder rows remain
 dark in Control mode.
 
 Solo/Arm switches the upper button row between those actions. Mute/Select
-switches the lower row. The buttons' lights follow MPC state. Play and Record
-control MPC transport. Faders use pickup; encoders act relatively.
+switches the lower row. The buttons' lights follow MPC state. Play starts, pauses
+in place, and resumes playback; Record controls recording. Faders use pickup;
+encoders act relatively.
 
 The display shows control names and values on a 0-127 scale. Hold Shift and
 turn a control to preview it. An unavailable encoder value shows `-`.

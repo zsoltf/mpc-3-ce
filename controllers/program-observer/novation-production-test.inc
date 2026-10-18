@@ -296,6 +296,39 @@ static void lcxl_name_fairness_checks(Surface *surface,const MirrorBank *origina
  surface->novation=saved;native_capture_count=0;free(snapshot);
  puts("PASS bounded LCXL3 name delivery during continuous24-value Mixer and8-value effect/Q-Link updates, two/three-digit values,16-character names and button LED churn (ALSA/MPC substituted)");
 }
+static void novation_play_toggle_checks(MirrorState *state,ControllerRuntime *runtime){
+ CopiedMirror *s=runtime->snapshot;MIRROR_FIELD(playing);playing=s->playing;unsigned owner=s->editor_owner;
+ s->editor_owner=777;s->playing.available=1;
+ const unsigned layers[]={NOV_SESSION,NOV_CLIPS,NOV_STEP64,NOV_STEP16};
+ for(unsigned instance=0;instance<=2;instance+=2){
+  Surface *surface=surfaces.surfaces+instance;NovationState saved=surface->novation;
+  MirrorInput *in=&surfaces.contexts[instance].input;unsigned cc=instance?20:116;
+  for(unsigned layer=0;layer<4;layer++){
+   for(unsigned i=0;i<surfaces.count;i++){input_discard(&surfaces.contexts[i].input);input_jog_discard(&surfaces.contexts[i].input);}
+   memset(surface->novation.held,0,sizeof(surface->novation.held));surface->novation.layer=layers[layer];surface->novation.observed_mode=instance?1:layer%2+1;s->playing.bits=0;
+   fake_input_reset();native_push(instance,0xb0,cc,0);native_push(instance,0xb0,cc,127);native_push(instance,0xb0,cc,127);native_push(instance,0xb0,cc,0);
+   need(collection_drain(&surfaces,state,runtime)&&in->global_count==1&&in->global_events[in->global_head].operation==GLOBAL_PLAY,"XL3/Pro stopped Play starts once; held and release packets add no commands");
+   fake_input_reset();native_push(instance,0xb0,cc,127);native_push(instance,0xb0,cc,0);
+   need(collection_drain(&surfaces,state,runtime)&&in->global_count==2&&in->global_events[(in->global_head+1)%INPUT_JOG_EVENTS].operation==GLOBAL_STOP&&!in->stop_home&&!in->jog_count,"second Play pauses pending playback without returning home");
+   s->playing.bits=1;fake_input_reset();native_push(instance,0xb0,cc,127);native_push(instance,0xb0,cc,127);native_push(instance,0xb0,cc,0);
+   need(collection_drain(&surfaces,state,runtime)&&in->global_count==3&&in->global_events[(in->global_head+2)%INPUT_JOG_EVENTS].operation==GLOBAL_STOP&&!in->stop_home,"externally started playback pauses once from authoritative Playing");
+   s->playing.bits=0;fake_input_reset();native_push(instance,0xb0,cc,127);native_push(instance,0xb0,cc,0);
+   need(collection_drain(&surfaces,state,runtime)&&in->global_count==4&&in->global_events[(in->global_head+3)%INPUT_JOG_EVENTS].operation==GLOBAL_PLAY,"paused Play resumes via existing native Play");
+   s->playing.bits=1;input_stop_home(in,s,runtime->now);s->playing.bits=0;
+   fake_input_reset();native_push(instance,0xb0,cc,127);native_push(instance,0xb0,cc,0);
+   need(collection_drain(&surfaces,state,runtime)&&in->global_count==5&&in->global_events[(in->global_head+4)%INPUT_JOG_EVENTS].operation==GLOBAL_PLAY,"external Stop after observed playback does not retain predicted Playing");
+   s->playing.available=0;fake_input_reset();native_push(instance,0xb0,cc,127);native_push(instance,0xb0,cc,0);
+   need(collection_drain(&surfaces,state,runtime)&&in->global_count==5,"unavailable Playing cannot guess a toggle");s->playing.available=1;
+   input_jog_discard(in);in->jog_epoch=s->epoch-1;in->stop_play_wait=1;s->playing.bits=0;
+   fake_input_reset();native_push(instance,0xb0,cc,127);native_push(instance,0xb0,cc,0);
+   need(collection_drain(&surfaces,state,runtime)&&in->global_count==1&&in->global_events[in->global_head].operation==GLOBAL_PLAY,"old-project pending Play cannot turn new stopped Play into Pause");
+  }
+  surface->novation=saved;
+ }
+ for(unsigned i=0;i<surfaces.count;i++){input_discard(&surfaces.contexts[i].input);input_jog_discard(&surfaces.contexts[i].input);}
+ s->playing=playing;s->editor_owner=owner;
+ puts("PASS XL3/Pro documented Play CCs: start/pause/resume, held/release suppression, pending Play, external transport, unavailable readback and all layers; MPC/ALSA substituted");
+}
 static void novation_production_checks(void){
  CommandState *commands=calloc(1,sizeof(*commands));MirrorState *state=calloc(1,sizeof(*state));need(commands&&state,"native production fixture allocation");
  MirrorBank unused;MIRROR_COPY(snapshot);reset_fixture(commands,&input,&unused,&snapshot,16);collection_fixture_source(state);shared_fixture_time(state,1000);
@@ -461,7 +494,7 @@ static void novation_production_checks(void){
  for(unsigned i=0;i<40;i++)need(native_output(lc,bank,&snapshot,1700),"unavailable effect output");
  need(lc->novation.position_valid[8]&&lc->novation.position[8]==255,"unavailable source clears cached display value");need(native_captured(150,(unsigned char[]){0xf0,0,0x20,0x29,2,0x15,6,13,1,'-',0xf7},11)==1,"unavailable clear retries exactly once");native_capture_count=0;need(native_output(lc,bank,&snapshot,1700)&&!native_capture_count,"unavailable values clear once and then park");snapshot.effects_available=1;native_capture_count=0;for(unsigned i=0;i<8;i++)need(native_output(lc,bank,&snapshot,1700),"reacquired unchanged source output");NATIVE_HAS(150,0xf0,0,0x20,0x29,2,0x15,6,13,1,'9','5',0xf7);
  event=(NovationEvent){.kind=NOV_TOUCH,.index=0,.value=1};native_intent(lc,bank,&snapshot,&event,1700);bank->offset=8;bank_apply(bank,&snapshot,1701);input_discard(in);event=(NovationEvent){.kind=NOV_ABSOLUTE,.index=0,.value=64};native_intent(lc,bank,&snapshot,&event,1701);need(!in->desires[0][CF_VOLUME].pending,"held LCXL3 fader cannot retarget through bank remap");event=(NovationEvent){.kind=NOV_TOUCH,.index=0,.value=0};native_intent(lc,bank,&snapshot,&event,1702);
- launchpad_step_checks(state,&runtime);launchpad_pro_rebind_checks(state,&runtime);launchpad_clip_checks(state,&runtime);
+ launchpad_step_checks(state,&runtime);launchpad_pro_rebind_checks(state,&runtime);launchpad_clip_checks(state,&runtime);novation_play_toggle_checks(state,&runtime);
  atomic_store(&state->ready,0);shared_fixture_time(state,1950);runtime_cycle_begin(&runtime);in->play_down=1;fake_input_reset();native_push(0,0xb6,30,1);native_push(0,0xbf,5,100);need(collection_drain(&surfaces,state,&runtime)&&bank->assignment==BA_TRACK&&lc->novation.observed_mode==1&&!in->play_down,"unready MPC still follows native mode reports and clears old transport holds");
  unsigned generation=lc->novation.generation;lc->novation.held[37]=lc->novation.touch[0]=1;lc->native_pickup[0].acquired=1;unsigned retained=surfaces.banks[1].offset;
  stopping=1;collection_disconnect(&surfaces,0);stopping=0;NATIVE_HAS(150,0xf0,0,0x20,0x29,2,0x15,2,0,0xf7);need(!lc->novation.held[37]&&!lc->novation.touch[0]&&!lc->native_pickup[0].acquired&&surfaces.banks[1].offset==retained,"disconnect resets only local physical state and sends disable even at clean stop");

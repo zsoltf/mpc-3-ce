@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MPC 3 Community Edition</title>
-  <meta name="description" content="Community firmware for the MPC Live II: two-way X-Touch control with motor faders, USB mouse note editing and Shift+wheel note selection. Build the image in your browser from Akai's official 3.9.1 update.">
+  <meta name="description" content="Controller feedback, Launchpad clips and drums, XL3 mixing, touchscreen Pd and Cardinal, mouse editing and note selection for MPC Live II.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <meta property="og:type" content="website">
   <meta property="og:title" content="MPC 3 Community Edition">
-  <meta property="og:description" content="Two-way X-Touch control with motor faders, mouse note editing and Shift+wheel note stepping for the MPC Live II.">
+  <meta property="og:description" content="Controller feedback, Launchpad clips and drums, XL3 mixing, touchscreen Pd and Cardinal, mouse editing and note selection for MPC Live II.">
   <meta property="og:url" content="https://zsoltf.github.io/mpc-3-community-edition/">
   <meta property="og:image" content="https://zsoltf.github.io/mpc-3-community-edition/og.png">
   <meta property="og:image:width" content="1200">
@@ -418,7 +418,7 @@
 
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="./"><span class="mark"><i></i></span><span class="full">MPC 3 Community Edition</span><span class="short">MPC 3 CE</span> <span class="tag">v0.3.0-rc.1</span></a>
+    <a class="brand" href="./"><span class="mark"><i></i></span><span class="full">MPC 3 Community Edition</span><span class="short">MPC 3 CE</span> <span class="tag">v0.3.0</span></a>
     <nav aria-label="Site">
       <a class="opt2" href="guide.html">X-Touch guide</a>
       <a class="opt" href="xtouch-cheatsheet.md" download title="Download the X-Touch cheat sheet as a text file">Cheat sheet <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-1px"><path d="M12 4v12M6 11l6 6 6-6M5 21h14"/></svg></a>
@@ -437,7 +437,7 @@
     <div class="wrap">
       <h1>More control for your MPC.</h1>
       <div class="hero-row">
-        <p class="lead">Motor faders, mouse editing and easier note selection for your MPC Live II. Free community firmware, built in your browser from Akai's 3.9.1 update.</p>
+        <p class="lead">Motor faders, Launchpad clips and drums, XL3 mixing, and touchscreen Pd and Cardinal for your MPC Live II. Free community firmware, built in your browser from Akai's 3.9.1 update.</p>
         <div class="ctas">
           <a class="btn primary" href="builder.html">Build your image</a>
           <a class="btn" href="#get">How it works</a>
@@ -487,6 +487,19 @@
         <a href="guide.html">Setup &amp; controls</a>
         <a href="xtouch-cheatsheet.md" download>Cheat sheet</a>
       </div>
+    </div>
+  </section>
+
+  <section class="section" id="controllers">
+    <div class="wrap">
+      <h2>Clips, drums and modular patches.</h2>
+      <ul class="res">
+        <li><a href="https://github.com/zsoltf/mpc-3-community-edition/blob/main/docs/controller-programs.md"><strong>Launchpad X &amp; Pro Mk3</strong><span>Launch clips, scenes and Arrangement. Edit drum steps; use two Launchpads for clips and drums together.</span></a></li>
+        <li><a href="https://github.com/zsoltf/mpc-3-community-edition/blob/main/docs/controller-programs.md"><strong>Launch Control XL3</strong><span>Mix tracks and drum pads, adjust sends, Q-Links and effects. Play starts, pauses and resumes with matching feedback.</span></a></li>
+        <li><a href="https://github.com/zsoltf/mpc-3-community-edition/blob/main/firmware/plugin-setup/README.md"><strong>Pd &amp; Cardinal Synth/FX</strong><span>Edit patches on the touchscreen and recall them with your project. Copy the matching plugin bundle to your SD card.</span></a></li>
+      </ul>
+      <p>More MCU/HUI and Akai profiles are available. Hardware coverage varies; follow the <a href="https://github.com/zsoltf/mpc-3-community-edition/blob/main/docs/controller-programs.md">controller setup guide</a>.</p>
+      <p class="small">Cardinal MIDI and Terrorform use up to four voices. Demanding patches can still overload audio; avoid the Waves example. Other MPC models and wider reconnect, concurrent-use and long-session audio behavior remain untested.</p>
     </div>
   </section>
 
@@ -543,10 +556,10 @@
   <section class="section" id="learn">
     <div class="wrap feature">
       <div class="copy">
-        <span class="soon"><i aria-hidden="true"></i>Coming soon</span>
+        <span class="soon">Included</span>
         <h2>Global MIDI Learn.</h2>
         <p>Pick an MPC function, move a knob on your MIDI controller, and it's mapped. In every project, set up on the MPC itself.</p>
-        <p class="small">A preview of the idea. The finished screen may look different.</p>
+        <p class="small">Open Global MIDI Learn from the MPC menu. This interactive preview illustrates the mapping gesture.</p>
       </div>
       <div>
         <div class="ld">
@@ -564,7 +577,7 @@
       <ol class="steps">
         <li><h3>Build it in your browser</h3><p>Open the image builder and choose Akai's official <code>MPC-3.9.1-Gen1-update.img</code>. The image is made on your computer. Nothing is uploaded.</p></li>
         <li><h3>Copy it to a USB drive</h3><p>Put the saved image at the top of the drive, on its own, with its filename unchanged.</p></li>
-        <li><h3>Update the MPC</h3><p>Back up your projects, connect the power adapter and run <b>USB Drive Update</b> from Preferences &gt; Info &gt; Update. Your settings and projects are kept.</p></li>
+        <li><h3>Update the MPC</h3><p>Back up your projects, connect the power adapter and run <b>USB Drive Update</b> from Preferences &gt; Info &gt; Update. Your settings and projects are kept. Download and unzip the <a href="https://github.com/zsoltf/mpc-3-community-edition/releases/tag/v0.3.0">matching SD plugin ZIP</a>. With the MPC off, copy its <code>MPCLEARN</code> folder to the SD card root for Pd and Cardinal.</p></li>
       </ol>
       <div class="get-cta">
         <a class="btn primary" href="builder.html">Build your image</a>
@@ -580,7 +593,7 @@
       </ul>
       <dl class="req">
         <div><dt>MPC Live II on firmware 3.9.1</dt><dd>Other Gen1 MPCs are untested. Gen2 and Force are not supported.</dd></div>
-        <div><dt>Full-size X-Touch for controller features</dt><dd>In MC mode over USB, plugged straight into the MPC. In Preferences &gt; MIDI/Sync, turn off Track, Global and Control for <code>X-TOUCH_INT</code>.</dd></div>
+        <div><dt>Choose your controller</dt><dd>Full-size X-Touch MC/USB, Launchpad X or Pro Mk3, and Launch Control XL3 have device-tested features. See the <a href="https://github.com/zsoltf/mpc-3-community-edition/blob/main/docs/controller-programs.md">guide</a> for modes, routing and other profiles.</dd></div>
         <div><dt>No controller? Still useful</dt><dd>The USB mouse and Shift+wheel note selection work on their own.</dd></div>
       </dl>
     </div>
