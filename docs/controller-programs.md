@@ -1,27 +1,45 @@
 # Controller programs and modes
 
-Choose the matching CE profile in MPC Preferences > CONTROLLERS, select the
-exact From Controller and To Controller ports, and save it. Akai profiles use
-an explicit saved program on the controller. They do not recognize factory
-presets, upload programs, change modes, or send LED feedback. Use a copy of your
-musical program and select it on the controller before enabling its CE row.
+## Connect a controller
+
+1. Set the device mode and its MPC MIDI/Sync input as listed below.
+2. Plug it in, open Preferences > CONTROLLERS and press **Detect**. Detect adds
+   every connected controller marked "Detect" that is not listed yet, and says
+   what it added. It never changes or removes existing rows.
+3. For other controllers press **Add**, choose the profile, the From and To
+   ports, then **Apply**.
+
+To switch, select a row: **Edit** changes its profile or ports, **Disable**
+pauses it, **Remove** deletes it. A new install starts with the full X-Touch.
+The page lists up to 12 external MIDI ports; each input or output port of every
+connected MIDI device counts. With more connected, unplug a device to add or
+edit controllers.
+
+| Controller | Profile | From / To port | Device mode | MIDI/Sync input for that port |
+| --- | --- | --- | --- | --- |
+| X-Touch (Detect) | X-Touch | `X-TOUCH_INT` | MC over USB | Track, Global, Control off |
+| X-Touch Mini (Detect) | X-Touch Mini | `X-TOUCH MINI MIDI 1` | MC (hold MC while connecting) | Track, Global, Control off |
+| Launchpad X (Detect) | Launchpad X | `LPX MIDI In` | Programmer, set by CE | Track, Global, Control off |
+| Launchpad Pro Mk3 (Detect) | Launchpad Pro Mk3 | `LPProMK3 MIDI` | Programmer, set by CE | Track, Global, Control off |
+| Launch Control XL 3 (Detect) | Launch Control XL 3 | `LCXL3 1 DAW In` | DAW, set by CE | Track, Global, Control off |
+| MPK mini mk3, LPD8 Mk2 | MPK Mini Mk3, LPD8 Mk2 | its USB port | CE program loaded | Unchanged |
+| MPK249 | MPK249 | `Port A` (or `Port B`) | CE program, transport MMC | Receive MMC off |
+| Other MCU or HUI surface | Generic MCU, Generic HUI | its MCU/HUI port | MCU or HUI | Track, Global, Control off |
+
+Akai profiles use an explicit saved program on the controller. They do not
+recognize factory presets, upload programs, change modes, or send LED feedback.
+Use a copy of your musical program and select it on the controller before
+enabling its CE row.
 
 Keep keyboard/pad notes and sequencer clock routed normally. Do not assign the
 same CE control messages in MPC Global MIDI Learn: that would apply two actions.
 An absolute knob/fader takes control when it reaches or crosses the MPC value.
 Changing layer, bank, project, or connection requires pickup again.
 
-The [offline program tools](../controllers/program-tools/README.md) can patch
-supported original program files to these assignments and produce an exact
-change report. They do not send programs to a controller. Keep the original
-file; the tool guide identifies each output format and its loading method.
-
 ## Launchpad X and Launchpad Pro Mk3
 
-Choose LAUNCHPAD X PROGRAMMER or LAUNCHPAD PRO MK3 PROG in CONTROLLERS.
-Choose the ordinary MIDI input/output pair, not the DAW pair: LPX MIDI on X,
-LPProMK3 MIDI on Pro. Windows orders X's ordinary pair second and Pro's first;
-MPC names must be selected from its actual port list.
+Detect, or Add with the Launchpad X or Launchpad Pro Mk3 profile, uses the
+ordinary MIDI pair, not the DAW pair: LPX MIDI on X, LPProMK3 MIDI on Pro.
 
 In MPC MIDI/Sync, turn **Track, Control and Global off for that selected
 Launchpad input**. CE subscribes to the port independently. Track input can
@@ -37,14 +55,23 @@ The separate DAW-enable flag is never changed. Unplugging can prevent restoratio
 On Pro, Note, Chord and standalone sequencer controls are unavailable while
 Programmer is active. LPX Legacy mode is not covered by the documented readback.
 
+Both Launchpads have the same three views. **Session** shows MPC's clips, the
+step-view button (**Note** on X, **Sequencer** on Pro) shows the drum step
+sequencer, and **Custom** shows the mixer pages: Volume, Pan, Sends and Device
+(Q-Links), and on X also the mixer grid. Custom reopens the page used last.
+Only buttons that do something in the current view are lit.
+
 Press **Session** for MPC's Clip Matrix. The grid shows eight tracks across
 and eight rows down. The first page shows Arrangement, then scenes 1-7; the
 next page starts at scene 8. Left/Right pages tracks; Up/Down pages rows. Press
 a slot to launch it, or a right-side button to launch that whole row, using
-MPC's launch quantization. Arrangement uses MPC's current Sequence.
+MPC's launch quantization. Arrangement uses MPC's current Sequence. Pressing a
+clip also selects it in MPC, so a step view opened next shows that clip.
+Pressing a playing clip follows its MPC Launch Mode (Clip Settings): Trigger
+restarts it, Toggle stops it.
 
-Hold **Capture MIDI** on X, or **Projects** on Pro, and press a slot to stop
-its track. Hold that modifier and press a scene button to stop tracks currently
+Hold **Capture MIDI** on X, or **Projects** or **Stop Clip** on Pro, and press
+a slot to stop its track. Hold that modifier and press a scene button to stop tracks currently
 playing or queued in that scene, including tracks outside the visible eight.
 MPC stops per track: this also cancels another queued transition on those
 participating tracks.
@@ -55,56 +82,77 @@ its quantization, fixed-length and Record To settings; finishing may continue
 playing or overdubbing according to those settings. A pending recording action
 is not a request to toggle it again. Arrangement is not a recordable clip slot.
 
-Clip colors follow MPC: dim white is empty, purple is occupied/stopped, green
-is playing, red is recording, and amber is overdubbing or stopping. Flashing
-indicates a queued change; recording and overdubbing pulse. Unavailable slots
-stay dark. Scene lights use the whole native scene, including offscreen tracks.
+Clip lights, including the Arrangement row, follow the MPC clip launcher: empty
+slots are off, a clip with content shows its MPC track colour, and the playing
+clip pulses white. A queued launch flashes white against the track colour; a
+queued stop flashes white. Recording pulses red and overdubbing pulses amber;
+their queued changes flash. Unavailable slots stay dark. Scene buttons show blue
+for ready and green for playing; empty scenes are off. Scene lights use the whole native scene, including offscreen tracks.
 
-Hold Capture MIDI/Projects and press Session to enter the **mixer**. On X,
-Left/Right (CC93/94) bank eight tracks. Its right column selects Volume, Pan,
-Send 1, Q-Link, mixer grid, Play, Stop and Record. In Q-Link, Up/Down select
-Q-Links 1-8 / 9-16.
+On X, press **Custom** for the mixer pages. Left/Right (CC93/94) bank eight
+tracks. The right column selects Volume, Pan, Send 1, Device (Q-Links) and the
+mixer grid, lit green for the current page, then Play, Stop and Record. The
+mixer grid's bottom four rows are Select, Mute, Solo and Arm for eight tracks,
+and its top four rows are volume. In Device, Up/Down select Q-Links 1-8 / 9-16.
 
-On Pro, the bottom Volume, Pan, Sends and Device buttons select those layers;
-Arm, Mute and Solo return to the mixer grid. Left/Right bank mixer tracks.
+On Pro, press **Custom**, or a bottom Volume, Pan, Sends or Device button, for
+the mixer pages; the current page is lit green. Left/Right bank mixer tracks.
+The row of eight Track Select buttons under the grid acts on the eight tracks
+shown: the clip columns in the clip grid, or the mixer bank. On its own it
+selects a track (the selected track is white). **Record Arm**, **Mute**,
+**Solo** and, in the clip grid, **Stop Clip** turn it into arm, mute, solo or
+stop buttons for those tracks: tap the mode button to keep it, tap it again to
+return to Select, or hold it for a moment. Armed tracks show red, muted amber,
+soloed blue and tracks with a playing clip green. The grid stays as it is.
 The left Play button starts playback, pauses it in place when already playing,
-and resumes on the next press. Record controls recording; bottom Stop Clip stops
-MPC. In Q-Link, the left Up/Down buttons select Q-Links 1-8 / 9-16.
+and resumes on the next press. Record controls recording. Stop Clip never stops MPC:
+in the clip grid hold it and press a slot or scene; in a drum view press it to
+stop the track of the clip open there. Stop MPC with Play or on the MPC. In
+Device, the left Up/Down buttons select Q-Links 1-8 / 9-16.
 
-For drum steps, select a Drum track in MPC. X Note enters a 64-step view for
-one sound; X Custom enters a 16-step view for four sounds. Pro Sequencer enters
-the 64-step view and binds the currently selected Drum track and clip on every
-press; its right-side Steps button switches between the two views.
-Session returns to clips. Entering a drum view binds that Launchpad to the
-selected native drum track and clip. It keeps that target, sound and time page
-while the other surface launches clips or MPC selects another track. Using
-Pro Steps or X Note/Custom to switch between the two drum views keeps the binding. Deleting or replacing its
-track/clip clears it.
+For drum steps, select a Drum track in MPC. The step-view button is Note on X
+and Sequencer on Pro. It opens a drum view: 64 steps for one sound,
+or 16 steps for four sounds. Press it again in a drum view to switch between
+the two; Pro's right-side Steps button switches them too. A Launchpad reopens
+the view it used last. Session returns to clips. Entering a drum view binds that
+Launchpad to the selected native drum track and clip. It keeps that target,
+sound and time page while the other surface launches clips or MPC selects
+another track. Switching between the two drum views keeps the binding.
+Deleting or replacing its track/clip clears it.
+
+To program a clip without launching it, hold the step-view button and press the
+clip in the clip grid. The MPC selects that clip and this Launchpad opens its
+drum view on it. Picking an empty slot creates a new empty clip there, at MPC's
+new-clip length, and opens it; playback continues. To program it from the
+other Launchpad, press that one's step-view button. In the clip grid these
+buttons open their view when released.
 
 To change the MPC track or clip being sequenced:
 
-1. Select the new Drum track and clip on the MPC.
-2. On Pro, press Sequencer. This resets the sound and time page to the selected
-   native target. On X, press Session, then Note or Custom.
+1. Select the new Drum track and clip on the MPC, or pick it as above.
+2. Press Session, then the step-view button. This resets the sound and time
+   page to the selected native target.
 
 Up/Down changes drum sounds within the bound track; it does not select another
-MPC track. Pro Steps keeps the existing target, sound and time page. The XL3
-Pad mixer follows the selected Drum program separately.
+MPC track. The XL3 Pad mixer follows the selected Drum program separately.
 
 Read the step grid from top left to bottom right. The single-sound view uses
 all eight rows for steps 1-64. The four-sound view uses two rows per sound,
 16 steps each. Up/Down moves the sound, or four-sound group; Left/Right moves
 by the displayed number of steps. Step duration follows MPC's time-correction
 setting. Press a pad to add or remove a native MPC note; MPC Undo/Redo applies.
-Lit pads show native steps in a stable CE colour for each drum slot, shared
-between X/Pro and both views. The palette repeats every 16 pads; it does not
-match MPC custom pad colours. The separate moving highlight follows playback.
+Step colours identify the drum sound: each drum slot has its own fixed CE
+colour, shared between X/Pro and both views, so the four-sound view shows four
+colours. The palette repeats every 16 pads; it does not match MPC custom pad
+colours. The separate moving highlight follows playback.
 Inactive steps stay dark except at the playhead; unavailable cells always stay
 dark. The MPC screen can remain on Main while editing.
 
-In Volume, Pan, Send and Q-Link layers, each grid column controls one parameter;
+In Volume, Send and Q-Link layers, each grid column controls one parameter;
 the eight pads from bottom to top set levels from 0 to 127 in seven equal
-steps. The mixer grid uses the bottom four rows for Select, Mute, Solo and Arm,
+steps. Pan is centred: the two middle pads set exact centre, the pads below
+pan left and the pads above pan right, and the column lights outward from the
+centre (white at exact centre). The X mixer grid uses the bottom four rows for Select, Mute, Solo and Arm,
 and the top four rows for volume 0%, 33%, 67% and 100%. Available values and
 mixer states appear on the grid; unavailable controls stay dark. These are CE
 grid layers, not the hardware DAW fader engine. Buttons and grid positions use
@@ -112,9 +160,9 @@ the official Programmer addresses: grid Note11-88, right CC89 down to19.
 
 ## Launch Control XL 3
 
-Choose LAUNCH CONTROL XL 3 DAW and its dedicated DAW input/output pair in
-CONTROLLERS. Turn Track, Control and Global input off for this DAW port in MIDI/Sync;
-leave its Custom/musical ports unchanged. CE enters DAW Mixer mode. To change modes, press Mode, choose
+Detect, or Add with the Launch Control XL 3 profile, uses its DAW pair. Turn
+Track, Control and Global input off for this DAW port in MIDI/Sync; leave its
+Custom/musical ports unchanged. CE enters DAW Mixer mode. To change modes, press Mode, choose
 the button labelled DAW Mixer or DAW Control, then press Mode again.
 
 | Control | DAW Mixer | DAW Control |
@@ -126,8 +174,11 @@ the button labelled DAW Mixer or DAW Control, then press Mode again.
 | Track arrows | Previous/next eight tracks | Previous/next eight tracks |
 | Page arrows | Unassigned | Previous/next control page |
 
-In DAW Mixer, hold **Shift** and press **Solo/Arm** to switch between Track
-and Pad mixer. Pad mixer follows the selected Drum program: faders change pad
+In DAW Mixer, hold **Shift** and press a track's lower-row button to select
+that MPC track. A Drum track opens the Pad mixer on its pads; any other track
+returns to the Track mixer. While Shift is held, the lower row shows the
+current eight tracks, with the selected track green. Hold **Shift** and press
+**Solo/Arm** to switch between Track and Pad mixer. Pad mixer follows the selected Drum program: faders change pad
 volume, the bottom encoders change pan, and the two button rows are Solo and
 Mute. Track arrows bank through all 128 pads. Fader labels show `Pad A01` through
 `Pad H16`, and Solo/Arm changes colour in Pad mixer. Unsupported pad sends stay
@@ -144,7 +195,8 @@ dark in Control mode.
 Solo/Arm switches the upper button row between those actions. Mute/Select
 switches the lower row. The buttons' lights follow MPC state. Play starts, pauses
 in place, and resumes playback; Record controls recording. Faders use pickup;
-encoders act relatively.
+encoders act relatively. In Track mixer, each column's knob lights show that
+track's MPC colour; Pad mixer and Control pages keep their fixed colours.
 
 The display shows control names and values on a 0-127 scale. Hold Shift and
 turn a control to preview it. An unavailable encoder value shows `-`.
@@ -155,7 +207,7 @@ unplugging first can prevent that exit.
 
 | Setting | MPK mini mk3 | LPD8 Mk2 |
 | --- | --- | --- |
-| Profile | MPK MINI MK3 CE | LPD8 MK2 CE |
+| Profile | MPK Mini Mk3 | LPD8 Mk2 |
 | Eight knobs | Absolute CC70-77, min 0, max 127 | CC70-77, min 0, max 127 |
 | Knob channel | Keybed / Controls channel 1 | Knobs channel 16 |
 | Optional eight pad CCs | Bank A CC40-47 | CC40-47 |

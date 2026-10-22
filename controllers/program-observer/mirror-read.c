@@ -39,7 +39,10 @@ static void copy_meter(const MeterState *s,unsigned id,const CopiedMirror *snaps
   if(rev!=atomic_load_explicit(&p->revision,memory_order_relaxed)||ps!=sub||ep!=snapshot->epoch||tick>snapshot->heartbeat||snapshot->heartbeat-tick>=250)continue;
   float left,right;memcpy(&left,&l,4);memcpy(&right,&r,4);if(!isfinite(left)||!isfinite(right)||left<0||right<0||enabled>1)continue;
   if(!chosen||tick>out->tick){chosen=1;ambiguous=0;out->tick=tick;out->token=tp;out->left=l;out->right=r;out->revision=rev;out->enabled=enabled;out->site=site;}
-  else if(tick==out->tick&&(l!=out->left||r!=out->right||enabled!=out->enabled))ambiguous=1;
+  /* Audio worker threads share a track: two lanes in the same tick are both
+   * real envelopes, so the meter shows their peak. Only a disagreement about
+   * enable remains ambiguous. */
+  else if(tick==out->tick){float ol,or_;memcpy(&ol,&out->left,4);memcpy(&or_,&out->right,4);if(left>ol)out->left=l;if(right>or_)out->right=r;if(enabled!=out->enabled)ambiguous=1;}
  }
  out->available=chosen&&!ambiguous&&out->enabled&&atomic_load(&m->live)&&sub==atomic_load_explicit(&m->subscription,memory_order_acquire);
 }

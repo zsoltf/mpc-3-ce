@@ -13,7 +13,10 @@
 enum {CLIP_NO_SLOT,CLIP_EMPTY,CLIP_READY,CLIP_WILL_PLAY,CLIP_PLAYING,
  CLIP_WILL_STOP_PLAYING,CLIP_WILL_RECORD,CLIP_RECORDING,CLIP_WILL_STOP_RECORDING,
  CLIP_WILL_OVERDUB,CLIP_OVERDUBBING,CLIP_WILL_STOP_OVERDUBBING};
-enum {CLIP_LAUNCH=1,CLIP_STOP,CLIP_RECORD_TOGGLE,CLIP_SCENE_LAUNCH,CLIP_SCENE_STOP};
+/* CLIP_SELECT makes a slot the MPC's selected clip (and current track)
+ * without launching it; step views bind that selection on their next entry. */
+enum {CLIP_LAUNCH=1,CLIP_STOP,CLIP_RECORD_TOGGLE,CLIP_SCENE_LAUNCH,CLIP_SCENE_STOP,CLIP_SELECT};
+static inline int clip_scene_intent(unsigned intent){return intent==CLIP_SCENE_LAUNCH||intent==CLIP_SCENE_STOP;}
 enum {CLIP_SOURCE_OFF,CLIP_SOURCE_READY,CLIP_SOURCE_UNAVAILABLE};
 typedef struct {uint32_t state,identity;} ClipCell;
 typedef struct {

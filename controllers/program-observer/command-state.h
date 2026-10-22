@@ -36,9 +36,11 @@ static inline const char *command_error_name(unsigned code){
 }
 enum {CA_NONE,CA_ENROLL_INCREMENT,CA_ENROLL_DECREMENT,CA_LANE_GUARD,CA_CONSTRUCTOR_OWNER,CA_SOURCE_REENTRY};
 static inline uint32_t command_admission_detail(unsigned guard,unsigned result,unsigned site){return (site<<16)|(guard<<8)|(result&255u);}
-enum {JOG_BAR=CF_COUNT,JOG_BEAT,JOG_PULSE,GLOBAL_SAVE,GLOBAL_ZOOM_IN,GLOBAL_ZOOM_OUT,GLOBAL_ZOOM_UP,GLOBAL_ZOOM_DOWN,GLOBAL_KEY_ENTER,GLOBAL_KEY_CANCEL,GLOBAL_KEY_LEFT,GLOBAL_KEY_UP,GLOBAL_KEY_RIGHT,GLOBAL_KEY_DOWN,GLOBAL_RECORD_TOGGLE,GLOBAL_CLICK_TOGGLE,GLOBAL_LOOP_TOGGLE,GLOBAL_PAGE_MAIN,GLOBAL_PAGE_ARRANGE,GLOBAL_PAGE_CLIP,GLOBAL_PAGE_MIX,GLOBAL_PAGE_PAD_MIX,GLOBAL_PAGE_TRACK_EDIT,GLOBAL_PAGE_SAMPLE_EDIT,GLOBAL_PAGE_STEP,EFFECT_PARAMETER,EFFECT_ENABLE,QLINK_VALUE,QLINK_MODE,IO_PARAMETER,EFFECT_CHOOSER,GLOBAL_TRACK_TYPE,GLOBAL_TRACK_NEW,GLOBAL_PLAY,GLOBAL_STOP,GLOBAL_UNDO,GLOBAL_REDO,JOG_DATA,GLOBAL_KEY_TAB,GLOBAL_KEY_BACKTAB,JOG_PRESS,GLOBAL_SEQ_DUPLICATE,NOTE_SELECT,GLOBAL_RECORD_ENABLE,STEP_TOGGLE,CLIP_ACTION};
+enum {JOG_BAR=CF_COUNT,JOG_BEAT,JOG_PULSE,GLOBAL_SAVE,GLOBAL_ZOOM_IN,GLOBAL_ZOOM_OUT,GLOBAL_ZOOM_UP,GLOBAL_ZOOM_DOWN,GLOBAL_KEY_ENTER,GLOBAL_KEY_CANCEL,GLOBAL_KEY_LEFT,GLOBAL_KEY_UP,GLOBAL_KEY_RIGHT,GLOBAL_KEY_DOWN,GLOBAL_RECORD_TOGGLE,GLOBAL_CLICK_TOGGLE,GLOBAL_LOOP_TOGGLE,GLOBAL_PAGE_MAIN,GLOBAL_PAGE_ARRANGE,GLOBAL_PAGE_CLIP,GLOBAL_PAGE_MIX,GLOBAL_PAGE_PAD_MIX,GLOBAL_PAGE_TRACK_EDIT,GLOBAL_PAGE_SAMPLE_EDIT,GLOBAL_PAGE_STEP,EFFECT_PARAMETER,EFFECT_ENABLE,QLINK_VALUE,QLINK_MODE,IO_PARAMETER,EFFECT_CHOOSER,GLOBAL_TRACK_TYPE,GLOBAL_TRACK_NEW,GLOBAL_PLAY,GLOBAL_STOP,GLOBAL_UNDO,GLOBAL_REDO,JOG_DATA,GLOBAL_KEY_TAB,GLOBAL_KEY_BACKTAB,JOG_PRESS,GLOBAL_SEQ_DUPLICATE,NOTE_SELECT,GLOBAL_RECORD_ENABLE,STEP_TOGGLE,CLIP_ACTION,STEP_STOP};
 static inline int command_clip(unsigned op){return op==CLIP_ACTION;}
-static inline int command_step(unsigned op){return op==STEP_TOGGLE;}
+/* STEP_TOGGLE edits one drum step; STEP_STOP stops the track of a bound step
+ * view's clip (Pro Stop Clip) with MPC's per-track stop. */
+static inline int command_step(unsigned op){return op==STEP_TOGGLE||op==STEP_STOP;}
 static inline int command_chooser(unsigned op){return op==EFFECT_CHOOSER;}
 static inline int command_io(unsigned op){return op==IO_PARAMETER;}
 static inline int command_qlink_mode(unsigned op){return op==QLINK_MODE;}
@@ -344,10 +346,11 @@ static inline int command_writer_shut(CommandState *s){
  return atomic_compare_exchange_weak_explicit(&s->external_gate,&idle,2,memory_order_seq_cst,memory_order_seq_cst);
 }
 static inline int command_step_format(const CommandRequest *r){
+ if(r->reserved==STEP_STOP&&(!r->effect_slot||r->bits!=1||r->before_bits))return 0;
  return command_step(r->reserved)&&r->bits<=1&&r->before_bits<=1&&r->bits!=r->before_bits&&r->epoch&&r->serial&&r->binding&&r->incarnation&&r->project_owner&&r->track_owner&&r->program_owner&&r->pad_index<128&&r->qlink_root&&r->qlink_wrapper&&r->qlink_provider&&r->qlink_generation&&r->effect_generation&&r->effect_ap<128&&r->effect_slot<=STEP_VIEWS&&!r->before_revision&&!r->pad_owner&&!r->global_owner&&!r->field_incarnation&&!r->pad_generation&&!r->io_generation&&!r->io_choice_generation&&!r->io_field&&!r->io_connector;
 }
 static inline int command_clip_format(const CommandRequest *r){
- return command_clip(r->reserved)&&r->bits>=CLIP_LAUNCH&&r->bits<=CLIP_SCENE_STOP&&r->before_bits<=CLIP_WILL_STOP_OVERDUBBING&&r->epoch&&r->project_owner&&r->qlink_root&&(r->effect_index||r->bits!=CLIP_RECORD_TOGGLE)&&r->pad_index<128&&(!r->track_owner?r->bits>=CLIP_SCENE_LAUNCH:1)&&!r->serial&&!r->binding&&!r->incarnation&&!r->program_owner&&!r->before_revision&&!r->pad_owner&&!r->global_owner&&!r->field_incarnation&&!r->pad_generation&&!r->effect_slot&&!r->effect_key&&!r->effect_ap&&!r->effect_position&&!r->qlink_wrapper&&!r->qlink_provider&&!r->qlink_generation&&!r->qlink_index&&!r->io_generation&&!r->io_choice_generation&&!r->io_field&&!r->io_connector;
+ return command_clip(r->reserved)&&r->bits>=CLIP_LAUNCH&&r->bits<=CLIP_SELECT&&r->before_bits<=CLIP_WILL_STOP_OVERDUBBING&&r->epoch&&r->project_owner&&r->qlink_root&&(r->effect_index||r->bits!=CLIP_RECORD_TOGGLE)&&r->pad_index<128&&(!r->track_owner?clip_scene_intent(r->bits):1)&&!r->serial&&!r->binding&&!r->incarnation&&!r->program_owner&&!r->before_revision&&!r->pad_owner&&!r->global_owner&&!r->field_incarnation&&!r->pad_generation&&!r->effect_slot&&!r->effect_key&&!r->effect_ap&&!r->effect_position&&!r->qlink_wrapper&&!r->qlink_provider&&!r->qlink_generation&&!r->qlink_index&&!r->io_generation&&!r->io_choice_generation&&!r->io_field&&!r->io_connector;
 }
 static inline int command_publish_request_at(CommandState *s,const CommandRequest *r,unsigned at){
  if(command_clip(r->reserved)){if(!command_clip_format(r))return 0;}else if(command_step(r->reserved)){if(!command_step_format(r))return 0;}else{

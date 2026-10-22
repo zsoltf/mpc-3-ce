@@ -39,8 +39,13 @@ for line in ['#define OBSERVER_LIBRARY "'+LOCATION+'/command-observer.so"', '#de
         raise SystemExit('Not built for the image location: '+line)
 if '#define NATIVE_PREFERENCES_STATE "/run/mpclearn/state/native-preferences.state"' not in config:
     raise SystemExit('Native Preferences state path is absent from the image runtime')
-if b'native_preferences_install\0' not in (source/'command-observer.so').read_bytes():
+observer = (source/'command-observer.so').read_bytes()
+if b'native_preferences_install\0' not in observer:
     raise SystemExit('Native Preferences observer is absent from the image runtime')
+# The Pd/Cardinal touch editors are compiled into the observer; a plain Native
+# Preferences build silently ships plugins without editors (rc.1 and v0.3.0).
+if args.prerelease and not all(b'\0'+api+b'\0' in observer for api in (b'mpclearn_pd_hosted_api', b'mpclearn_cardinal_touch_api')):
+    raise SystemExit('Pd/Cardinal editors are absent from the observer; build it with vst2/pd-rack-prototype/build.sh')
 output.mkdir(parents=True, exist_ok=False)
 for name in names + ['session-package.sha256']:
     shutil.copyfile(source/name, output/name)

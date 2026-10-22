@@ -1,0 +1,2 @@
+FROM mpclearn-cardinal-render-probe-build
+RUN apt-get update && apt-get install -y --no-install-recommends g++-arm-linux-gnueabihf libjansson-dev:armhf libarchive-dev:armhf make && rm -rf /var/lib/apt/lists/*

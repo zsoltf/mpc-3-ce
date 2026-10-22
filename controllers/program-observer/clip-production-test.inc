@@ -41,6 +41,27 @@ static void clip_owner_checks(void){
  require(clip_request_bind(&r,&clip_current,0,CLIP_SCENE_LAUNCH,0,0,20),"whole Arrangement row binds through native row owner");at=submit_fixture(r);require(!atomic_load(&command_state->slots[at].rejected)&&clip_fixture_emitted[clip_fixture_emits-1][0]==CLIP_SCENE_LAUNCH&&clip_fixture_emitted[clip_fixture_emits-1][2]==0,"Arrangement row launch delegates native row0 participation");atomic_store(&command_state->slots[at].settled,atomic_load(&command_state->slots[at].published));command_retire();
  clip_fixture_states[2][0]=CLIP_PLAYING;clip_fixture_states[10][0]=CLIP_WILL_PLAY;clip_fixture_states[12][1]=CLIP_PLAYING;r.bits=CLIP_SCENE_STOP;before=clip_fixture_emits;at=submit_fixture(r);require(!atomic_load(&command_state->slots[at].rejected)&&clip_fixture_emits==before+2&&clip_fixture_emitted[before][1]==2&&clip_fixture_emitted[before+1][1]==10,"Arrangement row Stop visits all and only native row0 participants");atomic_store(&command_state->slots[at].settled,atomic_load(&command_state->slots[at].published));command_retire();
  atomic_store(command_state->clip_interest.row,8);atomic_store(&fixture->heartbeat,40);clip_fixture_states[0][8]=CLIP_READY;clip_service();require(clip_current.views[0].first_row==8&&clip_current.views[0].cells[0].state==CLIP_READY&&clip_current.views[0].cells[8].state==CLIP_NO_SLOT,"continued page begins at scene8 and excludes rows beyond native extent");
+ {
+  /* Pick: CLIP_SELECT reaches only the native SelectClip facade, never a launch,
+     for clips and empty slots; it needs a real track. */
+  unsigned before=clip_fixture_emits;clip_fixture_states[0][8]=CLIP_READY;
+  require(clip_request_bind(&r,&clip_current,0,CLIP_SELECT,0,0,40)&&r.bits==CLIP_SELECT&&r.track_owner&&command_clip_format(&r),"pick binds a track-owned select request");
+  at=submit_fixture(r);require(!atomic_load(&command_state->slots[at].rejected)&&clip_fixture_emits==before+1&&clip_fixture_emitted[before][0]==CLIP_SELECT&&clip_fixture_emitted[before][1]==0&&clip_fixture_emitted[before][2]==8,"pick calls native SelectClip once with the exact column/row");
+  atomic_store(&command_state->slots[at].settled,atomic_load(&command_state->slots[at].published));command_retire();
+  clip_fixture_states[1][8]=CLIP_EMPTY;
+  require(clip_request_bind(&r,&clip_current,0,CLIP_SELECT,1,0,40),"pick on an empty slot binds");before=clip_fixture_emits;at=submit_fixture(r);
+  require(!atomic_load(&command_state->slots[at].rejected)&&clip_fixture_emits==before+2&&clip_fixture_emitted[before][0]==CLIP_EMIT_CREATE&&clip_fixture_emitted[before][1]==1&&clip_fixture_emitted[before][2]==8&&clip_fixture_emitted[before+1][0]==CLIP_SELECT&&clip_fixture_emitted[before+1][1]==1&&clip_fixture_emitted[before+1][2]==8,"picking an empty slot creates a clip there with native CreateClip, then selects it");
+  atomic_store(&command_state->slots[at].settled,atomic_load(&command_state->slots[at].published));command_retire();
+  CommandRequest arrangement=r;arrangement.effect_index=0;clip_fixture_states[1][0]=CLIP_EMPTY;before=clip_fixture_emits;at=submit_fixture(arrangement);
+  require(!atomic_load(&command_state->slots[at].rejected)&&clip_fixture_emits==before+1&&clip_fixture_emitted[before][0]==CLIP_SELECT&&!clip_fixture_emitted[before][2],"an empty Arrangement slot is only selected, never created");
+  atomic_store(&command_state->slots[at].settled,atomic_load(&command_state->slots[at].published));command_retire();clip_fixture_states[1][0]=clip_fixture_states[1][8]=0;
+  CommandRequest bad=r;bad.track_owner=0;require(!command_clip_format(&bad),"a select request without a track owner is never published");
+  bad=r;bad.pad_index=40;before=clip_fixture_emits;at=submit_fixture(bad);require(atomic_load(&command_state->slots[at].rejected)==C_IDENTITY&&clip_fixture_emits==before,"out-of-range column is refused before the native call");
+  atomic_store(&command_state->slots[at].settled,atomic_load(&command_state->slots[at].published));command_retire();
+  bad=r;bad.qlink_root^=4;before=clip_fixture_emits;at=submit_fixture(bad);require(atomic_load(&command_state->slots[at].rejected)==C_IDENTITY&&clip_fixture_emits==before,"a different lanes object is refused before the native call");
+  atomic_store(&command_state->slots[at].settled,atomic_load(&command_state->slots[at].published));command_retire();
+  puts("PASS pick: CLIP_SELECT reaches native SelectClip, an empty clip slot first gets native CreateClip (never the Arrangement row), never a launch; track, lanes and bounds refused first (native facades substituted)");
+ }
  puts("PASS native Arrangement row0 projection/launch/track-stop/whole-row participation, explicit-record refusal, stale Sequence target refusal and scene8 page boundary; native lookup/facades substituted");
  component_clip_track=NULL;component_clip_lookup=NULL;component_clip_state=NULL;component_clip_scene=NULL;component_clip_emit=NULL;free(fixture);free(command_state);fixture=NULL;command_state=NULL;mirror_state=NULL;
  puts("PASS production clip projection/command/receipt: native cell and whole-row states, exact target, explicit armed empty recording/finish, stale record refusal and all-column participant scene stop; native lookup/facades and state substituted");

@@ -59,6 +59,7 @@ static MirrorInput input={.flights=coordinator_flights};
 #include "surface-preferences.h"
 #include "mcu-controller-preferences.h"
 #include "native-preferences.h"
+#include "controller-detect.h"
 static MotorFollowing following={.enabled=1};
 static const char *preferences_path,*stop_adapter_exe;
 static uint32_t preference_notice_until;
@@ -472,6 +473,13 @@ static int native_preferences_apply(const char *state_path,const char *preferenc
    result=native_endpoint_from_request(&updated.input,updated.input_client,updated.input_port,profile,input_expected,prior?&prior->input:NULL,NATIVE_ENDPOINT_FROM_CONTROLLER,&fresh);
    if(!result)result=native_endpoint_from_request(&updated.output,updated.output_client,updated.output_port,profile,output_expected,prior?&prior->output:NULL,NATIVE_ENDPOINT_TO_CONTROLLER,&fresh);
    if(!result){updated.endpoint=updated.input;memcpy(updated.client,updated.input_client,sizeof(updated.client));memcpy(updated.port,updated.input_port,sizeof(updated.port));unsigned destination=adding?replacement.count++:controller_index;if(!mcu_controller_preference_copy(replacement.records+destination,&updated))result=NATIVE_APPLY_INVALID;}
+  }
+ }else if(!result&&kind==NATIVE_REQUEST_DETECT){
+  /* Detect only appends rows; nothing found completes without a restart. */
+  NativeEndpointInventory fresh;
+  if(!native_inventory_refresh(s,&fresh))result=fresh.overflow?NATIVE_APPLY_INVALID:NATIVE_APPLY_UNAVAILABLE;
+  else {ControllerDetectResult found=controller_detect(&replacement,fresh.rows,fresh.count);
+   if(!found.added){native_state_collection(s,&current,&fresh,s->active_controller_index);native_state_status(s,NATIVE_PREFERENCES_NONE_DETECTED,found.full,1);munmap(s,sizeof(*s));return NATIVE_APPLY_NONE;}
   }
  }else if(!result)result=NATIVE_APPLY_INVALID;
  if(result){unsigned status=result==NATIVE_APPLY_UNAVAILABLE?NATIVE_PREFERENCES_UNAVAILABLE:result==NATIVE_APPLY_AMBIGUOUS?NATIVE_PREFERENCES_AMBIGUOUS:result==NATIVE_APPLY_STALE?NATIVE_PREFERENCES_STALE:NATIVE_PREFERENCES_INVALID;native_state_status(s,status,0,1);munmap(s,sizeof(*s));return result;}
@@ -1501,11 +1509,15 @@ static void collection_step_interest(SurfaceCollection *all,const CopiedMirror *
 static void collection_interests(SurfaceCollection *all,const CopiedMirror *snapshot,uint32_t now){
  unsigned focus=all->focus;
  if(focus>=all->count||!all->surfaces[focus].seq){focus=0;while(focus<all->count&&!all->surfaces[focus].seq)focus++;}
- MirrorBank empty;bank_init(&empty);MirrorBank *bank=focus<all->count?all->banks+focus:&empty;
+ MirrorBank empty;bank_init(&empty);
  unsigned connected=focus<all->count;
  all->interest_visits++;all->interest_active=connected;
  collection_step_interest(all,snapshot,now);collection_clip_interest(all,snapshot,now);
- input_meter_interest(&input,bank,snapshot,now,connected&&mcu_has(&all->contexts[focus].controller,MCU_CAP_METERS));
+ /* Meters belong to a metered surface: input on a Launchpad or XL3 (focus)
+  * must not withdraw the X-Touch meter demand. */
+ unsigned metered=connected&&mcu_has(&all->contexts[focus].controller,MCU_CAP_METERS)?focus:all->count;
+ for(unsigned i=0;metered==all->count&&i<all->count;i++)if(all->surfaces[i].seq&&mcu_has(&all->contexts[i].controller,MCU_CAP_METERS))metered=i;
+ input_meter_interest(&input,metered<all->count?all->banks+metered:&empty,snapshot,now,metered<all->count);
  /* Each selected-context family has one shared demand. Interaction chooses
   * among competing pages, but a peer's ordinary mixer use must not revoke an
   * otherwise visible effects/Q-Link/I/O view. */

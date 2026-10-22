@@ -1,0 +1,946 @@
+{
+  "packages": [
+    {
+      "package": "dbus",
+      "version": "1.14.10-1~deb12u1",
+      "files": [
+        {
+          "name": "dbus_1.14.10-1~deb12u1.dsc",
+          "bytes": 3804,
+          "sha256": "c759e380dd595a407be70b09e8f0aecb9f86c67bf515cdc0dd629dfcac88b9cf",
+          "snapshot_sha1": "0f1ff7592336eae8bfc2b0cdd0527a2dc2cb3296",
+          "url": "https://snapshot.debian.org/file/0f1ff7592336eae8bfc2b0cdd0527a2dc2cb3296"
+        },
+        {
+          "name": "dbus_1.14.10.orig.tar.xz",
+          "bytes": 1372328,
+          "sha256": "ba1f21d2bd9d339da2d4aa8780c09df32fea87998b73da24f49ab9df1e36a50f",
+          "snapshot_sha1": "47f03306a491509cdebacded837e51b086835252",
+          "url": "https://snapshot.debian.org/file/47f03306a491509cdebacded837e51b086835252"
+        },
+        {
+          "name": "dbus_1.14.10-1~deb12u1.debian.tar.xz",
+          "bytes": 63544,
+          "sha256": "3dffba1d320ad4be65d87174953fd8a795e3de0886d01a9b85abdba8d107c810",
+          "snapshot_sha1": "74faa15cfba461acffb509c60dbcd1eddb547b88",
+          "url": "https://snapshot.debian.org/file/74faa15cfba461acffb509c60dbcd1eddb547b88"
+        },
+        {
+          "name": "dbus_1.14.10.orig.tar.xz.asc",
+          "bytes": 833,
+          "sha256": "5f292cd0603c3d736026ed3f4d1c1937847981669c1f0a389083518f013e1081",
+          "snapshot_sha1": "76219dcec55c66705eb1a311d11ced2df190758d",
+          "url": "https://snapshot.debian.org/file/76219dcec55c66705eb1a311d11ced2df190758d"
+        }
+      ]
+    },
+    {
+      "package": "fftw3",
+      "version": "3.3.10-1",
+      "files": [
+        {
+          "name": "fftw3_3.3.10-1.dsc",
+          "bytes": 2771,
+          "sha256": "5c6a64c8047e33f122fb1eebd4316178e3da86da16de70da0527906adcf22924",
+          "snapshot_sha1": "44fa7c8eeb1bdef56d5f536c6cd6075c35f9e4d0",
+          "url": "https://snapshot.debian.org/file/44fa7c8eeb1bdef56d5f536c6cd6075c35f9e4d0"
+        },
+        {
+          "name": "fftw3_3.3.10.orig.tar.gz",
+          "bytes": 4144100,
+          "sha256": "56c932549852cddcfafdab3820b0200c7742675be92179e59e6215b340e26467",
+          "snapshot_sha1": "6abe7321c8c35ef52e56e299e66a9b967baf148a",
+          "url": "https://snapshot.debian.org/file/6abe7321c8c35ef52e56e299e66a9b967baf148a"
+        },
+        {
+          "name": "fftw3_3.3.10-1.debian.tar.xz",
+          "bytes": 14520,
+          "sha256": "a19c2fa4eebb123626a8df89387e3437369d234f68799d3b2c0c9fb84b9ca875",
+          "snapshot_sha1": "d1a158099a46c6010a09c097c89bc90d150ae961",
+          "url": "https://snapshot.debian.org/file/d1a158099a46c6010a09c097c89bc90d150ae961"
+        }
+      ]
+    },
+    {
+      "package": "flac",
+      "version": "1.4.2+ds-2",
+      "files": [
+        {
+          "name": "flac_1.4.2+ds-2.debian.tar.xz",
+          "bytes": 18820,
+          "sha256": "8e3132e8e4a6e459c5a360c8a7e85c2aa6e2a0612687ef124ff65bcae82e90d8",
+          "snapshot_sha1": "2cbe457ef5bc174e78626f374fe3861cd7946ef2",
+          "url": "https://snapshot.debian.org/file/2cbe457ef5bc174e78626f374fe3861cd7946ef2"
+        },
+        {
+          "name": "flac_1.4.2+ds.orig.tar.xz",
+          "bytes": 792804,
+          "sha256": "47274ac8fcb1f0e6caa91d29f943925d7a40c0a3f6357c3275773bdb1ee46638",
+          "snapshot_sha1": "3faf3a5be50d669f23b4389fe5b317cf39ff2b65",
+          "url": "https://snapshot.debian.org/file/3faf3a5be50d669f23b4389fe5b317cf39ff2b65"
+        },
+        {
+          "name": "flac_1.4.2+ds-2.dsc",
+          "bytes": 2278,
+          "sha256": "2f855e77c68e3e9818b47553bb4f33918fb558fe9cf58b30a089a99f811d3beb",
+          "snapshot_sha1": "63a0b5e79998093ce5bc0aeeb6944333837bbaa1",
+          "url": "https://snapshot.debian.org/file/63a0b5e79998093ce5bc0aeeb6944333837bbaa1"
+        }
+      ]
+    },
+    {
+      "package": "jansson",
+      "version": "2.14-2",
+      "files": [
+        {
+          "name": "jansson_2.14-2.debian.tar.xz",
+          "bytes": 5428,
+          "sha256": "e89fe4fd8221f6934ddb50f2e7f8404311928d0e23e49a5599f3d3d14ee8cb88",
+          "snapshot_sha1": "b397245e2b8f4d63b4c67aa3910dfaea2332bbde",
+          "url": "https://snapshot.debian.org/file/b397245e2b8f4d63b4c67aa3910dfaea2332bbde"
+        },
+        {
+          "name": "jansson_2.14.orig.tar.gz",
+          "bytes": 141500,
+          "sha256": "c739578bf6b764aa0752db9a2fdadcfe921c78f1228c7ec0bb47fa804c55d17b",
+          "snapshot_sha1": "c3c2b631864eca28de482e51fc027c9cd276eb67",
+          "url": "https://snapshot.debian.org/file/c3c2b631864eca28de482e51fc027c9cd276eb67"
+        },
+        {
+          "name": "jansson_2.14-2.dsc",
+          "bytes": 1980,
+          "sha256": "6296ddd9c0a022bd1b70074aefb171cfcdf5694a04ffd32b35fd66097621af87",
+          "snapshot_sha1": "df50de4d44356365157a2eac0212042e76a6e9c8",
+          "url": "https://snapshot.debian.org/file/df50de4d44356365157a2eac0212042e76a6e9c8"
+        }
+      ]
+    },
+    {
+      "package": "lame",
+      "version": "3.100-6",
+      "files": [
+        {
+          "name": "lame_3.100.orig.tar.gz",
+          "bytes": 1524133,
+          "sha256": "ddfe36cab873794038ae2c1210557ad34857a4b6bdc515785d1da9e175b1da1e",
+          "snapshot_sha1": "64c53b1a4d493237cef5e74944912cd9f98e618d",
+          "url": "https://snapshot.debian.org/file/64c53b1a4d493237cef5e74944912cd9f98e618d"
+        },
+        {
+          "name": "lame_3.100-6.debian.tar.xz",
+          "bytes": 13320,
+          "sha256": "35c6af528d139737c8beede450ad99fe0c1f1764455d23321038b5c4a2b4574c",
+          "snapshot_sha1": "65c102aac85223b6fceb9c80097730ab0eb0f39c",
+          "url": "https://snapshot.debian.org/file/65c102aac85223b6fceb9c80097730ab0eb0f39c"
+        },
+        {
+          "name": "lame_3.100-6.dsc",
+          "bytes": 2168,
+          "sha256": "6a402771625fa80785a2b904697ba9c7e74a1ee4fa536354e9e88f08e2a4073b",
+          "snapshot_sha1": "e995a6f94d902e5b3e682d42650c6b37057e323e",
+          "url": "https://snapshot.debian.org/file/e995a6f94d902e5b3e682d42650c6b37057e323e"
+        }
+      ]
+    },
+    {
+      "package": "libbsd",
+      "version": "0.11.7-2",
+      "files": [
+        {
+          "name": "libbsd_0.11.7.orig.tar.xz.asc",
+          "bytes": 833,
+          "sha256": "b470d3fa5ad6948de7a85891e652970828f26eb7057028d57b94fa8644af934a",
+          "snapshot_sha1": "311622ec83d75cdc814c9d985bb1647b029e4ae1",
+          "url": "https://snapshot.debian.org/file/311622ec83d75cdc814c9d985bb1647b029e4ae1"
+        },
+        {
+          "name": "libbsd_0.11.7-2.dsc",
+          "bytes": 2330,
+          "sha256": "21c62d65fa3b914d765b733fb0e03d331db830df45f1a5225f95902567f05146",
+          "snapshot_sha1": "b8272889333ca62e77a614e8d328ab5a146280c5",
+          "url": "https://snapshot.debian.org/file/b8272889333ca62e77a614e8d328ab5a146280c5"
+        },
+        {
+          "name": "libbsd_0.11.7.orig.tar.xz",
+          "bytes": 418508,
+          "sha256": "9baa186059ebbf25c06308e9f991fda31f7183c0f24931826d83aa6abd8a0261",
+          "snapshot_sha1": "e5f5fffcc2094661a105074c1538f1e434990490",
+          "url": "https://snapshot.debian.org/file/e5f5fffcc2094661a105074c1538f1e434990490"
+        },
+        {
+          "name": "libbsd_0.11.7-2.debian.tar.xz",
+          "bytes": 18116,
+          "sha256": "e588e52a99415226767362637071764ebfaf454450bda64d53652e7a451d3e67",
+          "snapshot_sha1": "f7a236f1a82b413e470705c2fc4025ad4646df3e",
+          "url": "https://snapshot.debian.org/file/f7a236f1a82b413e470705c2fc4025ad4646df3e"
+        }
+      ]
+    },
+    {
+      "package": "libcap2",
+      "version": "1:2.66-4+deb12u3",
+      "files": [
+        {
+          "name": "libcap2_2.66-4+deb12u3.dsc",
+          "bytes": 2236,
+          "sha256": "56b6fa8db84a0e80b48522cbcafb0353282a7dbb5605c81b021e0862b120d1c9",
+          "snapshot_sha1": "29b867d5f98245a86029b0c674a6d966daca782e",
+          "url": "https://snapshot.debian.org/file/29b867d5f98245a86029b0c674a6d966daca782e"
+        },
+        {
+          "name": "libcap2_2.66-4+deb12u3.debian.tar.xz",
+          "bytes": 23944,
+          "sha256": "124ec52e286e8617a7fb8e576390abbf60f6674e065504459f32af20817eaa13",
+          "snapshot_sha1": "5bca547deb81bf8f2061a88153d96aec5f9255b6",
+          "url": "https://snapshot.debian.org/file/5bca547deb81bf8f2061a88153d96aec5f9255b6"
+        },
+        {
+          "name": "libcap2_2.66.orig.tar.xz",
+          "bytes": 181592,
+          "sha256": "15c40ededb3003d70a283fe587a36b7d19c8b3b554e33f86129c059a4bb466b2",
+          "snapshot_sha1": "d440e60686bd542e2a6481986c63ee8de625563e",
+          "url": "https://snapshot.debian.org/file/d440e60686bd542e2a6481986c63ee8de625563e"
+        }
+      ]
+    },
+    {
+      "package": "libgcrypt20",
+      "version": "1.10.1-3+deb12u1",
+      "files": [
+        {
+          "name": "libgcrypt20_1.10.1-3+deb12u1.dsc",
+          "bytes": 2975,
+          "sha256": "1bd12e7e03f5c60177a65ba4b838466033eaeca191111c570d444104d0d6e6d3",
+          "snapshot_sha1": "358070fc5b52895f39098efcf51463d97e33da79",
+          "url": "https://snapshot.debian.org/file/358070fc5b52895f39098efcf51463d97e33da79"
+        },
+        {
+          "name": "libgcrypt20_1.10.1.orig.tar.bz2.asc",
+          "bytes": 228,
+          "sha256": "9da6ae5e8b1c253607be7e951b568932740c143ee519f6b3392ece8211e84e33",
+          "snapshot_sha1": "8c734e7300a7c297eaf32652cdc3c6c25293b9a9",
+          "url": "https://snapshot.debian.org/file/8c734e7300a7c297eaf32652cdc3c6c25293b9a9"
+        },
+        {
+          "name": "libgcrypt20_1.10.1-3+deb12u1.debian.tar.xz",
+          "bytes": 41076,
+          "sha256": "a827828973467fe4469729c51124a2b8a8682911369840f66842816190bd7e6c",
+          "snapshot_sha1": "a42ef8ad0f92181d29cef17d25fea0e74524a9d2",
+          "url": "https://snapshot.debian.org/file/a42ef8ad0f92181d29cef17d25fea0e74524a9d2"
+        },
+        {
+          "name": "libgcrypt20_1.10.1.orig.tar.bz2",
+          "bytes": 3778457,
+          "sha256": "ef14ae546b0084cd84259f61a55e07a38c3b53afc0f546bffcef2f01baffe9de",
+          "snapshot_sha1": "de2cc32e7538efa376de7bf5d3eafa85626fb95f",
+          "url": "https://snapshot.debian.org/file/de2cc32e7538efa376de7bf5d3eafa85626fb95f"
+        }
+      ]
+    },
+    {
+      "package": "libglvnd",
+      "version": "1.6.0-1",
+      "files": [
+        {
+          "name": "libglvnd_1.6.0-1.debian.tar.xz",
+          "bytes": 22272,
+          "sha256": "81f62b1ba9efdbdfd3fd54282759aac84c74eeb479bf36375bbb5ca34952cb9e",
+          "snapshot_sha1": "59284bd5c96dedcd087c305e29d020e75cb98291",
+          "url": "https://snapshot.debian.org/file/59284bd5c96dedcd087c305e29d020e75cb98291"
+        },
+        {
+          "name": "libglvnd_1.6.0.orig.tar.gz",
+          "bytes": 832902,
+          "sha256": "e31dd71441604cf7467397e740af8070caa84133b5ed71241d3d5ca84c950baf",
+          "snapshot_sha1": "8f6c05ecb6b4c0386eb814b16e7604f9e28da29b",
+          "url": "https://snapshot.debian.org/file/8f6c05ecb6b4c0386eb814b16e7604f9e28da29b"
+        },
+        {
+          "name": "libglvnd_1.6.0-1.dsc",
+          "bytes": 2687,
+          "sha256": "b4cf154ee18eda923f21683383306146464304be501923a67c30bd3a4d2836a1",
+          "snapshot_sha1": "d65de5a1d8405b94e45cacf6350b5e91864084f0",
+          "url": "https://snapshot.debian.org/file/d65de5a1d8405b94e45cacf6350b5e91864084f0"
+        }
+      ]
+    },
+    {
+      "package": "libgpg-error",
+      "version": "1.46-1",
+      "files": [
+        {
+          "name": "libgpg-error_1.46-1.dsc",
+          "bytes": 2273,
+          "sha256": "f1fe4ca2f252f797c2819b0eae1e284e2f0b2c7ac8ec16209054ae45878aaafe",
+          "snapshot_sha1": "09b520555b4a2cc75b3f2b7329d99b1eb1c5da7d",
+          "url": "https://snapshot.debian.org/file/09b520555b4a2cc75b3f2b7329d99b1eb1c5da7d"
+        },
+        {
+          "name": "libgpg-error_1.46.orig.tar.bz2.asc",
+          "bytes": 228,
+          "sha256": "e0eb40e705068858ee43b6462b204aacf5a554fe4a17cfe63ea99e9612f72e9d",
+          "snapshot_sha1": "3ee512b1959db06ae4dc63aef29321d4fcbfd619",
+          "url": "https://snapshot.debian.org/file/3ee512b1959db06ae4dc63aef29321d4fcbfd619"
+        },
+        {
+          "name": "libgpg-error_1.46-1.debian.tar.xz",
+          "bytes": 18532,
+          "sha256": "2f80416e16dead749fb6a31a0a3703ae9e562bd32fc4d72184636a1501cd86ef",
+          "snapshot_sha1": "7ce8813f7d122f87633c3a8628f23361d140ef6d",
+          "url": "https://snapshot.debian.org/file/7ce8813f7d122f87633c3a8628f23361d140ef6d"
+        },
+        {
+          "name": "libgpg-error_1.46.orig.tar.bz2",
+          "bytes": 1014291,
+          "sha256": "b7e11a64246bbe5ef37748de43b245abd72cfcd53c9ae5e7fc5ca59f1c81268d",
+          "snapshot_sha1": "a6e5efdd72e848aab4064e5ef4c6835ba344bcf1",
+          "url": "https://snapshot.debian.org/file/a6e5efdd72e848aab4064e5ef4c6835ba344bcf1"
+        }
+      ]
+    },
+    {
+      "package": "liblo",
+      "version": "0.31-1",
+      "files": [
+        {
+          "name": "liblo_0.31.orig.tar.gz",
+          "bytes": 153798,
+          "sha256": "71d1819bcd18be66bd80c95a2d3159b9ca6f13746ddbaf1e489128f3bf46d231",
+          "snapshot_sha1": "80794b0fb7c4023fdc89611f2bad0cbc8e3b9003",
+          "url": "https://snapshot.debian.org/file/80794b0fb7c4023fdc89611f2bad0cbc8e3b9003"
+        },
+        {
+          "name": "liblo_0.31-1.dsc",
+          "bytes": 2188,
+          "sha256": "03b2902587dbea457d944fd2ec8e6684d953752d78b546f99de60e26a721a015",
+          "snapshot_sha1": "926928f5f8a245f4ae5d48aab03760d99caaea08",
+          "url": "https://snapshot.debian.org/file/926928f5f8a245f4ae5d48aab03760d99caaea08"
+        },
+        {
+          "name": "liblo_0.31-1.debian.tar.xz",
+          "bytes": 7868,
+          "sha256": "3d0b6804a7adf6776e3238bf6fe821d35a7ea1459812a0206c10f63fd00efe14",
+          "snapshot_sha1": "edf999dccb3a9ec05a72566088c442f415888331",
+          "url": "https://snapshot.debian.org/file/edf999dccb3a9ec05a72566088c442f415888331"
+        }
+      ]
+    },
+    {
+      "package": "libmd",
+      "version": "1.0.4-2",
+      "files": [
+        {
+          "name": "libmd_1.0.4-2.debian.tar.xz",
+          "bytes": 10204,
+          "sha256": "a27a2221b1a81e192455e2e93da2e313b21e489f6ac2bcf84b0b813dc3fe261b",
+          "snapshot_sha1": "0ca7dfcaa5cc0d7105058c0b51241e8e00a346db",
+          "url": "https://snapshot.debian.org/file/0ca7dfcaa5cc0d7105058c0b51241e8e00a346db"
+        },
+        {
+          "name": "libmd_1.0.4.orig.tar.xz.asc",
+          "bytes": 833,
+          "sha256": "32deebe1cfab127ee69a3e8c8caf439e459b7cdcdd7535fe021cb485adc14057",
+          "snapshot_sha1": "0f456e1b10c19b51ab745486d4951ed03ba3f2fc",
+          "url": "https://snapshot.debian.org/file/0f456e1b10c19b51ab745486d4951ed03ba3f2fc"
+        },
+        {
+          "name": "libmd_1.0.4-2.dsc",
+          "bytes": 2264,
+          "sha256": "5e060cb277f31e67b91033e05ece00832ca8056decba873b1698a5680414a177",
+          "snapshot_sha1": "a162257fa3f7ed36c08c4ff59eb6d5d1da09422b",
+          "url": "https://snapshot.debian.org/file/a162257fa3f7ed36c08c4ff59eb6d5d1da09422b"
+        },
+        {
+          "name": "libmd_1.0.4.orig.tar.xz",
+          "bytes": 264472,
+          "sha256": "f51c921042e34beddeded4b75557656559cf5b1f2448033b4c1eec11c07e530f",
+          "snapshot_sha1": "c412a6cb3792e00927127b85cb99b46f493eecce",
+          "url": "https://snapshot.debian.org/file/c412a6cb3792e00927127b85cb99b46f493eecce"
+        }
+      ]
+    },
+    {
+      "package": "libogg",
+      "version": "1.3.5-3",
+      "files": [
+        {
+          "name": "libogg_1.3.5.orig.tar.xz",
+          "bytes": 429076,
+          "sha256": "c4d91be36fc8e54deae7575241e03f4211eb102afb3fc0775fbbc1b740016705",
+          "snapshot_sha1": "5a368421a636f7faa4c2f662857cb507dffd7c99",
+          "url": "https://snapshot.debian.org/file/5a368421a636f7faa4c2f662857cb507dffd7c99"
+        },
+        {
+          "name": "libogg_1.3.5-3.dsc",
+          "bytes": 2206,
+          "sha256": "dd0bac7c6961f95290250f82940aba93582edc3924372afc8fd310af5db995a0",
+          "snapshot_sha1": "91dfa3a568d701d9ebf009a0c83ab32b6d9bb7bb",
+          "url": "https://snapshot.debian.org/file/91dfa3a568d701d9ebf009a0c83ab32b6d9bb7bb"
+        },
+        {
+          "name": "libogg_1.3.5-3.debian.tar.xz",
+          "bytes": 18012,
+          "sha256": "980cc7c95d72d2a9c56cf9d602b8296c6551528890f28fee6769b801ea0e54f3",
+          "snapshot_sha1": "ad5a9ef0153d460e1df5df77509bd09671f56308",
+          "url": "https://snapshot.debian.org/file/ad5a9ef0153d460e1df5df77509bd09671f56308"
+        }
+      ]
+    },
+    {
+      "package": "libsamplerate",
+      "version": "0.2.2-3",
+      "files": [
+        {
+          "name": "libsamplerate_0.2.2.orig.tar.gz",
+          "bytes": 3954784,
+          "sha256": "16e881487f184250deb4fcb60432d7556ab12cb58caea71ef23960aec6c0405a",
+          "snapshot_sha1": "da7097e81989d8443cd7ef72dc21e74d165f97c3",
+          "url": "https://snapshot.debian.org/file/da7097e81989d8443cd7ef72dc21e74d165f97c3"
+        },
+        {
+          "name": "libsamplerate_0.2.2-3.debian.tar.xz",
+          "bytes": 7504,
+          "sha256": "000ad52f38082f5a954595de96ee54c09d7af2995df28b03fe54183302ecfcb8",
+          "snapshot_sha1": "dfae07d470634cd7b2e49f0fdc383bab419e03b0",
+          "url": "https://snapshot.debian.org/file/dfae07d470634cd7b2e49f0fdc383bab419e03b0"
+        },
+        {
+          "name": "libsamplerate_0.2.2-3.dsc",
+          "bytes": 2206,
+          "sha256": "364aee9f8033c795cecbb3cbc1659f795487f535d3523bc4ec6f3790ba66c74f",
+          "snapshot_sha1": "e4470dd421a64f034abdb6271c7189fb24a6b521",
+          "url": "https://snapshot.debian.org/file/e4470dd421a64f034abdb6271c7189fb24a6b521"
+        }
+      ]
+    },
+    {
+      "package": "libsndfile",
+      "version": "1.2.0-1+deb12u1",
+      "files": [
+        {
+          "name": "libsndfile_1.2.0.orig.tar.gz",
+          "bytes": 684253,
+          "sha256": "62dc4e2bcd45f6f0e89cbc3522cc90eb174dca0eef0a0d19ead289833b390cd7",
+          "snapshot_sha1": "48050964a229bc53cd3e6134caedce27802f75c7",
+          "url": "https://snapshot.debian.org/file/48050964a229bc53cd3e6134caedce27802f75c7"
+        },
+        {
+          "name": "libsndfile_1.2.0-1+deb12u1.dsc",
+          "bytes": 2418,
+          "sha256": "74686b038b925f4b238d0a37e36671e5b924fe1678083037494923140403fa8e",
+          "snapshot_sha1": "53d0c4fc60a0e6d60e4568bdfcc4bb64c2a637b1",
+          "url": "https://snapshot.debian.org/file/53d0c4fc60a0e6d60e4568bdfcc4bb64c2a637b1"
+        },
+        {
+          "name": "libsndfile_1.2.0-1+deb12u1.debian.tar.xz",
+          "bytes": 21412,
+          "sha256": "77b8c1c5fc6d110f08535ccb76f65c284a441e544a0698e3dee65c5bda882eee",
+          "snapshot_sha1": "c2859af6e86e9e1fae761e74ab09ff936801e802",
+          "url": "https://snapshot.debian.org/file/c2859af6e86e9e1fae761e74ab09ff936801e802"
+        }
+      ]
+    },
+    {
+      "package": "libvorbis",
+      "version": "1.3.7-1",
+      "files": [
+        {
+          "name": "libvorbis_1.3.7.orig.tar.gz",
+          "bytes": 1658963,
+          "sha256": "0e982409a9c3fc82ee06e08205b1355e5c6aa4c36bca58146ef399621b0ce5ab",
+          "snapshot_sha1": "2b415495f89b103138a23da5017a2a00837c6c94",
+          "url": "https://snapshot.debian.org/file/2b415495f89b103138a23da5017a2a00837c6c94"
+        },
+        {
+          "name": "libvorbis_1.3.7-1.debian.tar.xz",
+          "bytes": 11600,
+          "sha256": "c5c40944a3fc1cdd1ce019ef21f580ce5ed3b9f30e0cba7b3d859e8d9fea631f",
+          "snapshot_sha1": "2b69398cfdc344bde3a2a27fb7a27c05e63b0582",
+          "url": "https://snapshot.debian.org/file/2b69398cfdc344bde3a2a27fb7a27c05e63b0582"
+        },
+        {
+          "name": "libvorbis_1.3.7-1.dsc",
+          "bytes": 2362,
+          "sha256": "b25d27beb9162607c95cf58aa2b764d110bd1a1568d3926a96c523320b49171f",
+          "snapshot_sha1": "7fa9d9632a4f69b384da3ee6f7199fa2505644f5",
+          "url": "https://snapshot.debian.org/file/7fa9d9632a4f69b384da3ee6f7199fa2505644f5"
+        }
+      ]
+    },
+    {
+      "package": "libx11",
+      "version": "2:1.8.4-2+deb12u2",
+      "files": [
+        {
+          "name": "libx11_1.8.4.orig.tar.gz",
+          "bytes": 3168573,
+          "sha256": "efd3a3a43c1f177edc2c205bedb0719b6648203595e54c0b83a32576aeaca7cd",
+          "snapshot_sha1": "008e30d9d2d1458f4645755e99c56750cebeec1a",
+          "url": "https://snapshot.debian.org/file/008e30d9d2d1458f4645755e99c56750cebeec1a"
+        },
+        {
+          "name": "libx11_1.8.4.orig.tar.gz.asc",
+          "bytes": 801,
+          "sha256": "9d9a6bcdd81a40ed377b2981a4d40a0db1315d095e9ccc35a0ba78e692df8591",
+          "snapshot_sha1": "12a8c1b57916a6bc12c99ef9fcdd5e473431e64f",
+          "url": "https://snapshot.debian.org/file/12a8c1b57916a6bc12c99ef9fcdd5e473431e64f"
+        },
+        {
+          "name": "libx11_1.8.4-2+deb12u2.dsc",
+          "bytes": 2544,
+          "sha256": "d7374ec568d895f9e5919ebdbd94301e2acb9e8b307a39ac8708082aa1757fa3",
+          "snapshot_sha1": "1cbbdebf35a10d416c61d6072c909ee77350aa37",
+          "url": "https://snapshot.debian.org/file/1cbbdebf35a10d416c61d6072c909ee77350aa37"
+        },
+        {
+          "name": "libx11_1.8.4-2+deb12u2.diff.gz",
+          "bytes": 115499,
+          "sha256": "3b3b43eabf8a58dda4442031652cc2294b50fe46129d6943937bf320d8a62243",
+          "snapshot_sha1": "a8d0767d6b802d61f1ad53e6338af9a9d3f012de",
+          "url": "https://snapshot.debian.org/file/a8d0767d6b802d61f1ad53e6338af9a9d3f012de"
+        }
+      ]
+    },
+    {
+      "package": "libxau",
+      "version": "1:1.0.9-1",
+      "files": [
+        {
+          "name": "libxau_1.0.9.orig.tar.gz.asc",
+          "bytes": 801,
+          "sha256": "af6104aaf3c5ede529e381237dd60f49640ec96593a84502fa493b86582b2f04",
+          "snapshot_sha1": "05939953b8930c7016b03f9b5228f512c086d17b",
+          "url": "https://snapshot.debian.org/file/05939953b8930c7016b03f9b5228f512c086d17b"
+        },
+        {
+          "name": "libxau_1.0.9.orig.tar.gz",
+          "bytes": 394068,
+          "sha256": "1f123d8304b082ad63a9e89376400a3b1d4c29e67e3ea07b3f659cccca690eea",
+          "snapshot_sha1": "45ad25454e05cdc1ed5144b2abf1ae9e0f8fc95e",
+          "url": "https://snapshot.debian.org/file/45ad25454e05cdc1ed5144b2abf1ae9e0f8fc95e"
+        },
+        {
+          "name": "libxau_1.0.9-1.dsc",
+          "bytes": 2183,
+          "sha256": "e6e059652cda7e5a49b6c9a70667639f32d629c20320487d16c642a06c1ebf85",
+          "snapshot_sha1": "4652957f668b3280fcf5faa66076beab40ef3207",
+          "url": "https://snapshot.debian.org/file/4652957f668b3280fcf5faa66076beab40ef3207"
+        },
+        {
+          "name": "libxau_1.0.9-1.diff.gz",
+          "bytes": 10193,
+          "sha256": "7b34899563f172e8f11d061de41b58fe1c32f8683d985e57686677ccb7299a9a",
+          "snapshot_sha1": "ca52097053aeac9e7259fb100a9a0cecc218acbd",
+          "url": "https://snapshot.debian.org/file/ca52097053aeac9e7259fb100a9a0cecc218acbd"
+        }
+      ]
+    },
+    {
+      "package": "libxcb",
+      "version": "1.15-1",
+      "files": [
+        {
+          "name": "libxcb_1.15-1.dsc",
+          "bytes": 5344,
+          "sha256": "f689569f33e70ca4c95c91b094d0659eb49a958d9ac43186640338f9290e298b",
+          "snapshot_sha1": "5ea07a95e1f8634ba3db1cacc0f22166316a31be",
+          "url": "https://snapshot.debian.org/file/5ea07a95e1f8634ba3db1cacc0f22166316a31be"
+        },
+        {
+          "name": "libxcb_1.15-1.diff.gz",
+          "bytes": 26267,
+          "sha256": "639c719ed06ffc397b200a209abd1a049e21e9e19431fb14c9ca870de01a6eac",
+          "snapshot_sha1": "e38ba90084b44098d4c299e68749761c7a1e07c2",
+          "url": "https://snapshot.debian.org/file/e38ba90084b44098d4c299e68749761c7a1e07c2"
+        },
+        {
+          "name": "libxcb_1.15.orig.tar.gz",
+          "bytes": 650774,
+          "sha256": "1cb65df8543a69ec0555ac696123ee386321dfac1964a3da39976c9a05ad724d",
+          "snapshot_sha1": "f6d149e5e7ada566e31516859eb6b69e75426217",
+          "url": "https://snapshot.debian.org/file/f6d149e5e7ada566e31516859eb6b69e75426217"
+        }
+      ]
+    },
+    {
+      "package": "libxcursor",
+      "version": "1:1.2.1-1",
+      "files": [
+        {
+          "name": "libxcursor_1.2.1-1.debian.tar.xz",
+          "bytes": 9012,
+          "sha256": "2c907ea70a6ff935f1d143a4306b61edee48e4786299b8724b8f179bae5628cb",
+          "snapshot_sha1": "c942dfe44a8430674e4c84bbcc308abdb610759e",
+          "url": "https://snapshot.debian.org/file/c942dfe44a8430674e4c84bbcc308abdb610759e"
+        },
+        {
+          "name": "libxcursor_1.2.1.orig.tar.gz",
+          "bytes": 415378,
+          "sha256": "77f96b9ad0a3c422cfa826afabaf1e02b9bfbfc8908c5fa1a45094faad074b98",
+          "snapshot_sha1": "db1426e1a301a1c8cd45619198b0785b1d80916b",
+          "url": "https://snapshot.debian.org/file/db1426e1a301a1c8cd45619198b0785b1d80916b"
+        },
+        {
+          "name": "libxcursor_1.2.1-1.dsc",
+          "bytes": 2231,
+          "sha256": "21a56399ce0c41395446f617dd623ca98406897fff1ab45402b7045378367240",
+          "snapshot_sha1": "f9dab554a79e3b276554bc298523965b3d854928",
+          "url": "https://snapshot.debian.org/file/f9dab554a79e3b276554bc298523965b3d854928"
+        }
+      ]
+    },
+    {
+      "package": "libxdmcp",
+      "version": "1:1.1.2-3",
+      "files": [
+        {
+          "name": "libxdmcp_1.1.2-3.diff.gz",
+          "bytes": 18017,
+          "sha256": "5844df115c17e5ba40ac116f80373304d821c607e763ef6f40562421f5cc0cf3",
+          "snapshot_sha1": "0fc7f65299a4af6c01addc2a0691a50cd64add67",
+          "url": "https://snapshot.debian.org/file/0fc7f65299a4af6c01addc2a0691a50cd64add67"
+        },
+        {
+          "name": "libxdmcp_1.1.2.orig.tar.gz",
+          "bytes": 404115,
+          "sha256": "6f7c7e491a23035a26284d247779174dedc67e34e93cc3548b648ffdb6fc57c0",
+          "snapshot_sha1": "486a7fea7c7e43df0b9032ae23f592420728ad52",
+          "url": "https://snapshot.debian.org/file/486a7fea7c7e43df0b9032ae23f592420728ad52"
+        },
+        {
+          "name": "libxdmcp_1.1.2-3.dsc",
+          "bytes": 2145,
+          "sha256": "f9697dca6a275aeee9a3eee9fb2d55e0f77485481e8b84efc6950fc9b1988460",
+          "snapshot_sha1": "502119eef0e35ca6f4e9aeb92161f03198418c23",
+          "url": "https://snapshot.debian.org/file/502119eef0e35ca6f4e9aeb92161f03198418c23"
+        }
+      ]
+    },
+    {
+      "package": "libxext",
+      "version": "2:1.3.4-1",
+      "files": [
+        {
+          "name": "libxext_1.3.4-1.dsc",
+          "bytes": 2118,
+          "sha256": "25024f57d955739c6b858822bf93ec3c71400b56fc0d666826f440e3661fd7c0",
+          "snapshot_sha1": "27ab2762de9b14b0dc24ceaf65f6e75003bce100",
+          "url": "https://snapshot.debian.org/file/27ab2762de9b14b0dc24ceaf65f6e75003bce100"
+        },
+        {
+          "name": "libxext_1.3.4-1.diff.gz",
+          "bytes": 12509,
+          "sha256": "b975870d6a7b791ffbe2d57efdf6e20c250c5e76d12e45b04c8655f593bb8337",
+          "snapshot_sha1": "90f84e25cdce0d282beab63887b008cf6b15fbdf",
+          "url": "https://snapshot.debian.org/file/90f84e25cdce0d282beab63887b008cf6b15fbdf"
+        },
+        {
+          "name": "libxext_1.3.4.orig.tar.gz",
+          "bytes": 494434,
+          "sha256": "8ef0789f282826661ff40a8eef22430378516ac580167da35cc948be9041aac1",
+          "snapshot_sha1": "b783a0c17a6cb9105ab0f95fef898904accbcc19",
+          "url": "https://snapshot.debian.org/file/b783a0c17a6cb9105ab0f95fef898904accbcc19"
+        }
+      ]
+    },
+    {
+      "package": "libxfixes",
+      "version": "1:6.0.0-2",
+      "files": [
+        {
+          "name": "libxfixes_6.0.0-2.dsc",
+          "bytes": 2240,
+          "sha256": "d1958d4b89d749c7d05df7d6ec2215bf11527f9ae914c0f2da48672c6165c65e",
+          "snapshot_sha1": "278e1b04346e6aca46e1c567bdc9a22425c6a51a",
+          "url": "https://snapshot.debian.org/file/278e1b04346e6aca46e1c567bdc9a22425c6a51a"
+        },
+        {
+          "name": "libxfixes_6.0.0.orig.tar.gz.asc",
+          "bytes": 195,
+          "sha256": "e5598f42aa32140936c7772ab4d99ba35ecb859c29adc1703bb51440e7a54928",
+          "snapshot_sha1": "7603cb0756687192f68085b6fb11b28f68483753",
+          "url": "https://snapshot.debian.org/file/7603cb0756687192f68085b6fb11b28f68483753"
+        },
+        {
+          "name": "libxfixes_6.0.0-2.diff.gz",
+          "bytes": 17318,
+          "sha256": "24f13645909ecfd63a21568e515cfc962692c468d7dcf8cb97212d2445f60a3b",
+          "snapshot_sha1": "87e4f9694c4a168b886257ef9ae4e7e1f7ba2482",
+          "url": "https://snapshot.debian.org/file/87e4f9694c4a168b886257ef9ae4e7e1f7ba2482"
+        },
+        {
+          "name": "libxfixes_6.0.0.orig.tar.gz",
+          "bytes": 387810,
+          "sha256": "82045da5625350838390c9440598b90d69c882c324ca92f73af9f0e992cb57c7",
+          "snapshot_sha1": "cc423279168f3d39bc69bfb224bf72235bc6b6a3",
+          "url": "https://snapshot.debian.org/file/cc423279168f3d39bc69bfb224bf72235bc6b6a3"
+        }
+      ]
+    },
+    {
+      "package": "libxrandr",
+      "version": "2:1.5.2-2",
+      "files": [
+        {
+          "name": "libxrandr_1.5.2.orig.tar.gz",
+          "bytes": 411714,
+          "sha256": "3f10813ab355e7a09f17e147d61b0ce090d898a5ea5b5519acd0ef68675dcf8e",
+          "snapshot_sha1": "223b36c37ed24ee5b2ad5091f88daa0d21d8c05f",
+          "url": "https://snapshot.debian.org/file/223b36c37ed24ee5b2ad5091f88daa0d21d8c05f"
+        },
+        {
+          "name": "libxrandr_1.5.2-2.dsc",
+          "bytes": 2104,
+          "sha256": "419b5e89cb8021997ade4683baf8db06abe56b13ab05aad3a91705b2efaf1d8d",
+          "snapshot_sha1": "2cf7b274e803a2c252d3f345210b3ea372e81a98",
+          "url": "https://snapshot.debian.org/file/2cf7b274e803a2c252d3f345210b3ea372e81a98"
+        },
+        {
+          "name": "libxrandr_1.5.2-2.diff.gz",
+          "bytes": 15844,
+          "sha256": "43ebe140faad01d1b7eeba629b92cf2d953baecb1d875597ac0cc359cfcdd8ef",
+          "snapshot_sha1": "fa0bb51d9dbd5ce63ebf8468edaf597c9e067f1e",
+          "url": "https://snapshot.debian.org/file/fa0bb51d9dbd5ce63ebf8468edaf597c9e067f1e"
+        }
+      ]
+    },
+    {
+      "package": "libxrender",
+      "version": "1:0.9.10-1.1",
+      "files": [
+        {
+          "name": "libxrender_0.9.10-1.1.dsc",
+          "bytes": 2072,
+          "sha256": "348ab15d05f1d802da485e4c6abdb9d5419691fb7c8ce44ca5b17b2b7f889ce8",
+          "snapshot_sha1": "25e564c3f837da87a9c5cde5c410a11f9177d38b",
+          "url": "https://snapshot.debian.org/file/25e564c3f837da87a9c5cde5c410a11f9177d38b"
+        },
+        {
+          "name": "libxrender_0.9.10-1.1.diff.gz",
+          "bytes": 15201,
+          "sha256": "caf8c84085b3b0d073f738fa12d32d4eca2d8b669cb3c7f1b1cd2ce64b7b10b7",
+          "snapshot_sha1": "49d955092af251cbc2aeaa31aaad87588913567e",
+          "url": "https://snapshot.debian.org/file/49d955092af251cbc2aeaa31aaad87588913567e"
+        },
+        {
+          "name": "libxrender_0.9.10.orig.tar.gz",
+          "bytes": 373717,
+          "sha256": "770527cce42500790433df84ec3521e8bf095dfe5079454a92236494ab296adf",
+          "snapshot_sha1": "704f4571d70e81fcdb40143db938016231f84a05",
+          "url": "https://snapshot.debian.org/file/704f4571d70e81fcdb40143db938016231f84a05"
+        }
+      ]
+    },
+    {
+      "package": "libzstd",
+      "version": "1.5.4+dfsg2-5",
+      "files": [
+        {
+          "name": "libzstd_1.5.4+dfsg2.orig.tar.xz",
+          "bytes": 1582660,
+          "sha256": "8cf4bbb65e77ec348d052c8d6230eba66d435bddf64c8b5be2fcb16880c19953",
+          "snapshot_sha1": "37d1ae64b2e2f1882401b3ec596dd21ed20359ae",
+          "url": "https://snapshot.debian.org/file/37d1ae64b2e2f1882401b3ec596dd21ed20359ae"
+        },
+        {
+          "name": "libzstd_1.5.4+dfsg2-5.debian.tar.xz",
+          "bytes": 216092,
+          "sha256": "82ce911445772861d0838bd4545f93bc50658bc7f3cefdb17a307dfb8ffca5d8",
+          "snapshot_sha1": "7c5a8135d2e62e1d53be1bdc3e685ba5299c39dc",
+          "url": "https://snapshot.debian.org/file/7c5a8135d2e62e1d53be1bdc3e685ba5299c39dc"
+        },
+        {
+          "name": "libzstd_1.5.4+dfsg2-5.dsc",
+          "bytes": 2589,
+          "sha256": "8f602f92b575aa8b5e979196fb6ee82d78f233521dc9636526d3ecba1f63c1b1",
+          "snapshot_sha1": "96102b900f2902d56ddf0b77d81a19dc6b1f7f97",
+          "url": "https://snapshot.debian.org/file/96102b900f2902d56ddf0b77d81a19dc6b1f7f97"
+        },
+        {
+          "name": "libzstd_1.5.4+dfsg2.orig.tar.xz.asc",
+          "bytes": 833,
+          "sha256": "be007507630aabfc7d88d5d3c467115935ca22025253491d525e0119bbb23d40",
+          "snapshot_sha1": "c5077a159c76298359255ab0086b74162d14a64d",
+          "url": "https://snapshot.debian.org/file/c5077a159c76298359255ab0086b74162d14a64d"
+        }
+      ]
+    },
+    {
+      "package": "lz4",
+      "version": "1.9.4-1",
+      "files": [
+        {
+          "name": "lz4_1.9.4.orig.tar.gz",
+          "bytes": 354063,
+          "sha256": "0b0e3aa07c8c063ddf40b082bdf7e37a1562bda40a0ff5272957f3e987e0e54b",
+          "snapshot_sha1": "1d262fd78a0dbaa409e764979c6a643d0370f8d1",
+          "url": "https://snapshot.debian.org/file/1d262fd78a0dbaa409e764979c6a643d0370f8d1"
+        },
+        {
+          "name": "lz4_1.9.4-1.debian.tar.xz",
+          "bytes": 8128,
+          "sha256": "47ceec5b95f42598f7b9280b03df9659f2ee6852720ec181488e83bd643f0e5f",
+          "snapshot_sha1": "3fa9ab166d2b26d136ce89611c0f84068c998aa1",
+          "url": "https://snapshot.debian.org/file/3fa9ab166d2b26d136ce89611c0f84068c998aa1"
+        },
+        {
+          "name": "lz4_1.9.4-1.dsc",
+          "bytes": 1951,
+          "sha256": "e16302bca544d08d106efc216541f4a0403c8f8a5fad5eaac7588223a55af263",
+          "snapshot_sha1": "7b6070bdca345a2da980501902a81a66a538b99b",
+          "url": "https://snapshot.debian.org/file/7b6070bdca345a2da980501902a81a66a538b99b"
+        }
+      ]
+    },
+    {
+      "package": "mpg123",
+      "version": "1.31.2-1+deb12u1",
+      "files": [
+        {
+          "name": "mpg123_1.31.2.orig.tar.bz2",
+          "bytes": 1093881,
+          "sha256": "b17f22905e31f43b6b401dfdf6a71ed11bb7d056f68db449d70b9f9ae839c7de",
+          "snapshot_sha1": "47c76d468261da20a8894656d3cd71456a92624a",
+          "url": "https://snapshot.debian.org/file/47c76d468261da20a8894656d3cd71456a92624a"
+        },
+        {
+          "name": "mpg123_1.31.2.orig.tar.bz2.asc",
+          "bytes": 833,
+          "sha256": "c5626e0dfba78b7e5766616ad5acc90e6729510ab0d86276a25ee46bef96902a",
+          "snapshot_sha1": "7d2cd7c71a80a48b577b56c6689e4117a987c7a1",
+          "url": "https://snapshot.debian.org/file/7d2cd7c71a80a48b577b56c6689e4117a987c7a1"
+        },
+        {
+          "name": "mpg123_1.31.2-1+deb12u1.debian.tar.xz",
+          "bytes": 33620,
+          "sha256": "9fc7eeeb4be67525fb7901022955b646832f095499612672ad7c24a1b3303599",
+          "snapshot_sha1": "cf9239c2ffa5cc49a2ad5a54714218722cdee3f0",
+          "url": "https://snapshot.debian.org/file/cf9239c2ffa5cc49a2ad5a54714218722cdee3f0"
+        },
+        {
+          "name": "mpg123_1.31.2-1+deb12u1.dsc",
+          "bytes": 2789,
+          "sha256": "a67b2daf33ecf2d2a720e0cd721ac44828f1edee644abac34d8022819abbbb1a",
+          "snapshot_sha1": "f72cc4b128c40446dabd6c9876d78f9000b107ba",
+          "url": "https://snapshot.debian.org/file/f72cc4b128c40446dabd6c9876d78f9000b107ba"
+        }
+      ]
+    },
+    {
+      "package": "opus",
+      "version": "1.3.1-3",
+      "files": [
+        {
+          "name": "opus_1.3.1-3.debian.tar.xz",
+          "bytes": 108972,
+          "sha256": "f4a145f0d5b9140106396fc0b0c515b1c3abd59f2aa5fb62b36b69886aa411bc",
+          "snapshot_sha1": "5ce129da325f860d73ad8540413be7c6cf3d5322",
+          "url": "https://snapshot.debian.org/file/5ce129da325f860d73ad8540413be7c6cf3d5322"
+        },
+        {
+          "name": "opus_1.3.1-3.dsc",
+          "bytes": 2295,
+          "sha256": "c373ac82a1afb824819618c12e279ee47b6ac2fa18083b9ef2bb9e8e9e588419",
+          "snapshot_sha1": "cd14609fc8eac6ac7870f3a3530e3d86483388e9",
+          "url": "https://snapshot.debian.org/file/cd14609fc8eac6ac7870f3a3530e3d86483388e9"
+        },
+        {
+          "name": "opus_1.3.1.orig.tar.gz",
+          "bytes": 1040054,
+          "sha256": "65b58e1e25b2a114157014736a3d9dfeaad8d41be1c8179866f144a2fb44ff9d",
+          "snapshot_sha1": "ed226536537861c9f0f1ef7ca79dffc225bc181b",
+          "url": "https://snapshot.debian.org/file/ed226536537861c9f0f1ef7ca79dffc225bc181b"
+        }
+      ]
+    },
+    {
+      "package": "speexdsp",
+      "version": "1.2.1-1",
+      "files": [
+        {
+          "name": "speexdsp_1.2.1-1.dsc",
+          "bytes": 2235,
+          "sha256": "f3c258d56638cd30a7c1d158355df407a906f3069d70e10e9a6ad9b2c8806b06",
+          "snapshot_sha1": "01fd18d1db3d89f356600d3f2805f8f061b2693f",
+          "url": "https://snapshot.debian.org/file/01fd18d1db3d89f356600d3f2805f8f061b2693f"
+        },
+        {
+          "name": "speexdsp_1.2.1-1.debian.tar.xz",
+          "bytes": 3864,
+          "sha256": "ebf0b8d63d7eb96a31ba30bc2332be21360fd40c9f26e3b5fde995abd2d2e0b1",
+          "snapshot_sha1": "10995389d64f89b7366f46f9b2e02bca4eea5d60",
+          "url": "https://snapshot.debian.org/file/10995389d64f89b7366f46f9b2e02bca4eea5d60"
+        },
+        {
+          "name": "speexdsp_1.2.1.orig.tar.gz",
+          "bytes": 922584,
+          "sha256": "8c777343e4a6399569c72abc38a95b24db56882c83dbdb6c6424a5f4aeb54d3d",
+          "snapshot_sha1": "9a814abd2a1baecae235d6fbad25e0be2c1b1334",
+          "url": "https://snapshot.debian.org/file/9a814abd2a1baecae235d6fbad25e0be2c1b1334"
+        },
+        {
+          "name": "speexdsp_1.2.1.orig.tar.gz.asc",
+          "bytes": 488,
+          "sha256": "e5796f1492587b8cfcb835b6410701e7273208b04c224b6c73aaf9d06f4cea92",
+          "snapshot_sha1": "f8e357c7d7827fc0dd959cb893f7d7ce69933309",
+          "url": "https://snapshot.debian.org/file/f8e357c7d7827fc0dd959cb893f7d7ce69933309"
+        }
+      ]
+    },
+    {
+      "package": "systemd",
+      "version": "252.39-1~deb12u2",
+      "files": [
+        {
+          "name": "systemd_252.39.orig.tar.gz",
+          "bytes": 12399886,
+          "sha256": "08a54a6c4d4cf969fc025eaa8922a55d6bc458100c242510b56c96e7d72af1c5",
+          "snapshot_sha1": "0abad77a3d520d8f037125cf69834adefc14d4ad",
+          "url": "https://snapshot.debian.org/file/0abad77a3d520d8f037125cf69834adefc14d4ad"
+        },
+        {
+          "name": "systemd_252.39-1~deb12u2.debian.tar.xz",
+          "bytes": 177476,
+          "sha256": "27c548c678593cbe82e1701fc480bfe56e99b8f8750cbc09e720b6aa4fcbffaf",
+          "snapshot_sha1": "138f1b3e25afe727f3c018e4d3d71e4eb60e834e",
+          "url": "https://snapshot.debian.org/file/138f1b3e25afe727f3c018e4d3d71e4eb60e834e"
+        },
+        {
+          "name": "systemd_252.39-1~deb12u2.dsc",
+          "bytes": 6574,
+          "sha256": "f2f952ae61fd40f1ef3ee48c8721e23eaaec5396ef5f1b0c2e138d78fade9c6e",
+          "snapshot_sha1": "b947e684578a6e8a8f2775f06e80acda625c7a95",
+          "url": "https://snapshot.debian.org/file/b947e684578a6e8a8f2775f06e80acda625c7a95"
+        }
+      ]
+    },
+    {
+      "package": "xz-utils",
+      "version": "5.4.1-1+deb12u2",
+      "files": [
+        {
+          "name": "xz-utils_5.4.1-1+deb12u2.debian.tar.xz",
+          "bytes": 95356,
+          "sha256": "7e0b1d1448520ea4f88ec05136a88f07564cc4a1abd6dfcf53c1f822a3e4f64f",
+          "snapshot_sha1": "233eb3cf93758f5aa82547ef30057c1451a40991",
+          "url": "https://snapshot.debian.org/file/233eb3cf93758f5aa82547ef30057c1451a40991"
+        },
+        {
+          "name": "xz-utils_5.4.1-1+deb12u2.dsc",
+          "bytes": 2442,
+          "sha256": "bffc9917562b5787661379621bb1f7510bf7271b03d8ce4181cebc84b90d3c35",
+          "snapshot_sha1": "63eed26d58753196bc7a70d19121bdaf901c9ad4",
+          "url": "https://snapshot.debian.org/file/63eed26d58753196bc7a70d19121bdaf901c9ad4"
+        },
+        {
+          "name": "xz-utils_5.4.1.orig.tar.xz",
+          "bytes": 1485272,
+          "sha256": "5d9827aa1875b21c288f78864bb26d2650b436ea8d2cad364e4921eb6266a5a5",
+          "snapshot_sha1": "8facb914772e5963d86f9cdd781c928009879b3b",
+          "url": "https://snapshot.debian.org/file/8facb914772e5963d86f9cdd781c928009879b3b"
+        }
+      ]
+    }
+  ],
+  "failures": []
+}

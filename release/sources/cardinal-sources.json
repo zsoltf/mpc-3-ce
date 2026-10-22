@@ -1,0 +1,1358 @@
+{
+  "cardinal": "0a530b73273afc914ec71a78e9165cd28c53b599",
+  "sources": [
+    {
+      "path": "carla",
+      "repository": "falkTX/Carla",
+      "url": "https://github.com/falkTX/Carla.git",
+      "revision": "294a80145e39c0755ab9073d90fd8b9524fbfc84",
+      "sha256": "02d8facea5684e739534c1ab371a4f739db124abd9b2e534b07e61e77b82c26b",
+      "nested": {
+        "source/native-plugins/external": "https://github.com/falkTX/Carla-Plugins"
+      }
+    },
+    {
+      "path": "deps/JUCE",
+      "repository": "CardinalModules/JUCE",
+      "url": "https://github.com/CardinalModules/JUCE.git",
+      "revision": "4aaa2a7f4c83bd9807070825fbccd9d6d582e34d",
+      "sha256": "3500387fe03e2c19bb63b05171855dd6676d0cf476753fbfc3121707958cc25b",
+      "nested": {}
+    },
+    {
+      "path": "deps/PawPaw",
+      "repository": "DISTRHO/PawPaw",
+      "url": "https://github.com/DISTRHO/PawPaw.git",
+      "revision": "dd0fd459be75110d76b633e606a1a1dbc607b2ab",
+      "sha256": "a81523878bc0ccb149291a1b775cd42a1af38befcb697cde5df112d716abfc83",
+      "nested": {}
+    },
+    {
+      "path": "deps/QuickJS",
+      "repository": "JerrySievert/QuickJS",
+      "url": "https://github.com/JerrySievert/QuickJS.git",
+      "revision": "f7bada076e2536fbc4ca46b81a34fa27990ffc30",
+      "sha256": "f41363150c72259a2afe9d7ae88489cbfb741638788467da6650229e9d553de1",
+      "nested": {}
+    },
+    {
+      "path": "dpf",
+      "repository": "DISTRHO/DPF",
+      "url": "https://github.com/DISTRHO/DPF.git",
+      "revision": "461ea6d45d842d273ae4d53ad5490e43459419cc",
+      "sha256": "b206dc10e34851a34695134713e4d9f00d0532c4db19477789a96cd1966a5d02",
+      "nested": {
+        "dgl/src/pugl-upstream": "https://github.com/DISTRHO/pugl.git"
+      }
+    },
+    {
+      "path": "plugins/21kHz",
+      "repository": "netboy3/21kHz-rack-plugins",
+      "url": "https://github.com/netboy3/21kHz-rack-plugins.git",
+      "revision": "0bee82247151e2fe2885f1e15fbbd74ddb4f48d0",
+      "sha256": "a670f575d9d3782e668e0a982f0e56af58da48f9a8c7e0c5d0bd93aed53fc042",
+      "nested": {}
+    },
+    {
+      "path": "plugins/8Mode",
+      "repository": "8Mode/8Mode-VCV_Modules",
+      "url": "https://github.com/8Mode/8Mode-VCV_Modules.git",
+      "revision": "fe5a642ee0a455e882e105f422cf85f7e83fd31f",
+      "sha256": "bda47035a6bd11ef9307bcc614995c8af022892075d4ef736d67c94b6a1ee890",
+      "nested": {}
+    },
+    {
+      "path": "plugins/AS",
+      "repository": "AScustomWorks/AS",
+      "url": "https://github.com/AScustomWorks/AS.git",
+      "revision": "b5fdb76c79688207e56bd5b07b01e9c63a102797",
+      "sha256": "147aa179e39fdb305d71078a8910e73afaf6705833ec13156b20e55ee64e4cb3",
+      "nested": {}
+    },
+    {
+      "path": "plugins/AaronStatic",
+      "repository": "aaronstatic/AaronStatic_modules",
+      "url": "https://github.com/aaronstatic/AaronStatic_modules.git",
+      "revision": "958b60c6f7f41af4a14a30ce3e93a039bb4d2f2b",
+      "sha256": "660319d83ed7471745bd0c1350e6118479051e10bd673db20335a7a79a06c3db",
+      "nested": {}
+    },
+    {
+      "path": "plugins/Algoritmarte",
+      "repository": "algoritmarte/AlgoritmarteVCVPlugin",
+      "url": "https://github.com/algoritmarte/AlgoritmarteVCVPlugin.git",
+      "revision": "9d41fe882ab5029100b55c98ba7f10172d452795",
+      "sha256": "96690a7b7218eb6fc9d21f8397ca5518b2a99174830a59f86edb92b502a9e7e7",
+      "nested": {}
+    },
+    {
+      "path": "plugins/AmalgamatedHarmonics",
+      "repository": "jhoar/AmalgamatedHarmonics",
+      "url": "https://github.com/jhoar/AmalgamatedHarmonics.git",
+      "revision": "bf74c2b7674c610cfc57421157d814c98bd92438",
+      "sha256": "3cd2fe485eff5dd96e318538025d90945f6433d95dff9b2591c95aeac5d3c713",
+      "nested": {}
+    },
+    {
+      "path": "plugins/AnimatedCircuits",
+      "repository": "AnimatedCircuits/RackModules",
+      "url": "https://github.com/AnimatedCircuits/RackModules.git",
+      "revision": "65f1f203884f13a5eb8cccfae81c751de68d437f",
+      "sha256": "0d068fdf4ea2a0ad9f474b04f5f2cf28098a8d913a4622b499c4905db6de694f",
+      "nested": {}
+    },
+    {
+      "path": "plugins/ArableInstruments",
+      "repository": "CardinalModules/ArableInstruments",
+      "url": "https://github.com/CardinalModules/ArableInstruments.git",
+      "revision": "a2de62d0c3b9f764ce6b42441366788d1e52bfcc",
+      "sha256": "760a6fbaafccaf2e4d77f927d43bc6fdc228e3cfd6c31d48c56303d7f5aab846",
+      "nested": {
+        "eurorack": "https://github.com/CardinalModules/eurorack.git",
+        "parasites/avrlib": "https://github.com/pichenettes/avril.git",
+        "parasites/avrlibx": "https://github.com/pichenettes/avrilx.git",
+        "parasites/stm_audio_bootloader": "https://github.com/pichenettes/stm-audio-bootloader.git",
+        "parasites/avr_audio_bootloader": "https://github.com/pichenettes/avr-audio-bootloader.git",
+        "parasites/stmlib": "https://github.com/mqtthiqs/stmlib.git"
+      }
+    },
+    {
+      "path": "plugins/AriaModules",
+      "repository": "CardinalModules/AriaModules",
+      "url": "https://github.com/CardinalModules/AriaModules.git",
+      "revision": "269ab0f091b18f08ab253bd8af4866e78d770bc0",
+      "sha256": "22e669385ea18b8f4e40c24898dcc183d1e6e19fc13f681ed514abe85c5953eb",
+      "nested": {}
+    },
+    {
+      "path": "plugins/AudibleInstruments",
+      "repository": "CardinalModules/AudibleInstruments",
+      "url": "https://github.com/CardinalModules/AudibleInstruments.git",
+      "revision": "1f279a02d955667341d08f74ddf2054d10e82c65",
+      "sha256": "6b3d23ad3f98ac7b54575179a92844dd7d383954407f3f3ca1bbf958f1666ce4",
+      "nested": {
+        "eurorack": "https://github.com/CardinalModules/eurorack.git"
+      }
+    },
+    {
+      "path": "plugins/Autinn",
+      "repository": "NikolaiVChr/Autinn",
+      "url": "https://github.com/NikolaiVChr/Autinn.git",
+      "revision": "ca0b1b4b52419fc3b4721822c9c7234e80f72be9",
+      "sha256": "66f052d96c66d599a97e58efcf0de7e492b6fe9c1a92a83d67a01e26b6967934",
+      "nested": {}
+    },
+    {
+      "path": "plugins/Axioma",
+      "repository": "kauewerner/Axioma",
+      "url": "https://github.com/kauewerner/Axioma.git",
+      "revision": "3e7e01e6a449dc1e6c523bd4487c0a3200b322cb",
+      "sha256": "e20b5392bc16a9ecdcc6cec10613e79fcbc603530fdb32ae72c652541af9b62a",
+      "nested": {}
+    },
+    {
+      "path": "plugins/BaconPlugs",
+      "repository": "baconpaul/BaconPlugs",
+      "url": "https://github.com/baconpaul/BaconPlugs.git",
+      "revision": "2886a282a0f8518e0515b549e426428db332378c",
+      "sha256": "04d91b9c6f89851b6f0e007ff57536fd29944515349c569538013db22b49cb0d",
+      "nested": {
+        "libs/midifile": "https://github.com/craigsapp/midifile.git",
+        "libs/sst/sst-basic-blocks": "https://github.com/surge-synthesizer/sst-basic-blocks",
+        "libs/sst/sst-rackhelpers": "https://github.com/surge-synthesizer/sst-rackhelpers"
+      }
+    },
+    {
+      "path": "plugins/Befaco",
+      "repository": "VCVRack/Befaco",
+      "url": "https://github.com/VCVRack/Befaco.git",
+      "revision": "5914634cd91cf11cc32394616252beb19c5c934c",
+      "sha256": "e32210a27df1002fa2479d7941805d9b1b7ba96714256ef87964aa37d1e33a08",
+      "nested": {}
+    },
+    {
+      "path": "plugins/Bidoo",
+      "repository": "CardinalModules/Bidoo",
+      "url": "https://github.com/CardinalModules/Bidoo.git",
+      "revision": "23967e9986e256ada353aaf387da33bdc2b5e08c",
+      "sha256": "88a93bf779ec1d75da834db38b1611ee7208f880566651bfa84fbbd7f2197446",
+      "nested": {}
+    },
+    {
+      "path": "plugins/Biset",
+      "repository": "gibbonjoyeux/VCV-Biset",
+      "url": "https://github.com/gibbonjoyeux/VCV-Biset.git",
+      "revision": "154b359fda461a1368baf128ce951297155284c2",
+      "sha256": "7ef59c234506c40a5ba3793e5f243443c67e7d0deb9b583409638a9d137d1385",
+      "nested": {}
+    },
+    {
+      "path": "plugins/BogaudioModules",
+      "repository": "bogaudio/BogaudioModules",
+      "url": "https://github.com/bogaudio/BogaudioModules.git",
+      "revision": "2802604321d286cfdd263aafdf7fd0468ebd8069",
+      "sha256": "89ac0b977e4ddce02207b017b70cbfb06aab6981d07dcd48724db84723d8d41c",
+      "nested": {}
+    },
+    {
+      "path": "plugins/CVfunk",
+      "repository": "codygeary/CVfunk-Modules",
+      "url": "https://github.com/codygeary/CVfunk-Modules.git",
+      "revision": "51f2b4e61cde7978fb84cdd892a1d3aaedc0ff5b",
+      "sha256": "07bb12638f00833c9dd570813ad6a1aa96ce5ee54b0c1c9e8d2ef0a8c8f0bb85",
+      "nested": {}
+    },
+    {
+      "path": "plugins/Cardinal/src/AIDA-X/RTNeural",
+      "repository": "jatinchowdhury18/RTNeural",
+      "url": "https://github.com/jatinchowdhury18/RTNeural.git",
+      "revision": "74e9d354937346f31858e976a2eefc1c25cdcccd",
+      "sha256": "de81a6821ab10b60a0993782d860f6d958832da5b217560622f78e196d3f5b70",
+      "nested": {
+        "modules/xsimd": "https://github.com/xtensor-stack/xsimd"
+      }
+    },
+    {
+      "path": "plugins/CatroModulo",
+      "repository": "catronomix/catro-modulo",
+      "url": "https://github.com/catronomix/catro-modulo.git",
+      "revision": "bf6f969c5f7fff6a419a54197fb4318671281ad5",
+      "sha256": "815d7239f8eeeddd4f87f35bd82aec96edf59a0defec5acfaa6fbcd186bb2c3f",
+      "nested": {}
+    },
+    {
+      "path": "plugins/ChowDSP",
+      "repository": "jatinchowdhury18/ChowDSP-VCV",
+      "url": "https://github.com/jatinchowdhury18/ChowDSP-VCV.git",
+      "revision": "023de1d2c49153590fb0434a7f21fdb539e1c561",
+      "sha256": "a9e4eea820e20fa0879093333b8005e8f85cdb7c7dfbfc1f16777bb89567e48a",
+      "nested": {
+        "lib/chowdsp_utils": "https://github.com/Chowdhury-DSP/chowdsp_utils"
+      }
+    },
+    {
+      "path": "plugins/Computerscare",
+      "repository": "freddyz/computerscare-vcv-modules",
+      "url": "https://github.com/freddyz/computerscare-vcv-modules.git",
+      "revision": "5baab047242088e45c99c9999b6e2d9082981ef1",
+      "sha256": "4d8dfcb196260700cd38c39c95909f1eeb62e63f0fc82e19b19193a27ffda3f9",
+      "nested": {}
+    },
+    {
+      "path": "plugins/DHE-Modules",
+      "repository": "dhemery/DHE-Modules",
+      "url": "https://github.com/dhemery/DHE-Modules.git",
+      "revision": "1d1c286fc69babdb36dfe5fa4fe2856b0f707854",
+      "sha256": "4980e89ef2a682c92485dd811ccd8b520ece62eb1aee4e54eb81acb89080bc8c",
+      "nested": {
+        "dheunit": "https://github.com/dhemery/dheunit"
+      }
+    },
+    {
+      "path": "plugins/ESeries",
+      "repository": "VCVRack/ESeries",
+      "url": "https://github.com/VCVRack/ESeries.git",
+      "revision": "cb665989f48db6c4fe96924b9e42c804ee15d5cf",
+      "sha256": "c7817f5c8526844283e6feca4a0125c8e3fb4f16a13bf87c922751691835a8cb",
+      "nested": {}
+    },
+    {
+      "path": "plugins/EnigmaCurry",
+      "repository": "EnigmaCurry/EnigmaCurry-vcv-pack",
+      "url": "https://github.com/EnigmaCurry/EnigmaCurry-vcv-pack.git",
+      "revision": "dbcd60007a5bb1cb9be7fa66e1e3589da3405ff6",
+      "sha256": "5e290f012782e73ed3d9c534f45429aaa39f23ef1991d8ce9311eb5bc41da9a6",
+      "nested": {}
+    },
+    {
+      "path": "plugins/ExpertSleepers-Encoders",
+      "repository": "expertsleepersltd/vcvrack-encoders",
+      "url": "https://github.com/expertsleepersltd/vcvrack-encoders.git",
+      "revision": "95496e8a955407889bbab94cf404cf356802bb76",
+      "sha256": "3958928f3bd58887c78c5c3726839847738958ce0ec4265630017a1545673d2d",
+      "nested": {}
+    },
+    {
+      "path": "plugins/Extratone",
+      "repository": "EaterOfSheep/Extratone",
+      "url": "https://github.com/EaterOfSheep/Extratone.git",
+      "revision": "9fb70500b17fe2495aba9f5f77ddf496d5c09f13",
+      "sha256": "afa069bf261abb30f8cf87140dd0028749ae6a331aab79c5f0c97579bf209e54",
+      "nested": {}
+    },
+    {
+      "path": "plugins/FehlerFabrik",
+      "repository": "RCameron93/FehlerFabrik",
+      "url": "https://github.com/RCameron93/FehlerFabrik.git",
+      "revision": "9b5897828dc1b757f42cb707b5979488acb67401",
+      "sha256": "767ce81d986b77f90cd0cb89324840e44017ea634771ea3a47e2ff13159e146c",
+      "nested": {}
+    },
+    {
+      "path": "plugins/Fundamental",
+      "repository": "CardinalModules/Fundamental",
+      "url": "https://github.com/CardinalModules/Fundamental.git",
+      "revision": "59315911f93ca9f2af13a37fc8efa404400f2fbc",
+      "sha256": "5ec99287f0b8bb167d6e922043f938f1d7f4574acbcb043ede9935d156941646",
+      "nested": {}
+    },
+    {
+      "path": "plugins/GlueTheGiant",
+      "repository": "gluethegiant/gtg-rack",
+      "url": "https://github.com/gluethegiant/gtg-rack.git",
+      "revision": "d40d707fc76fbbdada64ce4d4a64b4f2fbd7e865",
+      "sha256": "6975e836f899f99078f00fdd89d18a1bd313da6c0721a7bf1bdde182ba472b22",
+      "nested": {}
+    },
+    {
+      "path": "plugins/GoodSheperd",
+      "repository": "jensschulze/GoodSheperd",
+      "url": "https://github.com/jensschulze/GoodSheperd.git",
+      "revision": "636351059f2eec629f3b8a537451dd3d0eb01c30",
+      "sha256": "684f1510b7e4c0c46def9ef5a0f4149c81d23a4386645f22b179c8be26ad8e81",
+      "nested": {}
+    },
+    {
+      "path": "plugins/GrandeModular",
+      "repository": "dbgrande/GrandeModular",
+      "url": "https://github.com/dbgrande/GrandeModular.git",
+      "revision": "2f5f9d84a3c1c9500c0bbd4bcc284dfe0d15209d",
+      "sha256": "06c20d3f9d64edd1fe8a75547b8789e357bbae63e9640ad17f14b4825c6d22a3",
+      "nested": {}
+    },
+    {
+      "path": "plugins/HamptonHarmonics",
+      "repository": "hampton-harmonics/hampton-harmonics-modules",
+      "url": "https://gitlab.com/hampton-harmonics/hampton-harmonics-modules.git",
+      "revision": "7db5ef91d611d3da1e1552ee0d329d803db3b1fe",
+      "sha256": "eb2d9868df81f4ed97c73376284d2807410e3b5070b4b2d3e15be3e939ad4091",
+      "nested": {}
+    },
+    {
+      "path": "plugins/HetrickCV",
+      "repository": "mhetrick/hetrickcv",
+      "url": "https://github.com/mhetrick/hetrickcv.git",
+      "revision": "8c46fbe13acdcb87991719bddcc6ec8abcf152ef",
+      "sha256": "e0cdbd604d7377a365103d585308eb64f44fa021d08a77765b3eb3c2af146eee",
+      "nested": {
+        "Gamma": "https://github.com/mhetrick/Gammin.git"
+      }
+    },
+    {
+      "path": "plugins/ImpromptuModular",
+      "repository": "MarcBoule/ImpromptuModular",
+      "url": "https://github.com/MarcBoule/ImpromptuModular.git",
+      "revision": "eb514f1e867a5626918dd70b947908b3181f66b8",
+      "sha256": "c9beef8cf70364020315afb48e1cb21d0a3c5ec4621fce96961828df16beaaf9",
+      "nested": {}
+    },
+    {
+      "path": "plugins/JW-Modules",
+      "repository": "jeremywen/JW-Modules",
+      "url": "https://github.com/jeremywen/JW-Modules.git",
+      "revision": "850e9c442fd6311518a668a8a548249c94dcd9a8",
+      "sha256": "0e7ede2307a4cf289e1ac5c427534382a53818b8874e443ae273dc0a794a81c8",
+      "nested": {}
+    },
+    {
+      "path": "plugins/LifeFormModular",
+      "repository": "SteveRussell33/LifeFormModular",
+      "url": "https://github.com/SteveRussell33/LifeFormModular.git",
+      "revision": "c7b8d096f618c421d7d45784b894c0ac2f3395b0",
+      "sha256": "83635c1abba1debc9e2cd4f4942830f48a45e81402867c2e04cc4fcffacd06bf",
+      "nested": {}
+    },
+    {
+      "path": "plugins/LilacLoop",
+      "repository": "grough/lilac-loop-vcv",
+      "url": "https://github.com/grough/lilac-loop-vcv.git",
+      "revision": "cf9bb5cfa5fd41ecfc9976bb106c2f4a7667c9d7",
+      "sha256": "0ce942cdb90ed0e462898713948b1e9781802ff537639f3f32d61b2683e86ecf",
+      "nested": {}
+    },
+    {
+      "path": "plugins/LittleUtils",
+      "repository": "mgunyho/Little-Utils",
+      "url": "https://github.com/mgunyho/Little-Utils.git",
+      "revision": "46939264c5081187c5dbc481e4d4a0667eafd473",
+      "sha256": "e17ade205cc9d3f95a00dd8bd31fde19bdd0787e2803700baf6434ff37c3835e",
+      "nested": {}
+    },
+    {
+      "path": "plugins/LomasModules",
+      "repository": "LomasModules/LomasModules",
+      "url": "https://github.com/LomasModules/LomasModules.git",
+      "revision": "b714cdb0c662503bc6cf60c06765b426a4caa17f",
+      "sha256": "9ad6f7b590fb984fe823b6f2a45c302860efea717baae2484c527d69a8d86aa2",
+      "nested": {}
+    },
+    {
+      "path": "plugins/LyraeModules",
+      "repository": "VegaDeftwing/LyraeModules",
+      "url": "https://github.com/VegaDeftwing/LyraeModules.git",
+      "revision": "b6dde88e4d780de0207ece26c5b7de23d61c84e6",
+      "sha256": "ebe9954000c7206d96858eefc5ef798b2b1c2d6343896c252ed02bb803a64cd1",
+      "nested": {}
+    },
+    {
+      "path": "plugins/ML_modules",
+      "repository": "martin-lueders/ML_modules",
+      "url": "https://github.com/martin-lueders/ML_modules.git",
+      "revision": "05ac273285dca1da828deca5aba37c0b7df0fbbd",
+      "sha256": "f4f8e81dbd81cab5cff98c5a341da04af7aac0fdeae181289e02c5f2f6dd5308",
+      "nested": {}
+    },
+    {
+      "path": "plugins/MSM",
+      "repository": "netboy3/MSM-vcvrack-plugin",
+      "url": "https://github.com/netboy3/MSM-vcvrack-plugin.git",
+      "revision": "24520e6475dc875ee9373f48b1fffb6b2ced243a",
+      "sha256": "219be748e40e971867f94e15b46a20c233a30896c899e1077b99a3124976855e",
+      "nested": {}
+    },
+    {
+      "path": "plugins/MUS-X",
+      "repository": "Jojosito/MUS-X",
+      "url": "https://github.com/Jojosito/MUS-X.git",
+      "revision": "f622217ec6b709b7707fb76f85026e0faa93b893",
+      "sha256": "e51f34250359bf6a7a31835f14a0a92cb77efb583e5f16715d684db1db655b6d",
+      "nested": {}
+    },
+    {
+      "path": "plugins/Meander",
+      "repository": "knchaffin/Meander",
+      "url": "https://github.com/knchaffin/Meander.git",
+      "revision": "922fe91a6084247a48426b52884d27a67764d67d",
+      "sha256": "826ffa5ec906ae2dcd2b0bf0a7d17dbb0844671564e95ee9f727a6afa27f50b5",
+      "nested": {}
+    },
+    {
+      "path": "plugins/MindMeldModular",
+      "repository": "MarcBoule/MindMeldModular",
+      "url": "https://github.com/MarcBoule/MindMeldModular.git",
+      "revision": "8136f0c941b41c57af70a5ebb5839f0086518b2b",
+      "sha256": "e3a0e3964724b45eff0b0d2bd1516c82fcd6a927ce2a08f0eda20bda7e7553d2",
+      "nested": {}
+    },
+    {
+      "path": "plugins/MockbaModular",
+      "repository": "MockbaTheBorg/MockbaModular",
+      "url": "https://github.com/MockbaTheBorg/MockbaModular.git",
+      "revision": "b819787d86a1db0ad6f4208cb96b8e3589b5e4ee",
+      "sha256": "ef9aa9868cc4e757cdc07ac4223551f332bbcae55d49a254714908768c5d45f4",
+      "nested": {}
+    },
+    {
+      "path": "plugins/Mog",
+      "repository": "JustMog/Mog-VCV",
+      "url": "https://github.com/JustMog/Mog-VCV.git",
+      "revision": "00a7e3b01f56da5cfc86720ae6951ecdf8953ee5",
+      "sha256": "c8c2356500915364e9aadd1268f0154c85a91c33ce636eb72de79b363268d094",
+      "nested": {}
+    },
+    {
+      "path": "plugins/Orbits",
+      "repository": "RareBreeds/Orbits",
+      "url": "https://github.com/RareBreeds/Orbits.git",
+      "revision": "5c7ea729ba16a14179b25e90a2f87dc4902e5bf4",
+      "sha256": "bdbb37109618c4a5077342391f18bbae6dfb9879411fed6d491e0ae9758d18d5",
+      "nested": {}
+    },
+    {
+      "path": "plugins/PathSet",
+      "repository": "patheros/PathSetModules",
+      "url": "https://github.com/patheros/PathSetModules.git",
+      "revision": "2f55b4b115e76623ef54e24c30daad4d576a4446",
+      "sha256": "758c0f26c8723bc225e2bda5eb6f3c033f9dcc45945ec7ee525ed4f96c88823a",
+      "nested": {}
+    },
+    {
+      "path": "plugins/PdArray",
+      "repository": "mgunyho/PdArray",
+      "url": "https://github.com/mgunyho/PdArray.git",
+      "revision": "8e8e65490bf9d1708e586b1d759849bf2d76a4f0",
+      "sha256": "03e5bddc4043daa0000340a58b3f4c39c585d39b132577f172210a0dde95d4bb",
+      "nested": {}
+    },
+    {
+      "path": "plugins/PinkTrombone",
+      "repository": "VegaDeftwing/PinkTromboneVCV",
+      "url": "https://github.com/VegaDeftwing/PinkTromboneVCV.git",
+      "revision": "1e96d7b898eca6101f438dfd8224d713985486e2",
+      "sha256": "bc7a0caf89495835bc6650ab66b47ebee2fddc9c0fe5e8cac59ccbebfec7b990",
+      "nested": {}
+    },
+    {
+      "path": "plugins/Prism",
+      "repository": "SteveRussell33/Prism",
+      "url": "https://github.com/SteveRussell33/Prism.git",
+      "revision": "16a80544d0389db9c1225c4ed1e29e5f47306a01",
+      "sha256": "1adf70902bdde61b2331bb464646d2b23a1079e4aadc8addeac44a9707eea7c0",
+      "nested": {}
+    },
+    {
+      "path": "plugins/RebelTech",
+      "repository": "hemmer/rebel-tech-vcv",
+      "url": "https://github.com/hemmer/rebel-tech-vcv.git",
+      "revision": "6f610187ffb2a9707035a63706effe00335fe7f6",
+      "sha256": "7333a5cff58121ae368145ac0f206af07930ce965386450b1739350b963951f6",
+      "nested": {}
+    },
+    {
+      "path": "plugins/Sapphire",
+      "repository": "cosinekitty/sapphire",
+      "url": "https://github.com/cosinekitty/sapphire.git",
+      "revision": "d884e7957509027717768aef0f4d5176c8303582",
+      "sha256": "5eacacc9a5a68080c54a0aa1c16147924b1b3044d53586292e10a78de3af96d5",
+      "nested": {}
+    },
+    {
+      "path": "plugins/StarlingVia",
+      "repository": "starlingcode/Via-for-Rack",
+      "url": "https://github.com/starlingcode/Via-for-Rack.git",
+      "revision": "a6b75fddc2df624ba64dab70c2e35b8e48ad8c1d",
+      "sha256": "24bea70a69b45a335748b299ca0f70192f5bcc74d54fd23b06837eb05a95082c",
+      "nested": {
+        "Via": "https://github.com/starlingcode/Via.git",
+        "res/starling-rack-gfx": "https://github.com/starlingcode/starling-rack-gfx",
+        "src/dep/starling-dsp": "https://github.com/starlingcode/starling-dsp",
+        "src/dep/starling-rack-ui": "https://github.com/starlingcode/starling-rack-ui"
+      }
+    },
+    {
+      "path": "plugins/ValleyAudio",
+      "repository": "ValleyAudio/ValleyRackFree",
+      "url": "https://github.com/ValleyAudio/ValleyRackFree.git",
+      "revision": "f306afedcd000e2b2fe84aa793e6e9daf6ff44c9",
+      "sha256": "ace8bd0c3bc0413f8762baea7e9435b30f51b6ecf7eec0dec91314f21661b391",
+      "nested": {}
+    },
+    {
+      "path": "plugins/Venom",
+      "repository": "DaveBenham/VenomModules",
+      "url": "https://github.com/DaveBenham/VenomModules",
+      "revision": "bb30fd61100856214c1def3431f4ce2df70102c2",
+      "sha256": "9853b5054ebf8184a9122b9132d44dedee475d3529d08634ff618585a693116f",
+      "nested": {}
+    },
+    {
+      "path": "plugins/WSTD-Drums",
+      "repository": "Wasted-Audio/WSTD-Drums",
+      "url": "https://github.com/Wasted-Audio/WSTD-Drums.git",
+      "revision": "05330ce99f4ec742f906c77ab5d8758a15decb4c",
+      "sha256": "c87b6a9b9bf565ffc69ee7f01b9249118b8fcadcc432698e46223fc8894113c2",
+      "nested": {
+        "deps/SynthDevKit": "https://github.com/JerrySievert/SynthDevKit.git"
+      }
+    },
+    {
+      "path": "plugins/WhatTheRack",
+      "repository": "korfuri/WhatTheRack",
+      "url": "https://github.com/korfuri/WhatTheRack.git",
+      "revision": "82c3c5e11176c364b61d501059d9182e86464eca",
+      "sha256": "d08d135e349fddf4bb12626e4e4ff237ba1a4a8e2a711a0e43b6d8cc7144298f",
+      "nested": {}
+    },
+    {
+      "path": "plugins/ZZC",
+      "repository": "zezic/ZZC",
+      "url": "https://github.com/zezic/ZZC.git",
+      "revision": "5a9d37487026133e54b1af3004851fb8362a3d52",
+      "sha256": "9c76268e355223c4fa4884ef8c841b05e528079bf1f081d54e2c8e93a4fd26da",
+      "nested": {}
+    },
+    {
+      "path": "plugins/ZetaCarinaeModules",
+      "repository": "mhampton/ZetaCarinaeModules",
+      "url": "https://github.com/mhampton/ZetaCarinaeModules.git",
+      "revision": "7fa3a59e71cf5f541a335e89bc45102923a3fd62",
+      "sha256": "873a6df86873f2bff91da3dd536af2a952ad59de022d0cd5f6b54f56031b1438",
+      "nested": {}
+    },
+    {
+      "path": "plugins/admiral",
+      "repository": "wapiflapi/admiral",
+      "url": "https://github.com/wapiflapi/admiral.git",
+      "revision": "2885b72e1e82b1103eb2cb4db2a226c57c9e5f40",
+      "sha256": "e0353736aea26dee161989b50e9912af59b5d142b9045278576161de28d3b667",
+      "nested": {}
+    },
+    {
+      "path": "plugins/alefsbits",
+      "repository": "alefnull/alefsbits",
+      "url": "https://github.com/alefnull/alefsbits.git",
+      "revision": "af534ff487db6689c3be527f5acb34ea90efc195",
+      "sha256": "1841da5f15c6a067654312baf61387b52f046c71bcb4ed03c67751ea223d8504",
+      "nested": {}
+    },
+    {
+      "path": "plugins/cf",
+      "repository": "CardinalModules/cf",
+      "url": "https://github.com/CardinalModules/cf.git",
+      "revision": "8aca80cbaa30787e0aed1edb886767fa756b9846",
+      "sha256": "033b19813e802811b1b9df7bb1b39fffe09d143d7b745f6b1db0c5351072633a",
+      "nested": {}
+    },
+    {
+      "path": "plugins/dBiz",
+      "repository": "dBiz/dBiz",
+      "url": "https://github.com/dBiz/dBiz.git",
+      "revision": "d6933abe016eeb97c9fb0b0f955af756401403c1",
+      "sha256": "47716f94e25fcaf66e0f22fdaac4ef338f487d638bb83c93c77e7519bdf03df1",
+      "nested": {}
+    },
+    {
+      "path": "plugins/eightfold",
+      "repository": "scanner-darkly/eightfold",
+      "url": "https://github.com/scanner-darkly/eightfold.git",
+      "revision": "a541c5cfdc3fb9ad8e4f345470f817eaf576b987",
+      "sha256": "d7ebb29691758597732e84c227f6005fe440e4ba46e9d966d4db75b48dec30dd",
+      "nested": {}
+    },
+    {
+      "path": "plugins/forsitan-modulare",
+      "repository": "gosub/forsitan-modulare",
+      "url": "https://github.com/gosub/forsitan-modulare.git",
+      "revision": "a120964048ee535380ddd82bd112650780929375",
+      "sha256": "2ae09404ac424b298a823f58e6acbc58aec22994e73149d6c1f79faed5214047",
+      "nested": {}
+    },
+    {
+      "path": "plugins/h4n4-modules",
+      "repository": "hannakoppelaar/h4n4-modules",
+      "url": "https://github.com/hannakoppelaar/h4n4-modules.git",
+      "revision": "5364f01c95056a94e84259c782730decb32750eb",
+      "sha256": "3af26ad58f3c41c888ae05f10bec5747675d5fbdc7ee4ab3c8fb6258540f8955",
+      "nested": {}
+    },
+    {
+      "path": "plugins/ihtsyn",
+      "repository": "CardinalModules/ihtsyn",
+      "url": "https://github.com/CardinalModules/ihtsyn.git",
+      "revision": "1b77e3c3ba12734bbd29a4aa59dd408e679b5cf7",
+      "sha256": "d40228c5d051a45f3b06508dbb19a7d12336b1ec18562adc869c684ba41b8905",
+      "nested": {}
+    },
+    {
+      "path": "plugins/kocmoc",
+      "repository": "janne808/kocmoc-rack-modules",
+      "url": "https://github.com/janne808/kocmoc-rack-modules.git",
+      "revision": "ea69acab96db49c32601b609cdfe06444ecee0e8",
+      "sha256": "a2c5a7d2e5fe5e5b17b1ba363f9c5359a2898c696663e179312fb802d309719f",
+      "nested": {}
+    },
+    {
+      "path": "plugins/mscHack",
+      "repository": "CardinalModules/mscHack",
+      "url": "https://github.com/CardinalModules/mscHack.git",
+      "revision": "e5c6048071b9e1fc34b4a97072f1966b88235455",
+      "sha256": "ba7ddee82408536134e23b27cba828128dbc9f2a716d1cd3af39e4f2b709c9b5",
+      "nested": {}
+    },
+    {
+      "path": "plugins/myth-modules",
+      "repository": "Ahineya/vcv-myth-plugin",
+      "url": "https://github.com/Ahineya/vcv-myth-plugin.git",
+      "revision": "e511dd95eca830ee74fef23bddc195696603125f",
+      "sha256": "8dcf8dfe1146b9babe574a67832ceba5ecaeaf4715801cf8f6b29026822d7a05",
+      "nested": {}
+    },
+    {
+      "path": "plugins/nonlinearcircuits",
+      "repository": "mhetrick/nonlinearcircuits",
+      "url": "https://github.com/mhetrick/nonlinearcircuits.git",
+      "revision": "2e6bffda1df17188061b0065054b98713102556c",
+      "sha256": "a3f6706a49a531275dcbb91817bc85c0b876a5d9f00e5d58cf70c7d09481e62b",
+      "nested": {}
+    },
+    {
+      "path": "plugins/rackwindows",
+      "repository": "CardinalModules/rackwindows",
+      "url": "https://github.com/CardinalModules/rackwindows.git",
+      "revision": "60dfe5dff94b82fc42a43d971e41e64e296b0220",
+      "sha256": "ecb9c1b54897116e1f147bb6ae96844579c41ce35f7af7b6d7ff230905ee0cc0",
+      "nested": {}
+    },
+    {
+      "path": "plugins/rcm-modules",
+      "repository": "Rcomian/rcm-modules",
+      "url": "https://github.com/Rcomian/rcm-modules.git",
+      "revision": "c4a243ec7089254aa19225c0666bb4bda2163a6a",
+      "sha256": "f563b8104d055e94012e8fd409f1c0d5a4e4c41a7d55b9fd2e254d57b41c5de8",
+      "nested": {}
+    },
+    {
+      "path": "plugins/repelzen",
+      "repository": "wiqid/repelzen",
+      "url": "https://github.com/wiqid/repelzen.git",
+      "revision": "428f76c3509e4d71489daf075c48ae4b995a0786",
+      "sha256": "cb0b4ec084359edd28d53e75600ee6c40855a6e8b5f4688b2b12dbea4a820e3a",
+      "nested": {}
+    },
+    {
+      "path": "plugins/sonusmodular",
+      "repository": "sonusdept/sonusmodular",
+      "url": "https://gitlab.com/sonusdept/sonusmodular.git",
+      "revision": "407829b0341dc04aa8530bd14a739c9f222930ed",
+      "sha256": "d894ee63aa2120166ac797a9ce2895b9cac25e57291c50e8a55bc081e6f35d06",
+      "nested": {}
+    },
+    {
+      "path": "plugins/stocaudio",
+      "repository": "aptrn/stocaudio-modules",
+      "url": "https://github.com/aptrn/stocaudio-modules.git",
+      "revision": "ed5c85b0d9391c37f4ec4d9de4ef8aa30d94bcd6",
+      "sha256": "e6dfd6200b7987c3b516256a0f30542d05ad4db4ffbec2df02e2e62604f5b169",
+      "nested": {}
+    },
+    {
+      "path": "plugins/stoermelder-packone",
+      "repository": "stoermelder/vcvrack-packone",
+      "url": "https://github.com/stoermelder/vcvrack-packone.git",
+      "revision": "851efdf426b36a77c5099a8286a6e58f46b9d20c",
+      "sha256": "d36908b9c4cdd1fe37ee47f744c42501f13bfe859a4f2e1b8ca578a2435afb02",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext",
+      "repository": "surge-synthesizer/surge-rack",
+      "url": "https://github.com/surge-synthesizer/surge-rack.git",
+      "revision": "cbebb2b5d5d6b5dc865660fb3ef54d2c35bfa0f1",
+      "sha256": "304768e75b60c88e3eb0ec6095ad13ecb1f3d7232e41f4cac9d451ab0096721e",
+      "nested": {
+        "surge": "https://github.com/surge-synthesizer/surge.git",
+        "libs/sst-rackhelpers": "https://github.com/surge-synthesizer/sst-rackhelpers"
+      }
+    },
+    {
+      "path": "plugins/unless_modules",
+      "repository": "unlessgames/unless_modules",
+      "url": "https://gitlab.com/unlessgames/unless_modules.git",
+      "revision": "0106e455400a9e8bf3bbbb0abde4418e7614c5aa",
+      "sha256": "19ff81c515fe023d991f296681f580a7866f9b4300d3236f34f77c7e71691c8c",
+      "nested": {}
+    },
+    {
+      "path": "plugins/voxglitch",
+      "repository": "clone45/voxglitch",
+      "url": "https://github.com/clone45/voxglitch.git",
+      "revision": "3792a1ee01240c70e4a9d9e9aed6ec90518ac293",
+      "sha256": "9a4b47e6ea5e6c26e0e52e1e3e380b60c648dbf2d0ffbabc78c500047483248d",
+      "nested": {}
+    },
+    {
+      "path": "src/Rack",
+      "repository": "VCVRack/Rack",
+      "url": "https://github.com/VCVRack/Rack.git",
+      "revision": "8c6f41b778b4bf8860b89b36d5503fd37924077f",
+      "sha256": "59e509468b53a23e73d560a8c5d0e3c2dae7f9505d4aea61e1429e1a214d723d",
+      "nested": {
+        "dep/nanovg": "https://github.com/VCVRack/nanovg.git",
+        "dep/nanosvg": "https://github.com/memononen/nanosvg.git",
+        "dep/osdialog": "https://github.com/AndrewBelt/osdialog.git",
+        "dep/oui-blendish": "https://github.com/VCVRack/oui-blendish.git",
+        "dep/rtaudio": "https://github.com/VCVRack/rtaudio.git",
+        "dep/glfw": "https://github.com/VCVRack/glfw.git",
+        "dep/fuzzysearchdatabase": "https://bitbucket.org/j_norberg/fuzzysearchdatabase.git",
+        "dep/filesystem": "https://github.com/gulrak/filesystem.git",
+        "dep/pffft": "https://bitbucket.org/jpommier/pffft.git",
+        "dep/rtmidi": "https://github.com/VCVRack/rtmidi.git",
+        "dep/tinyexpr": "https://github.com/codeplea/tinyexpr.git",
+        "dep/speexdsp": "https://gitlab.xiph.org/xiph/speexdsp.git",
+        "dep/simde": "https://github.com/simd-everywhere/simde.git"
+      }
+    },
+    {
+      "path": "carla/source/native-plugins/external",
+      "repository": "falkTX/Carla-Plugins",
+      "url": "https://github.com/falkTX/Carla-Plugins",
+      "revision": "d53b62e9b948c26494ff9f43ce611110ce0ef4c7",
+      "sha256": "b2698a3d9d8e860e738361e67bcbcf45c4b3e367bfc98916059acc1a08aa89f2",
+      "nested": {}
+    },
+    {
+      "path": "dpf/dgl/src/pugl-upstream",
+      "repository": "DISTRHO/pugl",
+      "url": "https://github.com/DISTRHO/pugl.git",
+      "revision": "47b8f6d6b004ff8d4025dffc91c4146d2132966a",
+      "sha256": "1d5f16bc9a0ed27f1070b8744d9b52fa844a8b8b8b3c11bfc82ef17c03c8844b",
+      "nested": {}
+    },
+    {
+      "path": "plugins/ArableInstruments/eurorack",
+      "repository": "CardinalModules/eurorack",
+      "url": "https://github.com/CardinalModules/eurorack.git",
+      "revision": "87bf3b1da88147e3fcc8c57e3072eec67ccd380a",
+      "sha256": "fcf13cb1c916e070e7ebe7db06aea9c2df28bdc3b757ff08eaaa7102d4f61c37",
+      "nested": {
+        "avrlib": "https://github.com/pichenettes/avril.git",
+        "avrlibx": "https://github.com/pichenettes/avrilx.git",
+        "stmlib": "https://github.com/pichenettes/stmlib.git",
+        "stm_audio_bootloader": "https://github.com/pichenettes/stm-audio-bootloader.git",
+        "avr_audio_bootloader": "https://github.com/pichenettes/avr-audio-bootloader.git"
+      }
+    },
+    {
+      "path": "plugins/ArableInstruments/parasites/avr_audio_bootloader",
+      "repository": "pichenettes/avr-audio-bootloader",
+      "url": "https://github.com/pichenettes/avr-audio-bootloader.git",
+      "revision": "52754f878b4883adf565bc3ddf691c5e1c4a9f6d",
+      "sha256": "80e9e34572e0b73d7e5e8ebb45b45fc024f9b35f4d47fdcc76a2451ca8869408",
+      "nested": {}
+    },
+    {
+      "path": "plugins/ArableInstruments/parasites/avrlib",
+      "repository": "pichenettes/avril",
+      "url": "https://github.com/pichenettes/avril.git",
+      "revision": "36b988a851f8638adb9f53ff98939cb08ffce8cc",
+      "sha256": "553a088272528f855165f4ab08e2370e71c7f574ea84a3105a27df34268ecf5a",
+      "nested": {}
+    },
+    {
+      "path": "plugins/ArableInstruments/parasites/avrlibx",
+      "repository": "pichenettes/avrilx",
+      "url": "https://github.com/pichenettes/avrilx.git",
+      "revision": "5c28367e91dfb036593e876c886241cf81f60a2d",
+      "sha256": "1c89d9f7211912a9c5c1773722d31164e1ed35a1dafeebd5b9604cebcb0cbc96",
+      "nested": {}
+    },
+    {
+      "path": "plugins/ArableInstruments/parasites/stm_audio_bootloader",
+      "repository": "pichenettes/stm-audio-bootloader",
+      "url": "https://github.com/pichenettes/stm-audio-bootloader.git",
+      "revision": "6f20ead22a28967b0446546d2fcf0dfb9599ba93",
+      "sha256": "629289189eff564932a0933ee47573fd254936f2faada71ca0fb4d3b089b2226",
+      "nested": {}
+    },
+    {
+      "path": "plugins/ArableInstruments/parasites/stmlib",
+      "repository": "mqtthiqs/stmlib",
+      "url": "https://github.com/mqtthiqs/stmlib.git",
+      "revision": "8ab2aaee77cbacb47b646d46d22ee5d358effe2d",
+      "sha256": "335b2c0059eee86b7e4c4ae48bce9048eda096a4180ef302bdbfb37f44b7183f",
+      "nested": {}
+    },
+    {
+      "path": "plugins/AudibleInstruments/eurorack",
+      "repository": "CardinalModules/eurorack",
+      "url": "https://github.com/CardinalModules/eurorack.git",
+      "revision": "8f8800304ccbcff37a01cedc59bdd8cf5a564cf1",
+      "sha256": "a5755737033c4d8aa35d61d544acabf335b9d2af7f2bd2aa968bf1152ecff535",
+      "nested": {
+        "avrlib": "https://github.com/pichenettes/avril.git",
+        "avrlibx": "https://github.com/pichenettes/avrilx.git",
+        "stmlib": "https://github.com/pichenettes/stmlib.git",
+        "stm_audio_bootloader": "https://github.com/pichenettes/stm-audio-bootloader.git",
+        "avr_audio_bootloader": "https://github.com/pichenettes/avr-audio-bootloader.git"
+      }
+    },
+    {
+      "path": "plugins/BaconPlugs/libs/midifile",
+      "repository": "craigsapp/midifile",
+      "url": "https://github.com/craigsapp/midifile.git",
+      "revision": "99e87b684f88ebff6417ef25f269f1a95b780ad2",
+      "sha256": "2730b84ff18e444c9e86f257f1bb757615143a5103a7f10e1d577c8384314d76",
+      "nested": {}
+    },
+    {
+      "path": "plugins/BaconPlugs/libs/sst/sst-basic-blocks",
+      "repository": "surge-synthesizer/sst-basic-blocks",
+      "url": "https://github.com/surge-synthesizer/sst-basic-blocks",
+      "revision": "144a13d743b1b600be2f6eeb06a65f6dad1ab868",
+      "sha256": "ba3cb7e253dab0c292e708af164590f586b88b0fb131b855746fe8f532d194fe",
+      "nested": {}
+    },
+    {
+      "path": "plugins/BaconPlugs/libs/sst/sst-rackhelpers",
+      "repository": "surge-synthesizer/sst-rackhelpers",
+      "url": "https://github.com/surge-synthesizer/sst-rackhelpers",
+      "revision": "75c7b4efb5371d343f0f56fcfaec54cbd9ea3247",
+      "sha256": "3c85f3bb7831d56b04188a85e63b58ef5d0317addfc7d10f503d4037ae3ef1f4",
+      "nested": {}
+    },
+    {
+      "path": "plugins/Cardinal/src/AIDA-X/RTNeural/modules/xsimd",
+      "repository": "xtensor-stack/xsimd",
+      "url": "https://github.com/xtensor-stack/xsimd",
+      "revision": "a00c81f7b9e808a42aedcf7da2fbb1f9a636da34",
+      "sha256": "f1c485107ae0b29069a88bf9619d2d93eaed8321ae03a83d7fc437da85d5b9fd",
+      "nested": {}
+    },
+    {
+      "path": "plugins/ChowDSP/lib/chowdsp_utils",
+      "repository": "Chowdhury-DSP/chowdsp_utils",
+      "url": "https://github.com/Chowdhury-DSP/chowdsp_utils",
+      "revision": "505052501fb64b38519101478628ec5ea32d6a43",
+      "sha256": "1f0b3b0cfecc634826e7c0d5db407fb22d4075463afa909fb7ec458ca0365f2a",
+      "nested": {}
+    },
+    {
+      "path": "plugins/DHE-Modules/dheunit",
+      "repository": "dhemery/dheunit",
+      "url": "https://github.com/dhemery/dheunit",
+      "revision": "76e0cf666fa623ed6785cf082d4e6ab2160b0613",
+      "sha256": "6d17886cbff6ec28558f3fc5594cdf4e62b5defc5416b83b4118e08f729cadcb",
+      "nested": {}
+    },
+    {
+      "path": "plugins/HetrickCV/Gamma",
+      "repository": "mhetrick/Gammin",
+      "url": "https://github.com/mhetrick/Gammin.git",
+      "revision": "74303162c48526421da0859292b1fa34617ba0fd",
+      "sha256": "02f238784a316cfe700f6ef1245ec27185d1b12234bdbd9408c3d57610a482bb",
+      "nested": {}
+    },
+    {
+      "path": "plugins/StarlingVia/Via",
+      "repository": "starlingcode/Via",
+      "url": "https://github.com/starlingcode/Via.git",
+      "revision": "4022f9e7b64a9bd1d378aa66c2a3827d4476b5ed",
+      "sha256": "8c1ec540d23d3c62448c124ef5ca2d3fe5530d07334bb88578f96d537b9d6f58",
+      "nested": {}
+    },
+    {
+      "path": "plugins/StarlingVia/res/starling-rack-gfx",
+      "repository": "starlingcode/starling-rack-gfx",
+      "url": "https://github.com/starlingcode/starling-rack-gfx",
+      "revision": "0380014989e71411fe7714ed4fc4827037ac23dd",
+      "sha256": "960d05cf388630d51eba64803e891141f97df280ef9c8871bf9c6a4ea2140ce2",
+      "nested": {}
+    },
+    {
+      "path": "plugins/StarlingVia/src/dep/starling-dsp",
+      "repository": "starlingcode/starling-dsp",
+      "url": "https://github.com/starlingcode/starling-dsp",
+      "revision": "4241ea7e61710d70b86bbeb9cf5f677a57d36037",
+      "sha256": "e2a654587bf4921e6ab76693f311595e09c8f6fa4571ffb173809541dfb6110c",
+      "nested": {}
+    },
+    {
+      "path": "plugins/StarlingVia/src/dep/starling-rack-ui",
+      "repository": "starlingcode/starling-rack-ui",
+      "url": "https://github.com/starlingcode/starling-rack-ui",
+      "revision": "a092ef2c31ab01dcd97fd1dcf45e4996cfca8feb",
+      "sha256": "cd674195cca270baf4819edad934df9fc79e233da8014f5f46dc40e578be8c5e",
+      "nested": {}
+    },
+    {
+      "path": "plugins/WSTD-Drums/deps/SynthDevKit",
+      "repository": "JerrySievert/SynthDevKit",
+      "url": "https://github.com/JerrySievert/SynthDevKit.git",
+      "revision": "0f322e58f00f1a04276ecc3eadb610b418f040d5",
+      "sha256": "e3b96e74ad3679bf1552f7f11cbecc4158045fa4d8f926c3f630dab794f795ba",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/libs/sst-rackhelpers",
+      "repository": "surge-synthesizer/sst-rackhelpers",
+      "url": "https://github.com/surge-synthesizer/sst-rackhelpers",
+      "revision": "75c7b4efb5371d343f0f56fcfaec54cbd9ea3247",
+      "sha256": "3c85f3bb7831d56b04188a85e63b58ef5d0317addfc7d10f503d4037ae3ef1f4",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge",
+      "repository": "surge-synthesizer/surge",
+      "url": "https://github.com/surge-synthesizer/surge.git",
+      "revision": "3313430a1f3b04f4a8e0b963de87d205e4374c31",
+      "sha256": "4ec2f9bf3308badf7f9001c552e22eb800a9eeab4f475c6e6af4fbedc9b773b3",
+      "nested": {
+        "libs/clap-juce-extensions": "https://github.com/free-audio/clap-juce-extensions",
+        "libs/eurorack/eurorack": "https://github.com/surge-synthesizer/eurorack.git",
+        "libs/fmt": "https://github.com/fmtlib/fmt.git",
+        "libs/JUCE": "https://github.com/surge-synthesizer/JUCE",
+        "libs/libsamplerate": "https://github.com/libsndfile/libsamplerate.git",
+        "libs/LuaJitLib/LuaJIT": "https://github.com/LuaJIT/LuaJIT.git",
+        "libs/simde": "https://github.com/simd-everywhere/simde",
+        "libs/tuning-library": "https://github.com/surge-synthesizer/tuning-library",
+        "libs/oddsound-mts/MTS-ESP": "https://github.com/ODDSound/MTS-ESP",
+        "libs/PEGTL": "https://github.com/taocpp/PEGTL.git",
+        "libs/pffft": "https://github.com/surge-synthesizer/pffft.git",
+        "libs/pybind11": "https://github.com/pybind/pybind11",
+        "libs/sst/sst-basic-blocks": "https://github.com/surge-synthesizer/sst-basic-blocks.git",
+        "libs/sst/sst-cpputils": "https://github.com/surge-synthesizer/sst-cpputils",
+        "libs/sst/sst-effects": "https://github.com/surge-synthesizer/sst-effects",
+        "libs/sst/sst-filters": "https://github.com/surge-synthesizer/sst-filters",
+        "libs/sst/sst-plugininfra": "https://github.com/surge-synthesizer/sst-plugininfra",
+        "libs/sst/sst-waveshapers": "https://github.com/surge-synthesizer/sst-waveshapers"
+      }
+    },
+    {
+      "path": "src/Rack/dep/filesystem",
+      "repository": "gulrak/filesystem",
+      "url": "https://github.com/gulrak/filesystem.git",
+      "revision": "7e37433f318488ae4bc80f80e12df12a01579874",
+      "sha256": "15e1dacd2a52d7cf67afcc548cc92b218f88a2726488e50887922e86c1493f68",
+      "nested": {}
+    },
+    {
+      "path": "src/Rack/dep/fuzzysearchdatabase",
+      "repository": "j_norberg/fuzzysearchdatabase",
+      "url": "https://bitbucket.org/j_norberg/fuzzysearchdatabase.git",
+      "revision": "23122d1ff60d936fd766361a30210c954e0c5449",
+      "sha256": "debe938a3c102dee015f40765fe43053a4acfed32fe3ef03cb35537136e9db3c",
+      "nested": {}
+    },
+    {
+      "path": "src/Rack/dep/glfw",
+      "repository": "VCVRack/glfw",
+      "url": "https://github.com/VCVRack/glfw.git",
+      "revision": "d46b57cdb16e521c8cf4290c9022278863a84022",
+      "sha256": "d8527b380bdd253a742813823758e4fdc5317519e15e3a2f379e27da94187cd2",
+      "nested": {}
+    },
+    {
+      "path": "src/Rack/dep/nanosvg",
+      "repository": "memononen/nanosvg",
+      "url": "https://github.com/memononen/nanosvg.git",
+      "revision": "25241c5a8f8451d41ab1b02ab2d865b01600d949",
+      "sha256": "d957259360bf108858388bb01686a8cb0fc31d90db2d996ddf65575b37bb20d4",
+      "nested": {}
+    },
+    {
+      "path": "src/Rack/dep/nanovg",
+      "repository": "VCVRack/nanovg",
+      "url": "https://github.com/VCVRack/nanovg.git",
+      "revision": "0bebdb314aff9cfa28fde4744bcb037a2b3fd756",
+      "sha256": "043d67b2fd81d52b80c5db366292a8d1910a70abdf0b3cc7750bd8705cf5fb96",
+      "nested": {}
+    },
+    {
+      "path": "src/Rack/dep/osdialog",
+      "repository": "AndrewBelt/osdialog",
+      "url": "https://github.com/AndrewBelt/osdialog.git",
+      "revision": "fd0beccddb7c6bb10acd04918a4c3b1ad2550057",
+      "sha256": "d1e9a2cd9c073ac680c56ada84027f495bb70ef2c9a5efb14077209e1bba06c1",
+      "nested": {}
+    },
+    {
+      "path": "src/Rack/dep/oui-blendish",
+      "repository": "VCVRack/oui-blendish",
+      "url": "https://github.com/VCVRack/oui-blendish.git",
+      "revision": "2fc6405883f8451944ed080547d073c8f9f31898",
+      "sha256": "f5c5a814b3302ac865ab648ec69f586b67cc0e9d2e51f77bcd4f495e75af6930",
+      "nested": {}
+    },
+    {
+      "path": "src/Rack/dep/pffft",
+      "repository": "jpommier/pffft",
+      "url": "https://bitbucket.org/jpommier/pffft.git",
+      "revision": "74d7261be17cf659d5930d4830609406bd7553e3",
+      "sha256": "ca077ad436bcb5ffe579ee886b8e61c87e2ebd81fc762be02a9ca07235e219ff",
+      "nested": {}
+    },
+    {
+      "path": "src/Rack/dep/rtaudio",
+      "repository": "VCVRack/rtaudio",
+      "url": "https://github.com/VCVRack/rtaudio.git",
+      "revision": "ece277bd839603648c80c8a5f145678e13bc23f3",
+      "sha256": "cb6a4cefdf6a307aae9ed168fa2eb3d73e729f90cfb3206e27b0cf5ed88fcc43",
+      "nested": {}
+    },
+    {
+      "path": "src/Rack/dep/rtmidi",
+      "repository": "VCVRack/rtmidi",
+      "url": "https://github.com/VCVRack/rtmidi.git",
+      "revision": "2c5b0778e38b5030afc80c8e9d7adc9b58ef650e",
+      "sha256": "f0d72374717e7bc8ef166870cf4b121d217f2179df45d560185500150b657c09",
+      "nested": {}
+    },
+    {
+      "path": "src/Rack/dep/simde",
+      "repository": "simd-everywhere/simde",
+      "url": "https://github.com/simd-everywhere/simde.git",
+      "revision": "dd0b662fd8cf4b1617dbbb4d08aa053e512b08e4",
+      "sha256": "66660dff86095de353ba051312d893fbc9576372eb591388d21549ce6518fc9a",
+      "nested": {
+        "test/munit": "https://github.com/nemequ/munit.git"
+      }
+    },
+    {
+      "path": "src/Rack/dep/speexdsp",
+      "repository": "xiph/speexdsp",
+      "url": "https://gitlab.xiph.org/xiph/speexdsp.git",
+      "revision": "27ddf98b627ab425d5337b1a0d8b80d7528f9b30",
+      "sha256": "0356b17b5ed38535436e24b4e08a1a4474a9cdb93b33beef356e211c340fdfe7",
+      "nested": {}
+    },
+    {
+      "path": "src/Rack/dep/tinyexpr",
+      "repository": "codeplea/tinyexpr",
+      "url": "https://github.com/codeplea/tinyexpr.git",
+      "revision": "4e8cc0067a1e2378faae23eb2dfdd21e9e9907c2",
+      "sha256": "2d63d882e6b36f808e0ec739ad796fc44aa1595146e1914a4a80ce5670a2d2c0",
+      "nested": {}
+    },
+    {
+      "path": "plugins/ArableInstruments/eurorack/avr_audio_bootloader",
+      "repository": "pichenettes/avr-audio-bootloader",
+      "url": "https://github.com/pichenettes/avr-audio-bootloader.git",
+      "revision": "0de2be5928afdf7fb3e5ada60544ed6c15ab808f",
+      "sha256": "65ff5dfdbca728b79d58d031523c74cf05bfdfac0aadf61b199b990d9fb6d3b8",
+      "nested": {}
+    },
+    {
+      "path": "plugins/ArableInstruments/eurorack/avrlib",
+      "repository": "pichenettes/avril",
+      "url": "https://github.com/pichenettes/avril.git",
+      "revision": "276b2887e4110ca913294fcbb313163dfb28a448",
+      "sha256": "c734d663be1f5ec4fc370fa703069b133afea625180d23e20ca74d525718a629",
+      "nested": {}
+    },
+    {
+      "path": "plugins/ArableInstruments/eurorack/avrlibx",
+      "repository": "pichenettes/avrilx",
+      "url": "https://github.com/pichenettes/avrilx.git",
+      "revision": "868d6e74eb8555f9575b5149202256156e5c03fa",
+      "sha256": "35591f85e556e90ebaa85f8364b7d664871194bf40afdde4e63684d60c02522c",
+      "nested": {}
+    },
+    {
+      "path": "plugins/ArableInstruments/eurorack/stm_audio_bootloader",
+      "repository": "pichenettes/stm-audio-bootloader",
+      "url": "https://github.com/pichenettes/stm-audio-bootloader.git",
+      "revision": "1ec7d6374e2d305cb710170eb80de9b66e795792",
+      "sha256": "d71de49de49dfa7ec7dfe0e6aff0dba5554e0d986f1c90e184446c3f09c312e1",
+      "nested": {}
+    },
+    {
+      "path": "plugins/ArableInstruments/eurorack/stmlib",
+      "repository": "pichenettes/stmlib",
+      "url": "https://github.com/pichenettes/stmlib.git",
+      "revision": "8998429236d6edd4934b6c9ae8e0f167e3d30aa7",
+      "sha256": "50cab27e0f1e10ff282eadb09b911273bea852ce9cca2057db50e1380f267466",
+      "nested": {}
+    },
+    {
+      "path": "plugins/AudibleInstruments/eurorack/avr_audio_bootloader",
+      "repository": "pichenettes/avr-audio-bootloader",
+      "url": "https://github.com/pichenettes/avr-audio-bootloader.git",
+      "revision": "0de2be5928afdf7fb3e5ada60544ed6c15ab808f",
+      "sha256": "65ff5dfdbca728b79d58d031523c74cf05bfdfac0aadf61b199b990d9fb6d3b8",
+      "nested": {}
+    },
+    {
+      "path": "plugins/AudibleInstruments/eurorack/avrlib",
+      "repository": "pichenettes/avril",
+      "url": "https://github.com/pichenettes/avril.git",
+      "revision": "276b2887e4110ca913294fcbb313163dfb28a448",
+      "sha256": "c734d663be1f5ec4fc370fa703069b133afea625180d23e20ca74d525718a629",
+      "nested": {}
+    },
+    {
+      "path": "plugins/AudibleInstruments/eurorack/avrlibx",
+      "repository": "pichenettes/avrilx",
+      "url": "https://github.com/pichenettes/avrilx.git",
+      "revision": "868d6e74eb8555f9575b5149202256156e5c03fa",
+      "sha256": "35591f85e556e90ebaa85f8364b7d664871194bf40afdde4e63684d60c02522c",
+      "nested": {}
+    },
+    {
+      "path": "plugins/AudibleInstruments/eurorack/stm_audio_bootloader",
+      "repository": "pichenettes/stm-audio-bootloader",
+      "url": "https://github.com/pichenettes/stm-audio-bootloader.git",
+      "revision": "1ec7d6374e2d305cb710170eb80de9b66e795792",
+      "sha256": "d71de49de49dfa7ec7dfe0e6aff0dba5554e0d986f1c90e184446c3f09c312e1",
+      "nested": {}
+    },
+    {
+      "path": "plugins/AudibleInstruments/eurorack/stmlib",
+      "repository": "pichenettes/stmlib",
+      "url": "https://github.com/pichenettes/stmlib.git",
+      "revision": "8998429236d6edd4934b6c9ae8e0f167e3d30aa7",
+      "sha256": "50cab27e0f1e10ff282eadb09b911273bea852ce9cca2057db50e1380f267466",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/JUCE",
+      "repository": "surge-synthesizer/JUCE",
+      "url": "https://github.com/surge-synthesizer/JUCE",
+      "revision": "8ac8b3e4e76ed531a8550d6fc581ee49085b4143",
+      "sha256": "097089d1ea5273b679b837569624d01738d5d668876358ac72ca3f307ddfbd1f",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/LuaJitLib/LuaJIT",
+      "repository": "LuaJIT/LuaJIT",
+      "url": "https://github.com/LuaJIT/LuaJIT.git",
+      "revision": "ec6edc5c39c25e4eb3fca51b753f9995e97215da",
+      "sha256": "64ac400317bc02a4d10ddd6759370898280421bcb1d20b52601ca289f57aa65d",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/PEGTL",
+      "repository": "taocpp/PEGTL",
+      "url": "https://github.com/taocpp/PEGTL.git",
+      "revision": "64af78c6a7959cd5753ad165ec9f65591aa96f2d",
+      "sha256": "a6e98bed5730eb88afd0a5cac5d9a3eae7ebaa196f01f2f30d0148c951c2d578",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/clap-juce-extensions",
+      "repository": "free-audio/clap-juce-extensions",
+      "url": "https://github.com/free-audio/clap-juce-extensions",
+      "revision": "a40d845f73852dfe15f3ef5a9b9f9f5fb7b69b84",
+      "sha256": "77038a16bac58805d1cf2bb4737f00b7d65308d562f65d6bb078a3f7a04192ce",
+      "nested": {
+        "clap-libs/clap": "https://github.com/free-audio/clap.git",
+        "clap-libs/clap-helpers": "https://github.com/free-audio/clap-helpers.git"
+      }
+    },
+    {
+      "path": "plugins/surgext/surge/libs/eurorack/eurorack",
+      "repository": "surge-synthesizer/eurorack",
+      "url": "https://github.com/surge-synthesizer/eurorack.git",
+      "revision": "23d0bd2f88d53b888bff94312626bd24fd566f06",
+      "sha256": "fe2357ee13630f80ba8b2a57d718397066263d01cbb5433498be7482b459b8cc",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/fmt",
+      "repository": "fmtlib/fmt",
+      "url": "https://github.com/fmtlib/fmt.git",
+      "revision": "a33701196adfad74917046096bf5a2aa0ab0bb50",
+      "sha256": "e166f622392d1a739121e450f3bbbcda3ec94ee67fcb042b660e7926af89590a",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/libsamplerate",
+      "repository": "libsndfile/libsamplerate",
+      "url": "https://github.com/libsndfile/libsamplerate.git",
+      "revision": "d0ea53db94a329bce56e9382852e0931d7744651",
+      "sha256": "98634e656c521e7f9d34a3c75ceb9cb5949ef8aceb114766ad2dd7a2eaf3a574",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/oddsound-mts/MTS-ESP",
+      "repository": "ODDSound/MTS-ESP",
+      "url": "https://github.com/ODDSound/MTS-ESP",
+      "revision": "3eb56f2452244b343ce738efd067d1082b67f9b4",
+      "sha256": "7239fb2b94cb3ad6aaa5799fcce31bd2c50955133db0fdad7d02fab4a4e52e1e",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/pffft",
+      "repository": "surge-synthesizer/pffft",
+      "url": "https://github.com/surge-synthesizer/pffft.git",
+      "revision": "96292e6965f74d5e08108f5f717df0bf8aa06b57",
+      "sha256": "30feb3c31df04eac257730aeab9e2d7a3d8d845f9abafd30dc65ae5ff66e7316",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/pybind11",
+      "repository": "pybind/pybind11",
+      "url": "https://github.com/pybind/pybind11",
+      "revision": "0bd8896a4010f2d91b2340570c24fa08606ec406",
+      "sha256": "da8d650ff0e5905481ad1c15bde8324e377e691cd083320d17859ac21f8b7022",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/simde",
+      "repository": "simd-everywhere/simde",
+      "url": "https://github.com/simd-everywhere/simde",
+      "revision": "3c6b4cb8bd11cc253abc2cfec06310839673fc4e",
+      "sha256": "16018ea4f503ef96dac72cd13eff2f1144ad17b9f6fda887ad1ec2fea4538c12",
+      "nested": {
+        "test/munit": "https://github.com/nemequ/munit.git"
+      }
+    },
+    {
+      "path": "plugins/surgext/surge/libs/sst/sst-basic-blocks",
+      "repository": "surge-synthesizer/sst-basic-blocks",
+      "url": "https://github.com/surge-synthesizer/sst-basic-blocks.git",
+      "revision": "dc5c5ddd1b1f08b2127b6ed787ba72593230941a",
+      "sha256": "a307ffc71a35b11904dbe2f772b663e221cc7f31da0892718017448351738e52",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/sst/sst-cpputils",
+      "repository": "surge-synthesizer/sst-cpputils",
+      "url": "https://github.com/surge-synthesizer/sst-cpputils",
+      "revision": "9418be4d6e059e236db43f99925f46492203ec55",
+      "sha256": "c3fdba3c2b50d142b817b0a55ccd8e3721f9b7995c8d611a74d52bd72ea4f4c1",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/sst/sst-effects",
+      "repository": "surge-synthesizer/sst-effects",
+      "url": "https://github.com/surge-synthesizer/sst-effects",
+      "revision": "ad8f3319a874f130e8826cd39429f20b4287b864",
+      "sha256": "548b44a3919a139f1cf459b5d998ee7b6271e17a649e5fa82c7631cac4b93654",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/sst/sst-filters",
+      "repository": "surge-synthesizer/sst-filters",
+      "url": "https://github.com/surge-synthesizer/sst-filters",
+      "revision": "9eb74b595c0fc244fdd67452fc17948edec4cf28",
+      "sha256": "d4828c0dd4687a6b2a9f30e864154fefcdb01da50fa46c280f8badf3b48dfdf2",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/sst/sst-plugininfra",
+      "repository": "surge-synthesizer/sst-plugininfra",
+      "url": "https://github.com/surge-synthesizer/sst-plugininfra",
+      "revision": "685b53a2b5fd2e943badaafd7efa2c0c83b57820",
+      "sha256": "79c3b76c7531ce60e4727b66445ba15a8b8e51030387a502412acc9311e4c2ac",
+      "nested": {
+        "libs/filesystem/ghc-filesystem": "https://github.com/gulrak/filesystem.git"
+      }
+    },
+    {
+      "path": "plugins/surgext/surge/libs/sst/sst-waveshapers",
+      "repository": "surge-synthesizer/sst-waveshapers",
+      "url": "https://github.com/surge-synthesizer/sst-waveshapers",
+      "revision": "42bfa678e4f2447d0f4c9a51b7ba7ea68f6da108",
+      "sha256": "6e69e3a0a139a6d09c3d8fcd4a09a875dfd3c87df1e9512d99bcccda1bca5053",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/tuning-library",
+      "repository": "surge-synthesizer/tuning-library",
+      "url": "https://github.com/surge-synthesizer/tuning-library",
+      "revision": "4cbe55f2da86c0302368a681406553a1dd7074dd",
+      "sha256": "1d4d58888be16b9805a288a0658f9cab328d4e37d58be72b6b2e843cab101373",
+      "nested": {}
+    },
+    {
+      "path": "src/Rack/dep/simde/test/munit",
+      "repository": "nemequ/munit",
+      "url": "https://github.com/nemequ/munit.git",
+      "revision": "da8f73412998e4f1adf1100dc187533a51af77fd",
+      "sha256": "835a9ee03e3b9560af5a2e4465394e00337398f5baba9d686083b8e1d93f0c30",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/clap-juce-extensions/clap-libs/clap",
+      "repository": "free-audio/clap",
+      "url": "https://github.com/free-audio/clap.git",
+      "revision": "41964fa3f44fdbf6feb20df528a9cdf2cc3b05ba",
+      "sha256": "34bab5c07fddbc2ccc5e5d5177b67abd835a9b9af845f50f154a59622f227891",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/clap-juce-extensions/clap-libs/clap-helpers",
+      "repository": "free-audio/clap-helpers",
+      "url": "https://github.com/free-audio/clap-helpers.git",
+      "revision": "41e1086488f5cd27da871d07edb8eccea99e556d",
+      "sha256": "49b3d5a3813c73ba023e7d3e0702dd70b51706a0e556d9f0639cc18b6f388cfa",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/simde/test/munit",
+      "repository": "nemequ/munit",
+      "url": "https://github.com/nemequ/munit.git",
+      "revision": "da8f73412998e4f1adf1100dc187533a51af77fd",
+      "sha256": "835a9ee03e3b9560af5a2e4465394e00337398f5baba9d686083b8e1d93f0c30",
+      "nested": {}
+    },
+    {
+      "path": "plugins/surgext/surge/libs/sst/sst-plugininfra/libs/filesystem/ghc-filesystem",
+      "repository": "gulrak/filesystem",
+      "url": "https://github.com/gulrak/filesystem.git",
+      "revision": "614bbe87b80435d87ab8791564370e0c1d13627d",
+      "sha256": "203360b131364acd24eac25842cda5d1bcc53d12756bd7adfa1031f06aa5dabf",
+      "nested": {}
+    }
+  ]
+}

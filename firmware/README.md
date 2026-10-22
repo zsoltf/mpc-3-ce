@@ -80,9 +80,14 @@ Use Go 1.26.4 for the plugin admission helper. With the matching SD bundle
 available as a regular file, run from the repository root:
 
 ```sh
-bash firmware/build-prerelease.sh "$PWD" \
+./vst2/pd-rack-prototype/compose.sh /usr/share/mpclearn/mcu
+# Use the stage it prints as PD_RACK_HOST_STAGE=...
+bash firmware/build-prerelease.sh "$PD_RACK_HOST_STAGE" \
   /absolute/path/to/MPCLEARN/plugins.squashfs build/v0_3_0
 ```
+
+The stage holds the release runtime with the Pd and Cardinal touch editors;
+the plain component-test build lacks them and is refused.
 
 The output is
 `build/v0_3_0/MPC-3.9.1-Gen1-CE-v0.3.0-update.img`, its payload and

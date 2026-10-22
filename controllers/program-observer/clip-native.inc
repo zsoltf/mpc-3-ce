@@ -57,6 +57,28 @@ static inline void clip_native_trigger(uint32_t lanes,unsigned column,unsigned r
 #endif
  CLIP_NATIVE(0xe672bc,void (*)(uint32_t,unsigned,unsigned))(lanes,column,row);
 }
+/* MpcClipLanes vtable slot 9 (0xe666a8), the native behind the script API's
+ * SelectClip: bounds-checks the slot, then Project 0x254c460 sets the current
+ * track and the selected-clip property (project+0x1b4/0x1b8/0x1bc). It makes no
+ * trigger call. Admission guards pin both bodies. */
+static inline void clip_native_select(uint32_t lanes,unsigned column,unsigned row){
+#ifdef COMMAND_COMPONENT
+ if(component_clip_emit){component_clip_emit(CLIP_SELECT,lanes,column,row);return;}
+#endif
+ CLIP_NATIVE(0xe666a8,void (*)(uint32_t,unsigned,unsigned))(lanes,column,row);
+}
+/* MpcClipLanes vtable slot 10 (0xe6c8dc), the native behind the script API's
+ * CreateClip ("Create a clip in an empty slot"). It refuses the Arrangement row,
+ * out-of-range slots, a missing track or current sequence and an occupied slot,
+ * then performs MPC's create-clip command at the NewClip default length
+ * (clip lanes+0x198, +0x70). Admission guards pin the body. */
+enum {CLIP_EMIT_CREATE=16};
+static inline void clip_native_create(uint32_t lanes,unsigned column,unsigned row){
+#ifdef COMMAND_COMPONENT
+ if(component_clip_emit){component_clip_emit(CLIP_EMIT_CREATE,lanes,column,row);return;}
+#endif
+ CLIP_NATIVE(0xe6c8dc,void (*)(uint32_t,unsigned,unsigned))(lanes,column,row);
+}
 static inline void clip_native_stop_track(uint32_t lanes,unsigned column){
 #ifdef COMMAND_COMPONENT
  if(component_clip_emit){component_clip_emit(CLIP_STOP,lanes,column,0);return;}

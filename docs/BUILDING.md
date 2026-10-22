@@ -35,6 +35,7 @@ From the repository root, put the official download at
 mkdir -p inputs build
 docker build -t mpclearn-build:local .
 docker build -t mpclearn-controls-build controllers
+docker build -t mpclearn-editor-build vst2/pd-rack-prototype
 docker run --rm --network none -v "$PWD:/work" mpclearn-build:local sh -ec '
 python3 scripts/image_format.py inputs/MPC-3.9.1-Gen1-update.img build/rootfs.original.ext
 debugfs -R "dump /usr/bin/MPC /work/build/MPC" build/rootfs.original.ext
@@ -75,9 +76,26 @@ controller logic with component substitutes. They do not render or dispatch
 touch in MPC, run an MPC musical project, or prove hardware/audio acceptance.
 See the [native UI recipe](native-ui-guide.md) and
 [toolkit guide](../ui/README.md) for the exact host boundary and remaining UI
-limits. `/usr/share/mpclearn/mcu` is where the image runs
-the package from; the build writes the final package to
-`controllers/program-observer/package/native-preferences/runtime/`. To create
+limits. This component-test build writes its package to
+`controllers/program-observer/package/native-preferences/runtime/`, without the
+Pd and Cardinal touch editors.
+
+Build the release runtime, with the touch editors, from this checkout or an
+unpacked source ZIP:
+
+```sh
+./vst2/pd-rack-prototype/compose.sh /usr/share/mpclearn/mcu
+```
+
+It copies the source tree into a new stage under `build/pd-rack-prototype/`
+(printed as `PD_RACK_HOST_STAGE`), composes the Pd and Cardinal editors into the
+observer, derives the CE executable from `build/MPC` and builds there. The
+package is `$PD_RACK_HOST_STAGE/controllers/program-observer/package/native-preferences/runtime/`.
+For v0.3.0 its `command-observer.so` SHA-256 is
+`add7dd9523d5eb8c5453861896d2909eeb70e79f3deb4ec8829f460cb8dc02ef` and every
+file matches `firmware/prerelease-runtime.sha256`; `firmware/package.py
+--prerelease` refuses an observer without the editors.
+`/usr/share/mpclearn/mcu` is where the image runs the package from. To create
 an image of the tested release, use the canonical firmware build; see
 [firmware preparation](../firmware/README.md).
 
@@ -89,8 +107,7 @@ experiment cannot leave copies, backups or staging folders behind. This needs
 an image made with your own SSH key.
 
 ```sh
-./controllers/program-observer/native-preferences-build.sh \
-  "$PWD/build/v0_2_6/MPC" "$PWD/build/MPC" /data/mpclearn/dev
+./vst2/pd-rack-prototype/compose.sh /data/mpclearn/dev
 ```
 
 Before staging or restarting, measure available blocks on `/data` and
@@ -101,8 +118,11 @@ The next start also archives the prior session. Native filmstrip generation can
 consume space after startup, so remeasure before stopping; a zero-availability
 data partition has prevented the session owner from writing its revocation.
 
-Copy `package/native-preferences/runtime/` to a temporary folder on the MPC, such as
-`/tmp/mcu-dev`, then on the MPC:
+Copy the printed stage's `controllers/program-observer/package/native-preferences/runtime/`
+to a temporary folder on the MPC, such as `/tmp/mcu-dev`. To keep the SD
+plugins mounted, also copy `plugin-setup` and `plugin-bundle.json` from
+`/usr/share/mpclearn/mcu` into it and append their `sha256sum` lines to its
+`session-package.sha256`. Then on the MPC:
 
 ```sh
 /usr/share/mpclearn/mcu/mcu-boot-install.sh disable
@@ -128,9 +148,61 @@ manual lifetime. The canonical [firmware build](../firmware/README.md) adds
 the plugin admission helper and matching bundle descriptor before this check.
 The default mode and `firmware/runtime.sha256` retain the frozen v0.2.6 pins.
 A changed compiler or source may produce different bytes. Such a build is a
-new candidate, not the tested release: do not bypass the package check or update
-pins merely to make it pass. Native lifecycle, controller and playback tests
-are required before qualifying a changed runtime.
+new candidate, not the tested release. Updating the pins for your own build is
+how you run it (see [Using your own plugin build](#using-your-own-plugin-build));
+it does not make that build the tested release. Native lifecycle, controller
+and playback tests are required before qualifying a changed runtime.
+
+## Cardinal and Pd plugins
+
+The SD bundle's Cardinal Synth/FX and Pd plugins are built from pinned upstream
+source plus the scripts in `vst2/`. `release/sources/` lists every upstream
+revision, the Debian source packages and the bundled libraries they bind.
+These steps need Docker and network access; run them from the repository root.
+
+Cardinal: download the pinned source closure from a Cardinal clone, apply the
+CE changes, then build in the ARM container:
+
+```sh
+python3 vst2/cardinal-touch-prototype/fetch-full-source.py /path/to/Cardinal build/cardinal-full-prototype
+for step in prepare-full prepare-full-owner prepare-full-paths; do
+  python3 vst2/cardinal-touch-prototype/$step.py build/cardinal-full-prototype/source
+done
+docker build -t mpclearn-cardinal-render-probe-build vst2/cardinal-touch-prototype
+docker build -f vst2/cardinal-touch-prototype/Dockerfile.rack -t mpclearn-cardinal-rack-probe-build vst2/cardinal-touch-prototype
+docker build -f vst2/cardinal-touch-prototype/Dockerfile.full -t mpclearn-cardinal-full-build vst2/cardinal-touch-prototype
+docker run --rm -v "$PWD/build/cardinal-full-prototype:/work" -v "$PWD/vst2:/kit:ro" \
+  mpclearn-cardinal-full-build bash /kit/cardinal-touch-prototype/full-build-in-container.sh
+./vst2/cardinal-touch-prototype/full-package.sh "$PD_RACK_HOST_STAGE"
+```
+
+The Cardinal clone must contain the pinned commit. `full-package.sh` strips the
+plugins and copies the bundled Debian libraries into `Cardinal.vst/deps`.
+
+Pd: `vst2/pd-durm/build.sh` applies `libpd-embed.patch` to the pinned libpd and
+Pure Data and builds `libpd.a`. Then:
+
+```sh
+python3 vst2/cardinal-touch-prototype/fetch-rack-source.py build/cardinal-touch-prototype/sources
+./vst2/pd-touch-prototype/hosted-build.sh
+./vst2/pd-touch-prototype/hosted-package.sh "$PD_RACK_HOST_STAGE"
+```
+
+`PD_RACK_HOST_STAGE` is the stage printed by `compose.sh`. The SD bundle's
+`plugins.squashfs` holds `Cardinal.vst/` and `Cardinal-LICENSE` from the
+Cardinal package and `pd/` with the Pd package's `plugins`, `library` and
+`assets`, packed with `mksquashfs <folder> plugins.squashfs -noappend -comp gzip`.
+A rebuild may not match the release binaries byte for byte.
+
+### Using your own plugin build
+
+Cardinal and Pd are open source, and you can run a modified build of them. Build
+the plugin bundle from source as described above. The image mounts only the
+bundle whose size and SHA-256 are in `firmware/prerelease-bundle.json`, so set
+your bundle's values there and update the `plugin-bundle.json` line in
+`firmware/prerelease-runtime.sha256`, which `firmware/package.py` checks. Then
+build your own image from this source with the builder; see
+[firmware preparation](../firmware/README.md).
 
 ## Source layout
 
@@ -138,6 +210,12 @@ are required before qualifying a changed runtime.
   MCU bridge, boot/session helpers and component regressions.
 - `controllers/adapter.c`, `main-button.c`: matched auxiliary tools; full MCU
   transport uses native commands, not Global MIDI Learn.
+- `vst2/pd-rack-prototype/`, `vst2/pd-touch-prototype/`,
+  `vst2/cardinal-touch-prototype/`: the Pd and Cardinal touch-editor sources
+  that `compose.sh` builds into the release observer, and the scripts that
+  build the SD bundle's Cardinal and Pd plugins; `vst2/pd-durm/` builds libpd.
+- `release/sources/`: upstream revisions and Debian source packages for the
+  SD bundle.
 - `firmware/`: packaging, image patching, provisioning and verification.
 - `builder/`: shared Go image engine, browser UI and embedded patch recipes.
 - `scripts/`: independent image decoding and filesystem verification.

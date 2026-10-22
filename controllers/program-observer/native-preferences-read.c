@@ -9,7 +9,7 @@
 
 static const char *profile_name(unsigned profile){return profile==1?"xtouch":profile==2?"xtouch-mini":profile==3?"generic":profile==4?"hui":profile==5?"lcxl3-daw":profile==6?"launchpad-x-programmer":profile==7?"launchpad-pro-mk3-programmer":profile==8?"mpk-mini-mk3":profile==9?"lpd8-mk2":profile==10?"mpk249":"none";}
 static const char *status_name(unsigned status){
- static const char *const names[]={"idle","pending","applying","active","unavailable","ambiguous","invalid","write-failed","restart-failed","refreshed","stale"};
+ static const char *const names[]={"idle","pending","applying","active","unavailable","ambiguous","invalid","write-failed","restart-failed","refreshed","stale","none-detected"};
  return status<sizeof(names)/sizeof(names[0])?names[status]:"unknown";
 }
 static const char *learn_name(unsigned status){

@@ -55,8 +55,12 @@ Open **Releases > Draft a new release**:
 - Title: `MPC 3 CE <version>`.
 - Copy the body from the matching `docs/releases/<version>.md`.
 - Check **Set as a pre-release**.
-- Attach only the prepared website ZIP, runtime payload archive and SHA256SUMS.
-  GitHub supplies source archives automatically.
+- Attach only the prepared website ZIP, the SD plugin ZIP
+  (`mpc-ce-<version>-sd-plugins.zip`, which the README, release notes and site
+  link to), the runtime payload archive and SHA256SUMS. GitHub supplies source
+  archives automatically. Keep the release notes' Source code section: it is
+  the offer for the bundle's GPL plugins, through the pinned upstream revisions
+  and `release/sources/`, so no plugin source archive is attached.
 - Do not attach an Akai firmware image, personal recovery image, public/private
   SSH keys, MPC.settings, projects or private research exports.
 

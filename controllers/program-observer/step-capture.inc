@@ -176,6 +176,13 @@ static void step_service(Context *c){
   atomic_store_explicit(active_request+at,0,memory_order_seq_cst);atomic_store_explicit(&command_state->slots[at].done,r->seq,memory_order_release);step_pending&=~(1u<<at);
  }
 }
+/* Pro Stop Clip in a step view: MPC's per-track stop for the bound clip's
+ * column, resolved by the admission above. Playback continues. */
+static unsigned step_stop_bound(const CommandRequest *r){
+ uint32_t lanes=0;unsigned columns=0,rows=0,why=clip_native_context(&lanes,&columns,&rows);if(why)return why;
+ const StepBinding *b=step_bindings+r->effect_slot-1;if(b->column>=columns)return C_IDENTITY;
+ clip_native_stop_track(lanes,b->column);return C_OK;
+}
 static void step_command_service(Context *c,unsigned at,const CommandRequest *r){
  CommandSlot *slot=command_state->slots+at;StepCopy current;unsigned why=C_OK,now=atomic_load(&mirror_state->heartbeat);
  if(!command_step_format(r))why=C_FORMAT;
@@ -183,7 +190,7 @@ static void step_command_service(Context *c,unsigned at,const CommandRequest *r)
  else if(r->expires<r->created||r->expires-r->created>2000||r->expires<now)why=C_EXPIRED;
  else if(r->created>now)return;
  else if(step_pending)return;
- else {why=r->effect_slot?step_bound_resolve(r->effect_slot-1,&current):step_native_read(&current);if(!why)why=step_request_match(r,&current);unsigned actual=UINT32_MAX;if(!why)why=step_absolute_value(r,&current,&actual);if(!why&&actual!=r->before_bits)why=C_SOURCE_CHANGED;}
+ else {why=r->effect_slot?step_bound_resolve(r->effect_slot-1,&current):step_native_read(&current);if(!why)why=step_request_match(r,&current);unsigned actual=UINT32_MAX;if(!why&&r->reserved==STEP_STOP){if(!r->effect_slot)why=C_FORMAT;}else{if(!why)why=step_absolute_value(r,&current,&actual);if(!why&&actual!=r->before_bits)why=C_SOURCE_CHANGED;}}
  accepted[at].request=*r;native_started[at]=0;atomic_store(&slot->rejected,0);
  for(unsigned i=0;i<COMMAND_LANES;i++){CommandLane *l=slot->lanes+i;atomic_store(&l->sequence,0);atomic_thread_fence(memory_order_release);atomic_store(&l->published,0);atomic_store_explicit(&l->sequence,r->seq,memory_order_release);}
  if(why)goto refused;
@@ -191,9 +198,11 @@ static void step_command_service(Context *c,unsigned at,const CommandRequest *r)
  accepted[at].program=current.program;accepted[at].property=current.event_owner;accepted[at].controller=r->qlink_index;accepted[at].native_bits=r->bits;accepted[at].synchronous=0;
  atomic_store_explicit(active_request+at,r->seq,memory_order_seq_cst);event(c,CE_STEP_BEGIN,r->seq,0,0,current.control,0,r->qlink_index,r->before_bits,current.event_owner,epoch);
  native_started[at]=r->seq;
- why=step_absolute_edit(r,&current);
+ why=r->reserved==STEP_STOP?step_stop_bound(r):step_absolute_edit(r,&current);
  event(c,CE_STEP_RETURN,r->seq,0,0,current.control,0,r->qlink_index,r->bits,current.event_owner,epoch);
- if(why){event(c,CE_STEP_STATE,r->seq,0,0,current.control,0,r->qlink_index,UINT32_MAX,current.event_owner,why);atomic_store(&slot->done,r->seq);atomic_store(active_request+at,0);}
+ /* A stop is one native call with no note state to wait for. */
+ if(!why&&r->reserved==STEP_STOP){event(c,CE_STEP_STATE,r->seq,0,0,current.control,0,r->qlink_index,r->bits,current.event_owner,0);atomic_store(&slot->done,r->seq);atomic_store(active_request+at,0);}
+ else if(why){event(c,CE_STEP_STATE,r->seq,0,0,current.control,0,r->qlink_index,UINT32_MAX,current.event_owner,why);atomic_store(&slot->done,r->seq);atomic_store(active_request+at,0);}
  else step_pending|=1u<<at;
  atomic_store(&slot->dispatched,r->seq);atomic_store(&slot->returned,r->seq);goto processed;
 refused:atomic_store(&slot->rejected,why);

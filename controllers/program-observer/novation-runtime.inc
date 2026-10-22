@@ -116,7 +116,8 @@ static void native_layer(Surface *surface,MirrorBank *bank,unsigned layer){
  bank->assignment=layer==NOV_DEVICE?BA_QLINK:BA_TRACK;bank->flip=0;bank->fader_field=CF_VOLUME;
 }
 static void native_mixer_view(Surface *surface,MirrorBank *bank,uint32_t now){
- bank_view(bank,bank->view==BV_DRUM_PADS?BV_TRACK:BV_DRUM_PADS,now);
+ unsigned pads=bank->view==BV_DRUM_PADS;if(!pads)surface->novation.track_offset=bank->offset;
+ bank_view(bank,pads?BV_TRACK:BV_DRUM_PADS,now);if(pads)bank->offset=surface->novation.track_offset;
  bank->assignment=BA_TRACK;bank->flip=0;bank->fader_field=CF_VOLUME;
  bank_drop(bank,now);input_discard(&SURFACE_VALUE(surface,input));
  /* Keep touch identities: a held physical gesture must not acquire the new view. */
@@ -129,6 +130,33 @@ static void native_mixer_view(Surface *surface,MirrorBank *bank,uint32_t now){
 static unsigned native_drum_color(unsigned pad){
  static const unsigned char palette[]={5,9,13,17,21,25,29,33,37,41,49,53,57,61,3,60};
  return palette[pad%16];
+}
+/* XL3 DAW Mixer, Shift + a lower-row button: the track in that column of the
+ * Track mixer bank (kept while the Pad mixer is shown). */
+static const CopiedTrack *native_shift_track(const NovationState *n,const MirrorBank *bank,const CopiedMirror *snapshot,unsigned strip){
+ unsigned index=(bank->view==BV_DRUM_PADS?n->track_offset:bank->offset)+strip,at=0;
+ for(unsigned i=0;i<snapshot->count;i++)if(bank_role(BV_TRACK,snapshot->tracks[i].vptr)){if(at==index)return snapshot->tracks+i;at++;}
+ return NULL;
+}
+/* Shift + Select selects that MPC track with the existing select command; a
+ * Drum track opens (or stays in) the Pad mixer, which follows the selected
+ * Drum program, and any other track returns to the Track mixer. The mixer
+ * changes once MPC reports the new selection (or after one second), so the
+ * select request is not discarded with the old strips and the Pad mixer
+ * opens on the new track's pads. */
+static void native_shift_settle(Surface *surface,MirrorBank *bank,const CopiedMirror *snapshot,uint32_t now){
+ NovationState *n=&surface->novation;if(!n->shift_view)return;
+ unsigned selected=snapshot->selection.available&&snapshot->selection.bits==n->shift_track;
+ if(!selected&&now>=n->shift_tick&&now-n->shift_tick<1000)return;
+ if((n->shift_view==1)!=(bank->view==BV_DRUM_PADS))native_mixer_view(surface,bank,now);
+ n->shift_view=0;
+}
+static void native_shift_select(Surface *surface,MirrorBank *bank,const CopiedMirror *snapshot,unsigned strip,uint32_t now){
+ NovationState *n=&surface->novation;const CopiedTrack *t=native_shift_track(n,bank,snapshot,strip);if(!t)return;
+ MotorIdentity id={snapshot->epoch,t->serial,t->binding,t->incarnation,t->track,t->program,t->track_owner,t->program_owner,0,0,0};
+ if(!snapshot->selection.available||snapshot->selection.bits!=t->track)input_control_bound(&SURFACE_VALUE(surface,input),bank,snapshot,strip,CF_SELECTION,0,1,now,&id,2);
+ n->shift_view=t->vptr==0x6930c00?1:2;n->shift_track=t->track;n->shift_tick=now;
+ native_shift_settle(surface,bank,snapshot,now);
 }
 static void native_control_page(Surface *surface,MirrorBank *bank,int direction){
  NovationState *n=&surface->novation;unsigned next=(unsigned)((int)n->control_page+direction+6)%6;n->control_page=next;
@@ -154,8 +182,12 @@ static const ClipProjection *native_clip_source(const Surface *surface,const Cop
 }
 static int native_clip_intent(Surface *surface,MirrorBank *bank,const CopiedMirror *snapshot,const NovationEvent *event,uint32_t now){
  NovationState *n=&surface->novation;unsigned session=n->protocol==MCU_PROTOCOL_LPP3?93:95;
- NovationClipEvent e;unsigned modifiers=(n->held[98]?1u:0u)|(n->held[session]?2u:0u);
+ /* Pro's Stop Clip is a stop modifier too, like Capture MIDI/Projects. */
+ unsigned stop=n->held[98]||(n->protocol==MCU_PROTOCOL_LPP3&&n->held[8]);
+ NovationClipEvent e;unsigned modifiers=(stop?1u:0u)|(n->held[session]?2u:0u)|(novation_pick_held(n->protocol,n->held)?4u:0u);
  if(!novation_clip_decode(n->protocol,n->layer,event,modifiers,&e))return 0;
+ if(modifiers&4u)n->pick_used=1; /* any pad during the hold: release opens nothing */
+ if((modifiers&1u)&&n->row_hold==8)n->row_used=1; /* a Stop Clip chord latches nothing */
  if(e.kind==NOV_CLIP_VIEW){native_layer(surface,bank,e.view);input_discard(&SURFACE_VALUE(surface,input));return 1;}
  if(e.kind==NOV_CLIP_COLUMN||e.kind==NOV_CLIP_ROW){
   int64_t next=(int64_t)(e.kind==NOV_CLIP_COLUMN?n->clip_column:n->clip_row)+e.direction*8;
@@ -164,20 +196,50 @@ static int native_clip_intent(Surface *surface,MirrorBank *bank,const CopiedMirr
   input_discard(&SURFACE_VALUE(surface,input));return 1;
  }
  if(native_clip_source(surface,snapshot,now)){
+  if(e.kind==NOV_CLIP_PICK){
+   /* Select natively without launching; this Launchpad opens its step view
+    * once that request has been processed, so the bind sees the selection. */
+   input_clip_add(&SURFACE_VALUE(surface,input),snapshot,native_step_slot(surface),CLIP_SELECT,e.column,e.row,now);
+   n->pick_used=1;n->pick_pending=1;n->pick_tick=now;return 1;
+  }
+  unsigned state=e.kind==NOV_CLIP_TRIGGER&&e.row<8&&e.column<8?native_clip_source(surface,snapshot,now)->cells[e.row*8+e.column].state:CLIP_NO_SLOT;
   unsigned intent=e.kind==NOV_CLIP_TRIGGER?CLIP_LAUNCH:e.kind==NOV_CLIP_STOP?CLIP_STOP:e.kind==NOV_CLIP_RECORD?CLIP_RECORD_TOGGLE:e.kind==NOV_SCENE_TRIGGER?CLIP_SCENE_LAUNCH:CLIP_SCENE_STOP;
   input_clip_add(&SURFACE_VALUE(surface,input),snapshot,native_step_slot(surface),intent,e.column,e.row,now);
+  /* Launching a clip also selects it natively (after the trigger, so launch
+   * timing is unchanged): the MPC selection and the next step-view entry on
+   * either Launchpad show it. An empty slot only stops its track. */
+  if(e.kind==NOV_CLIP_TRIGGER&&state>=CLIP_READY&&state<=CLIP_WILL_STOP_OVERDUBBING)input_clip_add(&SURFACE_VALUE(surface,input),snapshot,native_step_slot(surface),CLIP_SELECT,e.column,e.row,now);
  }
  return 1;
 }
-static void native_clip_color(unsigned state,unsigned char *value,unsigned char *style){
+/* The column's MPC track colour as a palette entry, or 0. The nearest entry is
+ * recomputed only when that colour changes. */
+static unsigned native_column_colour(NovationState *n,const CopiedMirror *snapshot,const ClipProjection *v,unsigned column){
+ if(!v->track_owner[column])return 0;
+ for(unsigned i=0;i<snapshot->count;i++){const CopiedTrack *t=snapshot->tracks+i;
+  if(t->track_owner!=v->track_owner[column])continue;
+  uint32_t rgb=t->available&&t->fields[CF_COLOR].available?novation_track_rgb(t->fields[CF_COLOR].bits):0;if(!rgb)return 0;
+  if(n->column_rgb[column]!=rgb){n->column_rgb[column]=rgb;n->column_palette[column]=(unsigned char)novation_palette_nearest(rgb);}
+  return n->column_palette[column];
+ }
+ return 0;
+}
+/* Clip cells, including the Arrangement row, follow the MPC clip launcher:
+ * empty off, content in its track colour, playing (the active lane) white.
+ * Queued launch flashes white against the track colour, playing pulses white,
+ * queued stop flashes white against dark. Record pulses red and overdub amber;
+ * their queued changes flash, so no record state is steady. Scene buttons
+ * (cells=0) keep the earlier colours, except that empty scenes are off too. colour is a palette entry, 0 for none. */
+static void native_clip_color(unsigned state,unsigned colour,unsigned cells,unsigned char *value,unsigned char *style){
+ unsigned content=colour?colour:45;
  *style=0;
  switch(state){
  case CLIP_NO_SLOT:*value=0;break;
- case CLIP_EMPTY:*value=1;break;
- case CLIP_READY:*value=45;break;
- case CLIP_WILL_PLAY:*value=21;*style=1;break;
- case CLIP_PLAYING:*value=21;break;
- case CLIP_WILL_STOP_PLAYING:*value=9;*style=1;break;
+ case CLIP_EMPTY:*value=0;break;
+ case CLIP_READY:*value=cells?content:45;break;
+ case CLIP_WILL_PLAY:if(cells){*value=3;*style=NOV_FLASH_FROM|content;}else{*value=21;*style=1;}break;
+ case CLIP_PLAYING:if(cells){*value=3;*style=2;}else *value=21;break;
+ case CLIP_WILL_STOP_PLAYING:if(cells){*value=3;*style=NOV_FLASH_FROM;}else{*value=9;*style=1;}break;
  case CLIP_WILL_RECORD:case CLIP_WILL_STOP_RECORDING:*value=5;*style=1;break;
  case CLIP_RECORDING:*value=5;*style=2;break;
  case CLIP_WILL_OVERDUB:case CLIP_WILL_STOP_OVERDUBBING:*value=9;*style=1;break;
@@ -185,9 +247,39 @@ static void native_clip_color(unsigned state,unsigned char *value,unsigned char 
  default:*value=0;break;
  }
 }
+/* Entering a step view from outside binds the MPC's current selection. */
+static void native_enter_step(Surface *surface,MirrorBank *bank,unsigned view){
+ NovationState *n=&surface->novation;n->step_mode=view;
+ n->step_bind_generation++;if(!n->step_bind_generation)n->step_bind_generation=1;n->step_pad=UINT32_MAX;n->step_first=0;
+ native_layer(surface,bank,view);input_discard(&SURFACE_VALUE(surface,input));
+}
+/* In the clip grid the step-view button (X Note, Pro Sequencer) acts on
+ * release: alone it opens the view as before; with a pad it is the pick hold. */
+static int native_pick_button(Surface *surface,MirrorBank *bank,const NovationEvent *event,unsigned prior){
+ NovationState *n=&surface->novation;
+ if(n->layer!=NOV_CLIPS||!novation_pick_button(n->protocol,event->index))return 0;
+ if(event->value){if(!prior)n->pick_used=0;return 1;}
+ if(!prior)return 1;
+ if(!n->pick_used&&!n->pick_pending)native_enter_step(surface,bank,novation_step_entry(n));
+ return 1;
+}
+/* After a pick, open the step view once the select request has left this
+ * surface's queue and flight (or after 2 s), never before. */
+static void native_pick_settle(Surface *surface,MirrorBank *bank,uint32_t now){
+ NovationState *n=&surface->novation;MirrorInput *in=&SURFACE_VALUE(surface,input);if(!n->pick_pending)return;
+ unsigned busy=in->step_count!=0;for(unsigned i=0;i<COMMAND_SLOTS&&!busy;i++)busy=in->flights[i].flight&&command_clip(in->flights[i].field);
+ if(busy&&now>=n->pick_tick&&now-n->pick_tick<2000)return;
+ n->pick_pending=0;
+ if(n->layer==NOV_CLIPS)native_enter_step(surface,bank,novation_step_entry(n));
+}
 static int native_step_intent(Surface *surface,MirrorBank *bank,const CopiedMirror *snapshot,const NovationEvent *event,uint32_t now){
  NovationState *n=&surface->novation;NovationStepEvent e;if(!novation_step_decode(n->protocol,n->layer,event,&e))return 0;
- if(e.kind==NOV_STEP_VIEW){if(novation_step_view(e.view)&&(!novation_step_view(n->layer)||(n->protocol==MCU_PROTOCOL_LPP3&&event->index==97))){n->step_bind_generation++;if(!n->step_bind_generation)n->step_bind_generation=1;n->step_pad=UINT32_MAX;n->step_first=0;}native_layer(surface,bank,e.view);input_discard(&SURFACE_VALUE(surface,input));return 1;}
+ if(e.kind==NOV_STEP_VIEW){
+  if(e.view==NOV_STEP_ENTER){native_enter_step(surface,bank,novation_step_entry(n));return 1;}
+  /* Switching views keeps the binding, sound and time page. */
+  if(novation_step_view(e.view))n->step_mode=e.view;
+  native_layer(surface,bank,e.view);input_discard(&SURFACE_VALUE(surface,input));return 1;
+ }
  const StepProjection *v=native_step_source(surface,snapshot,now);
  if(e.kind==NOV_STEP_SOUND){unsigned pad=n->step_pad==UINT32_MAX?(v?v->pad:0):n->step_pad;int next=(int)pad+e.direction*(n->layer==NOV_STEP16?4:1);if(next>=0&&next<128)n->step_pad=(unsigned)next;}
  else if(e.kind==NOV_STEP_PAGE){
@@ -203,6 +295,47 @@ static int native_step_intent(Surface *surface,MirrorBank *bank,const CopiedMirr
  else if(e.kind==NOV_STEP_CELL){if(v)input_step_add(&SURFACE_VALUE(surface,input),snapshot,native_step_slot(surface),e.sound,e.step,now);return 1;}
  input_discard(&SURFACE_VALUE(surface,input));return 1;
 }
+/* Custom (X 97, Pro 96) opens the mixer page used last, Volume at first. */
+static void native_mixer_page(Surface *surface,MirrorBank *bank,unsigned layer){
+ NovationState *n=&surface->novation;n->mixer_page=layer+1;native_layer(surface,bank,layer);input_discard(&SURFACE_VALUE(surface,input));
+}
+static void native_enter_mixer(Surface *surface,MirrorBank *bank){
+ NovationState *n=&surface->novation;unsigned layer=n->mixer_page&&novation_mixer_page(n->mixer_page-1)?n->mixer_page-1:NOV_VOLUME;
+ if(n->protocol==MCU_PROTOCOL_LPP3&&layer==NOV_SESSION)layer=NOV_VOLUME;
+ if(!novation_mixer_page(n->layer))native_mixer_page(surface,bank,layer);
+}
+/* Pro Track Select row: the 8 visible clip columns in the clip grid, the mixer
+ * bank on mixer pages; nothing in step views. */
+static const CopiedTrack *native_row_track(Surface *surface,const MirrorBank *bank,const CopiedMirror *snapshot,unsigned strip,uint32_t now){
+ NovationState *n=&surface->novation;if(strip>=8)return NULL;
+ if(n->layer==NOV_CLIPS){const ClipProjection *v=native_clip_source(surface,snapshot,now);if(!v||!v->track_owner[strip])return NULL;
+  for(unsigned i=0;i<snapshot->count;i++){if(snapshot->tracks[i].track_owner==v->track_owner[strip])return snapshot->tracks+i;}
+  return NULL;}
+ return novation_mixer_page(n->layer)?bank_strip_track(snapshot,bank,strip):NULL;
+}
+/* The mode the row acts in: a held mode button wins over the latched one. */
+static unsigned native_row_mode(const NovationState *n){
+ unsigned mode=n->row_hold?novation_row_mode(n->row_hold):n->row_mode;
+ return mode==NOV_ROW_STOP&&n->layer!=NOV_CLIPS?NOV_ROW_SELECT+5u:mode; /* Stop acts in the clip grid only */
+}
+static void native_row_press(Surface *surface,MirrorBank *bank,const CopiedMirror *snapshot,unsigned strip,uint32_t now){
+ NovationState *n=&surface->novation;MirrorInput *in=&SURFACE_VALUE(surface,input);if(n->row_hold)n->row_used=1;
+ const CopiedTrack *t=native_row_track(surface,bank,snapshot,strip,now);if(!t)return;
+ unsigned mode=native_row_mode(n);
+ if(mode==NOV_ROW_STOP){input_clip_add(in,snapshot,native_step_slot(surface),CLIP_STOP,strip,0,now);return;}
+ static const unsigned fields[]={CF_SELECTION,CF_ARM,CF_MUTE,CF_SOLO};if(mode>NOV_ROW_SOLO)return;
+ MotorIdentity id={snapshot->epoch,t->serial,t->binding,t->incarnation,t->track,t->program,t->track_owner,t->program_owner,0,0,0};
+ if(mode==NOV_ROW_SELECT&&snapshot->selection.available&&snapshot->selection.bits==t->track)return;
+ input_control_bound(in,bank,snapshot,strip,fields[mode],0,1,now,&id,2);
+}
+/* Record Arm/Mute/Solo (and Stop Clip in the clip grid): a quick tap latches
+ * that mode, or clears it if it was latched; held, it is momentary. */
+static void native_row_button(NovationState *n,unsigned index,int down,unsigned prior,uint32_t now){
+ if(down){if(!prior){n->row_hold=index;n->row_used=0;n->row_tick=now;}return;}
+ if(!prior||n->row_hold!=index)return;
+ if(!n->row_used&&now>=n->row_tick&&now-n->row_tick<400){unsigned mode=novation_row_mode(index);n->row_mode=n->row_mode==mode?NOV_ROW_SELECT:mode;}
+ n->row_hold=0;
+}
 static void native_intent(Surface *surface,MirrorBank *bank,const CopiedMirror *snapshot,const NovationEvent *event,uint32_t now){
  NovationState *n=&surface->novation;MirrorInput *in=&SURFACE_VALUE(surface,input);unsigned index=event->index,strip=index%8;
  if(event->kind==NOV_MODE){
@@ -215,6 +348,20 @@ static void native_intent(Surface *surface,MirrorBank *bank,const CopiedMirror *
   if(n->protocol==MCU_PROTOCOL_LCXL3&&index==63){n->shift=(unsigned)event->value;return;}
   if(n->protocol!=MCU_PROTOCOL_LCXL3){
    if(index==98)return; /* Capture MIDI/Projects is the momentary stop modifier. */
+   /* Pro Stop Clip never stops MPC. In the clip grid it is the stop modifier
+    * (held with a pad or scene); in a step view it stops the bound clip's
+    * track; elsewhere it does nothing. */
+   if(n->protocol==MCU_PROTOCOL_LPP3&&index==8){
+    if(novation_step_view(n->layer)){if(event->value&&!prior&&native_step_source(surface,snapshot,now))input_clip_stop_add(in,snapshot,native_step_slot(surface),now);}
+    else if(n->layer==NOV_CLIPS||n->row_hold==8)native_row_button(n,8,event->value,prior,now);
+    return;
+   }
+   /* Pro Record Arm, Mute and Solo set the Track Select row's mode. */
+   if(n->protocol==MCU_PROTOCOL_LPP3&&index>=1&&index<=3){if(!novation_step_view(n->layer)||n->row_hold==index)native_row_button(n,index,event->value,prior,now);return;}
+   if(n->protocol==MCU_PROTOCOL_LPP3&&index>=101&&index<=108){if(event->value&&!prior&&!novation_step_view(n->layer))native_row_press(surface,bank,snapshot,index-101,now);return;}
+   /* Custom opens the mixer pages. */
+   if(index==(n->protocol==MCU_PROTOCOL_LPP3?96u:97u)){if(event->value&&!prior)native_enter_mixer(surface,bank);return;}
+   if(native_pick_button(surface,bank,event,prior))return;
    if(event->value&&!prior&&native_clip_intent(surface,bank,snapshot,event,now))return;
    if(n->layer==NOV_CLIPS&&n->protocol==MCU_PROTOCOL_LPX&&!event->value)return;
   }
@@ -236,6 +383,7 @@ static void native_intent(Surface *surface,MirrorBank *bank,const CopiedMirror *
   if(index==(n->protocol==MCU_PROTOCOL_LCXL3?118u:n->protocol==MCU_PROTOCOL_LPP3?10u:19u)){input_global_add(in,snapshot,GLOBAL_RECORD_TOGGLE,0,now);return;}
   if(n->protocol==MCU_PROTOCOL_LCXL3){
    if(index==65&&n->shift&&n->observed_mode==1){native_mixer_view(surface,bank,now);return;}
+   if(index>=45&&index<=52&&n->shift&&n->observed_mode==1){native_shift_select(surface,bank,snapshot,index-45,now);return;}
    if(index==65){if(bank->view!=BV_DRUM_PADS)n->solo_arm=!n->solo_arm;return;}if(index==66){if(bank->view!=BV_DRUM_PADS)n->mute_select=!n->mute_select;return;}
    if(index==102||index==103){bank_navigate(bank,index==102?1:-1,now);return;}
    if(index==106||index==107){if(n->observed_mode==2)native_control_page(surface,bank,index==107?1:-1);return;}
@@ -245,14 +393,14 @@ static void native_intent(Surface *surface,MirrorBank *bank,const CopiedMirror *
   if(novation_step_view(n->layer))return;
   if(n->protocol==MCU_PROTOCOL_LPP3){
    if(index==91||index==92){bank_navigate(bank,index==92?1:-1,now);return;}
-   if(index>=1&&index<=7){native_layer(surface,bank,index<=3?NOV_SESSION:index==4?NOV_VOLUME:index==5?NOV_PAN:index==6?NOV_SEND:NOV_DEVICE);return;}
+   if(index>=4&&index<=7){native_mixer_page(surface,bank,index==4?NOV_VOLUME:index==5?NOV_PAN:index==6?NOV_SEND:NOV_DEVICE);return;}
    if((index==80||index==70)&&n->layer==NOV_DEVICE){bank->qlink_page=index==70;input_discard(in);memset(n->led_valid,0,sizeof(n->led_valid));return;}
   }else if(index==93||index==94){bank_navigate(bank,index==94?1:-1,now);return;}
-  if((n->protocol!=MCU_PROTOCOL_LPP3&&index==95)||index==49){native_layer(surface,bank,NOV_SESSION);return;}
-  if(index==89||index==79){native_layer(surface,bank,index==89?NOV_VOLUME:NOV_PAN);return;}
-  if(index==69||index==59){native_layer(surface,bank,index==69?NOV_SEND:NOV_DEVICE);return;}
+  /* X right column on mixer pages: Volume, Pan, Sends, Device, mixer grid. */
+  if(n->protocol==MCU_PROTOCOL_LPX&&(index==89||index==79||index==69||index==59||index==49)){native_mixer_page(surface,bank,index==89?NOV_VOLUME:index==79?NOV_PAN:index==69?NOV_SEND:index==59?NOV_DEVICE:NOV_SESSION);return;}
   if((index==91||index==92)&&n->layer==NOV_DEVICE){bank->qlink_page=index==92;input_discard(in);memset(n->led_valid,0,sizeof(n->led_valid));return;}
   if(index>=11&&index<=88&&index%10>=1&&index%10<=8){unsigned row=index/10;strip=index%10-1;
+   if(n->layer==NOV_PAN){input_absolute_value(in,bank,snapshot,strip,CF_PAN,novation_pan_value(row),now);return;}
    if(n->layer!=NOV_SESSION){unsigned value=(row-1)*127/7;if(n->layer==NOV_DEVICE)input_qlink_edit(in,bank,snapshot,strip,0,(int)(value*16383/127),now);
     else {input_absolute_bound(in,bank,snapshot,strip,n->layer==NOV_PAN?CF_PAN:n->layer==NOV_SEND?CF_SEND1:CF_VOLUME,value,now);}return;}
    static const unsigned fields[]={CF_SELECTION,CF_MUTE,CF_SOLO,CF_ARM};
@@ -297,24 +445,87 @@ static int native_consume(Surface *surface,MirrorBank *bank,const MirrorState *s
  bank_apply(bank,runtime->snapshot,runtime->now);input_sync(&SURFACE_VALUE(surface,input),bank);
  native_intent(surface,bank,runtime->snapshot,&decoded,runtime->now);return 1;
 }
+/* Launchpad side buttons. Every Programmer LED starts off and only a button
+ * with a function in the current view lights: transport, Session, the
+ * step-view button (X Note, Pro Sequencer) and Custom (mixer pages)
+ * everywhere; Capture MIDI/Projects (stop hold) in the clip grid; Up/Down
+ * where they scroll rows, change Q-Link page or drum sound; page buttons on
+ * mixer pages (X right column, Pro bottom 4-7), the current page green; Pro
+ * row-mode buttons outside step views. The clip grid then paints its scene
+ * buttons over the right column. */
+static void native_buttons(const NovationState *n,const CopiedMirror *snapshot,unsigned char *values,unsigned char *styles,unsigned char *used){
+ unsigned pro=n->protocol==MCU_PROTOCOL_LPP3,layer=n->layer,step=novation_step_view(layer),clips=layer==NOV_CLIPS,mixer=novation_mixer_page(layer);
+ for(unsigned i=0;i<128;i++)if(novation_led_index(n->protocol,i)){used[i]=1;values[i]=0;styles[i]=0;}
+ unsigned play=pro?20:39,record=pro?10:19,stop=29;
+ values[play]=snapshot->ready&&snapshot->playing.available&&snapshot->playing.bits?21:1;
+ values[record]=snapshot->ready&&snapshot->record_mode.available&&(snapshot->record_mode.bits==1||snapshot->record_mode.bits==3)?5:1;styles[record]=values[record]==5?2:0;
+ if(!pro)values[stop]=snapshot->playing.available&&!snapshot->playing.bits?5:1;
+ values[pro?93:95]=clips?21:3;
+ values[pro?96:97]=mixer?21:3;
+ if(pro){values[97]=step?21:3;if(step)values[79]=layer==NOV_STEP16?21:3;}
+ else values[96]=layer==NOV_STEP64?21:layer==NOV_STEP16?13:3;
+ if(clips)values[98]=n->held[98]?5:3;
+ values[pro?91:93]=values[pro?92:94]=3;
+ if(clips||step||layer==NOV_DEVICE)values[pro?80:91]=values[pro?70:92]=3;
+ if(!pro&&mixer){static const unsigned char side[]={89,79,69,59,49},pages[]={NOV_VOLUME,NOV_PAN,NOV_SEND,NOV_DEVICE,NOV_SESSION};for(unsigned i=0;i<sizeof(side);i++)values[side[i]]=layer==pages[i]?21:3;}
+ if(pro&&!step){
+  static const unsigned char pages[]={NOV_VOLUME,NOV_PAN,NOV_SEND,NOV_DEVICE};for(unsigned i=0;i<4;i++)values[4+i]=layer==pages[i]?21:3;
+  unsigned mode=native_row_mode(n);values[1]=mode==NOV_ROW_ARM?5:1;values[2]=mode==NOV_ROW_MUTE?9:1;values[3]=mode==NOV_ROW_SOLO?45:1;
+  if(clips)values[8]=mode==NOV_ROW_STOP||n->held[8]?5:3;
+ }
+ if(pro&&step)values[8]=3;
+}
+/* Pro Track Select row LEDs for the current mode. */
+static void native_row_lights(Surface *surface,const MirrorBank *bank,const CopiedMirror *snapshot,uint32_t now,unsigned char *values){
+ NovationState *n=&surface->novation;if(n->protocol!=MCU_PROTOCOL_LPP3||novation_step_view(n->layer))return;
+ unsigned mode=native_row_mode(n);const ClipProjection *clips=n->layer==NOV_CLIPS?native_clip_source(surface,snapshot,now):NULL;
+ for(unsigned strip=0;strip<8;strip++){
+  const CopiedTrack *t=native_row_track(surface,bank,snapshot,strip,now);unsigned char *v=values+101+strip;if(!t)continue;
+  ChannelWire state=channel_wire(snapshot,t,CF_VOLUME);
+  switch(mode){
+  case NOV_ROW_ARM:*v=state.led[0]?5:7;break;
+  case NOV_ROW_MUTE:*v=state.led[2]?9:11;break;
+  case NOV_ROW_SOLO:*v=state.led[1]?45:47;break;
+  case NOV_ROW_STOP:{unsigned active=0;if(clips)for(unsigned r=0;r<8;r++){unsigned c=clips->cells[r*8+strip].state;active|=c>=CLIP_WILL_PLAY&&c<=CLIP_WILL_STOP_OVERDUBBING;}*v=active?21:0;break;}
+  case NOV_ROW_SELECT:{
+   if(snapshot->selection.available&&snapshot->selection.bits==t->track){*v=3;break;}
+   uint32_t rgb=t->available&&t->fields[CF_COLOR].available?novation_track_rgb(t->fields[CF_COLOR].bits):0;
+   *v=rgb?(unsigned char)novation_palette_nearest(NOV_RGB|(((rgb>>16)&127)/3)<<16|(((rgb>>8)&127)/3)<<8|((rgb&127)/3)):1;break;}
+  default:break;
+  }
+ }
+}
 static int native_output(Surface *surface,MirrorBank *bank,const CopiedMirror *snapshot,uint32_t now){
  NovationState *n=&surface->novation;n->bank=bank->offset;novation_budget(n);if(!native_initialise(surface,now))return 0;if(!novation_admitted(n))return 1;
  if(n->protocol==MCU_PROTOCOL_LCXL3&&n->observed_mode!=1&&n->observed_mode!=2)return 1;
+ native_pick_settle(surface,bank,now);native_shift_settle(surface,bank,snapshot,now);
 
  unsigned char values[128]={0},styles[128]={0},used[128]={0};
+ /* Side buttons first: every Launchpad LED starts off, then each layer paints
+  * its own cells (the mixer grid below, the step or clip grid after). */
+ if(n->protocol!=MCU_PROTOCOL_LCXL3)native_buttons(n,snapshot,values,styles,used);
  for(unsigned strip=0;strip<8;strip++){
   const CopiedTrack *track=bank_strip_track(snapshot,bank,strip);ChannelWire state=channel_wire(snapshot,track,CF_VOLUME);
-  if(n->protocol==MCU_PROTOCOL_LCXL3){unsigned a=37+strip,b=45+strip;used[a]=used[b]=1;unsigned arm=n->solo_arm&&bank->view!=BV_DRUM_PADS,select=n->mute_select&&bank->view!=BV_DRUM_PADS;values[a]=state.led[arm?0:1]?arm?5:13:1;values[b]=state.led[select?3:2]?select?21:9:1;if(!track)values[a]=values[b]=0;}
+  if(n->protocol==MCU_PROTOCOL_LCXL3){unsigned a=37+strip,b=45+strip;used[a]=used[b]=1;unsigned arm=n->solo_arm&&bank->view!=BV_DRUM_PADS,select=n->mute_select&&bank->view!=BV_DRUM_PADS;values[a]=state.led[arm?0:1]?arm?5:13:1;values[b]=state.led[select?3:2]?select?21:9:1;if(!track)values[a]=values[b]=0;
+   /* Holding Shift in DAW Mixer, the lower row shows the Track mixer bank:
+    * the selected track, whose pads the Pad mixer shows, is green. */
+   if(n->shift&&n->observed_mode==1){const CopiedTrack *t=native_shift_track(n,bank,snapshot,strip);values[b]=!t?0:snapshot->selection.available&&snapshot->selection.bits==t->track?21:1;}}
   else {unsigned fields[]={3,2,1,0};for(unsigned row=1;row<=8;row++){unsigned pad=row*10+strip+1;used[pad]=1;
    if(n->layer!=NOV_SESSION){int pos=-1;if(n->layer==NOV_DEVICE){const QLinkSlot *slot=input_qlink_slot(snapshot,bank->qlink_page*8+strip,now);if(slot){float value;memcpy(&value,&slot->bits,4);if(isfinite(value)&&value>=0&&value<=1)pos=(int)(value*127+0.5f);}}
-    else pos=native_position(snapshot,bank,strip,n->layer==NOV_PAN?CF_PAN:n->layer==NOV_SEND?CF_SEND1:CF_VOLUME,NULL,NULL);
-    values[pad]=pos>=0&&pos>=(int)((row-1)*127/7)?(n->layer==NOV_PAN?45:21):0;
+    else if(n->layer==NOV_PAN){
+     /* Bipolar: lit outward from the centre; the centre pair white at 0.5. */
+     uint32_t bits;float pan;if(native_position(snapshot,bank,strip,CF_PAN,&bits,NULL)<0){values[pad]=0;continue;}memcpy(&pan,&bits,4);
+     values[pad]=novation_pan_lit(row,pan)?(pan>=0.5f-1e-4f&&pan<=0.5f+1e-4f?3:45):0;continue;
+    }
+    else pos=native_position(snapshot,bank,strip,n->layer==NOV_SEND?CF_SEND1:CF_VOLUME,NULL,NULL);
+    values[pad]=pos>=0&&pos>=(int)((row-1)*127/7)?21:0;
    }else if(row<=4){values[pad]=track?(state.led[fields[row-1]]?(row==4?5:row==2?9:21):1):0;if(row==4&&values[pad]==5)styles[pad]=2;}
    else{int pos=native_position(snapshot,bank,strip,CF_VOLUME,NULL,NULL);values[pad]=pos>=0&&pos>=(int)((row-5)*127/3)?21:0;}
   }}
  }
- unsigned play=n->protocol==MCU_PROTOCOL_LCXL3?116:n->protocol==MCU_PROTOCOL_LPP3?20:39,record=n->protocol==MCU_PROTOCOL_LCXL3?118:n->protocol==MCU_PROTOCOL_LPP3?10:19;used[play]=used[record]=1;values[play]=snapshot->ready&&snapshot->playing.available&&snapshot->playing.bits?21:1;values[record]=snapshot->ready&&snapshot->record_mode.available&&(snapshot->record_mode.bits==1||snapshot->record_mode.bits==3)?5:1;if(n->protocol!=MCU_PROTOCOL_LCXL3){styles[record]=values[record]==5?2:0;used[29]=1;values[29]=snapshot->playing.available&&!snapshot->playing.bits?5:1;unsigned buttons[]={89,79,69,59,49,91,92,93,94};for(unsigned i=0;i<9;i++){used[buttons[i]]=1;values[buttons[i]]=3;}}
- else {used[65]=used[66]=1;values[65]=bank->view==BV_DRUM_PADS?45:n->solo_arm?5:13;values[66]=n->mute_select&&bank->view!=BV_DRUM_PADS?21:9;}
+ native_row_lights(surface,bank,snapshot,now,values);
+ if(n->protocol==MCU_PROTOCOL_LCXL3){unsigned play=116,record=118;used[play]=used[record]=1;values[play]=snapshot->ready&&snapshot->playing.available&&snapshot->playing.bits?21:1;values[record]=snapshot->ready&&snapshot->record_mode.available&&(snapshot->record_mode.bits==1||snapshot->record_mode.bits==3)?5:1;
+  used[65]=used[66]=1;values[65]=bank->view==BV_DRUM_PADS?45:n->solo_arm?5:13;values[66]=n->mute_select&&bank->view!=BV_DRUM_PADS?21:9;}
  if(novation_step_view(n->layer)){
   const StepProjection *v=native_step_source(surface,snapshot,now);
   for(unsigned cell=0;cell<64;cell++){unsigned pad=(8-cell/8)*10+cell%8+1,sound=n->layer==NOV_STEP16?cell/16:0,step=n->layer==NOV_STEP16?cell%16:cell;
@@ -329,12 +540,10 @@ static int native_output(Surface *surface,MirrorBank *bank,const CopiedMirror *s
  }
  if(n->layer==NOV_CLIPS){
   const ClipProjection *v=native_clip_source(surface,snapshot,now);
-  for(unsigned i=0;i<64;i++){unsigned pad=(8-i/8)*10+i%8+1;used[pad]=1;native_clip_color(v?v->cells[i].state:CLIP_NO_SLOT,values+pad,styles+pad);}
-  for(unsigned row=0;row<8;row++){unsigned button=89-row*10;used[button]=1;native_clip_color(v?v->scene_state[row]:CLIP_NO_SLOT,values+button,styles+button);}
+  unsigned colours[8]={0};if(v)for(unsigned column=0;column<8;column++)colours[column]=native_column_colour(n,snapshot,v,column);
+  for(unsigned i=0;i<64;i++){unsigned pad=(8-i/8)*10+i%8+1;used[pad]=1;native_clip_color(v?v->cells[i].state:CLIP_NO_SLOT,colours[i%8],1,values+pad,styles+pad);}
+  for(unsigned row=0;row<8;row++){unsigned button=89-row*10;used[button]=1;native_clip_color(v?v->scene_state[row]:CLIP_NO_SLOT,0,0,values+button,styles+button);}
  }
- if(n->protocol!=MCU_PROTOCOL_LCXL3){used[98]=1;values[98]=n->held[98]?5:3;}
- if(n->protocol==MCU_PROTOCOL_LPX){used[95]=used[96]=used[97]=1;values[95]=n->layer==NOV_CLIPS?21:n->layer==NOV_SESSION?45:3;values[96]=n->layer==NOV_STEP64?21:3;values[97]=n->layer==NOV_STEP16?21:3;}
- if(n->protocol==MCU_PROTOCOL_LPP3){unsigned buttons[]={1,2,3,4,5,6,7,8,80,70,93,97};for(unsigned i=0;i<sizeof(buttons)/sizeof(buttons[0]);i++){used[buttons[i]]=1;values[buttons[i]]=3;}values[93]=n->layer==NOV_CLIPS?21:n->layer==NOV_SESSION?45:3;values[97]=novation_step_view(n->layer)?21:3;if(novation_step_view(n->layer))values[79]=n->layer==NOV_STEP16?21:3;}
  /* Reserve up to eight messages for changing control positions/text. */
  for(unsigned step=0;step<128&&n->cycle_messages<8;step++){unsigned i=n->led_cursor;n->led_cursor=(i+1)%128;if(!used[i]||(n->led_valid[i]&&n->led_value[i]==values[i]&&n->led_style[i]==styles[i]))continue;NovationWire w=novation_led(n->protocol,i,styles[i],values[i]);int sent=native_wire(surface,&w,0);if(sent!=1)return sent==2?1:0;n->led_valid[i]=1;n->led_value[i]=values[i];n->led_style[i]=styles[i];}
  if(n->protocol!=MCU_PROTOCOL_LCXL3)return 1; /* Programmer grid is its own fader projection. */
@@ -362,7 +571,13 @@ static int native_output(Surface *surface,MirrorBank *bank,const CopiedMirror *s
   if(device){if(i<16&&bank->assignment==BA_QLINK){const QLinkSlot *slot=input_qlink_slot(snapshot,bank->qlink_page*8+strip,now);if(slot){float f;memcpy(&f,&slot->bits,4);if(isfinite(f)&&f>=0&&f<=1)value=(int)(f*127+0.5f);}}else if(i<16&&bank->assignment==BA_EFFECT&&snapshot->effects_available&&snapshot->effects.status==EF_READY&&snapshot->effects.slot==bank->effects_slot&&snapshot->effects.page==bank->effects_page&&snapshot->effects.serial==bank->selected.serial){const EffectParameter *p=snapshot->effects.parameters+strip;if(p->status==EF_READY&&p->tick<=now&&now-p->tick<EFFECT_FRESH_MS){float f;memcpy(&f,&p->bits,4);if(isfinite(f)&&f>=0&&f<=1)value=(int)(f*127+0.5f);}}}
   else value=native_position(snapshot,bank,strip,native_field(n,i),NULL,NULL);
   /* Unavailable controls are dark, not silently populated with a fake value. */
-  if(n->protocol==MCU_PROTOCOL_LCXL3&&i>=8){unsigned cc=i+5,col=value<0?0:device?45:21;if(!n->led_valid[cc]||n->led_value[cc]!=col){NovationWire w=novation_led(n->protocol,cc,0,col);int sent=native_wire(surface,&w,0);if(sent!=1)return sent==2?1:0;n->led_valid[cc]=1;n->led_value[cc]=col;}}
+  if(n->protocol==MCU_PROTOCOL_LCXL3&&i>=8){
+   /* Track columns take the MPC track colour; pads have none and device
+    * pages are not per track, so both keep the palette default. */
+   unsigned cc=i+5;uint32_t col=value<0?0:device?45:21;const CopiedTrack *track=value>=0&&!device?bank_strip_track(snapshot,bank,strip):NULL;
+   if(track&&!track->pad_owner&&track->fields[CF_COLOR].available){uint32_t rgb=novation_track_rgb(track->fields[CF_COLOR].bits);if(rgb)col=rgb;}
+   if(!n->led_valid[cc]||n->knob_led[i-8]!=col){NovationWire w=novation_lcxl3_led(cc,col);int sent=native_wire(surface,&w,0);if(sent!=1)return sent==2?1:0;n->led_valid[cc]=1;n->knob_led[i-8]=col;}
+  }
   if(value<0&&i<8){n->position_valid[i]=0;continue;}
   /* Relative encoder touch brackets motion, not an actuator: keep its live
    * source feedback, but never retarget a held gesture through a bank change. */

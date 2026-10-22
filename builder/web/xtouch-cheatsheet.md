@@ -1,8 +1,9 @@
-# X-Touch cheat sheet
+# X-Touch cheat sheet for MPC 3 CE
 
-For the full-size Behringer X-Touch in MC mode over USB. It connects when a
-project loads and follows the MPC: faders, names, colors and meters update as
-you work.
+Mix the MPC with motor faders on a full-size Behringer X-Touch, connected by
+USB in MC mode. It connects when a project loads and follows the MPC: faders,
+names, colors and meters update as you work, also while you use a Launchpad
+or XL3.
 
 ## Setup
 
@@ -12,7 +13,8 @@ you work.
 2. In Preferences > MIDI/Sync, turn off Track, Global and Control for the
    `X-TOUCH_INT` input. No MIDI Learn setup is needed.
 3. Load a project. The controller connects when it finishes loading, and
-   reconnects if you replug it.
+   reconnects if you replug it. If it is missing from Preferences >
+   CONTROLLERS, press Detect there.
 
 Shift is the modifier for every combination below. Shift+Flip turns motor
 faders on or off.
@@ -61,7 +63,7 @@ Track (internal MIDI routing), Audio Out, MIDI Out Port, MIDI Out Channel,
 Audio In. Turn an encoder to step through the MPC's choices. Faders keep track
 volume; fields that do not apply show dashes.
 
-## Plug-ins and Q-Links
+## Effects and Q-Link knobs
 
 | Control | Action |
 | --- | --- |
@@ -117,4 +119,5 @@ A hard flick can keep moving briefly after you stop.
   Effect open on the MPC and finish there.
 - Plug-in presets, parameter reset to default, and parameter pages for synth
   instances.
-- SMPTE display, HUI, and any controller other than the full-size X-Touch.
+- SMPTE display. This sheet covers the full-size X-Touch; the controller guide
+  covers the Launchpads, the XL3 and the MCU/HUI and Akai profiles.

@@ -1,0 +1,444 @@
+[
+  {
+    "name": "libFLAC.so.12",
+    "sha256": "57da6db49fd1476bbf501355eb9a13057602039b8ef57ca3c931b4788b526c3f",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libFLAC.so.12",
+    "package": [
+      "libflac12:armhf",
+      "1.4.2+ds-2",
+      "flac",
+      "1.4.2+ds-2"
+    ],
+    "bundle_sha256": "57da6db49fd1476bbf501355eb9a13057602039b8ef57ca3c931b4788b526c3f",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libGLX.so.0",
+    "sha256": "b69b05450037b66642362838c11c68f02bfd14b5d1fe4711de854ff49fe4f25f",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libGLX.so.0",
+    "package": [
+      "libglx0:armhf",
+      "1.6.0-1",
+      "libglvnd",
+      "1.6.0-1"
+    ],
+    "bundle_sha256": "b69b05450037b66642362838c11c68f02bfd14b5d1fe4711de854ff49fe4f25f",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libGLdispatch.so.0",
+    "sha256": "fd4209fc3aae2e7637bd49c5900acfdadc4c9b00562ef334d3e8ffed523f7f0f",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libGLdispatch.so.0",
+    "package": [
+      "libglvnd0:armhf",
+      "1.6.0-1",
+      "libglvnd",
+      "1.6.0-1"
+    ],
+    "bundle_sha256": "fd4209fc3aae2e7637bd49c5900acfdadc4c9b00562ef334d3e8ffed523f7f0f",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libX11.so.6",
+    "sha256": "21f6bce50b2028d4f7989a468ac33c6946505ed3d47d3d5c49096ef58cd228dd",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libX11.so.6",
+    "package": [
+      "libx11-6:armhf",
+      "2:1.8.4-2+deb12u2",
+      "libx11",
+      "2:1.8.4-2+deb12u2"
+    ],
+    "bundle_sha256": "21f6bce50b2028d4f7989a468ac33c6946505ed3d47d3d5c49096ef58cd228dd",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libXau.so.6",
+    "sha256": "18f7d5355b078c1207392a956a0fb36ceeb5562af7cc05a5d20cb16b6adf5c25",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libXau.so.6",
+    "package": [
+      "libxau6:armhf",
+      "1:1.0.9-1",
+      "libxau",
+      "1:1.0.9-1"
+    ],
+    "bundle_sha256": "18f7d5355b078c1207392a956a0fb36ceeb5562af7cc05a5d20cb16b6adf5c25",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libXcursor.so.1",
+    "sha256": "3e941d5a330d3e6a443217338b9d72c5dff9d58b3eeeb64514fa7a2bfd87b91e",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libXcursor.so.1",
+    "package": [
+      "libxcursor1:armhf",
+      "1:1.2.1-1",
+      "libxcursor",
+      "1:1.2.1-1"
+    ],
+    "bundle_sha256": "3e941d5a330d3e6a443217338b9d72c5dff9d58b3eeeb64514fa7a2bfd87b91e",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libXdmcp.so.6",
+    "sha256": "f810c74d45b6bc4a8537f3dd3ed19b1c7e8abb7551a38fd5c2dc71c1bfedcd5c",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libXdmcp.so.6",
+    "package": [
+      "libxdmcp6:armhf",
+      "1:1.1.2-3",
+      "libxdmcp",
+      "1:1.1.2-3"
+    ],
+    "bundle_sha256": "f810c74d45b6bc4a8537f3dd3ed19b1c7e8abb7551a38fd5c2dc71c1bfedcd5c",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libXext.so.6",
+    "sha256": "15f97e17dbdc2882d8ae8006d3d87baeaed02330a4625abff715c21db357daa9",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libXext.so.6",
+    "package": [
+      "libxext6:armhf",
+      "2:1.3.4-1+b1",
+      "libxext",
+      "2:1.3.4-1"
+    ],
+    "bundle_sha256": "15f97e17dbdc2882d8ae8006d3d87baeaed02330a4625abff715c21db357daa9",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libXfixes.so.3",
+    "sha256": "1f7dd8d0ae5dd9a58dc12ab1b541243acbb6286e3639a5d8872bc3658f3e3416",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libXfixes.so.3",
+    "package": [
+      "libxfixes3:armhf",
+      "1:6.0.0-2",
+      "libxfixes",
+      "1:6.0.0-2"
+    ],
+    "bundle_sha256": "1f7dd8d0ae5dd9a58dc12ab1b541243acbb6286e3639a5d8872bc3658f3e3416",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libXrandr.so.2",
+    "sha256": "9f286b7775f808fc91d292241037d43cb962f70455ee23b440af3e1bf167ce45",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libXrandr.so.2",
+    "package": [
+      "libxrandr2:armhf",
+      "2:1.5.2-2+b1",
+      "libxrandr",
+      "2:1.5.2-2"
+    ],
+    "bundle_sha256": "9f286b7775f808fc91d292241037d43cb962f70455ee23b440af3e1bf167ce45",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libXrender.so.1",
+    "sha256": "da9d7c7dde9afcbb87bf6f09fce7252f46112e87b856a79315a8357457f922ab",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libXrender.so.1",
+    "package": [
+      "libxrender1:armhf",
+      "1:0.9.10-1.1",
+      "libxrender",
+      "1:0.9.10-1.1"
+    ],
+    "bundle_sha256": "da9d7c7dde9afcbb87bf6f09fce7252f46112e87b856a79315a8357457f922ab",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libbsd.so.0",
+    "sha256": "6a817712907ebb1702421f922055fa7ec168d4285f9a64085ae8efd5985e5f60",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libbsd.so.0",
+    "package": [
+      "libbsd0:armhf",
+      "0.11.7-2",
+      "libbsd",
+      "0.11.7-2"
+    ],
+    "bundle_sha256": "6a817712907ebb1702421f922055fa7ec168d4285f9a64085ae8efd5985e5f60",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libcap.so.2",
+    "sha256": "2bb57939a47627421146086f53bb4f8d85c20694eee0d85e60d9b8da2b22eb3c",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libcap.so.2",
+    "package": [
+      "libcap2:arm64",
+      "1:2.66-4+deb12u3+b1",
+      "libcap2",
+      "1:2.66-4+deb12u3"
+    ],
+    "bundle_sha256": "2bb57939a47627421146086f53bb4f8d85c20694eee0d85e60d9b8da2b22eb3c",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libdbus-1.so.3",
+    "sha256": "90143d425e3a973b995264a7c716de59593116e699947dc2eb39ed3c226a10ba",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libdbus-1.so.3",
+    "package": [
+      "libdbus-1-3:armhf",
+      "1.14.10-1~deb12u1",
+      "dbus",
+      "1.14.10-1~deb12u1"
+    ],
+    "bundle_sha256": "90143d425e3a973b995264a7c716de59593116e699947dc2eb39ed3c226a10ba",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libfftw3f.so.3",
+    "sha256": "3142c2b8f0f265fd97288baa0cd8fded69bf71d2ae5460a85278d8e282cea015",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libfftw3f.so.3",
+    "package": [
+      "libfftw3-single3:armhf",
+      "3.3.10-1",
+      "fftw3",
+      "3.3.10-1"
+    ],
+    "bundle_sha256": "3142c2b8f0f265fd97288baa0cd8fded69bf71d2ae5460a85278d8e282cea015",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libgcrypt.so.20",
+    "sha256": "03b0b3e05b5dd7eb7581713cdf4c0d962177a7f35d0e400006f380be157b190c",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libgcrypt.so.20",
+    "package": [
+      "libgcrypt20:armhf",
+      "1.10.1-3+deb12u1",
+      "libgcrypt20",
+      "1.10.1-3+deb12u1"
+    ],
+    "bundle_sha256": "03b0b3e05b5dd7eb7581713cdf4c0d962177a7f35d0e400006f380be157b190c",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libgpg-error.so.0",
+    "sha256": "6c92cf1193eff88d47fc3eca7615d97e482080c97e55263a4f568c3a5ace776c",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libgpg-error.so.0",
+    "package": [
+      "libgpg-error0:arm64",
+      "1.46-1",
+      "libgpg-error",
+      "1.46-1"
+    ],
+    "bundle_sha256": "6c92cf1193eff88d47fc3eca7615d97e482080c97e55263a4f568c3a5ace776c",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libjansson.so.4",
+    "sha256": "738de2252ff03c5240f0f44e671686064e8ed66223615479c3f7a1a4f9606b06",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libjansson.so.4",
+    "package": [
+      "libjansson4:arm64",
+      "2.14-2",
+      "jansson",
+      "2.14-2"
+    ],
+    "bundle_sha256": "738de2252ff03c5240f0f44e671686064e8ed66223615479c3f7a1a4f9606b06",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "liblo.so.7",
+    "sha256": "c72a5e6bfedde9e7aa3f6344f89cf19592f0662ef23696e47412fa7dc5c6648f",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/liblo.so.7",
+    "package": [
+      "liblo7:armhf",
+      "0.31-1",
+      "liblo",
+      "0.31-1"
+    ],
+    "bundle_sha256": "c72a5e6bfedde9e7aa3f6344f89cf19592f0662ef23696e47412fa7dc5c6648f",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "liblz4.so.1",
+    "sha256": "b35f9428d6e8604bbaf5bc8ae4d791e9245f0258a2dcee1e372539fb9689af36",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/liblz4.so.1",
+    "package": [
+      "liblz4-1:armhf",
+      "1.9.4-1",
+      "lz4",
+      "1.9.4-1"
+    ],
+    "bundle_sha256": "b35f9428d6e8604bbaf5bc8ae4d791e9245f0258a2dcee1e372539fb9689af36",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "liblzma.so.5",
+    "sha256": "cbde500e1eb53d96a24a4cc2f443a59b93fe1ffea80e614af15d691cac5dd784",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/liblzma.so.5",
+    "package": [
+      "liblzma5:armhf",
+      "5.4.1-1+deb12u2",
+      "xz-utils",
+      "5.4.1-1+deb12u2"
+    ],
+    "bundle_sha256": "cbde500e1eb53d96a24a4cc2f443a59b93fe1ffea80e614af15d691cac5dd784",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libmd.so.0",
+    "sha256": "ef3ccb77efd6c32259a5813dc6cb11d21e840aa168f2d9f58e16b594f6201b09",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libmd.so.0",
+    "package": [
+      "libmd0:armhf",
+      "1.0.4-2",
+      "libmd",
+      "1.0.4-2"
+    ],
+    "bundle_sha256": "ef3ccb77efd6c32259a5813dc6cb11d21e840aa168f2d9f58e16b594f6201b09",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libmp3lame.so.0",
+    "sha256": "93e977335fb520496296043fc48cc90647bf5a977f41f0991893a4c98c11c63e",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libmp3lame.so.0",
+    "package": [
+      "libmp3lame0:armhf",
+      "3.100-6",
+      "lame",
+      "3.100-6"
+    ],
+    "bundle_sha256": "93e977335fb520496296043fc48cc90647bf5a977f41f0991893a4c98c11c63e",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libmpg123.so.0",
+    "sha256": "6c2ebe13b8551044448e1921ba39e6cab92a96cd0a3a30326aee4278a29db6ac",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libmpg123.so.0",
+    "package": [
+      "libmpg123-0:armhf",
+      "1.31.2-1+deb12u1",
+      "mpg123",
+      "1.31.2-1+deb12u1"
+    ],
+    "bundle_sha256": "6c2ebe13b8551044448e1921ba39e6cab92a96cd0a3a30326aee4278a29db6ac",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libogg.so.0",
+    "sha256": "0c7953b97f93225f90f73a9beed1a322b6172534e5dd9ff462ef060371dabd78",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libogg.so.0",
+    "package": [
+      "libogg0:armhf",
+      "1.3.5-3",
+      "libogg",
+      "1.3.5-3"
+    ],
+    "bundle_sha256": "0c7953b97f93225f90f73a9beed1a322b6172534e5dd9ff462ef060371dabd78",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libopus.so.0",
+    "sha256": "2e2042354cf00f21b4850b3166f5f9abef931956aafdac76661f8e64e3896c7d",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libopus.so.0",
+    "package": [
+      "libopus0:armhf",
+      "1.3.1-3",
+      "opus",
+      "1.3.1-3"
+    ],
+    "bundle_sha256": "2e2042354cf00f21b4850b3166f5f9abef931956aafdac76661f8e64e3896c7d",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libsamplerate.so.0",
+    "sha256": "50d2821f7792d6e1796d51be609cb280aecd516284b227adbfc290c7bd90df79",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libsamplerate.so.0",
+    "package": [
+      "libsamplerate0:armhf",
+      "0.2.2-3",
+      "libsamplerate",
+      "0.2.2-3"
+    ],
+    "bundle_sha256": "50d2821f7792d6e1796d51be609cb280aecd516284b227adbfc290c7bd90df79",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libsndfile.so.1",
+    "sha256": "ff86c89afd272ff659405f8659a506e6aae5944d6368ef96ebf7cd9ee6f4d5dc",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libsndfile.so.1",
+    "package": [
+      "libsndfile1:armhf",
+      "1.2.0-1+deb12u1",
+      "libsndfile",
+      "1.2.0-1+deb12u1"
+    ],
+    "bundle_sha256": "ff86c89afd272ff659405f8659a506e6aae5944d6368ef96ebf7cd9ee6f4d5dc",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libspeexdsp.so.1",
+    "sha256": "26d85c4db6e55bc1773649dfe74d8835e480344f822f8537314e7b7d1731049a",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libspeexdsp.so.1",
+    "package": [
+      "libspeexdsp1:armhf",
+      "1.2.1-1",
+      "speexdsp",
+      "1.2.1-1"
+    ],
+    "bundle_sha256": "26d85c4db6e55bc1773649dfe74d8835e480344f822f8537314e7b7d1731049a",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libsystemd.so.0",
+    "sha256": "f9353a4325e5525cde7e82ec919dad7d4dfb30d50e96c19d99f998692ebe1301",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libsystemd.so.0",
+    "package": [
+      "libsystemd0:arm64",
+      "252.39-1~deb12u2",
+      "systemd",
+      "252.39-1~deb12u2"
+    ],
+    "bundle_sha256": "f9353a4325e5525cde7e82ec919dad7d4dfb30d50e96c19d99f998692ebe1301",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libvorbis.so.0",
+    "sha256": "58f2570bf0fe3c5b8b3583a25312bbf89d336f1487115a1b46836aeedec85d0f",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libvorbis.so.0",
+    "package": [
+      "libvorbis0a:armhf",
+      "1.3.7-1",
+      "libvorbis",
+      "1.3.7-1"
+    ],
+    "bundle_sha256": "58f2570bf0fe3c5b8b3583a25312bbf89d336f1487115a1b46836aeedec85d0f",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libvorbisenc.so.2",
+    "sha256": "4d7eb69f6a6b8aae4310995ed191c41c857223348aba6fa8f2246513299e2983",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libvorbisenc.so.2",
+    "package": [
+      "libvorbisenc2:armhf",
+      "1.3.7-1",
+      "libvorbis",
+      "1.3.7-1"
+    ],
+    "bundle_sha256": "4d7eb69f6a6b8aae4310995ed191c41c857223348aba6fa8f2246513299e2983",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libxcb.so.1",
+    "sha256": "657b4ec70e085a32ec1e404cd7585c721c47e9eb4820529b2192907c9752f1d2",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libxcb.so.1",
+    "package": [
+      "libxcb1:armhf",
+      "1.15-1",
+      "libxcb",
+      "1.15-1"
+    ],
+    "bundle_sha256": "657b4ec70e085a32ec1e404cd7585c721c47e9eb4820529b2192907c9752f1d2",
+    "matches_cached_build_image": true
+  },
+  {
+    "name": "libzstd.so.1",
+    "sha256": "45aa63fa9f653a3439b647c323ff5179a1d720b030d3241a2b21f0a2b3116bf8",
+    "binary_path": "/usr/lib/arm-linux-gnueabihf/libzstd.so.1",
+    "package": [
+      "libzstd1:arm64",
+      "1.5.4+dfsg2-5",
+      "libzstd",
+      "1.5.4+dfsg2-5"
+    ],
+    "bundle_sha256": "45aa63fa9f653a3439b647c323ff5179a1d720b030d3241a2b21f0a2b3116bf8",
+    "matches_cached_build_image": true
+  }
+]

@@ -338,6 +338,17 @@ static inline void input_control_bound(MirrorInput *in,const MirrorBank *bank,co
 }
 /* Native absolute controls bind directly to the canonical field. Their wire
  * resolution and pickup belong to the profile, not to the MCU fader model. */
+/* An absolute value 0..1 for a bound strip; the 0..127 form below maps
+ * through it. Pan pads use it for an exact centre (0.5). */
+static inline void input_absolute_value(MirrorInput *in,const MirrorBank *bank,const CopiedMirror *s,unsigned strip,unsigned field,float value,uint32_t now){
+ if(strip>=MIRROR_BANK||!(value>=0&&value<=1)||!bank->ready||!command_float(field)||in->error||now>UINT32_MAX-120000)return;
+ const MotorIdentity *id=&bank->strips[strip];const CopiedTrack *t=input_track(s,id);
+ if(field==CF_VOLUME&&t&&midi_volume(t->vptr))field=CF_MIDI_VOLUME;
+ if(!t||(id->pad_owner&&!pad_controller(field))||!(field==CF_MIDI_VOLUME?midi_volume(t->vptr):mixable(t->vptr)))return;
+ MIRROR_FIELD(volume);const CopiedField *f=copied_field(s,t,command_source_field(field),&volume);if(!f||!f->available)return;
+ uint32_t bits;memcpy(&bits,&value,4);
+ InputGesture *g=&in->desires[strip][field];*g=(InputGesture){.identity=*id,.bits=bits,.expires=now+120000,.field_incarnation=f->incarnation,.pending=1,.scope=3};input_coalesce(in,g,field);
+}
 static inline void input_absolute_bound(MirrorInput *in,const MirrorBank *bank,const CopiedMirror *s,unsigned strip,unsigned field,unsigned position,uint32_t now){
  if(strip>=MIRROR_BANK||position>127||!bank->ready||!command_float(field)||in->error||now>UINT32_MAX-120000)return;
  const MotorIdentity *id=&bank->strips[strip];const CopiedTrack *t=input_track(s,id);
@@ -798,7 +809,7 @@ static inline void input_events(MirrorInput *in,InputFlight *tx,unsigned at){
    }
    if(command_step(tx->field)){
     const CommandRequest *r=&tx->step_request;unsigned part=e->kind==CE_STEP_BEGIN?0:e->kind==CE_STEP_RETURN?1:e->kind==CE_STEP_STATE?2:3;
-    if(part==3||(tx->step_seen&(1u<<part))||e->request!=tx->flight||e->reserved!=STEP_TOGGLE||e->controller!=r->qlink_index||e->program!=r->qlink_root||e->property!=r->qlink_wrapper||e->arg_kind||e->capture||e->counter||e->incarnation||(part<2&&e->revision!=r->epoch)||(part==0?e->bits!=r->before_bits:part==1?e->bits!=r->bits:0)){in->error=C_TRACE_AMBIGUOUS;return;}
+    if(part==3||(tx->step_seen&(1u<<part))||e->request!=tx->flight||e->reserved!=r->reserved||e->controller!=r->qlink_index||e->program!=r->qlink_root||e->property!=r->qlink_wrapper||e->arg_kind||e->capture||e->counter||e->incarnation||(part<2&&e->revision!=r->epoch)||(part==0?e->bits!=r->before_bits:part==1?e->bits!=r->bits:0)){in->error=C_TRACE_AMBIGUOUS;return;}
     tx->step_events[part]=*e;tx->step_seen|=1u<<part;continue;
    }
    if(command_io(tx->field)){
@@ -1181,7 +1192,7 @@ static inline void input_settle(MirrorInput *in,MirrorBank *bank,const CopiedMir
 /* Step edges stay with the originating surface and use the existing shared
  * command queue. Native membership and before-state are checked again at
  * execution; no pattern copy or speculative LED state is owned here. */
-static inline int input_step_same(const CommandRequest *a,const CommandRequest *b){return a->epoch==b->epoch&&a->effect_generation==b->effect_generation&&a->effect_ap==b->effect_ap&&a->qlink_index==b->qlink_index;}
+static inline int input_step_same(const CommandRequest *a,const CommandRequest *b){return a->reserved==b->reserved&&a->epoch==b->epoch&&a->effect_generation==b->effect_generation&&a->effect_ap==b->effect_ap&&a->qlink_index==b->qlink_index;}
 static inline void input_step_add(MirrorInput *in,const CopiedMirror *s,unsigned view,unsigned sound,unsigned cell,uint32_t now){
  CommandRequest r;if(!s->steps_available||!step_request_bind_view(&r,&s->steps,view,sound,cell,now))return;
  if(in->step_count==INPUT_JOG_EVENTS){in->refused++;return;}
@@ -1190,6 +1201,11 @@ static inline void input_step_add(MirrorInput *in,const CopiedMirror *s,unsigned
  unsigned count=in->coordinator?in->coordinator->count:1;
  for(unsigned i=0;i<count;i++){MirrorInput *peer=in->coordinator?in->coordinator->origins[i]:in;for(unsigned j=0;j<peer->step_count;j++){InputStepEvent *e=peer->step_events+(peer->step_head+j)%INPUT_JOG_EVENTS;if(e->order>=latest&&input_step_same(&r,&e->request)){latest=e->order;before=e->request.bits;}}}
  r.before_bits=before;r.bits=!before;in->step_events[(in->step_head+in->step_count++)%INPUT_JOG_EVENTS]=(InputStepEvent){r,input_order(in)};
+}
+static inline void input_clip_stop_add(MirrorInput *in,const CopiedMirror *s,unsigned view,uint32_t now){
+ CommandRequest r;if(!s->steps_available||!step_request_stop_view(&r,&s->steps,view,now))return;
+ if(in->step_count==INPUT_JOG_EVENTS){in->refused++;return;}
+ in->step_events[(in->step_head+in->step_count++)%INPUT_JOG_EVENTS]=(InputStepEvent){r,input_order(in)};
 }
 static inline void input_clip_add(MirrorInput *in,const CopiedMirror *s,unsigned view,unsigned intent,unsigned column,unsigned row,uint32_t now){
  CommandRequest r;if(!s->clips_available||!clip_request_bind(&r,&s->clips,view,intent,column,row,now))return;

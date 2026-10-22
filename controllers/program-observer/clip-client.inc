@@ -21,7 +21,7 @@ done:munmap(c,sizeof(*c));close(fd);return result;
 }
 static int clip_submit_cli(const char *command_path,const char *mirror_path,const char *view_arg,const char *intent_arg,const char *column_arg,const char *row_arg){
  char *end;errno=0;unsigned long view=strtoul(view_arg,&end,10);if(errno||!*view_arg||*end||view>=CLIP_VIEWS)return 2;
- unsigned long intent=strtoul(intent_arg,&end,10);if(errno||!*intent_arg||*end||intent<CLIP_LAUNCH||intent>CLIP_SCENE_STOP)return 2;
+ unsigned long intent=strtoul(intent_arg,&end,10);if(errno||!*intent_arg||*end||intent<CLIP_LAUNCH||intent>CLIP_SELECT)return 2;
  unsigned long column=strtoul(column_arg,&end,10);if(errno||!*column_arg||*end||column>=8)return 2;
  unsigned long row=strtoul(row_arg,&end,10);if(errno||!*row_arg||*end||row>=8)return 2;
  int fd=-1,mfd=-1,result=1;struct stat st,mst;CommandState *c=map_file(command_path,sizeof(*c),1,&fd,&st);if(c==MAP_FAILED)return 1;

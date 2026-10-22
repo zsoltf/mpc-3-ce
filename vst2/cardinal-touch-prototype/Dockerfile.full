@@ -1,0 +1,9 @@
+FROM mpclearn-cardinal-rack-probe-build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    cmake ninja-build pkg-config python3 perl bison flex patchelf \
+    libsamplerate0-dev:armhf libspeexdsp-dev:armhf liblo-dev:armhf \
+    libfftw3-dev:armhf libsndfile1-dev:armhf libx11-dev:armhf \
+    libxcursor-dev:armhf libxext-dev:armhf libxrandr-dev:armhf \
+    libgl-dev:armhf libfreetype6-dev:armhf libasound2-dev:armhf \
+    libdbus-1-dev:armhf libzstd-dev:armhf libarchive-dev:armhf \
+    && rm -rf /var/lib/apt/lists/*

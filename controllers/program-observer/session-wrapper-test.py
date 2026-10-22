@@ -214,7 +214,7 @@ def native_lifetime():
     return int(subprocess.check_output([str(dev/'mirror-input'), '--test-lifetime', str(state/'native-preferences.state')], env=env, text=True))
 def native_values():
     data = (state/'native-preferences.state').read_bytes()
-    assert len(data) == 16384 and struct.unpack_from('<III', data) == (0x3355504e, 14, 16384)
+    assert len(data) == 16384 and struct.unpack_from('<III', data) == (0x3355504e, 15, 16384)
     return struct.unpack_from('<'+'I'*60, data)
 def native_request(profile, *, kind=1, generation=0, endpoint_index=0, endpoint_type=0, hui_policy=0, controller_index=0, enabled=1, output_index=None, output_type=None):
     path = state/'native-preferences.state'

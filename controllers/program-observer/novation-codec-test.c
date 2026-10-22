@@ -8,13 +8,18 @@ static int decode(NovationState *s,NovationEvent *e,unsigned a,unsigned b,unsign
 static void step_translation_checks(void){
  for(unsigned protocol=MCU_PROTOCOL_LPX;protocol<=MCU_PROTOCOL_LPP3;protocol++){
   NovationState state;NovationEvent event;NovationStepEvent out;novation_reset(&state,protocol,1);unsigned pro=protocol==MCU_PROTOCOL_LPP3;
-  const unsigned buttons[]={pro?97u:96u,pro?79u:97u,pro?93u:95u,pro?80u:91u,pro?70u:92u,pro?91u:93u,pro?92u:94u};
+  const unsigned buttons[]={pro?97u:96u,pro?79u:96u,pro?93u:95u,pro?80u:91u,pro?70u:92u,pro?91u:93u,pro?92u:94u};
   const unsigned kinds[]={NOV_STEP_VIEW,NOV_STEP_VIEW,NOV_STEP_VIEW,NOV_STEP_SOUND,NOV_STEP_SOUND,NOV_STEP_PAGE,NOV_STEP_PAGE};
   for(unsigned i=0;i<7;i++){
    require(decode(&state,&event,0xb0,buttons[i],127)&&novation_step_decode(protocol,NOV_STEP64,&event,&out)&&out.kind==kinds[i],"model-specific documented button reaches step translation");
-   if(i<3)require(out.view==(i==0?NOV_STEP64:i==1?NOV_STEP16:NOV_SESSION),"physical mode buttons choose exact view");
+   if(i<3)require(out.view==(i<2?NOV_STEP16:NOV_SESSION),"in the 64-step view the step-view buttons switch to 16 steps");
    else require(out.direction==((i==4||i==6)?1:-1),"sound/time arrows retain direction");
    require(decode(&state,&event,0xb0,buttons[i],0)&&!novation_step_decode(protocol,NOV_STEP64,&event,&out),"button release does not become another intent");
+  }
+  for(unsigned i=0;i<2;i++){
+   require(decode(&state,&event,0xb0,buttons[i],127)&&novation_step_decode(protocol,NOV_STEP16,&event,&out)&&out.kind==NOV_STEP_VIEW&&out.view==NOV_STEP64,"in the 16-step view they switch back to 64 steps");
+   unsigned outside=decode(&state,&event,0xb0,buttons[i],127)&&novation_step_decode(protocol,NOV_VOLUME,&event,&out);
+   require(pro&&i==1?!outside:outside&&out.kind==NOV_STEP_VIEW&&out.view==NOV_STEP_ENTER,"outside a step view Note/Custom/Sequencer enter the last-used view; Pro Steps is a step-view button only");
   }
   for(unsigned layer=NOV_STEP64;layer<=NOV_STEP16;layer++){
    unsigned visited[4][64]={{0}};
@@ -38,11 +43,13 @@ static void clip_translation_checks(void){
  for(unsigned protocol=MCU_PROTOCOL_LPX;protocol<=MCU_PROTOCOL_LPP3;protocol++){
   NovationState state;NovationEvent event;NovationClipEvent out;novation_reset(&state,protocol,1);unsigned pro=protocol==MCU_PROTOCOL_LPP3;
   for(unsigned stop=0;stop<2;stop++){
-   require(decode(&state,&event,0xb0,pro?93:95,127)&&novation_clip_decode(protocol,NOV_STEP64,&event,stop,&out)&&out.kind==NOV_CLIP_VIEW&&out.view==(stop?NOV_SESSION:NOV_CLIPS),"Session reaches clips and modified Session retains mixer");
+   require(decode(&state,&event,0xb0,pro?93:95,127)&&novation_clip_decode(protocol,NOV_STEP64,&event,stop,&out)&&out.kind==NOV_CLIP_VIEW&&out.view==NOV_CLIPS,"Session reaches clips with or without the stop hold (Custom is the mixer)");
    for(unsigned row=0;row<8;row++){
     for(unsigned column=0;column<8;column++){
      unsigned note=(8-row)*10+column+1;
      require(decode(&state,&event,0x90,note,127)&&novation_clip_decode(protocol,NOV_CLIPS,&event,stop,&out)&&out.kind==(stop?NOV_CLIP_STOP:NOV_CLIP_TRIGGER)&&out.row==row&&out.column==column,"all64 clip coordinates preserve top-left track/scene orientation");
+     require(novation_clip_decode(protocol,NOV_CLIPS,&event,stop|4u,&out)&&out.kind==(stop?NOV_CLIP_STOP:NOV_CLIP_PICK)&&out.row==row&&out.column==column,"held step-view button picks a clip without launching; stop still wins");
+     require(novation_clip_decode(protocol,NOV_CLIPS,&event,2u|4u,&out)&&out.kind==NOV_CLIP_RECORD,"record hold wins over pick");
      require(decode(&state,&event,0x80,note,64)&&!novation_clip_decode(protocol,NOV_CLIPS,&event,stop,&out),"release cannot repeat clip intent");
     }
     require(decode(&state,&event,0xb0,(8-row)*10+9,127)&&novation_clip_decode(protocol,NOV_CLIPS,&event,stop,&out)&&out.kind==(stop?NOV_SCENE_STOP:NOV_SCENE_TRIGGER)&&out.row==row,"all eight right buttons reach scene launch/stop");
@@ -56,8 +63,29 @@ static void clip_translation_checks(void){
  }
  puts("PASS documented Launchpad Session/scene/stop-modifier translation; native clip state/actions and hardware untested");
 }
+/* Approved layout: X Custom is not a step-view button; both Session buttons
+ * open the clip grid even with the stop hold; Pro row-mode buttons; pan pads. */
+static void layout_checks(void){
+ NovationState state;NovationEvent event;NovationStepEvent out;NovationClipEvent clip;novation_reset(&state,MCU_PROTOCOL_LPX,1);
+ require(decode(&state,&event,0xb0,97,127)&&!novation_step_decode(MCU_PROTOCOL_LPX,NOV_STEP64,&event,&out)&&!novation_step_decode(MCU_PROTOCOL_LPX,NOV_VOLUME,&event,&out),"X Custom never enters or switches a step view");
+ for(unsigned protocol=MCU_PROTOCOL_LPX;protocol<=MCU_PROTOCOL_LPP3;protocol++){novation_reset(&state,protocol,1);unsigned session=protocol==MCU_PROTOCOL_LPP3?93:95;
+  require(decode(&state,&event,0xb0,session,127)&&novation_clip_decode(protocol,NOV_VOLUME,&event,1,&clip)&&clip.kind==NOV_CLIP_VIEW&&clip.view==NOV_CLIPS,"Session with the stop hold opens the clip grid, not a mixer");}
+ require(novation_row_mode(1)==NOV_ROW_ARM&&novation_row_mode(2)==NOV_ROW_MUTE&&novation_row_mode(3)==NOV_ROW_SOLO&&novation_row_mode(8)==NOV_ROW_STOP&&novation_row_mode(4)==NOV_ROW_SELECT,"Pro Record Arm/Mute/Solo/Stop Clip are the row modes");
+ require(novation_mixer_page(NOV_VOLUME)&&novation_mixer_page(NOV_PAN)&&novation_mixer_page(NOV_SEND)&&novation_mixer_page(NOV_DEVICE)&&novation_mixer_page(NOV_SESSION)&&!novation_mixer_page(NOV_CLIPS)&&!novation_mixer_page(NOV_STEP64),"mixer pages");
+ require(novation_pan_value(4)==0.5f&&novation_pan_value(5)==0.5f&&novation_pan_value(1)==0.0f&&novation_pan_value(8)==1.0f&&novation_pan_value(2)<novation_pan_value(3)&&novation_pan_value(6)<novation_pan_value(7),"both middle pan pads are the exact centre; outer pads reach the ends");
+ for(unsigned row=1;row<=8;row++)require(novation_pan_lit(row,0.5f)==(row==4||row==5),"centre lights the middle pair only");
+ for(unsigned row=1;row<=8;row++)require(novation_pan_lit(row,0.0f)==(row<=4)&&novation_pan_lit(row,1.0f)==(row>=5),"hard left lights the lower half, hard right the upper half");
+ for(unsigned row=1;row<=8;row++)require(novation_pan_lit(row,0.25f)==(row==3||row==4)&&novation_pan_lit(row,0.75f)==(row==5||row==6),"a part pan grows outward from the centre");
+ novation_reset(&state,MCU_PROTOCOL_LPP3,1);require(decode(&state,&event,0xb0,101,127)&&event.kind==NOV_BUTTON&&event.index==101&&decode(&state,&event,0xb0,108,0)&&event.index==108&&!event.value,"Pro Track Select buttons CC101-108 decode");novation_reset(&state,MCU_PROTOCOL_LPX,1);require(!decode(&state,&event,0xb0,101,127),"the X has no Track Select row");
+ puts("PASS approved Launchpad layout: X Custom no step view, Session never a mixer, Pro row modes and Track Select CCs, mixer pages, bipolar pan pads with an exact centre");
+}
+static void pick_button_checks(void){
+ require(novation_pick_button(MCU_PROTOCOL_LPX,96)&&!novation_pick_button(MCU_PROTOCOL_LPX,97)&&!novation_pick_button(MCU_PROTOCOL_LPX,98)&&!novation_pick_button(MCU_PROTOCOL_LPX,95),"X picks with a held Note only; Custom is the mixer pages");
+ require(novation_pick_button(MCU_PROTOCOL_LPP3,97)&&!novation_pick_button(MCU_PROTOCOL_LPP3,96)&&!novation_pick_button(MCU_PROTOCOL_LPP3,93)&&!novation_pick_button(MCU_PROTOCOL_LCXL3,97),"Pro picks with a held Sequencer only; XL3 never picks");
+ unsigned char held[128]={0};held[97]=1;require(!novation_pick_held(MCU_PROTOCOL_LPX,held)&&novation_pick_held(MCU_PROTOCOL_LPP3,held),"held Sequencer is a Pro pick hold; held X Custom is not");held[97]=0;held[96]=1;require(novation_pick_held(MCU_PROTOCOL_LPX,held)&&!novation_pick_held(MCU_PROTOCOL_LPP3,held),"held Note picks on X only");
+}
 int main(void){
- step_translation_checks();clip_translation_checks();
+ step_translation_checks();clip_translation_checks();pick_button_checks();layout_checks();
  NovationState s,peer;NovationEvent e;
  novation_reset(&s,MCU_PROTOCOL_LCXL3,7);novation_reset(&peer,MCU_PROTOCOL_LPX,8);
  W(novation_command(s.protocol,2,127),0xf0,0,0x20,0x29,2,0x15,2,0x7f,0xf7);

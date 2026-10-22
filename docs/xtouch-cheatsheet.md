@@ -2,7 +2,7 @@
 
 For the full-size Behringer X-Touch in MC mode over USB. It connects when a
 project loads and follows the MPC: faders, names, colors and meters update as
-you work.
+you work, also while you use a Launchpad or XL3.
 
 ## Setup
 
@@ -12,7 +12,8 @@ you work.
 2. In Preferences > MIDI/Sync, turn off Track, Global and Control for the
    `X-TOUCH_INT` input. No MIDI Learn setup is needed.
 3. Load a project. The controller connects when it finishes loading, and
-   reconnects if you replug it.
+   reconnects if you replug it. If it is missing from Preferences >
+   CONTROLLERS, press Detect there.
 
 Shift is the modifier for every combination below. Shift+Flip turns motor
 faders on or off.

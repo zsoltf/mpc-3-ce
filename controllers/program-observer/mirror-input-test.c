@@ -626,6 +626,98 @@ static void profile_policy_checks(void){
        "LCXL3 Add retains Mini and publishes saved LCXL3 row with exact bidirectional DAW names");
   fake_inventory_open=0;
  }
+ {
+  /* Detect matching rules over the session's published endpoint rows. */
+  NativePreferencesEndpoint rows[NATIVE_PREFERENCES_ENDPOINTS];unsigned count=0;memset(rows,0,sizeof(rows));
+  #define DETECT_ROW(c,p,t,caps) do{NativePreferencesEndpoint *r=rows+count++;r->endpoint_type=(t);r->capabilities=(caps);snprintf((char*)r->client,sizeof(r->client),"%s",c);snprintf((char*)r->port,sizeof(r->port),"%s",p);}while(0)
+  const unsigned both=NATIVE_ENDPOINT_FROM_CONTROLLER|NATIVE_ENDPOINT_TO_CONTROLLER;
+  DETECT_ROW("X-Touch","X-TOUCH_EXT",NATIVE_ENDPOINT_KERNEL,both);DETECT_ROW("X-Touch","X-TOUCH_INT",NATIVE_ENDPOINT_KERNEL,both);
+  DETECT_ROW("Launchpad X","LPX DAW In",NATIVE_ENDPOINT_KERNEL,both);DETECT_ROW("Launchpad X","LPX MIDI In",NATIVE_ENDPOINT_KERNEL,both);
+  DETECT_ROW("Launchpad Pro MK3","LPProMK3 DAW",NATIVE_ENDPOINT_KERNEL,both);DETECT_ROW("Launchpad Pro MK3","LPProMK3 MIDI",NATIVE_ENDPOINT_KERNEL,both);
+  DETECT_ROW("LCXL3 2","LCXL3 2 MIDI In",NATIVE_ENDPOINT_KERNEL,both);DETECT_ROW("LCXL3 2","LCXL3 2 DAW In",NATIVE_ENDPOINT_KERNEL,both);
+  DETECT_ROW("X-TOUCH MINI","X-TOUCH MINI MIDI 1",NATIVE_ENDPOINT_KERNEL,both);DETECT_ROW("MPK249","MPK249 Port A",NATIVE_ENDPOINT_KERNEL,both);
+  DETECT_ROW("MPK mini 3","MPK mini 3 MIDI 1",NATIVE_ENDPOINT_KERNEL,both);DETECT_ROW("Generic DAW","MCU",NATIVE_ENDPOINT_KERNEL,both);
+  McuControllerCollection detected;memset(&detected,0,sizeof(detected));
+  ControllerDetectResult found=controller_detect(&detected,rows,count);
+  need(found.added==5&&!found.full&&detected.count==5,"Detect recognises exactly the five fixed-name profiles and never generic MCU/HUI or Akai programs");
+  const McuProfile *expected[]={&mcu_profile_xtouch,&mcu_profile_lpx,&mcu_profile_lpp3,&mcu_profile_lcxl3,&mcu_profile_xtouch_mini};const char *ports[]={"X-TOUCH_INT","LPX MIDI In","LPProMK3 MIDI","LCXL3 2 DAW In","X-TOUCH MINI MIDI 1"};
+  for(unsigned i=0;i<5;i++){const McuControllerPreference *r=detected.records+i;need(r->enabled&&r->input.profile==expected[i]&&r->output.profile==expected[i]&&!strcmp(r->input.port,ports[i])&&!strcmp(r->output.port,ports[i])&&r->input.physical_only==MCU_ENDPOINT_KERNEL&&r->output.physical_only==MCU_ENDPOINT_KERNEL&&r->input.client==r->input_client&&r->output.port==r->output_port&&!r->hui_policy,"Detect adds an enabled row with the same exact USB port in both directions");}
+  found=controller_detect(&detected,rows,count);need(!found.added&&detected.count==5,"a second Detect finds every recognised port already configured");
+  McuControllerCollection partial;memset(&partial,0,sizeof(partial));partial.count=1;
+  McuControllerPreference other;memset(&other,0,sizeof(other));other.enabled=0;other.input=(McuEndpoint){.profile=&mcu_profile_generic,.client="X-Touch",.port="X-TOUCH_INT",.physical_only=MCU_ENDPOINT_KERNEL};other.output=other.input;
+  need(mcu_controller_preference_copy(partial.records,&other),"disabled generic row fixture");
+  found=controller_detect(&partial,rows,count);need(found.added==4&&partial.records[0].input.profile==&mcu_profile_generic&&!partial.records[0].enabled,"a port used by any row, even disabled under another profile, is configured and that row is unchanged");
+  NativePreferencesEndpoint odd[4];memset(odd,0,sizeof(odd));
+  memcpy(odd,rows+1,sizeof(odd[0]));odd[0].endpoint_type=NATIVE_ENDPOINT_USER;
+  memcpy(odd+1,rows+3,sizeof(odd[0]));odd[1].capabilities=NATIVE_ENDPOINT_FROM_CONTROLLER;
+  memcpy(odd+2,rows+5,sizeof(odd[0]));memcpy(odd+3,rows+5,sizeof(odd[0]));odd[3].port_number=7;
+  McuControllerCollection none;memset(&none,0,sizeof(none));found=controller_detect(&none,odd,4);
+  need(!found.added&&!none.count,"Detect skips app ports, one-direction ports and duplicated names");
+  McuControllerCollection full;memset(&full,0,sizeof(full));full.count=MCU_CONTROLLER_CAPACITY-1;
+  for(unsigned i=0;i<full.count;i++){char c[16];snprintf(c,sizeof(c),"Other %u",i);McuControllerPreference g;memset(&g,0,sizeof(g));g.enabled=1;g.input=(McuEndpoint){.profile=&mcu_profile_generic,.client=c,.port="MCU",.physical_only=MCU_ENDPOINT_KERNEL};g.output=g.input;need(mcu_controller_preference_copy(full.records+i,&g),"capacity fixture row");}
+  found=controller_detect(&full,rows,count);need(found.added==1&&found.full&&full.count==MCU_CONTROLLER_CAPACITY&&full.records[MCU_CONTROLLER_CAPACITY-1].input.profile==&mcu_profile_xtouch,"Detect fills the last free row and reports the collection full");
+  found=controller_detect(&full,rows,count);need(!found.added&&found.full,"a full collection adds nothing and reports full");
+  #undef DETECT_ROW
+  puts("PASS Detect matching: exact X-Touch, X-Touch Mini, Launchpad X, Launchpad Pro Mk3 and numbered LCXL3 DAW names; configured, ambiguous, app, one-way, generic, Akai and capacity rows skipped");
+
+  /* Production owner path from the earlier device collection: absent Mini
+     plus three Novation rows, with the full X-Touch connected and unbound. */
+  McuControllerCollection start;memset(&start,0,sizeof(start));start.count=4;
+  McuControllerPreference seed;memset(&seed,0,sizeof(seed));seed.enabled=1;mcu_controller_fixed_endpoint(&seed.input,&mcu_profile_xtouch_mini);mcu_controller_fixed_endpoint(&seed.output,&mcu_profile_xtouch_mini);need(mcu_controller_preference_copy(start.records,&seed),"Mini seed row");
+  const McuProfile *novation[]={&mcu_profile_lpx,&mcu_profile_lpp3,&mcu_profile_lcxl3};const char *nclient[]={"Launchpad X","Launchpad Pro MK3","LCXL3 1"},*nport[]={"LPX MIDI In","LPProMK3 MIDI","LCXL3 1 DAW In"};
+  for(unsigned i=0;i<3;i++){memset(&seed,0,sizeof(seed));seed.enabled=1;seed.input=(McuEndpoint){.profile=novation[i],.client=nclient[i],.port=nport[i],.physical_only=MCU_ENDPOINT_KERNEL};seed.output=seed.input;need(mcu_controller_preference_copy(start.records+1+i,&seed),"Novation seed row");}
+  need(mcu_controller_preferences_write_collection(controller_path,&start),"write the four-row starting collection");
+  McuControllerCollectionFile before_bytes,after_bytes;int capture=open(controller_path,O_RDONLY);need(capture>=0&&read(capture,&before_bytes,sizeof(before_bytes))==sizeof(before_bytes)&&!close(capture),"capture starting collection bytes");
+  const unsigned rw=SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ|SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE;
+  FakeClient device[]={
+   {"System",SND_SEQ_KERNEL_CLIENT,0,2,{{"Timer",rw,0},{"Announce",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ,1}}},
+   {"LCXL3 1",SND_SEQ_KERNEL_CLIENT,16,4,{{"LCXL3 1 MIDI In",rw,0},{"LCXL3 1 DAW In",rw,1},{"LCXL3 1 To DIN Out",SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,2},{"LCXL3 1 To DIN Out 2",SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,3}}},
+   {"MPC Live II",SND_SEQ_KERNEL_CLIENT,24,2,{{"MPC Public",rw,0},{"MPC MIDI Port A",rw,2}}},
+   {"X-Touch",SND_SEQ_KERNEL_CLIENT,28,2,{{"X-TOUCH_INT",rw,0},{"X-TOUCH_EXT",rw,1}}},
+   {"Launchpad X",SND_SEQ_KERNEL_CLIENT,32,2,{{"LPX DAW In",rw,0},{"LPX MIDI In",rw,1}}},
+   {"Launchpad Pro MK3",SND_SEQ_KERNEL_CLIENT,36,3,{{"LPProMK3 MIDI",rw,0},{"LPProMK3 DIN",rw,1},{"LPProMK3 DAW",rw,2}}},
+   {"JUCE",SND_SEQ_USER_CLIENT,128,1,{{"Virtual MIDI Input 1",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ,2}}},
+   {"mpclearn-mirror-motors",SND_SEQ_USER_CLIENT,131,1,{{"MCU eight motor output",SND_SEQ_PORT_CAP_READ,1}}}
+  };
+  fake_inventory_open=1;fake_enumeration(device,sizeof(device)/sizeof(device[0]));
+  need(!native_preferences_sync(native_path,controller_path,"saved")&&native->inventory_status==NATIVE_PREFERENCES_ACTIVE&&native->inventory_count==11&&native->collection_count==4,"observed device inventory publishes eleven external endpoints and the four saved rows");
+  native->request_sequence++;native->request_kind=NATIVE_REQUEST_DETECT;native->request_controller_index=NATIVE_CONTROLLER_NEW;native->request_collection_generation=native->collection_generation;
+  need(!native_preferences_apply(native_path,controller_path)&&native->status==NATIVE_PREFERENCES_APPLYING&&native->completed_sequence!=native->request_sequence,"Detect persists an added row and leaves completion to the bridge restart");
+  need(!native_preferences_finish(native_path,1)&&native->completed_sequence==native->request_sequence&&native->status==NATIVE_PREFERENCES_ACTIVE,"restart completion finishes Detect");
+  need(mcu_controller_preferences_read_collection(controller_path,&stored)&&stored.count==5&&stored.records[4].enabled&&stored.records[4].input.profile==&mcu_profile_xtouch&&!strcmp(stored.records[4].input.client,"X-Touch")&&!strcmp(stored.records[4].input.port,"X-TOUCH_INT")&&!strcmp(stored.records[4].output.port,"X-TOUCH_INT")&&native->collection_count==5&&native->controllers[4].profile==NATIVE_CONTROLLER_XTOUCH,"Detect appends the connected full X-Touch after the absent Mini and Novation rows");
+  capture=open(controller_path,O_RDONLY);need(capture>=0&&read(capture,&after_bytes,sizeof(after_bytes))==sizeof(after_bytes)&&!close(capture)&&!memcmp(before_bytes.records,after_bytes.records,4*sizeof(before_bytes.records[0])),"Detect leaves the four existing rows byte-identical");
+  native->request_sequence++;native->request_collection_generation=native->collection_generation;
+  need(native_preferences_apply(native_path,controller_path)==NATIVE_APPLY_NONE&&native->status==NATIVE_PREFERENCES_NONE_DETECTED&&!native->result_detail&&native->completed_sequence==native->request_sequence,"a repeated Detect completes NONE_DETECTED without a restart request");
+  capture=open(controller_path,O_RDONLY);need(capture>=0&&read(capture,&before_bytes,sizeof(before_bytes))==sizeof(before_bytes)&&!close(capture)&&!memcmp(&before_bytes,&after_bytes,sizeof(before_bytes)),"nothing-new Detect writes nothing");
+  native->request_sequence++;native->request_collection_generation=native->collection_generation-1;
+  need(native_preferences_apply(native_path,controller_path)==NATIVE_APPLY_STALE&&native->status==NATIVE_PREFERENCES_STALE,"Detect against a changed collection is rejected");
+  fake_inventory_open=0;native->request_sequence++;native->request_collection_generation=native->collection_generation;
+  need(native_preferences_apply(native_path,controller_path)==NATIVE_APPLY_UNAVAILABLE&&native->status==NATIVE_PREFERENCES_UNAVAILABLE&&native->completed_sequence==native->request_sequence,"Detect without ALSA completes UNAVAILABLE and writes nothing");
+  need(!unlink(controller_path),"remove Detect collection fixture");
+  need(!native_preferences_sync(native_path,controller_path,"saved")&&native->collection_count==1,"missing collection reads as the default X-Touch");
+  fake_inventory_open=1;fake_enumeration(device,sizeof(device)/sizeof(device[0]));
+  native->request_sequence++;native->request_collection_generation=native->collection_generation;
+  need(!native_preferences_apply(native_path,controller_path)&&!native_preferences_finish(native_path,1)&&mcu_controller_preferences_read_collection(controller_path,&stored)&&stored.count==4&&stored.records[0].input.profile==&mcu_profile_xtouch&&stored.records[1].input.profile==&mcu_profile_lcxl3&&stored.records[2].input.profile==&mcu_profile_lpx&&stored.records[3].input.profile==&mcu_profile_lpp3,"fresh install keeps the default X-Touch and Detect adds the three Novation controllers");
+  fake_inventory_open=0;
+  puts("PASS Detect owner path: one generation-tagged request, append-only persistence, restart completion, nothing-new and stale/unavailable completions without writes, fresh-install default kept (ALSA substituted)");
+ }
+ {
+  /* Two audio worker lanes publish the same meter in the same tick (observed
+     with multicore DSP): the reader shows their peak instead of withdrawing
+     the meter, which made the X-Touch re-enable and flicker. */
+  MeterState *ms=calloc(1,sizeof(*ms));CopiedMirror *snap=calloc(1,sizeof(*snap));need(ms&&snap,"meter lane fixture allocation");
+  snap->ready=1;snap->epoch=3;snap->heartbeat=1000;
+  MeterCell *cell=ms->cells;atomic_store(&cell->subscription,5);atomic_store(&cell->live,1);atomic_store(&cell->epoch,3);
+  const float level[2][2]={{0.25f,0.5f},{0.4f,0.3f}};
+  for(unsigned lane=0;lane<2;lane++){MeterSample *p=cell->lanes+lane;uint32_t l,r;memcpy(&l,&level[lane][0],4);memcpy(&r,&level[lane][1],4);
+   atomic_store(&p->subscription,5);atomic_store(&p->epoch,3);atomic_store(&p->tick,990);atomic_store(&p->token,100+lane);atomic_store(&p->left,l);atomic_store(&p->right,r);atomic_store(&p->enabled,1);atomic_store(&p->site,ME_STEREO);atomic_store(&p->revision,2);}
+  CopiedMeter m;copy_meter(ms,1,snap,&m);float left,right;memcpy(&left,&m.left,4);memcpy(&right,&m.right,4);
+  need(m.available&&left==0.4f&&right==0.5f,"same-tick lanes from two audio threads give a per-channel peak and stay available");
+  atomic_store(&cell->lanes[1].tick,995);copy_meter(ms,1,snap,&m);memcpy(&left,&m.left,4);need(m.available&&left==0.4f,"a newer lane still wins outright");
+  atomic_store(&cell->lanes[1].tick,990);atomic_store(&cell->lanes[1].enabled,0);copy_meter(ms,1,snap,&m);need(!m.available,"lanes disagreeing on enable stay ambiguous");
+  free(ms);free(snap);
+  puts("PASS meter reader: same-tick multicore lanes merge to their peak; newer lane wins; enable disagreement stays unavailable");
+ }
  puts("PASS native Preferences repairs: explicit role-valid generic transitions, same-profile offline retention, and initialized ALSA-open failure with deterministic UNAVAILABLE completion and unchanged persistence (ALSA substituted)");
  need(!munmap(native,sizeof(*native))&&!unlink(native_path)&&input_bridge_main_not_called(4,set_xtouch)==0,"native request fixture cleanup and saved default restoration");
  need(!unlink(controller_path)&&!rmdir(controller_directory),"controller preference fixture cleanup");

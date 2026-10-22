@@ -74,18 +74,27 @@ static void launchpad_pro_rebind_checks(const MirrorState *state,ControllerRunti
   StepProjection *v=s->steps.views+i;*v=(StepProjection){.status=STEP_READY,.tick=now,.pad=6,.first_step=32,.notes={42,43,44,45},.valid={UINT32_MAX,UINT32_MAX}};
   v->target=(StepTarget){.epoch=s->epoch,.project_owner=1,.track_owner=i,.program_owner=i,.serial=i,.binding=1,.incarnation=1,.control=10,.event_owner=20+i,.sequence=30,.division_bits=0x41800000,.extent={15360,0},.bind_generation=n->step_bind_generation};
  }
- MirrorInput *pro=&surfaces.contexts[2].input;NovationState *n=&surfaces.surfaces[2].novation;
+ MirrorInput *pro=&surfaces.contexts[2].input;NovationState *n=&surfaces.surfaces[2].novation,*x=&surfaces.surfaces[1].novation;
  fake_input_reset();native_push(2,0x90,81,127);native_push(2,0x90,81,0);need(collection_drain(&surfaces,state,runtime)&&pro->step_count==1,"old Pro bound target has a real queued pad edit");
+ /* Pressed again inside a step view, the step-view button switches single and
+  * four-sound views and keeps the binding, sound and time page. */
  unsigned generation=n->step_bind_generation;fake_input_reset();native_push(2,0xb0,97,127);native_push(2,0xb0,97,127);native_push(2,0xb0,97,0);
- need(collection_drain(&surfaces,state,runtime)&&n->layer==NOV_STEP64&&n->step_bind_generation==generation+1&&n->step_pad==UINT32_MAX&&!n->step_first&&!pro->step_count,"one Sequencer press rebinds even in64, resets sound/time and cancels old unsent edit; held repeat has no second generation");
+ need(collection_drain(&surfaces,state,runtime)&&n->layer==NOV_STEP16&&n->step_bind_generation==generation&&n->step_pad==6&&n->step_first==32&&!pro->step_count&&n->step_mode==NOV_STEP16,"Sequencer in the 64-step view switches to 16 steps once (held repeat ignored), keeps the target and drops the unsent edit");
+ fake_input_reset();native_push(2,0xb0,97,127);native_push(2,0xb0,97,0);need(collection_drain(&surfaces,state,runtime)&&n->layer==NOV_STEP64&&n->step_bind_generation==generation&&n->step_pad==6,"Sequencer again returns to 64 steps");
+ fake_input_reset();native_push(2,0xb0,79,127);native_push(2,0xb0,79,0);need(collection_drain(&surfaces,state,runtime)&&n->layer==NOV_STEP16&&n->step_bind_generation==generation&&n->step_pad==6&&n->step_first==32,"Steps still switches views and keeps target/sound/time");
+ fake_input_reset();native_push(1,0xb0,96,127);native_push(1,0xb0,96,0);need(collection_drain(&surfaces,state,runtime)&&x->layer==NOV_STEP16&&x->step_bind_generation==21&&x->step_pad==6&&x->step_first==32,"X Note in the 64-step view switches to 16 steps and keeps its binding");
+ fake_input_reset();native_push(1,0xb0,96,127);native_push(1,0xb0,96,0);need(collection_drain(&surfaces,state,runtime)&&x->layer==NOV_STEP64&&x->step_bind_generation==21,"X Note in the 16-step view switches back to 64 steps");fake_input_reset();native_push(1,0xb0,97,127);native_push(1,0xb0,97,0);need(collection_drain(&surfaces,state,runtime)&&novation_mixer_page(x->layer)&&x->step_bind_generation==21,"X Custom leaves the step view for the mixer pages, keeping the binding");native_layer(surfaces.surfaces+1,surfaces.banks+1,NOV_STEP64);
+ /* Entering from the clip grid binds the MPC selection again, in the view
+  * this surface used last. */
+ fake_input_reset();native_push(2,0xb0,93,127);native_push(2,0xb0,93,0);native_push(2,0xb0,97,127);native_push(2,0xb0,97,0);
+ need(collection_drain(&surfaces,state,runtime)&&n->layer==NOV_STEP16&&n->step_bind_generation==generation+1&&n->step_pad==UINT32_MAX&&!n->step_first,"Session then Sequencer rebinds in the last-used 16-step view");
  fake_input_reset();native_push(2,0x90,81,127);native_push(2,0x90,81,0);native_push(1,0x90,81,127);native_push(1,0x90,81,0);need(collection_drain(&surfaces,state,runtime)&&!pro->step_count&&surfaces.contexts[1].input.step_count==1,"old Pro snapshot refused while independent X bound edit remains usable");
- StepProjection *v=s->steps.views+2;v->target.bind_generation=n->step_bind_generation;v->target.track_owner=9;v->target.program_owner=9;v->target.event_owner=29;v->pad=3;v->first_step=0;
+ StepProjection *v=s->steps.views+2;v->target.bind_generation=n->step_bind_generation;v->target.track_owner=9;v->target.program_owner=9;v->target.event_owner=29;v->pad=3;v->first_step=0;n->step_pad=3;
  fake_input_reset();native_push(2,0x90,81,127);native_push(2,0x90,81,0);need(collection_drain(&surfaces,state,runtime)&&pro->step_count==1&&pro->step_events[pro->step_head].request.track_owner==9,"fresh generation can edit newly selected native target");
- n->step_pad=3;n->step_first=16;generation=n->step_bind_generation;fake_input_reset();native_push(2,0xb0,79,127);native_push(2,0xb0,79,0);need(collection_drain(&surfaces,state,runtime)&&n->layer==NOV_STEP16&&n->step_bind_generation==generation&&n->step_pad==3&&n->step_first==16,"Steps changes view only and retains target/sound/time");
- fake_input_reset();native_push(2,0xb0,97,127);native_push(2,0xb0,97,0);need(collection_drain(&surfaces,state,runtime)&&n->layer==NOV_STEP64&&n->step_bind_generation==generation+1&&n->step_pad==UINT32_MAX&&!n->step_first,"Sequencer from16 also resets and rebinds64");
- fake_input_reset();native_push(1,0xb0,96,127);native_push(1,0xb0,96,0);need(collection_drain(&surfaces,state,runtime)&&surfaces.surfaces[1].novation.step_bind_generation==21&&surfaces.surfaces[1].novation.step_pad==6&&surfaces.surfaces[1].novation.step_first==32,"X Note retains existing semantics and independent binding");
+ fake_input_reset();native_push(1,0xb0,95,127);native_push(1,0xb0,95,0);native_push(1,0xb0,96,127);native_push(1,0xb0,96,0);need(collection_drain(&surfaces,state,runtime)&&x->layer==NOV_STEP64&&x->step_bind_generation==22,"X enters its last-used 64-step view from the clip grid with Note or Custom");
+ NovationState fresh;novation_reset(&fresh,MCU_PROTOCOL_LPP3,1);need(novation_step_entry(&fresh)==NOV_STEP64,"a new surface enters the single-sound view first");
  for(unsigned i=1;i<=2;i++){input_discard(&surfaces.contexts[i].input);surfaces.surfaces[i].novation=old[i-1];}s->steps=saved;s->steps_available=available;
- puts("PASS actual Pro Sequencer repeated-entry rebind, held edge, old-target refusal, fresh target edit, peer independence, Steps preservation and unchanged X Note semantics; native snapshots/ALSA substituted");
+ puts("PASS step-view button: inside a step view it switches 64/16 on X (Note or Custom) and Pro (Sequencer; Steps too) keeping target/sound/time; entry from the clip grid rebinds in the last-used view; old-target refusal and peer independence; native snapshots/ALSA substituted");
 }
 static void launchpad_clip_checks(const MirrorState *state,ControllerRuntime *runtime){
  CopiedMirror *snapshot=runtime->snapshot;ClipCopy saved=snapshot->clips;unsigned available=snapshot->clips_available,now=runtime->now;
@@ -102,7 +111,7 @@ static void launchpad_clip_checks(const MirrorState *state,ControllerRuntime *ru
  fake_input_reset();native_push(1,0xb0,92,127);native_push(1,0xb0,92,0);need(collection_drain(&surfaces,state,runtime)&&surfaces.surfaces[1].novation.clip_row==8,"second clip page begins scene8 after Arrangement plus scenes1-7");
  fake_input_reset();native_push(1,0xb0,91,127);native_push(1,0xb0,91,0);native_push(1,0xb0,91,127);native_push(1,0xb0,91,0);need(collection_drain(&surfaces,state,runtime)&&!surfaces.surfaces[1].novation.clip_row,"page back reaches Arrangement and cannot underflow");
  fake_input_reset();native_push(1,0x90,81,127);native_push(1,0x90,81,127);native_push(2,0x90,18,127);need(collection_drain(&surfaces,state,runtime),"actual Programmer notes reach clip intent path");
- MirrorInput *x=&surfaces.contexts[1].input,*pro=&surfaces.contexts[2].input;need(x->step_count==1&&pro->step_count==1,"held clip pad has one action");
+ MirrorInput *x=&surfaces.contexts[1].input,*pro=&surfaces.contexts[2].input;need(x->step_count==2&&pro->step_count==2&&x->step_events[(x->step_head+1)%INPUT_JOG_EVENTS].request.bits==CLIP_SELECT&&pro->step_events[(pro->step_head+1)%INPUT_JOG_EVENTS].request.bits==CLIP_SELECT,"held clip pad has one launch, then the native select of that clip");
  const CommandRequest *a=&x->step_events[x->step_head].request,*b=&pro->step_events[pro->step_head].request;need(a->reserved==CLIP_ACTION&&a->bits==CLIP_LAUNCH&&a->pad_index==0&&a->effect_index==0&&b->pad_index==15&&b->effect_index==15,"per-surface clip pages bind actual native columns/scenes");
  native_capture_count=0;for(unsigned pass=0;pass<20;pass++)for(unsigned i=1;i<=2;i++){need(native_output(surfaces.surfaces+i,surfaces.banks+i,snapshot,now),"native-only clip state projection");need(surfaces.surfaces[i].novation.cycle_messages<=16&&surfaces.surfaces[i].novation.cycle_bytes<=128,"clip feedback retains output budgets");}
  NATIVE_HAS(151,0x90,81,45);need(!native_captured(151,(unsigned char[]){0x90,81,21},3),"launch receipt/input cannot predict playing LED");
@@ -118,7 +127,7 @@ static void launchpad_clip_checks(const MirrorState *state,ControllerRuntime *ru
   native_push(surface,0x90,pad,127);native_push(surface,0x90,pad,0);
   need(collection_drain(&surfaces,state,runtime),"all64 clip cells traverse selected ALSA source and production collection");
   if(action==2&&n->clip_row+cell/8==0){need(!in->step_count&&!in->global_count,"Arrangement refuses the clip-record modifier");continue;}
-  need(in->step_count==1&&!in->global_count&&!in->edge_count,"grid has exactly one clip action and no generic history/action leakage");
+  need(in->step_count==(action==0&&snapshot->clips.views[surface].cells[cell].state>=CLIP_READY?2u:1u)&&!in->global_count&&!in->edge_count,"grid has exactly one clip action (a launch of a clip also selects it) and no generic history/action leakage");
   const CommandRequest *r=&in->step_events[in->step_head].request;
   need(r->reserved==CLIP_ACTION&&r->bits==(action==0?CLIP_LAUNCH:action==1?CLIP_STOP:CLIP_RECORD_TOGGLE)&&r->pad_index==n->clip_column+cell%8&&r->effect_index==n->clip_row+cell/8,"every clip cell retains actual independent column/scene and modifier action");
  }
@@ -130,7 +139,7 @@ static void launchpad_clip_checks(const MirrorState *state,ControllerRuntime *ru
  }
  snapshot->clips.views[1].cells[0].state=CLIP_WILL_RECORD;snapshot->clips.views[1].cells[1].state=CLIP_RECORDING;snapshot->clips.views[1].cells[2].state=CLIP_PLAYING;snapshot->clips.views[1].scene_state[0]=CLIP_WILL_PLAY;native_capture_count=0;
  for(unsigned pass=0;pass<20;pass++)need(native_output(surfaces.surfaces+1,surfaces.banks+1,snapshot,now),"actual pending/record/playing colors");
- NATIVE_HAS(151,0x91,81,5);NATIVE_HAS(151,0x92,82,5);NATIVE_HAS(151,0x90,83,21);NATIVE_HAS(151,0xb1,89,21);
+ NATIVE_HAS(151,0x91,81,5);NATIVE_HAS(151,0x92,82,5);NATIVE_HAS(151,0x92,83,3);NATIVE_HAS(151,0xb1,89,21);
  native_capture_count=0;need(native_output(surfaces.surfaces+1,surfaces.banks+1,snapshot,now)&&!native_capture_count,"unchanged clip state sends no MIDI");
  for(unsigned i=1;i<=2;i++){input_discard(&surfaces.contexts[i].input);surfaces.surfaces[i].novation=old[i-1];}snapshot->clips=saved;snapshot->clips_available=available;
  puts("PASS both Launchpads clip ingress, independent windows, launch/track-stop/scene-stop/record chords and native-only bounded RGB feedback; ALSA/native clip state substituted");
@@ -158,6 +167,36 @@ static void lcxl_pad_mixer_checks(const MirrorState *state,ControllerRuntime *ru
  fake_input_reset();native_push(0,0xb6,30,1);native_push(0,0xb6,63,127);native_push(0,0xb0,65,127);native_push(0,0xb0,65,0);native_push(0,0xb6,63,0);need(collection_drain(&surfaces,state,runtime)&&bank->view==BV_TRACK&&bank->assignment==BA_TRACK,"same chord returns Track mixer without changing control-page selection");
  input_discard(in);*s=*saved;free(saved);*bank=old_bank;surface->novation=old;memset(surface->native_pickup,0,sizeof(surface->native_pickup));runtime->snapshot_pads=0;
  puts("PASS XL3 physical Shift/Solo-Arm Track/Pad toggle, exact pad volume/pan/solo/mute, unsupported sends dark, held/pickup refusal, all128 banks, emitted Pad labels and retained Control pages (ALSA/native publication substituted)");
+}
+/* XL3 DAW Mixer: Shift + a lower-row button selects that track; a Drum track
+ * opens its Pad mixer (after MPC reports the selection), another track the
+ * Track mixer. Holding Shift shows the selected track in the lower row. */
+static void lcxl_shift_select_checks(const MirrorState *state,ControllerRuntime *runtime){
+ CopiedMirror *s=runtime->snapshot,*saved=calloc(1,sizeof(*saved));need(saved!=NULL,"shift select source save");*saved=*s;
+ Surface *surface=surfaces.surfaces;MirrorBank *bank=surfaces.banks,old_bank=*bank;NovationState old=surface->novation,*n=&surface->novation;MirrorInput *in=&surfaces.contexts[0].input;
+ snapshot_fixture(s,16);s->tracks[2].vptr=0x693147c;s->selection.bits=s->tracks[0].track;s->selected_serial=s->tracks[0].serial;s->pad_count=128;
+ for(unsigned i=0;i<128;i++){CopiedTrack *pad=s->pads+i;*pad=s->tracks[0];pad->pad_owner=100+i;pad->pad_index=i;pad->pad_generation=1;}
+ runtime->snapshot_pads=1;n->observed_mode=1;n->mute_select=0;n->shift_view=0;memset(n->held,0,sizeof(n->held));memset(n->touch,0,sizeof(n->touch));bank->view=BV_TRACK;bank->offset=0;bank_apply(bank,s,runtime->now);input_discard(in);
+ fake_input_reset();native_push(0,0xb6,63,127);need(collection_drain(&surfaces,state,runtime)&&n->shift,"Shift held");
+ memset(n->led_valid,0,sizeof(n->led_valid));for(unsigned pass=0;pass<40;pass++)need(native_output(surface,bank,s,runtime->now),"shift row output");
+ need(n->led_value[45]==21&&n->led_value[46]==1&&n->led_value[47]==1,"with Shift held the lower row shows the selected track");
+ fake_input_reset();native_push(0,0xb0,46,127);native_push(0,0xb0,46,0);
+ need(collection_drain(&surfaces,state,runtime)&&in->desires[1][CF_SELECTION].pending&&in->desires[1][CF_SELECTION].identity.track==s->tracks[1].track&&bank->view==BV_TRACK&&n->shift_view==1,"Shift + Select on Drum track 2 selects it natively and waits for MPC");
+ need(native_output(surface,bank,s,runtime->now)&&bank->view==BV_TRACK,"the Pad mixer waits for the selection");
+ input_discard(in);s->selection.bits=s->tracks[1].track;s->selected_serial=s->tracks[1].serial;bank_apply(bank,s,runtime->now);
+ need(native_output(surface,bank,s,runtime->now)&&bank->view==BV_DRUM_PADS&&!n->shift_view,"once MPC selects it, the Pad mixer opens on its pads");
+ bank_apply(bank,s,runtime->now);memset(n->led_valid,0,sizeof(n->led_valid));for(unsigned pass=0;pass<40;pass++)need(native_output(surface,bank,s,runtime->now),"shift row in Pad mixer");
+ need(n->led_value[46]==21&&n->led_value[45]==1,"in the Pad mixer, Shift shows whose pads these are");
+ fake_input_reset();native_push(0,0xb0,45,127);native_push(0,0xb0,45,0);
+ need(collection_drain(&surfaces,state,runtime)&&in->desires[0][CF_SELECTION].pending&&in->desires[0][CF_SELECTION].identity.track==s->tracks[0].track,"in the Pad mixer, Shift + Select still addresses the Track mixer bank");
+ input_discard(in);s->selection.bits=s->tracks[0].track;s->selected_serial=s->tracks[0].serial;bank_apply(bank,s,runtime->now);need(native_output(surface,bank,s,runtime->now)&&bank->view==BV_DRUM_PADS,"another Drum track keeps the Pad mixer, now on its pads");
+ fake_input_reset();native_push(0,0xb0,47,127);native_push(0,0xb0,47,0);
+ need(collection_drain(&surfaces,state,runtime)&&in->desires[2][CF_SELECTION].pending&&in->desires[2][CF_SELECTION].identity.track==s->tracks[2].track,"Shift + Select on a Keygroup track selects it");
+ input_discard(in);s->selection.bits=s->tracks[2].track;s->selected_serial=s->tracks[2].serial;bank_apply(bank,s,runtime->now);
+ need(native_output(surface,bank,s,runtime->now)&&bank->view==BV_TRACK&&!bank->offset,"a non-Drum track returns to the Track mixer at the same bank");
+ fake_input_reset();native_push(0,0xb6,63,0);native_push(0,0xb0,46,127);native_push(0,0xb0,46,0);need(collection_drain(&surfaces,state,runtime)&&!n->shift&&!n->shift_view&&in->edge_count==1&&in->edges[in->edge_head].field==CF_MUTE,"without Shift the lower row is Mute as before");
+ input_discard(in);*s=*saved;free(saved);*bank=old_bank;surface->novation=old;memset(surface->native_pickup,0,sizeof(surface->native_pickup));runtime->snapshot_pads=0;
+ puts("PASS XL3 Shift+Select: native track select, Drum track opens its Pad mixer once selected, another Drum track switches pads, non-Drum returns to Track mixer, Shift row shows the selected track, plain row unchanged (ALSA/native publication substituted)");
 }
 static void native_admission_checks(Surface *surface){
  NovationState saved=surface->novation;
@@ -296,6 +335,256 @@ static void lcxl_name_fairness_checks(Surface *surface,const MirrorBank *origina
  surface->novation=saved;native_capture_count=0;free(snapshot);
  puts("PASS bounded LCXL3 name delivery during continuous24-value Mixer and8-value effect/Q-Link updates, two/three-digit values,16-character names and button LED churn (ALSA/MPC substituted)");
 }
+/* XL3 knob LEDs follow each column's MPC track colour (RGB SysEx, programmer's
+ * reference v1.0); pads, device pages and uncoloured tracks keep the palette. */
+static void lcxl_track_colour_checks(Surface *surface,const MirrorBank *original_bank,const CopiedMirror *source){
+ need(novation_track_rgb(0xffff0000u)==(NOV_RGB|0x7f0000u)&&novation_track_rgb(0xff00ff00u)==(NOV_RGB|0x7f00u)&&novation_track_rgb(0xff0000ffu)==(NOV_RGB|0x7fu),"primary MPC colours map to full 7-bit components");
+ need(novation_track_rgb(0xffdd4488u)==(NOV_RGB|0x6e2244u)&&novation_track_rgb(0x00808080u)==(NOV_RGB|0x404040u),"8-bit channels round down to the nearest 7-bit value; alpha is ignored");
+ need(!novation_track_rgb(0)&&!novation_track_rgb(0xff010101u),"black or sub-step colour is unusable and keeps the default");
+ NovationWire w=novation_lcxl3_led(13,NOV_RGB|0x6e2244u);
+ need(w.length==13&&!memcmp(w.bytes,(unsigned char[]){0xf0,0,0x20,0x29,2,0x15,1,0x53,13,0x6e,0x22,0x44,0xf7},13),"RGB colour uses the documented 01 53 SysEx with the encoder's absolute index");
+ w=novation_lcxl3_led(13,21);need(w.length==3&&w.bytes[0]==0xb0&&w.bytes[1]==13&&w.bytes[2]==21,"palette colour keeps the channel-1 CC form");
+ NovationState saved=surface->novation;CopiedMirror *snapshot=calloc(1,sizeof(*snapshot));need(snapshot!=NULL,"colour source allocation");*snapshot=*source;
+ MirrorBank bank=*original_bank;bank.offset=0;bank.view=BV_TRACK;bank.assignment=BA_TRACK;bank_apply(&bank,snapshot,1700);
+ NovationState *n=&surface->novation;n->observed_mode=1;memset(n->touch,0,sizeof(n->touch));memset(n->led_valid,0,sizeof(n->led_valid));memset(n->position_valid,0,sizeof(n->position_valid));
+ const uint32_t colours[8]={0xffff0000u,0xff00ff00u,0xff0000ffu,0xffdd4488u,0xffffff00u,0,0xff00ffffu,0xffffffffu};
+ for(unsigned strip=0;strip<8;strip++){CopiedField *c=&snapshot->tracks[strip].fields[CF_COLOR];c->available=strip!=6;c->bits=colours[strip];}
+ native_capture_count=0;for(unsigned pass=0;pass<40;pass++){need(native_output(surface,&bank,snapshot,1700),"colour mixer projection");need(n->cycle_messages<=16&&n->cycle_bytes<=128,"colour SysEx keeps the shared output caps");}
+ for(unsigned strip=0;strip<8;strip++)for(unsigned row=0;row<3;row++){
+  unsigned cc=13+row*8+strip;uint32_t rgb=strip==6?0:novation_track_rgb(colours[strip]);
+  if(rgb){unsigned char m[]={0xf0,0,0x20,0x29,2,0x15,1,0x53,(unsigned char)cc,(unsigned char)((rgb>>16)&127),(unsigned char)((rgb>>8)&127),(unsigned char)(rgb&127),0xf7};need(native_captured(150,m,sizeof(m))==1,"each track column's three knob LEDs take that track's colour once");}
+  else need(native_captured(150,(unsigned char[]){0xb0,(unsigned char)cc,21},3)==1,"black or unavailable track colour keeps the default palette green");
+ }
+ for(unsigned b=37;b<=52;b++)for(unsigned i=0;i<native_capture_count;i++){const unsigned char *x=native_capture[i].bytes;need(!(x[0]==0xf0&&native_capture[i].length==13&&x[8]==b),"Solo/Mute/Arm/Select buttons never take track colours");}
+ native_capture_count=0;for(unsigned pass=0;pass<8;pass++)need(native_output(surface,&bank,snapshot,1700),"unchanged colour projection");
+ for(unsigned i=0;i<native_capture_count;i++)need(!(native_capture[i].bytes[0]==0xf0&&native_capture[i].bytes[6]==1),"unchanged colours send nothing");
+ snapshot->tracks[2].fields[CF_COLOR].bits=0xff00ff00u;snapshot->tracks[2].fields[CF_COLOR].revision++;native_capture_count=0;
+ for(unsigned pass=0;pass<8;pass++)need(native_output(surface,&bank,snapshot,1700),"changed colour projection");
+ unsigned changed=0;for(unsigned i=0;i<native_capture_count;i++){const unsigned char *x=native_capture[i].bytes;if(x[0]==0xf0&&native_capture[i].length==13&&x[6]==1)changed+=(x[8]-13)%8==2&&x[9]==0&&x[10]==0x7f&&x[11]==0;}
+ need(changed==3,"a changed MPC track colour resends only that column's three knob LEDs");
+ for(unsigned i=0;i<native_capture_count;i++){const unsigned char *x=native_capture[i].bytes;need(!(x[0]==0xf0&&native_capture[i].length==13&&x[6]==1&&(x[8]-13)%8!=2),"other columns stay cached");}
+ /* DAW Control device page: not per track, keeps palette 45 on the top row. */
+ n->observed_mode=2;bank.assignment=BA_QLINK;bank.qlink_page=0;memset(n->led_valid,0,sizeof(n->led_valid));memset(n->position_valid,0,sizeof(n->position_valid));
+ snapshot->qlinks_available=1;snapshot->qlinks=(QLinkCopy){.epoch=snapshot->epoch,.status=QL_SAMPLED,.root=1,.wrapper=2,.provider=3,.generation=4};
+ for(unsigned i=0;i<16;i++)snapshot->qlinks.slots[i]=(QLinkSlot){.sampled=1,.normalized_valid=1,.tick=1700,.bits=0x3f000000,.revision=2};
+ native_capture_count=0;for(unsigned pass=0;pass<40;pass++)need(native_output(surface,&bank,snapshot,1700),"device page projection");
+ for(unsigned strip=0;strip<8;strip++){need(native_captured(150,(unsigned char[]){0xb0,(unsigned char)(13+strip),45},3)==1,"device page keeps its palette colour");}
+ for(unsigned i=0;i<native_capture_count;i++)need(!(native_capture[i].bytes[0]==0xf0&&native_capture[i].bytes[6]==1),"device page sends no track colours");
+ surface->novation=saved;native_capture_count=0;free(snapshot);
+ puts("PASS XL3 knob LEDs: MPC track colour to nearest 7-bit RGB through documented SysEx, default palette for black/unavailable, buttons and device pages unchanged, change-only resend within caps (ALSA/MPC substituted)");
+}
+/* Launchpad clip cells take their column's MPC track colour (nearest palette
+ * entry); steady/flashing/pulsing keep ready/queued/playing meaning. */
+static void launchpad_clip_colour_checks(CopiedMirror *snapshot,unsigned now){
+ need(novation_palette_nearest(novation_track_rgb(0x0022ffu))==45&&novation_palette_nearest(novation_track_rgb(0x00ff80u))==29&&
+      novation_palette_nearest(novation_track_rgb(0xff00bbu))==95&&novation_palette_nearest(novation_track_rgb(0xff8800u))==9,"Controllers project colours map to the nearest documented palette entries");
+ need(novation_palette_nearest(novation_track_rgb(0xff0000u))==5&&novation_palette_nearest(novation_track_rgb(0x00ff00u))==21&&novation_palette_nearest(novation_track_rgb(0xffffffu))==3,"primary colours and white map to the palette's red, green and white");
+ need(novation_palette_nearest(novation_track_rgb(0x020202u))!=0,"a near-black colour never maps to the dark entry");
+ const unsigned states[]={CLIP_NO_SLOT,CLIP_EMPTY,CLIP_READY,CLIP_WILL_PLAY,CLIP_PLAYING,CLIP_WILL_STOP_PLAYING,CLIP_WILL_RECORD,CLIP_RECORDING,CLIP_WILL_STOP_RECORDING,CLIP_WILL_OVERDUB,CLIP_OVERDUBBING,CLIP_WILL_STOP_OVERDUBBING};
+ const unsigned char coloured[][2]={{0,0},{0,0},{95,0},{3,NOV_FLASH_FROM|95},{3,2},{3,NOV_FLASH_FROM},{5,1},{5,2},{5,1},{9,1},{9,2},{9,1}};
+ const unsigned char uncoloured[][2]={{0,0},{0,0},{45,0},{3,NOV_FLASH_FROM|45},{3,2},{3,NOV_FLASH_FROM},{5,1},{5,2},{5,1},{9,1},{9,2},{9,1}};
+ const unsigned char legacy[][2]={{0,0},{0,0},{45,0},{21,1},{21,0},{9,1},{5,1},{5,2},{5,1},{9,1},{9,2},{9,1}};
+ for(unsigned i=0;i<sizeof(states)/sizeof(states[0]);i++){unsigned char value,style;
+  native_clip_color(states[i],95,1,&value,&style);need(value==coloured[i][0]&&style==coloured[i][1],"clip cells: empty off, ready track colour, queued white flash from track colour, playing white pulse, queued stop white flash, record red, overdub amber");
+  native_clip_color(states[i],0,1,&value,&style);need(value==uncoloured[i][0]&&style==uncoloured[i][1],"no track colour: ready keeps the previous blue");
+  native_clip_color(states[i],95,0,&value,&style);need(value==legacy[i][0]&&style==legacy[i][1],"scene buttons keep the previous colours; empty scenes are off");
+  if(states[i]>=CLIP_WILL_RECORD)for(unsigned cells=0;cells<2;cells++)for(unsigned colour=0;colour<128;colour+=5){native_clip_color(states[i],colour,cells,&value,&style);need(style!=0,"every record and overdub state is animated, so steady red only ever means a ready clip");}
+ }
+ NovationWire w=novation_led(MCU_PROTOCOL_LPX,45,NOV_FLASH_FROM|95,3);need(w.length==12&&!memcmp(w.bytes,(unsigned char[]){0xf0,0,0x20,0x29,2,0x0c,3,1,45,3,95,0xf7},12),"Launchpad X explicit flash uses LED lighting SysEx type 1, colour B then A");
+ w=novation_led(MCU_PROTOCOL_LPP3,45,NOV_FLASH_FROM,3);need(w.length==12&&w.bytes[5]==0x0e&&w.bytes[6]==3&&w.bytes[7]==1&&w.bytes[9]==3&&w.bytes[10]==0,"Launchpad Pro Mk3 uses its own header; queued stop flashes against dark");
+ ClipCopy saved=snapshot->clips;unsigned available=snapshot->clips_available;CopiedTrack tracks[8];memcpy(tracks,snapshot->tracks,sizeof(tracks));
+ NovationState old[2]={surfaces.surfaces[1].novation,surfaces.surfaces[2].novation};
+ snapshot->clips_available=1;snapshot->clips=(ClipCopy){.status=CLIP_SOURCE_READY,.tick=now,.epoch=snapshot->epoch,.project_owner=1,.lanes=100,.columns=16,.rows=17};
+ const uint32_t colours[8]={0x00ff80u,0xff00bbu,0xff8800u,0x0022ffu,0,0xff0000u,0xff0000u,0xff0000u};
+ for(unsigned t=0;t<8;t++){snapshot->tracks[t].fields[CF_COLOR].available=t!=4;snapshot->tracks[t].fields[CF_COLOR].bits=colours[t];}
+ const unsigned column_state[8]={CLIP_READY,CLIP_WILL_PLAY,CLIP_PLAYING,CLIP_WILL_STOP_PLAYING,CLIP_READY,CLIP_RECORDING,CLIP_EMPTY,CLIP_WILL_RECORD};
+ for(unsigned s=1;s<=2;s++){NovationState *n=&surfaces.surfaces[s].novation;n->layer=NOV_CLIPS;n->clip_epoch=snapshot->epoch;n->clip_column=0;n->clip_row=s==1?1:0;memset(n->led_valid,0,sizeof(n->led_valid));
+  ClipProjection *v=snapshot->clips.views+native_step_slot(surfaces.surfaces+s);v->status=CLIP_SOURCE_READY;v->tick=now;v->first_column=0;v->first_row=n->clip_row;
+  for(unsigned j=0;j<8;j++){v->track_owner[j]=snapshot->tracks[j].track_owner;v->scene_state[j]=CLIP_READY;}
+  for(unsigned j=0;j<64;j++)v->cells[j]=(ClipCell){column_state[j%8],2000+s*100+j};
+ }
+ native_capture_count=0;
+ for(unsigned pass=0;pass<30;pass++)for(unsigned s=1;s<=2;s++){need(native_output(surfaces.surfaces+s,surfaces.banks+s,snapshot,now),"clip colour projection");need(surfaces.surfaces[s].novation.cycle_messages<=16&&surfaces.surfaces[s].novation.cycle_bytes<=128,"clip colours keep output caps");}
+ for(unsigned s=1;s<=2;s++){unsigned client=150+s,device=s==1?0x0c:0x0e;
+  for(unsigned row=0;row<8;row++){unsigned base=(8-row)*10+1,arrangement=s==2&&row==0;
+   (void)arrangement;NATIVE_HAS(client,0x90,base+0,29);
+   NATIVE_HAS(client,0xf0,0,0x20,0x29,2,device,3,1,base+1,3,95,0xf7);
+   NATIVE_HAS(client,0x92,base+2,3);
+   NATIVE_HAS(client,0xf0,0,0x20,0x29,2,device,3,1,base+3,3,0,0xf7);
+   NATIVE_HAS(client,0x90,base+4,45);NATIVE_HAS(client,0x92,base+5,5);NATIVE_HAS(client,0x90,base+6,0);NATIVE_HAS(client,0x91,base+7,5);
+  }
+  for(unsigned row=0;row<8;row++)NATIVE_HAS(client,0xb0,89-row*10,45);
+ }
+ native_capture_count=0;for(unsigned pass=0;pass<4;pass++)for(unsigned s=1;s<=2;s++)need(native_output(surfaces.surfaces+s,surfaces.banks+s,snapshot,now),"unchanged clip colours");
+ for(unsigned i=0;i<native_capture_count;i++)need(native_capture[i].destination.client!=151&&native_capture[i].destination.client!=152,"unchanged clip colours send nothing");
+ snapshot->tracks[0].fields[CF_COLOR].bits=0xff0000u;native_capture_count=0;
+ for(unsigned pass=0;pass<4;pass++)need(native_output(surfaces.surfaces+1,surfaces.banks+1,snapshot,now),"changed column colour");
+ need(native_capture_count==8,"a changed track colour resends only that column's eight cells");
+ for(unsigned row=0;row<8;row++)NATIVE_HAS(151,0x90,(8-row)*10+1,5);
+ snapshot->clips=saved;snapshot->clips_available=available;memcpy(snapshot->tracks,tracks,sizeof(tracks));
+ surfaces.surfaces[1].novation=old[0];surfaces.surfaces[2].novation=old[1];native_capture_count=0;
+ puts("PASS Launchpad X/Pro clip cells: nearest palette track colour, MPC launcher language: empty off, steady track-colour content, white flash/pulse queued/playing, animated red/amber record/overdub, Arrangement row in the same language, scenes/no-colour fallback, change-only resend within caps (ALSA/MPC substituted)");
+}
+/* Pick: a held step-view button plus a clip pad selects natively (no launch)
+ * and opens this Launchpad's step view after the request has left its queue;
+ * alone the button opens the view on release; the peer never re-binds. */
+/* Every Launchpad button without a function in the current view is dark,
+ * including a clip-grid scene light left on when a view is changed. */
+static void launchpad_side_render(unsigned i,const CopiedMirror *snapshot,unsigned now){
+ NovationState *n=&surfaces.surfaces[i].novation;memset(n->led_valid,0,sizeof(n->led_valid));native_capture_count=0;
+ for(unsigned pass=0;pass<40;pass++)need(native_output(surfaces.surfaces+i,surfaces.banks+i,snapshot,now),"side-button rendering");
+}
+static int launchpad_side_lit(unsigned i,unsigned index){const NovationState *n=&surfaces.surfaces[i].novation;return n->led_valid[index]&&n->led_value[index]!=0;}
+static void launchpad_side_checks(CopiedMirror *snapshot,unsigned now){
+ ClipCopy clips=snapshot->clips;unsigned clips_available=snapshot->clips_available,steps_available=snapshot->steps_available;
+ snapshot->clips_available=0;snapshot->steps_available=0;
+ NovationState old[2]={surfaces.surfaces[1].novation,surfaces.surfaces[2].novation};
+ static const unsigned char x_clips[]={91,92,93,94,95,96,97,98},x_step[]={19,29,39,91,92,93,94,95,96,97},x_mixer[]={19,29,39,49,59,69,79,89,93,94,95,96,97},x_device[]={19,29,39,49,59,69,79,89,91,92,93,94,95,96,97};
+ static const unsigned char p_clips[]={1,2,3,4,5,6,7,8,10,20,70,80,91,92,93,96,97,98},p_step[]={8,10,20,70,79,80,91,92,93,96,97},p_mixer[]={1,2,3,4,5,6,7,10,20,91,92,93,96,97},p_device[]={1,2,3,4,5,6,7,10,20,70,80,91,92,93,96,97};
+ struct {unsigned layer;const unsigned char *x,*p;unsigned xn,pn;const char *name;} cases[]={
+  {NOV_CLIPS,x_clips,p_clips,sizeof(x_clips),sizeof(p_clips),"clip grid"},{NOV_STEP64,x_step,p_step,sizeof(x_step),sizeof(p_step),"64-step view"},{NOV_STEP16,x_step,p_step,sizeof(x_step),sizeof(p_step),"16-step view"},
+  {NOV_SESSION,x_mixer,p_mixer,sizeof(x_mixer),sizeof(p_mixer),"mixer grid"},{NOV_VOLUME,x_mixer,p_mixer,sizeof(x_mixer),sizeof(p_mixer),"Volume"},{NOV_DEVICE,x_device,p_device,sizeof(x_device),sizeof(p_device),"Device"}};
+ for(unsigned i=1;i<=2;i++)for(unsigned c=0;c<sizeof(cases)/sizeof(cases[0]);c++){
+  NovationState *n=&surfaces.surfaces[i].novation;unsigned protocol=n->protocol;memset(n->held,0,sizeof(n->held));native_layer(surfaces.surfaces+i,surfaces.banks+i,cases[c].layer);launchpad_side_render(i,snapshot,now);
+  const unsigned char *want=i==1?cases[c].x:cases[c].p;unsigned count=i==1?cases[c].xn:cases[c].pn;
+  for(unsigned index=0;index<128;index++){
+   if(!novation_led_index(protocol,index)||(index>=11&&index<=88&&index%10>=1&&index%10<=8)||(index>=101&&index<=108))continue; /* grid and Track Select row: own tests */
+   unsigned expected=0;for(unsigned k=0;k<count;k++)expected|=want[k]==index;
+   if(launchpad_side_lit(i,index)!=(int)expected)fprintf(stderr,"side button surface=%u view=%s index=%u lit=%d expected=%u\n",i,cases[c].name,index,launchpad_side_lit(i,index),expected);
+   need(launchpad_side_lit(i,index)==(int)expected,"only buttons with a function in this view are lit");
+  }
+ }
+ /* A lit Pro scene button (39) is turned off when the step view opens. */
+ NovationState *pro=&surfaces.surfaces[2].novation;native_layer(surfaces.surfaces+2,surfaces.banks+2,NOV_CLIPS);pro->clip_epoch=snapshot->epoch;pro->clip_column=0;pro->clip_row=0;
+ snapshot->clips_available=1;snapshot->clips=(ClipCopy){.status=CLIP_SOURCE_READY,.tick=now,.epoch=snapshot->epoch,.project_owner=1,.lanes=100,.columns=8,.rows=8};
+ ClipProjection *v=snapshot->clips.views+native_step_slot(surfaces.surfaces+2);*v=(ClipProjection){.status=CLIP_SOURCE_READY,.tick=now};v->scene_state[5]=CLIP_PLAYING;
+ launchpad_side_render(2,snapshot,now);need(launchpad_side_lit(2,39),"a playing scene lights its scene button in the clip grid");
+ native_layer(surfaces.surfaces+2,surfaces.banks+2,NOV_STEP64);launchpad_side_render(2,snapshot,now);need(pro->led_valid[39]&&!pro->led_value[39],"leaving the clip grid turns that scene button off");
+ for(unsigned i=1;i<=2;i++)surfaces.surfaces[i].novation=old[i-1];
+ snapshot->clips=clips;snapshot->clips_available=clips_available;snapshot->steps_available=steps_available;native_capture_count=0;
+ puts("PASS Launchpad X/Pro side buttons: in clip grid, both step views, mixer, Volume and Device only buttons with a function there are lit; a clip-grid scene light is cleared on leaving (ALSA sink and native state substituted)");
+}
+/* Pro Stop Clip never stops MPC: in the clip grid it is the stop modifier
+ * (held with a pad or scene), in a step view it stops the bound clip's track,
+ * alone in the grid or a mixer layer it does nothing. Its light follows. */
+static void launchpad_pro_stop_clip_checks(const MirrorState *state,ControllerRuntime *runtime){
+ CopiedMirror *snapshot=runtime->snapshot;ClipCopy saved=snapshot->clips;StepCopy saved_steps=snapshot->steps;unsigned available=snapshot->clips_available,steps_available=snapshot->steps_available,now=runtime->now;MIRROR_FIELD(playing);playing=snapshot->playing;
+ NovationState old[2]={surfaces.surfaces[1].novation,surfaces.surfaces[2].novation};snapshot->clips_available=1;snapshot->clips=(ClipCopy){.status=CLIP_SOURCE_READY,.tick=now,.epoch=snapshot->epoch,.project_owner=1,.lanes=100,.columns=16,.rows=17};
+ snapshot->playing.available=1;snapshot->playing.bits=1;unsigned editor=snapshot->editor_owner;snapshot->editor_owner=777;
+ for(unsigned i=1;i<=2;i++){NovationState *n=&surfaces.surfaces[i].novation;memset(n->held,0,sizeof(n->held));n->clip_epoch=snapshot->epoch;n->clip_column=0;n->clip_row=1;native_layer(surfaces.surfaces+i,surfaces.banks+i,NOV_CLIPS);
+  ClipProjection *v=snapshot->clips.views+native_step_slot(surfaces.surfaces+i);*v=(ClipProjection){.status=CLIP_SOURCE_READY,.tick=now,.first_column=0,.first_row=1};
+  for(unsigned j=0;j<8;j++){v->track_owner[j]=j+1;}for(unsigned j=0;j<64;j++)v->cells[j]=(ClipCell){CLIP_PLAYING,5000+i*100+j};input_discard(&surfaces.contexts[i].input);}
+ MirrorInput *x=&surfaces.contexts[1].input,*pro=&surfaces.contexts[2].input;NovationState *pn=&surfaces.surfaces[2].novation;
+ unsigned xg=x->global_count,pg=pro->global_count;
+ fake_input_reset();native_push(1,0xb0,98,127);native_push(1,0x90,72,127);native_push(1,0x90,72,0);native_push(1,0xb0,98,0);
+ native_push(2,0xb0,8,127);native_push(2,0x90,72,127);native_push(2,0x90,72,0);native_push(2,0xb0,8,0);
+ need(collection_drain(&surfaces,state,runtime),"stop chords reach ingress");
+ need(x->step_count==1&&x->step_events[x->step_head].request.bits==CLIP_STOP&&x->step_events[x->step_head].request.pad_index==1,"X Capture MIDI + pad stops that track");
+ need(pro->step_count==1&&pro->step_events[pro->step_head].request.bits==CLIP_STOP&&pro->step_events[pro->step_head].request.pad_index==1&&pro->global_count==pg,"Pro Stop Clip + pad stops only that track: no MPC Stop");
+ input_discard(pro);fake_input_reset();native_push(2,0xb0,98,127);native_push(2,0x90,73,127);native_push(2,0x90,73,0);native_push(2,0xb0,98,0);
+ need(collection_drain(&surfaces,state,runtime)&&pro->step_count==1&&pro->step_events[pro->step_head].request.bits==CLIP_STOP&&pro->step_events[pro->step_head].request.pad_index==2&&pro->global_count==pg,"Pro Projects + pad still stops that track");
+ input_discard(pro);fake_input_reset();native_push(2,0xb0,8,127);native_push(2,0xb0,79,127);native_push(2,0xb0,79,0);native_push(2,0xb0,8,0);
+ need(collection_drain(&surfaces,state,runtime)&&pro->step_count==1&&pro->step_events[pro->step_head].request.bits==CLIP_SCENE_STOP&&pro->global_count==pg,"Pro Stop Clip + scene button stops that scene");
+ input_discard(pro);fake_input_reset();native_push(2,0xb0,8,127);native_push(2,0xb0,8,0);need(collection_drain(&surfaces,state,runtime)&&!pro->step_count&&pro->global_count==pg&&pn->row_mode==NOV_ROW_STOP,"a quick Stop Clip tap in the clip grid sends nothing and latches the Stop row");
+ memset(pn->led_valid,0,sizeof(pn->led_valid));for(unsigned pass=0;pass<40;pass++)need(native_output(surfaces.surfaces+2,surfaces.banks+2,snapshot,now),"Stop Clip light in the grid");need(pn->led_valid[8]&&pn->led_value[8]==5,"latched Stop Clip is red in the clip grid");fake_input_reset();native_push(2,0xb0,8,127);native_push(2,0xb0,8,0);need(collection_drain(&surfaces,state,runtime)&&pn->row_mode==NOV_ROW_SELECT,"a second tap clears it");memset(pn->led_valid,0,sizeof(pn->led_valid));for(unsigned pass=0;pass<40;pass++)need(native_output(surfaces.surfaces+2,surfaces.banks+2,snapshot,now),"Stop Clip light idle");need(pn->led_valid[8]&&pn->led_value[8]==3,"idle Stop Clip is lit in the clip grid");
+ native_layer(surfaces.surfaces+2,surfaces.banks+2,NOV_VOLUME);fake_input_reset();native_push(2,0xb0,8,127);native_push(2,0xb0,8,0);need(collection_drain(&surfaces,state,runtime)&&!pro->step_count&&pro->global_count==pg,"Stop Clip alone in a mixer layer does nothing");
+ memset(pn->led_valid,0,sizeof(pn->led_valid));for(unsigned pass=0;pass<40;pass++)need(native_output(surfaces.surfaces+2,surfaces.banks+2,snapshot,now),"Stop Clip light in Volume");need(pn->led_valid[8]&&!pn->led_value[8],"Stop Clip is dark where it does nothing");
+ /* In a step view it stops the track of the bound clip, without MPC Stop. */
+ native_layer(surfaces.surfaces+2,surfaces.banks+2,NOV_STEP64);pn->step_epoch=snapshot->epoch;pn->step_pad=2;pn->step_first=0;
+ snapshot->steps_available=1;snapshot->steps=(StepCopy){.status=STEP_READY,.epoch=snapshot->epoch,.tick=now};
+ StepProjection *sv=snapshot->steps.views+native_step_slot(surfaces.surfaces+2);*sv=(StepProjection){.status=STEP_READY,.tick=now,.pad=2,.notes={38,39,40,41},.valid={UINT32_MAX,UINT32_MAX}};
+ sv->target=(StepTarget){.epoch=snapshot->epoch,.project_owner=1,.track_owner=7,.program_owner=8,.serial=9,.binding=1,.incarnation=1,.control=10,.sequence=30,.program=40,.event_owner=20,.clip=50,.bind_generation=pn->step_bind_generation,.division_bits=0x41800000,.extent={15360,0}};
+ fake_input_reset();native_push(2,0xb0,8,127);native_push(2,0xb0,8,0);need(collection_drain(&surfaces,state,runtime),"Stop Clip in a step view reaches ingress");
+ const CommandRequest *r=&pro->step_events[pro->step_head].request;
+ need(pro->step_count==1&&r->reserved==STEP_STOP&&r->effect_slot==native_step_slot(surfaces.surfaces+2)+1&&r->track_owner==7&&r->effect_generation==20&&r->effect_position==pn->step_bind_generation&&command_step_format(r)&&pro->global_count==pg,"Stop Clip in a step view stops the bound clip's track, not MPC");
+ memset(pn->led_valid,0,sizeof(pn->led_valid));for(unsigned pass=0;pass<40;pass++)need(native_output(surfaces.surfaces+2,surfaces.banks+2,snapshot,now),"Stop Clip light in a step view");need(pn->led_valid[8]&&pn->led_value[8]==3,"Stop Clip is lit in a step view");
+ need(x->global_count==xg,"X has no MPC Stop from its chord");
+ for(unsigned i=1;i<=2;i++){input_discard(&surfaces.contexts[i].input);surfaces.surfaces[i].novation=old[i-1];}snapshot->clips=saved;snapshot->clips_available=available;snapshot->steps=saved_steps;snapshot->steps_available=steps_available;snapshot->playing=playing;snapshot->editor_owner=editor;native_capture_count=0;
+ puts("PASS Launchpad Pro Stop Clip: never MPC Stop; held with a pad or scene in the clip grid it stops that track or scene like Projects and X Capture MIDI; in a step view it stops the bound clip's track; alone in the grid or a mixer layer nothing; lit only where it works (ALSA/native state substituted)");
+}
+/* Approved layout (2026-10-21): Pro Track Select row with Record Arm/Mute/Solo/
+ * Stop Clip row modes (tap latches, hold is momentary), X Custom reopening the
+ * last mixer page, Session never blue, bipolar pan pads and display. */
+static void launchpad_layout_checks(const MirrorState *state,ControllerRuntime *runtime){
+ CopiedMirror *s=runtime->snapshot,*saved=calloc(1,sizeof(*saved));need(saved!=NULL,"layout source save");*saved=*s;
+ MirrorBank old_banks[2]={surfaces.banks[1],surfaces.banks[2]};NovationState old[2]={surfaces.surfaces[1].novation,surfaces.surfaces[2].novation};unsigned now=runtime->now;
+ snapshot_fixture(s,16);s->selection.bits=s->tracks[0].track;s->editor_owner=777;
+ for(unsigned i=1;i<=2;i++){NovationState *n=&surfaces.surfaces[i].novation;memset(n->held,0,sizeof(n->held));n->row_mode=NOV_ROW_SELECT;n->row_hold=0;n->mixer_page=0;surfaces.banks[i].view=BV_TRACK;surfaces.banks[i].offset=0;bank_apply(surfaces.banks+i,s,now);input_discard(&surfaces.contexts[i].input);}
+ NovationState *x=&surfaces.surfaces[1].novation,*pro=&surfaces.surfaces[2].novation;MirrorInput *xin=&surfaces.contexts[1].input,*pin=&surfaces.contexts[2].input;
+ /* Pro: Volume page, Track Select row selects. */
+ native_layer(surfaces.surfaces+2,surfaces.banks+2,NOV_CLIPS);fake_input_reset();native_push(2,0xb0,4,127);native_push(2,0xb0,4,0);need(collection_drain(&surfaces,state,runtime)&&pro->layer==NOV_VOLUME,"Pro Volume page");
+ fake_input_reset();native_push(2,0xb0,102,127);native_push(2,0xb0,102,0);need(collection_drain(&surfaces,state,runtime)&&pin->desires[1][CF_SELECTION].pending&&pin->desires[1][CF_SELECTION].identity.serial==2,"Track Select row selects track 2 with no mode");input_discard(pin);
+ /* Tap Record Arm: latched; row arms. */
+ fake_input_reset();native_push(2,0xb0,1,127);native_push(2,0xb0,1,0);need(collection_drain(&surfaces,state,runtime)&&pro->row_mode==NOV_ROW_ARM,"a quick Record Arm tap latches the Arm row");
+ fake_input_reset();native_push(2,0xb0,101,127);native_push(2,0xb0,101,0);need(collection_drain(&surfaces,state,runtime)&&pin->edge_count==1&&pin->edges[pin->edge_head].field==CF_ARM&&pin->edges[pin->edge_head].desire.identity.serial==1,"the Arm row toggles arm on track 1");input_discard(pin);
+ /* Hold Mute: momentary; release keeps Arm latched. */
+ fake_input_reset();native_push(2,0xb0,2,127);native_push(2,0xb0,103,127);native_push(2,0xb0,103,0);need(collection_drain(&surfaces,state,runtime)&&pin->edge_count==1&&pin->edges[pin->edge_head].field==CF_MUTE&&pin->edges[pin->edge_head].desire.identity.serial==3,"held Mute makes the row mute track 3");input_discard(pin);
+ fake_input_reset();native_push(2,0xb0,2,0);need(collection_drain(&surfaces,state,runtime)&&pro->row_mode==NOV_ROW_ARM&&!pro->row_hold,"releasing a used Mute hold keeps the latched Arm row");
+ /* Tap Solo: latch moves to Solo; tap Solo again clears. */
+ fake_input_reset();native_push(2,0xb0,3,127);native_push(2,0xb0,3,0);need(collection_drain(&surfaces,state,runtime)&&pro->row_mode==NOV_ROW_SOLO,"tapping Solo latches the Solo row");
+ memset(pro->led_valid,0,sizeof(pro->led_valid));for(unsigned pass=0;pass<40;pass++)need(native_output(surfaces.surfaces+2,surfaces.banks+2,s,now),"Pro row output");
+ need(pro->led_value[3]==45&&pro->led_value[1]==1&&pro->led_value[2]==1&&pro->led_value[101]==47&&pro->led_value[108]==47&&pro->led_value[4]==21&&pro->led_value[5]==3&&!pro->led_value[49]&&!pro->led_value[8],"Solo row: unsoloed tracks dim blue; Solo button blue; Volume page green; right column and Stop Clip dark on mixer pages");
+ fake_input_reset();native_push(2,0xb0,3,127);native_push(2,0xb0,3,0);need(collection_drain(&surfaces,state,runtime)&&pro->row_mode==NOV_ROW_SELECT,"tapping the latched mode clears it");
+ memset(pro->led_valid,0,sizeof(pro->led_valid));for(unsigned pass=0;pass<40;pass++)need(native_output(surfaces.surfaces+2,surfaces.banks+2,s,now),"Pro select row output");
+ need(pro->led_value[101]==3&&pro->led_value[102]&&pro->led_value[102]!=3&&pro->led_value[93]==3&&pro->led_value[96]==21,"Select row: selected track white, others lit; Session dim (never blue); Custom green");
+ /* Step views: row and row modes dark and inert. */
+ native_layer(surfaces.surfaces+2,surfaces.banks+2,NOV_STEP64);fake_input_reset();native_push(2,0xb0,1,127);native_push(2,0xb0,1,0);native_push(2,0xb0,101,127);native_push(2,0xb0,101,0);need(collection_drain(&surfaces,state,runtime)&&pro->row_mode==NOV_ROW_SELECT&&!pin->edge_count&&!pin->desires[0][CF_SELECTION].pending,"in a step view the row and row modes do nothing");
+ memset(pro->led_valid,0,sizeof(pro->led_valid));for(unsigned pass=0;pass<40;pass++)need(native_output(surfaces.surfaces+2,surfaces.banks+2,s,now),"Pro step row output");need(!pro->led_value[101]&&!pro->led_value[1],"row dark in step views");
+ /* Clip grid: latched Stop row stops that track's clip. */
+ ClipCopy clips=s->clips;unsigned clips_available=s->clips_available;s->clips_available=1;s->clips=(ClipCopy){.status=CLIP_SOURCE_READY,.tick=now,.epoch=s->epoch,.project_owner=1,.lanes=100,.columns=16,.rows=17};
+ native_layer(surfaces.surfaces+2,surfaces.banks+2,NOV_CLIPS);pro->clip_epoch=s->epoch;pro->clip_column=0;pro->clip_row=0;
+ ClipProjection *v=s->clips.views+native_step_slot(surfaces.surfaces+2);*v=(ClipProjection){.status=CLIP_SOURCE_READY,.tick=now};for(unsigned j=0;j<8;j++)v->track_owner[j]=s->tracks[j].track_owner;for(unsigned j=0;j<64;j++)v->cells[j]=(ClipCell){j%8==2?CLIP_PLAYING:CLIP_READY,7000+j};
+ fake_input_reset();native_push(2,0xb0,8,127);native_push(2,0xb0,8,0);native_push(2,0xb0,103,127);native_push(2,0xb0,103,0);need(collection_drain(&surfaces,state,runtime)&&pro->row_mode==NOV_ROW_STOP&&pin->step_count==1&&pin->step_events[pin->step_head].request.bits==CLIP_STOP&&pin->step_events[pin->step_head].request.pad_index==2,"latched Stop row stops track 3's clip");
+ memset(pro->led_valid,0,sizeof(pro->led_valid));for(unsigned pass=0;pass<40;pass++)need(native_output(surfaces.surfaces+2,surfaces.banks+2,s,now),"Pro stop row output");need(pro->led_value[103]==21&&!pro->led_value[101]&&pro->led_value[8]==5,"Stop row: playing track green, others off; Stop Clip red");
+ input_discard(pin);pro->row_mode=NOV_ROW_SELECT;s->clips=clips;s->clips_available=clips_available;
+ /* X: Custom reopens the last mixer page; pan pads give an exact centre and light outward. */
+ native_layer(surfaces.surfaces+1,surfaces.banks+1,NOV_CLIPS);fake_input_reset();native_push(1,0xb0,97,127);native_push(1,0xb0,97,0);native_push(1,0xb0,79,127);native_push(1,0xb0,79,0);need(collection_drain(&surfaces,state,runtime)&&x->layer==NOV_PAN,"X Custom then Pan");
+ fake_input_reset();native_push(1,0xb0,95,127);native_push(1,0xb0,95,0);native_push(1,0xb0,97,127);native_push(1,0xb0,97,0);need(collection_drain(&surfaces,state,runtime)&&x->layer==NOV_PAN,"X Custom reopens the last mixer page (Pan)");
+ fake_input_reset();native_push(1,0x90,41,127);native_push(1,0x90,41,0);native_push(1,0x90,18,127);native_push(1,0x90,18,0);need(collection_drain(&surfaces,state,runtime),"pan pads");
+ {float a,b;memcpy(&a,&xin->desires[0][CF_PAN].bits,4);memcpy(&b,&xin->desires[7][CF_PAN].bits,4);need(xin->desires[0][CF_PAN].pending&&a==0.5f&&xin->desires[7][CF_PAN].pending&&b==0.0f,"the middle pad is the exact centre (0.5); the bottom pad hard left");}
+ input_discard(xin);memset(x->led_valid,0,sizeof(x->led_valid));for(unsigned pass=0;pass<40;pass++)need(native_output(surfaces.surfaces+1,surfaces.banks+1,s,now),"X pan output");
+ for(unsigned strip=0;strip<8;strip++)for(unsigned row=1;row<=8;row++){unsigned pad=row*10+strip+1;need(x->led_value[pad]==(row==4||row==5?3u:0u),"centred pan: the middle pair white, the rest dark");}
+ need(x->led_value[79]==21&&x->led_value[89]==3&&x->led_value[97]==21&&x->led_value[95]==3,"X Pan page button green, others dim, Custom green, Session dim");
+ for(unsigned i=1;i<=2;i++){input_discard(&surfaces.contexts[i].input);surfaces.surfaces[i].novation=old[i-1];surfaces.banks[i]=old_banks[i-1];}*s=*saved;free(saved);native_capture_count=0;
+ puts("PASS approved Launchpad layout: Pro Track Select row selects, Arm/Mute/Solo/Stop row modes (tap latch, hold momentary) with LEDs, inert in step views; X Custom reopens the last mixer page; Session never blue; bipolar pan pads with an exact centre (ALSA/native state substituted)");
+}
+static void launchpad_pick_checks(const MirrorState *state,ControllerRuntime *runtime){
+ CopiedMirror *snapshot=runtime->snapshot;ClipCopy saved=snapshot->clips;unsigned available=snapshot->clips_available,now=runtime->now;
+ NovationState old[2]={surfaces.surfaces[1].novation,surfaces.surfaces[2].novation};snapshot->clips_available=1;snapshot->clips=(ClipCopy){.status=CLIP_SOURCE_READY,.tick=now,.epoch=snapshot->epoch,.project_owner=1,.lanes=100,.columns=16,.rows=17};
+ for(unsigned i=1;i<=2;i++){NovationState *n=&surfaces.surfaces[i].novation;memset(n->held,0,sizeof(n->held));n->clip_epoch=snapshot->epoch;n->clip_column=0;n->clip_row=1;n->layer=NOV_CLIPS;n->pick_used=n->pick_pending=0;n->step_mode=i==1?NOV_STEP16:0;
+  ClipProjection *v=snapshot->clips.views+native_step_slot(surfaces.surfaces+i);*v=(ClipProjection){.status=CLIP_SOURCE_READY,.tick=now,.first_column=0,.first_row=1};
+  for(unsigned j=0;j<8;j++)v->track_owner[j]=j+1;
+  for(unsigned j=0;j<64;j++)v->cells[j]=(ClipCell){CLIP_READY,3000+i*100+j};
+  input_discard(&surfaces.contexts[i].input);
+ }
+ for(unsigned s=1;s<=2;s++){
+  NovationState *n=&surfaces.surfaces[s].novation,*peer=&surfaces.surfaces[3-s].novation;MirrorInput *in=&surfaces.contexts[s].input;unsigned button=s==1?96:97,peer_bind=peer->step_bind_generation,bind=n->step_bind_generation;
+  fake_input_reset();native_push(s,0xb0,button,127);need(collection_drain(&surfaces,state,runtime)&&n->layer==NOV_CLIPS&&n->step_bind_generation==bind,"a held step-view button does not leave the clip grid on press");
+  fake_input_reset();native_push(s,0x90,72,127);native_push(s,0x90,72,0);need(collection_drain(&surfaces,state,runtime)&&in->step_count==1,"pick queues exactly one request");
+  const CommandRequest *r=&in->step_events[in->step_head].request;need(r->bits==CLIP_SELECT&&r->reserved==CLIP_ACTION&&r->pad_index==1&&r->effect_index==2&&r->track_owner==2,"pick is a native select of the pressed clip, not a launch");
+  need(n->pick_pending&&n->pick_used,"pick waits for its request");
+  need(native_output(surfaces.surfaces+s,surfaces.banks+s,snapshot,now)&&n->layer==NOV_CLIPS,"the step view does not open while the select is still queued");
+  in->step_count=0; /* the bridge submitted it and the observer processed it */
+  need(native_output(surfaces.surfaces+s,surfaces.banks+s,snapshot,now)&&n->layer==(s==1?NOV_STEP16:NOV_STEP64)&&n->step_bind_generation==bind+1&&!n->pick_pending,"after the select, this Launchpad opens its last-used step view and binds afresh (X last used 16 steps, a new Pro 64)");
+  need(peer->step_bind_generation==peer_bind&&peer->layer==NOV_CLIPS,"the other Launchpad does not re-bind on its own");
+  fake_input_reset();native_push(s,0xb0,button,0);need(collection_drain(&surfaces,state,runtime)&&n->layer==(s==1?NOV_STEP16:NOV_STEP64)&&n->step_bind_generation==bind+1,"releasing after a pick changes nothing more");
+  native_layer(surfaces.surfaces+s,surfaces.banks+s,NOV_CLIPS);n->clip_row=1;
+  /* Alone: opens on release, as before but no longer on press. */
+  unsigned buttons[2]={96,97};for(unsigned b=0;b<1u;b++){unsigned id=s==1?buttons[b]:97,expect=novation_step_entry(n);bind=n->step_bind_generation;
+   fake_input_reset();native_push(s,0xb0,id,127);need(collection_drain(&surfaces,state,runtime)&&n->layer==NOV_CLIPS,"step-view button alone waits for release");
+   fake_input_reset();native_push(s,0xb0,id,0);need(collection_drain(&surfaces,state,runtime)&&n->layer==expect&&n->step_bind_generation==bind+1&&!in->step_count,"step-view button alone opens its view on release and binds the MPC selection");
+   native_layer(surfaces.surfaces+s,surfaces.banks+s,NOV_CLIPS);n->clip_row=1;}
+  /* Plain press still launches; stop and record holds win over pick. */
+  fake_input_reset();native_push(s,0x90,72,127);native_push(s,0x90,72,0);need(collection_drain(&surfaces,state,runtime)&&in->step_count==2&&in->step_events[in->step_head].request.bits==CLIP_LAUNCH&&in->step_events[(in->step_head+1)%INPUT_JOG_EVENTS].request.bits==CLIP_SELECT&&in->step_events[(in->step_head+1)%INPUT_JOG_EVENTS].request.pad_index==in->step_events[in->step_head].request.pad_index,"a plain clip press launches, then selects that clip");input_discard(in);
+  fake_input_reset();native_push(s,0xb0,98,127);native_push(s,0xb0,button,127);native_push(s,0x90,72,127);native_push(s,0x90,72,0);native_push(s,0xb0,button,0);native_push(s,0xb0,98,0);
+  need(collection_drain(&surfaces,state,runtime)&&in->step_count==1&&in->step_events[in->step_head].request.bits==CLIP_STOP&&n->layer==NOV_CLIPS,"stop hold wins over pick and release does not open the view");input_discard(in);
+ }
+ /* Outside the clip grid the step-view buttons keep acting on press. */
+ NovationState *x=&surfaces.surfaces[1].novation;native_layer(surfaces.surfaces+1,surfaces.banks+1,NOV_VOLUME);fake_input_reset();native_push(1,0xb0,96,127);
+ need(collection_drain(&surfaces,state,runtime)&&x->layer==NOV_STEP16,"from the mixer, Note still opens the last-used step view on press");
+ for(unsigned i=1;i<=2;i++){input_discard(&surfaces.contexts[i].input);surfaces.surfaces[i].novation=old[i-1];}snapshot->clips=saved;snapshot->clips_available=available;
+ puts("PASS Launchpad pick: hold Note (X) or Sequencer (Pro) + clip selects natively without launch, opens this step view after the select, peer unchanged; alone opens on release; plain press launches; stop wins (ALSA/native clip state substituted)");
+}
 static void novation_play_toggle_checks(MirrorState *state,ControllerRuntime *runtime){
  CopiedMirror *s=runtime->snapshot;MIRROR_FIELD(playing);playing=s->playing;unsigned owner=s->editor_owner;
  s->editor_owner=777;s->playing.available=1;
@@ -363,18 +652,19 @@ static void novation_production_checks(void){
  for(unsigned i=0;i<3;i++){unsigned before=observed_destinations[150+i];need(native_output(surfaces.surfaces+i,surfaces.banks+i,&snapshot,runtime.now),"stable native output");need(observed_destinations[150+i]==before,"unchanged native projection encodes/sends nothing");}
  NATIVE_HAS(151,0xb0,59,0);NATIVE_HAS(152,0xb0,59,0);
  native_capture_count=0; /* Start a new bounded capture for the mode repaint. */
- fake_input_reset();for(unsigned i=1;i<=2;i++){native_push(i,0xb0,98,127);native_push(i,0xb0,i==1?95:93,127);native_push(i,0xb0,i==1?95:93,0);native_push(i,0xb0,98,0);}need(collection_drain(&surfaces,state,&runtime)&&surfaces.surfaces[1].novation.layer==NOV_SESSION&&surfaces.surfaces[2].novation.layer==NOV_SESSION,"documented modifier+Session exposes mixer on both models");
+ fake_input_reset();for(unsigned i=1;i<=2;i++){native_push(i,0xb0,98,127);native_push(i,0xb0,i==1?95:93,127);native_push(i,0xb0,i==1?95:93,0);native_push(i,0xb0,98,0);}need(collection_drain(&surfaces,state,&runtime)&&surfaces.surfaces[1].novation.layer==NOV_CLIPS&&surfaces.surfaces[2].novation.layer==NOV_CLIPS,"Capture MIDI/Projects + Session no longer opens the mixer");
+ fake_input_reset();native_push(1,0xb0,97,127);native_push(1,0xb0,97,0);native_push(2,0xb0,96,127);native_push(2,0xb0,96,0);need(collection_drain(&surfaces,state,&runtime)&&surfaces.surfaces[1].novation.layer==NOV_VOLUME&&surfaces.surfaces[2].novation.layer==NOV_VOLUME,"Custom opens the mixer pages (Volume first) on both models");
  for(unsigned pass=0;pass<20;pass++)for(unsigned i=1;i<=2;i++)need(native_output(surfaces.surfaces+i,surfaces.banks+i,&snapshot,runtime.now),"mixer repaint after clip default");
- NATIVE_HAS(151,0xb0,59,3);NATIVE_HAS(152,0xb0,59,3);
+ NATIVE_HAS(151,0xb0,89,21);NATIVE_HAS(151,0xb0,59,3);NATIVE_HAS(151,0xb0,97,21);NATIVE_HAS(152,0xb0,4,21);NATIVE_HAS(152,0xb0,7,3);NATIVE_HAS(152,0xb0,96,21);NATIVE_HAS(152,0xb0,59,0);
  lcxl_readback_checks(surfaces.surfaces,state,&runtime);native_restore_checks(surfaces.surfaces+1);native_capture_count=0;
  for(unsigned layer=NOV_VOLUME;layer<=NOV_DEVICE;layer++){
   native_layer(surfaces.surfaces+1,surfaces.banks+1,layer);
   for(unsigned i=0;i<16;i++)need(native_output(surfaces.surfaces+1,surfaces.banks+1,&snapshot,runtime.now),"Programmer layer bounded grid repaint");
   for(unsigned i=0;i<native_capture_count;i++)need(native_capture[i].bytes[0]!=0xf0,"layer switch never sends a hardware DAW fader/layout command");
   native_capture_count=0;native_layer(surfaces.surfaces+1,surfaces.banks+1,NOV_SESSION);for(unsigned i=0;i<16;i++)need(native_output(surfaces.surfaces+1,surfaces.banks+1,&snapshot,runtime.now),"Session layer bounded repaint");
-  unsigned pads=0;for(unsigned i=0;i<native_capture_count;i++){const unsigned char *b=native_capture[i].bytes;if(native_capture[i].length==3&&(b[0]&0xf0)==0x90&&b[1]>=11&&b[1]<=88&&b[1]%10>=1&&b[1]%10<=8)pads++;}need(pads==64,"all Session cells repaint within bounded visits");native_capture_count=0;
+  unsigned pads=0,lit=0;for(unsigned i=0;i<native_capture_count;i++){const unsigned char *b=native_capture[i].bytes;if(native_capture[i].length==3&&(b[0]&0xf0)==0x90&&b[1]>=11&&b[1]<=88&&b[1]%10>=1&&b[1]%10<=8){pads++;lit+=b[2]!=0;}}need(pads==64,"all Session cells repaint within bounded visits");need(lit>=8,"the mixer grid shows its tracks: side buttons never blank the layer (D14)");native_capture_count=0;
  }
- fake_input_reset();native_push(1,0xb0,89,127);need(collection_drain(&surfaces,state,&runtime)&&surfaces.surfaces[1].novation.layer==NOV_VOLUME&&surfaces.surfaces[2].novation.layer==NOV_SESSION,"Programmer layer is per instance");
+ fake_input_reset();native_push(1,0xb0,79,127);native_push(1,0xb0,79,0);need(collection_drain(&surfaces,state,&runtime)&&surfaces.surfaces[1].novation.layer==NOV_PAN&&surfaces.surfaces[2].novation.layer==NOV_VOLUME,"Programmer layer is per instance");fake_input_reset();native_push(1,0xb0,89,127);native_push(1,0xb0,89,0);need(collection_drain(&surfaces,state,&runtime)&&surfaces.surfaces[1].novation.layer==NOV_VOLUME,"X right column returns to Volume");
  /* Different banks/strips keep five simultaneous inputs independently bound. */
  surfaces.banks[1].offset=8;bank_apply(surfaces.banks+1,&snapshot,runtime.now);fake_input_reset();native_push(0,0xbf,5,64);native_push(0,0xbf,5,80);native_push(1,0x90,82,127);native_push(2,0x90,83,127);
  snd_seq_event_t mcu;snd_seq_ev_clear(&mcu);snd_seq_ev_set_pitchbend(&mcu,3,4096);mcu.source=surfaces.surfaces[3].full;fake_input_push(mcu);native_push(4,0xb0,4,64);native_push(4,0xb0,36,0);native_push(4,0xb0,4,80);native_push(4,0xb0,36,0);
@@ -393,7 +683,7 @@ static void novation_production_checks(void){
  fake_input_reset();native_push(1,0xb0,59,127);native_push(1,0xb0,92,127);native_push(1,0x90,88,0);native_push(1,0x90,88,127);need(collection_drain(&surfaces,state,&runtime)&&surfaces.contexts[1].input.qlinks[15].pending&&surfaces.contexts[1].input.qlinks[15].request.qlink_index==15,"Programmer Q-Link page2 grid reaches actual Q-Link16");input_discard(&surfaces.contexts[1].input);
  /* Documented Programmer grid addresses, through both actual profile decoders.
   * Native fields and ALSA are fixtures; this does not prove device mode/routing. */
- for(unsigned instance=1;instance<=2;instance++){
+ for(unsigned instance=1;instance<=1;instance++){ /* The Pro has no CE mixer grid: its Track Select row replaces it. */
   MirrorInput *grid=&surfaces.contexts[instance].input;surfaces.banks[instance].offset=0;
   fake_input_reset();native_push(instance,0xb0,49,127);native_push(instance,0xb0,49,0);need(collection_drain(&surfaces,state,&runtime),"both Programmer profiles enter Session from documented CC");
   const unsigned fields[]={CF_SELECTION,CF_MUTE,CF_SOLO,CF_ARM};const float levels[]={0.0f,42.0f/127.0f,84.0f/127.0f,1.0f};
@@ -404,7 +694,8 @@ static void novation_production_checks(void){
   }
   input_discard(grid);
  }
- puts("PASS documented64-pad Session map on both Programmer profiles through selected ALSA ingress; native state/device mode/musical Track routing substituted");
+ {NovationState *pro=&surfaces.surfaces[2].novation;unsigned layer=pro->layer;fake_input_reset();native_push(2,0xb0,49,127);native_push(2,0xb0,49,0);need(collection_drain(&surfaces,state,&runtime)&&pro->layer==layer&&pro->layer!=NOV_SESSION,"the Pro right column never opens a mixer grid");}
+ puts("PASS documented64-pad mixer grid map on X through selected ALSA ingress; the Pro has none; native state/device mode/musical Track routing substituted");
  /* Pure page/mixer projection uses the canonical fields from the same snapshot. */
  Surface *lc=surfaces.surfaces;MirrorBank *bank=surfaces.banks;MirrorInput *in=&surfaces.contexts[0].input;input_discard(in);snapshot_fixture(&snapshot,16);snapshot.selected_serial=1;snapshot.selection.bits=snapshot.tracks[0].track;bank_apply(bank,&snapshot,1700);
  runtime.snapshot_attempted=1;runtime.snapshot_result=1;runtime.now=1700;
@@ -469,8 +760,21 @@ static void novation_production_checks(void){
  need(native_captured(150,(unsigned char[]){0xbf,5,95},3)==1,"released absolute fader receives authoritative position");
  snapshot.tracks[0].bits=saved_volume;snapshot.tracks[0].fields[CF_PAN].bits=saved_pan;snapshot.tracks[0].fields[CF_PAN].revision=saved_revision;input_discard(in);
  puts("PASS raw relative gesture receives live same-track source feedback, held bank identity blocks retargeting, absolute fader remains suppressed until release (ALSA/MPC substituted)");
- lcxl_pad_mixer_checks(state,&runtime);
+ lcxl_pad_mixer_checks(state,&runtime);lcxl_shift_select_checks(state,&runtime);
  lcxl_name_fairness_checks(lc,bank,&snapshot);
+ lcxl_track_colour_checks(lc,bank,&snapshot);
+ {
+  /* Launchpad/XL3 input moves focus; the X-Touch meter demand must stay. */
+  MeterInterest *m=&input.commands->meter_interest;const McuProfile *profile=surfaces.contexts[3].controller.profile;
+  surfaces.contexts[3].controller.profile=&mcu_profile_xtouch;bank_apply(surfaces.banks+3,&snapshot,1700);
+  for(unsigned focus=0;focus<5;focus++){
+   atomic_store(&m->enabled,0);atomic_store(&m->until,0);surfaces.focus=focus;collection_interests(&surfaces,&snapshot,1700);
+   need(atomic_load(&m->enabled)==1&&atomic_load(&m->count)>0&&atomic_load(m->serial)==surfaces.banks[3].strips[0].serial,"meter demand follows the connected metered surface whichever surface sent input last");
+  }
+  surfaces.contexts[3].controller.profile=profile;atomic_store(&m->enabled,0);atomic_store(&m->until,0);surfaces.focus=1;collection_interests(&surfaces,&snapshot,1700);
+  need(!atomic_load(&m->enabled),"no metered surface connected requests no meters");
+  puts("PASS meter demand stays on the metered surface across Launchpad, XL3 and HUI input focus (ALSA/MPC substituted)");
+ }
  NovationEvent event;
  /* Two actual B6 1E 02 reports retained from the 718340b Control capture.
   * Subsequent relative movement is documented synthetic input, not captured. */
@@ -494,7 +798,7 @@ static void novation_production_checks(void){
  for(unsigned i=0;i<40;i++)need(native_output(lc,bank,&snapshot,1700),"unavailable effect output");
  need(lc->novation.position_valid[8]&&lc->novation.position[8]==255,"unavailable source clears cached display value");need(native_captured(150,(unsigned char[]){0xf0,0,0x20,0x29,2,0x15,6,13,1,'-',0xf7},11)==1,"unavailable clear retries exactly once");native_capture_count=0;need(native_output(lc,bank,&snapshot,1700)&&!native_capture_count,"unavailable values clear once and then park");snapshot.effects_available=1;native_capture_count=0;for(unsigned i=0;i<8;i++)need(native_output(lc,bank,&snapshot,1700),"reacquired unchanged source output");NATIVE_HAS(150,0xf0,0,0x20,0x29,2,0x15,6,13,1,'9','5',0xf7);
  event=(NovationEvent){.kind=NOV_TOUCH,.index=0,.value=1};native_intent(lc,bank,&snapshot,&event,1700);bank->offset=8;bank_apply(bank,&snapshot,1701);input_discard(in);event=(NovationEvent){.kind=NOV_ABSOLUTE,.index=0,.value=64};native_intent(lc,bank,&snapshot,&event,1701);need(!in->desires[0][CF_VOLUME].pending,"held LCXL3 fader cannot retarget through bank remap");event=(NovationEvent){.kind=NOV_TOUCH,.index=0,.value=0};native_intent(lc,bank,&snapshot,&event,1702);
- launchpad_step_checks(state,&runtime);launchpad_pro_rebind_checks(state,&runtime);launchpad_clip_checks(state,&runtime);novation_play_toggle_checks(state,&runtime);
+ launchpad_step_checks(state,&runtime);launchpad_pro_rebind_checks(state,&runtime);launchpad_clip_checks(state,&runtime);launchpad_clip_colour_checks(runtime.snapshot,runtime.now);launchpad_pick_checks(state,&runtime);launchpad_side_checks(runtime.snapshot,runtime.now);launchpad_pro_stop_clip_checks(state,&runtime);launchpad_layout_checks(state,&runtime);novation_play_toggle_checks(state,&runtime);
  atomic_store(&state->ready,0);shared_fixture_time(state,1950);runtime_cycle_begin(&runtime);in->play_down=1;fake_input_reset();native_push(0,0xb6,30,1);native_push(0,0xbf,5,100);need(collection_drain(&surfaces,state,&runtime)&&bank->assignment==BA_TRACK&&lc->novation.observed_mode==1&&!in->play_down,"unready MPC still follows native mode reports and clears old transport holds");
  unsigned generation=lc->novation.generation;lc->novation.held[37]=lc->novation.touch[0]=1;lc->native_pickup[0].acquired=1;unsigned retained=surfaces.banks[1].offset;
  stopping=1;collection_disconnect(&surfaces,0);stopping=0;NATIVE_HAS(150,0xf0,0,0x20,0x29,2,0x15,2,0,0xf7);need(!lc->novation.held[37]&&!lc->novation.touch[0]&&!lc->native_pickup[0].acquired&&surfaces.banks[1].offset==retained,"disconnect resets only local physical state and sends disable even at clean stop");

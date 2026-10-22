@@ -304,10 +304,10 @@ static void layout_scene(const char *name){
   for(unsigned n=0;n<row_height_count;n++)if(row_heights[n].object==object)height=row_heights[n].height;require(height>0,"captured actual production row height");
   for(int row=0;row<count&&(row+1)*height<=b.h;row++){paint_list(object,row,row==selected,b.w,height);Bounds rb={object,b.x,b.y+row*height,b.w,height};capture_box("row",rb,last_fill);capture_draws(rb);}
  }
- MpcUiControl *buttons[]={i.add,i.edit,i.toggle,i.remove,i.refresh,i.apply,i.cancel,i.policy[0],i.policy[1]};int y=-1,min=948,max=0;Bounds placed[9];unsigned used=0;
+ MpcUiControl *buttons[]={i.add,i.detect,i.edit,i.toggle,i.remove,i.refresh,i.apply,i.cancel,i.policy[0],i.policy[1]};int y=-1,min=948,max=0;Bounds placed[10];unsigned used=0;
  for(auto *control:buttons){void *object=mpc_ui_private_control_host_object(control);if(last_visible(object)!=1)continue;Bounds b=last_bounds(object);if(y<0)y=b.y;require(y==b.y,"visible actions share one row");for(unsigned n=0;n<used;n++)require(b.x>=placed[n].x+placed[n].w||b.x+b.w<=placed[n].x,"visible actions do not overlap");placed[used++]=b;if(b.x<min)min=b.x;if(b.x+b.w>max)max=b.x+b.w;drawn_count=0;paint(object);capture_box("button",b,last_fill);capture_draws(b);}
  require(min==948-max,"action row has balanced native-parent margins");
- MpcUiControl *labels[]={i.status_label,i.editor_title,i.input_label,i.output_label,i.from_detail,i.to_detail,i.empty_label};const char *texts[]={i.status_text,i.editor_text,"From controller","To controller",i.connection_text[0],i.connection_text[1],"No controllers yet\nChoose Add to connect your first controller."};
+ MpcUiControl *labels[]={i.status_label,i.editor_title,i.input_label,i.output_label,i.from_detail,i.to_detail,i.empty_label};const char *texts[]={i.status_text,i.editor_text,"From controller","To controller",i.connection_text[0],i.connection_text[1],"No controllers yet\nChoose Detect or Add to connect a controller."};
  for(unsigned n=0;n<7;n++){void *object=mpc_ui_private_control_host_object(labels[n]);if(last_visible(object)!=1)continue;Bounds b=last_bounds(object);capture_box("label",b,0xff202126u);int align=1;for(unsigned a=0;a<label_alignment_count;a++)if(label_alignments[a].object==object)align=label_alignments[a].value;printf("TEXT\tlabel-substitute\t%d\t%d\t%d\t%d\tffffffff\t15\t%d\t2\t1.0\t",b.x,b.y,b.w,b.h,align);capture_text(texts[n]);}
  printf("END\t%s\n",name);
 }
@@ -409,7 +409,7 @@ int main(){
  *(void**)(global_app_storage+0x7cc)=global_vc_storage;
  require(fixture.global_owner_captures==1&&fixture.last_global_owner==(uint32_t)(uintptr_t)global_owner_storage&&fixture.last_global_file==(uint32_t)(uintptr_t)global_file_handler_storage&&!fixture.failures,"startup hook captures qualified Global MIDI Learn owner and file handler");
  expected_selected=preferences_overlay+0x160;setup_preferences_frame(frame,preferences_overlay);native_preferences_hook(&frame.context,0);
- require(fixture.tabs_created==1&&fixture.buttons_created==9&&fixture.live_tabs==1&&!fixture.failures&&colour_sets>=38&&preferences_instances[0].endpoint_count==3&&preferences_instances[0].controller_count==1,"Controllers composes collection, split endpoint lists, policy and status through canonical toolkit");
+ require(fixture.tabs_created==1&&fixture.buttons_created==10&&fixture.live_tabs==1&&!fixture.failures&&colour_sets>=38&&preferences_instances[0].endpoint_count==3&&preferences_instances[0].controller_count==1,"Controllers composes collection, split endpoint lists, policy and status through canonical toolkit");
  require(tab_removes==1,"stock placeholder detached once");
  void *tab=(void*)(uintptr_t)fixture.last_tab;void **tab_slots=*(void***)tab;fixture.saved_profile=fixture.active_profile=NATIVE_CONTROLLER_XTOUCH_MINI;fixture.status=NATIVE_PREFERENCES_ACTIVE;
  ((void(*)(void*,int))tab_slots[2])(tab,1);require(active_calls==1&&!fixture.failures,"stock-first activation refresh");
@@ -540,6 +540,31 @@ int main(){
   require(!memcmp(&preferences_instances[0].controller_rows[0],&fixture.controllers[0],sizeof(fixture.controllers[0])),"row presentation preserves both full saved endpoint identities for Edit");
  }
  fixture.controllers[0]=saved_controller;fixture.collection_generation++;native_preferences_refresh();
+ {
+  auto &ui=preferences_instances[0];void *detect=mpc_ui_private_control_host_object(ui.detect);
+  fixture.completed_sequence=fixture.request_sequence;fixture.status=NATIVE_PREFERENCES_ACTIVE;native_preferences_refresh();
+  MpcUiControl *row[]={ui.add,ui.detect,ui.edit,ui.toggle,ui.remove,ui.refresh};Bounds first=last_bounds(mpc_ui_private_control_host_object(row[0])),previous=first;
+  for(auto *control:row){void *object=mpc_ui_private_control_host_object(control);Bounds b=last_bounds(object);
+   require(last_visible(object)==1&&b.y==first.y&&b.h==first.h&&b.w>=116&&(control==row[0]||b.x>=previous.x+previous.w+12),"six main actions share one row without overlap");previous=b;}
+  require(first.x==24&&previous.x+previous.w==924,"main action row spans the 24..924 content margins");
+  uint32_t base=fixture.collection_count,sequence=fixture.request_sequence;click(detect);
+  require(fixture.request_sequence==sequence+1&&fixture.request_kind==NATIVE_REQUEST_DETECT&&fixture.request_controller_index==NATIVE_CONTROLLER_NEW&&fixture.request_collection_generation==fixture.collection_generation,"Detect publishes one generation-tagged request to the session owner");
+  click(detect);require(fixture.request_sequence==sequence+1,"a pending Detect cannot publish again");
+  fixture.status=NATIVE_PREFERENCES_APPLYING;native_preferences_refresh();require(strstr(ui.status_text,"Applying controller changes"),"pending Detect shows progress");
+  fixture.controllers[base]=fixture.controllers[0];fixture.controllers[base].profile=NATIVE_CONTROLLER_XTOUCH;fixture.controllers[base+1]=fixture.controllers[0];fixture.controllers[base+1].profile=NATIVE_CONTROLLER_LPX;
+  fixture.collection_count=base+2;fixture.collection_generation++;fixture.completed_sequence=fixture.request_sequence;fixture.status=NATIVE_PREFERENCES_ACTIVE;native_preferences_refresh();
+  require(ui.controller_count==base+2&&strstr(ui.status_text,"Added X-Touch and Launchpad X.\n"),"completed Detect reports the appended rows in one line");
+  click(mpc_ui_private_control_host_object(ui.add));require(last_visible(detect)==0,"Detect is hidden in the editor");click(mpc_ui_private_control_host_object(ui.cancel));
+  require(!strstr(ui.status_text,"Added"),"the next action clears the Detect report");
+  sequence=fixture.request_sequence;click(detect);fixture.completed_sequence=fixture.request_sequence;fixture.status=NATIVE_PREFERENCES_NONE_DETECTED;fixture.result_detail=0;native_preferences_refresh();
+  require(fixture.request_sequence==sequence+1&&strstr(ui.status_text,"No new controllers found."),"Detect reports when nothing new is connected");
+  click(detect);fixture.completed_sequence=fixture.request_sequence;fixture.status=NATIVE_PREFERENCES_STALE;native_preferences_refresh();
+  require(strstr(ui.status_text,"Try Detect again"),"a stale Detect asks for a retry");
+  uint32_t count=fixture.collection_count;fixture.collection_count=16;for(unsigned n=count;n<16;n++)fixture.controllers[n]=fixture.controllers[0];fixture.collection_generation++;native_preferences_refresh();
+  sequence=fixture.request_sequence;click(detect);require(fixture.request_sequence==sequence&&strstr(ui.status_text,"The controller list is full."),"a full collection reports capacity without a request");
+  memset(fixture.controllers+base,0,(16-base)*sizeof(fixture.controllers[0]));fixture.collection_count=base;fixture.collection_generation++;fixture.status=NATIVE_PREFERENCES_ACTIVE;native_preferences_refresh();
+  require(!fixture.failures,"Detect presentation raises no toolkit failure");
+ }
  ((void(*)(void*))tab_slots[1])(tab);require(fixture.tabs_created==fixture.tabs_destroyed&&fixture.buttons_created==fixture.buttons_destroyed&&!fixture.live_tabs&&!fixture.failures,"Controllers toolkit teardown balances");
  visible_count=0; /* Controllers are closed; the next phase observes launcher objects. */
  uint32_t pref_begin=*(uint32_t*)(preferences_overlay+0x1b8),pref_cap=*(uint32_t*)(preferences_overlay+0x1c0);test_delete((void*)(uintptr_t)pref_begin,pref_cap-pref_begin);

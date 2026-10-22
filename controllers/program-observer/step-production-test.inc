@@ -59,6 +59,27 @@ static void step_lifecycle_checks(uint32_t ctrl,uint32_t clip){
  step_fixture_clip=clip;
  puts("PASS pending step lifecycle: withdrawal, deferred rebind and disconnect settle/reclaim one edit with peer usable; genuine slot deletion refuses certification");
 }
+/* Pro Stop Clip in a bound step view: production admission, one native
+ * per-track stop on the binding's column, no note edit, immediate receipt. */
+static unsigned step_fixture_stops,step_fixture_stop_kind,step_fixture_stop_column;
+static unsigned step_fixture_stop_emit(unsigned kind,uint32_t lanes,unsigned column,unsigned row){(void)lanes;(void)row;step_fixture_stops++;step_fixture_stop_kind=kind;step_fixture_stop_column=column;return 1;}
+static void step_stop_checks(uint32_t ctrl,uint32_t clip){
+ put(project+0xa0,tracks[0].track);put(project+0x1e8,clip);put(ctrl+0x68,clip+0x388);put(project+0x1b4,tracks[0].track);put(project+0x1bc,1);put(ctrl+0x90,2);
+ command_retire();step_fixture_clip=clip;memset(step_fixture_pattern,0,sizeof(step_fixture_pattern));
+ for(unsigned i=0;i<STEP_VIEWS;i++){step_bound_release(i);step_bound_attempt_epoch[i]=0;}
+ unsigned now=700;atomic_store(&fixture->heartbeat,now);atomic_store(&command_state->step_interest.until,5000);atomic_store(&command_state->step_interest.enabled,1);atomic_store(&command_state->step_interest.bind_generation[0],55);atomic_store(&command_state->step_interest.pad[0],2);
+ StepDemand demand;require(step_demand_read(&command_state->step_interest,&demand),"stop demand read");StepCopy source;require(!step_native_read(&source),"stop source");step_project_views(&source,&demand);step_project_views(&source,&demand);
+ CommandRequest r;require(step_request_stop_view(&r,&source,0,now)&&r.reserved==STEP_STOP&&r.effect_slot==1&&command_step_format(&r),"Stop Clip binds the view's clip");
+ CommandRequest bad=r;bad.effect_slot=0;require(!command_step_format(&bad),"a stop needs a bound view");
+ component_clip_emit=step_fixture_stop_emit;step_fixture_stops=0;unsigned calls=step_fixture_calls,at=submit_fixture(r),seq=atomic_load(&command_state->slots[at].published);
+ require(!atomic_load(&command_state->slots[at].rejected)&&step_fixture_stops==1&&step_fixture_stop_kind==CLIP_STOP&&step_fixture_stop_column==step_bindings[0].column&&step_fixture_calls==calls,"one native per-track stop on the bound column, no note edit");
+ require(atomic_load(&command_state->slots[at].done)==seq&&!step_pending,"the stop completes at once");
+ command_retire();MirrorInput input={.commands=command_state};InputFlight *flight=input.flights+at;flight->flight=seq;flight->field=STEP_STOP;flight->bits=r.bits;flight->expires=r.expires;flight->step_request=r;
+ MirrorBank bank;bank_init(&bank);MIRROR_COPY(copy);copy.alive=copy.ready=1;copy.epoch=epoch;copy.heartbeat=now+1;input_events(&input,flight,at);input_settle(&input,&bank,&copy,now+1);
+ require(!input.error&&flight->acknowledged&&atomic_load(&command_state->slots[at].settled)==seq,"the bridge settles the stop receipt");command_retire();
+ component_clip_emit=NULL;for(unsigned i=0;i<STEP_VIEWS;i++){step_bound_release(i);step_bound_attempt_epoch[i]=0;}
+ puts("PASS step-view Stop Clip: bound-view admission, one native per-track stop on the binding's column, no edit, immediate settled receipt (native stop facade substituted)");
+}
 /* Selected-source readiness and binding retention are production code; only
  * native rooted lookup and note scanning use the existing fixture adapters. */
 static void step_initial_source_checks(uint32_t ctrl,uint32_t clip){
@@ -150,6 +171,7 @@ static void step_owner_checks(void){
  step_bound_clock_read(0,tracks[0].track,&clock_target,2);Context advance=context();advance.r[0]=bound_player;advance.r[4]=bound_player-8;call(&advance,STEP_BOUND_PLAYHEAD);step_bound_clock_read(0,tracks[0].track,&clock_target,2);
  require(clock_target.clock_available&&clock_target.clock_value[0]==960,"bound primary row clock survives foreign global selection");
  atomic_store(&fixture->heartbeat,22);put(ptr(row_cache)+0x44,ptr(clip)+0x324);call(&advance,STEP_BOUND_PLAYHEAD);clock_target.clock_available=0;step_bound_clock_read(0,tracks[0].track,&clock_target,22);require(!clock_target.clock_available,"same row with another native Clip cache cannot paint old target playhead");
+ step_stop_checks(ptr(ctrl),ptr(clip));
  step_lifecycle_checks(ptr(ctrl),ptr(clip));
  for(unsigned i=0;i<STEP_VIEWS;i++)step_bound_release(i);
  component_clip_track=NULL;component_clip_lookup=NULL;component_clip_state=NULL;

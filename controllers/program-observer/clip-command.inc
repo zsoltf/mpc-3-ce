@@ -5,7 +5,7 @@ static unsigned clip_request_resolve(const CommandRequest *r,uint32_t *out_track
  uint32_t lanes=0;unsigned columns=0,rows=0,why=clip_native_context(&lanes,&columns,&rows);
  if(why)return why;
  if(r->epoch!=epoch||r->project_owner!=channel_owner_id(project)||r->qlink_root!=lanes||r->effect_index>=rows)return C_IDENTITY;
- if(r->bits>=CLIP_SCENE_LAUNCH)return columns<=128?C_OK:C_CAPACITY;
+ if(clip_scene_intent(r->bits))return columns<=128?C_OK:C_CAPACITY;
  if(r->pad_index>=columns)return C_IDENTITY;
  uint32_t track=clip_native_track(lanes,r->pad_index);
  if(!typed(track,0x6935554)||channel_owner_id(track)!=r->track_owner)return C_IDENTITY;
@@ -35,6 +35,13 @@ static unsigned clip_action_native(const CommandRequest *r,uint32_t track){
   if(r->before_bits==CLIP_OVERDUBBING){clip_native_trigger(lanes,column,row);return C_OK;}
   return clip_native_record(lanes,track,row)?C_OK:C_CAPACITY;
  case CLIP_SCENE_LAUNCH:clip_native_trigger_row(lanes,row);return C_OK;
+ /* MPC's own SelectClip: selection and current track only, never a launch,
+  * whatever the project's "launch selected clip during playback" setting.
+  * Picking an empty clip slot first creates an empty clip there with MPC's
+  * own CreateClip; the Arrangement row (row 0) is only selected. */
+ case CLIP_SELECT:
+  if(row&&clip_native_state(lanes,column,row)==CLIP_EMPTY)clip_native_create(lanes,column,row);
+  clip_native_select(lanes,column,row);return C_OK;
  case CLIP_SCENE_STOP:{
   unsigned columns=word(lanes+0x34);if(columns>128)return C_CAPACITY;
   /* Native single-player-per-track stop also cancels a queued transition on

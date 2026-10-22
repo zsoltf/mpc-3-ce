@@ -61,8 +61,12 @@ selection requests to the existing MCU session. Completion is reflected on the
 next already-qualified stock command UI drain; the callback itself only
 publishes the request.
 
-The T12.4 collection candidate uses the same owner for Add, Edit, Enable/Disable,
-Remove and Refresh Ports. From Controller and To Controller are independently
+The T12.4 collection candidate uses the same owner for Add, Detect, Edit,
+Enable/Disable, Remove and Refresh Ports. Detect is one request: the session
+owner refreshes ALSA, appends a row for each connected fixed-name profile
+(X-Touch, X-Touch Mini, Launchpad X/Pro Mk3, LCXL3 DAW) whose port no row uses,
+and saves once; nothing found completes without a bridge restart. The editor
+reports the appended rows. From Controller and To Controller are independently
 filtered by ALSA role. Generic MCU/HUI require explicit ports; X-Touch profiles
 retain their defaults and permit manual overrides. HUI exposes Motorized and
 Pickup. One request may be pending, and collection generations reject edits to
@@ -71,7 +75,7 @@ Session port availability is separate from runtime protocol admission. All
 enabled rows run through one shared bridge; each row combines saved endpoint
 configuration with its current runtime admission.
 
-Shared Preferences state is version 14, fixed at 16384 bytes. The session owns
+Shared Preferences state is version 15, fixed at 16384 bytes. The session owns
 ALSA discovery, collection persistence and stop/start rollback; UI callbacks
 perform none of these operations. MCUCFG1 and MCUCFG2 remain readable, including
 the old compact known-profile endpoints. Empty or all-disabled collections
