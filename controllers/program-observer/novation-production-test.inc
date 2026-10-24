@@ -144,6 +144,146 @@ static void launchpad_clip_checks(const MirrorState *state,ControllerRuntime *ru
  for(unsigned i=1;i<=2;i++){input_discard(&surfaces.contexts[i].input);surfaces.surfaces[i].novation=old[i-1];}snapshot->clips=saved;snapshot->clips_available=available;
  puts("PASS both Launchpads clip ingress, independent windows, launch/track-stop/scene-stop/record chords and native-only bounded RGB feedback; ALSA/native clip state substituted");
 }
+/* Real source-address dispatch, decoder, gesture owner and command builder;
+ * shared MPC snapshots and ALSA are fixture substitutions. */
+static void launchpad_edit_checks(const MirrorState *state,ControllerRuntime *runtime){
+ CopiedMirror *s=runtime->snapshot;ClipCopy saved=s->clips;unsigned available=s->clips_available,now=runtime->now,owner=s->editor_owner,project=s->project_owner;s->editor_owner=777;s->project_owner=77;
+ NovationState old[2]={surfaces.surfaces[1].novation,surfaces.surfaces[2].novation};
+ s->clips_available=1;s->clips=(ClipCopy){.status=CLIP_SOURCE_READY,.tick=now,.epoch=s->epoch,.project_owner=77,.lanes=100,.columns=16,.rows=24};
+ for(unsigned i=1;i<=2;i++){
+  NovationState *n=&surfaces.surfaces[i].novation;memset(n->held,0,sizeof(n->held));n->layer=NOV_CLIPS;n->clip_column=0;n->clip_row=1;n->copy_source=(ClipEditSource){0};n->copy_held=n->copy_used=0;
+  ClipProjection *v=s->clips.views+i;*v=(ClipProjection){.status=CLIP_SOURCE_READY,.tick=now,.first_row=1};for(unsigned c=0;c<8;c++)v->track_owner[c]=100+c;
+  v->cells[0]=(ClipCell){CLIP_READY,1000};v->cells[8]=(ClipCell){CLIP_READY,2000};v->cells[2]=(ClipCell){CLIP_EMPTY,1002}; /* allocated, zero notes */
+  input_discard(&surfaces.contexts[i].input);input_jog_discard(&surfaces.contexts[i].input);
+ }
+ for(unsigned i=1;i<=2;i++){
+  MirrorInput *in=&surfaces.contexts[i].input;NovationState *n=&surfaces.surfaces[i].novation;unsigned copy=i==1?97:50;
+  fake_input_reset();native_push(i,0xb0,copy,127);native_push(i,0x90,81,127);native_push(i,0x90,81,0);
+  need(collection_drain(&surfaces,state,runtime)&&n->copy_source.kind==1&&!in->step_count&&n->layer==NOV_CLIPS,"copy source is local identity, never a launch or view switch");
+  for(unsigned pass=0;pass<20;pass++)need(native_output(surfaces.surfaces+i,surfaces.banks+i,s,now),"copy source feedback uses bounded output owner");
+  need(n->led_value[81]==13&&n->led_style[81]==1&&n->cycle_messages<=16&&n->cycle_bytes<=128,"retained source flashes without claiming native content change");
+  fake_input_reset();native_push(i,0x90,83,127);native_push(i,0x90,83,0);native_push(i,0x90,82,127);native_push(i,0x90,82,0);native_push(i,0x90,84,127);native_push(i,0x90,84,0);native_push(i,0xb0,copy,0);
+  need(collection_drain(&surfaces,state,runtime)&&in->step_count==2&&!n->copy_source.kind&&n->layer==NOV_CLIPS,"note-empty occupied destination refused; repeated empty pastes survive immediate modifier release");
+  const CommandRequest *r=&in->step_events[in->step_head].request;need(r->bits==CLIP_COPY&&r->effect_slot==0&&r->effect_key==1&&r->pad_owner==1000&&r->pad_index==1&&r->effect_index==1,"copy request freezes exact source/destination coordinates and object identities");
+  input_discard(in);
+  fake_input_reset();native_push(i,0xb0,copy,127);native_push(i,0x90,82,127);native_push(i,0x90,82,0);native_push(i,0xb0,copy,0);
+  need(collection_drain(&surfaces,state,runtime)&&!n->copy_source.kind&&!in->step_count&&n->layer==NOV_CLIPS,"invalid first source consumes Custom tap without mixer entry");
+  fake_input_reset();native_push(i,0xb0,copy,127);native_push(i,0x90,81,127);native_push(i,0x90,81,0);native_push(i,0xb0,89,127);native_push(i,0xb0,89,0);
+  need(collection_drain(&surfaces,state,runtime)&&n->copy_source.kind==2&&!in->step_count,"clip then row changes source kind without paste");
+  fake_input_reset();native_push(i,0xb0,79,127);native_push(i,0xb0,79,0);native_push(i,0x90,83,127);native_push(i,0x90,83,0);
+  need(collection_drain(&surfaces,state,runtime)&&in->step_count==1&&in->step_events[in->step_head].request.bits==CLIP_COPY_ROW&&n->copy_source.kind==1&&n->copy_source.clip==1002,"row paste delegates replacement to MPC; row then note-empty clip replaces source kind");
+  fake_input_reset();native_push(i,0xb0,copy,0);need(collection_drain(&surfaces,state,runtime)&&in->step_count==1,"row intent survives hold release");input_discard(in);
+  fake_input_reset();native_push(i,0xb0,copy,127);native_push(i,0x90,81,127);native_push(i,0x90,81,0);native_push(i,0x90,82,127);native_push(i,0x90,82,0);if(i==1)native_push(i,0xb0,98,127);native_push(i,0xb0,i==1?94:92,127);native_push(i,0xb0,i==1?94:92,0);
+  need(collection_drain(&surfaces,state,runtime)&&n->clip_column==8&&in->step_count==1&&!in->global_count,"copy paging preserves already captured paste; X Custom+Capture+Right never becomes Redo");
+  fake_input_reset();native_push(i,0xb0,98,0);native_push(i,0xb0,copy,0);need(collection_drain(&surfaces,state,runtime)&&n->layer==NOV_CLIPS,"used hold release stays Session after paging");n->clip_column=0;input_discard(in);
+  fake_input_reset();if(i==1){native_push(i,0xb0,97,127);native_push(i,0xb0,98,127);}else native_push(i,0xb0,60,127);native_push(i,0x90,81,127);native_push(i,0x90,81,0);native_push(i,0xb0,i==1?98:60,0);if(i==1)native_push(i,0xb0,97,0);
+  need(collection_drain(&surfaces,state,runtime)&&in->step_count==1&&in->step_events[in->step_head].request.bits==CLIP_DELETE&&n->layer==NOV_CLIPS,"dedicated Delete wins over copy and Capture Stop without launch or mixer");input_discard(in);
+  fake_input_reset();if(i==1){native_push(i,0xb0,97,127);native_push(i,0xb0,98,127);}else native_push(i,0xb0,60,127);native_push(i,0xb0,79,127);native_push(i,0xb0,79,0);native_push(i,0xb0,i==1?98:60,0);if(i==1)native_push(i,0xb0,97,0);
+  need(collection_drain(&surfaces,state,runtime)&&in->step_count==1&&in->step_events[in->step_head].request.bits==CLIP_DELETE_ROW&&in->step_events[in->step_head].request.effect_index==2&&!in->step_events[in->step_head].request.track_owner&&n->layer==NOV_CLIPS&&!n->copy_source.kind,"scene Delete reaches native row-removal intent once, consumes release without launch or mixer");input_discard(in);
+  fake_input_reset();native_push(i,0xb0,i==1?98:90,127);native_push(i,0xb0,i==1?93:1,127);native_push(i,0xb0,i==1?93:1,0);native_push(i,0xb0,i==1?94:2,127);native_push(i,0xb0,i==1?94:2,0);native_push(i,0xb0,i==1?98:90,0);
+  need(collection_drain(&surfaces,state,runtime)&&in->global_count==2&&!in->step_count&&in->global_events[in->global_head].operation==GLOBAL_UNDO&&in->global_events[(in->global_head+1)%INPUT_JOG_EVENTS].operation==GLOBAL_REDO,"physical history chords reach existing global Undo/Redo owner once");input_jog_discard(in);
+ }
+ /* The two retained sources are independent; project invalidation drops both. */
+ fake_input_reset();native_push(1,0xb0,97,127);native_push(2,0xb0,50,127);native_push(1,0x90,81,127);native_push(2,0xb0,89,127);need(collection_drain(&surfaces,state,runtime)&&surfaces.surfaces[1].novation.copy_source.kind==1&&surfaces.surfaces[2].novation.copy_source.kind==2,"two Launchpads retain independent clip and row sources");
+ unsigned epoch=s->epoch;s->epoch++;native_copy_validate(&surfaces.surfaces[1].novation,s);native_copy_validate(&surfaces.surfaces[2].novation,s);need(!surfaces.surfaces[1].novation.copy_source.kind&&!surfaces.surfaces[2].novation.copy_source.kind,"new project invalidates both retained source identities");s->epoch=epoch;
+ for(unsigned i=1;i<=2;i++){input_discard(&surfaces.contexts[i].input);input_jog_discard(&surfaces.contexts[i].input);surfaces.surfaces[i].novation=old[i-1];}s->clips=saved;s->clips_available=available;s->editor_owner=owner;s->project_owner=project;
+ puts("PASS production Launchpad clip/row copy, retained independent sources, mixed kinds, occupied note-empty clip refusal, native row replacement intent, repeated paste, release, paging precedence, clip/row Delete and Undo/Redo; ALSA and MPC snapshots substituted");
+}
+/* Released direct controls remain on the shipped MIDI ingress path. */
+static void launchpad_direct_checks(const MirrorState *state,ControllerRuntime *runtime){
+ CopiedMirror *s=runtime->snapshot;ClipCopy saved=s->clips;unsigned available=s->clips_available,now=runtime->now,project=s->project_owner;s->project_owner=77;
+ NovationState old[2]={surfaces.surfaces[1].novation,surfaces.surfaces[2].novation};
+ s->clips_available=1;s->clips=(ClipCopy){.status=CLIP_SOURCE_READY,.tick=now,.epoch=s->epoch,.project_owner=77,.lanes=100,.columns=16,.rows=17};
+ for(unsigned i=1;i<=2;i++){
+  NovationState *n=&surfaces.surfaces[i].novation;memset(n->held,0,sizeof(n->held));n->layer=NOV_CLIPS;n->clip_column=0;n->clip_row=1;n->copy_source=(ClipEditSource){0};n->copy_held=0;
+  ClipProjection *v=s->clips.views+i;*v=(ClipProjection){.status=CLIP_SOURCE_READY,.tick=now,.first_row=1};for(unsigned c=0;c<8;c++)v->track_owner[c]=100+c;v->cells[0]=(ClipCell){CLIP_READY,1000};
+  MirrorInput *in=&surfaces.contexts[i].input;input_discard(in);input_jog_discard(in);
+  unsigned opener=i==1?98:90,session=i==1?95:93;
+  fake_input_reset();native_push(i,0xb0,opener,127);native_push(i,0xb0,session,127);native_push(i,0xb0,session,0);native_push(i,0xb0,opener,0);
+  need(collection_drain(&surfaces,state,runtime)&&!in->step_count&&n->layer==NOV_CLIPS,"former Actions opener leaves ordinary clip view");
+  for(unsigned pass=0;pass<20;pass++)need(native_output(surfaces.surfaces+i,surfaces.banks+i,s,now),"ordinary grid after former opener");
+  need(n->led_value[81]==45&&!n->led_value[82]&&!n->led_value[71],"no Actions palette is exposed");
+  fake_input_reset();native_push(i,0x90,72,76);native_push(i,0x90,72,0);need(collection_drain(&surfaces,state,runtime)&&in->step_count==1&&in->step_events[in->step_head].request.bits==CLIP_LAUNCH,"former action pad remains a normal clip pad");input_discard(in);
+  unsigned modifier=i==1?95:90,copy=i==1?97:50;
+  fake_input_reset();native_push(i,0xb0,modifier,127);native_push(i,0xb0,copy,127);native_push(i,0x90,81,76);native_push(i,0x90,81,76);native_push(i,0x90,81,0);native_push(i,0xb0,89,127);native_push(i,0xb0,89,0);native_push(i,0xb0,modifier,0);native_push(i,0xb0,copy,0);
+  need(collection_drain(&surfaces,state,runtime)&&in->step_count==2&&in->step_events[in->step_head].request.bits==CLIP_DOUBLE_EVENTS&&in->step_events[(in->step_head+1)%INPUT_JOG_EVENTS].request.bits==CLIP_INSERT_CAPTURE&&n->layer==NOV_CLIPS&&!n->copy_source.kind,"both direct Double/Capture chords retain one native intent per press");input_discard(in);
+  fake_input_reset();native_push(i,0xb0,copy,127);native_push(i,0xb0,modifier,127);native_push(i,0xb0,modifier,0);native_push(i,0xb0,copy,0);need(collection_drain(&surfaces,state,runtime)&&!in->step_count&&n->layer==NOV_CLIPS,"unused reversed direct chord consumes Custom mixer tap");
+  if(i==2){fake_input_reset();native_push(i,0xb0,40,127);native_push(i,0x90,81,76);native_push(i,0x90,81,76);native_push(i,0x90,81,0);native_push(i,0xb0,40,0);need(collection_drain(&surfaces,state,runtime)&&in->step_count==1&&in->step_events[in->step_head].request.bits==CLIP_QUANTIZE,"Pro Quantise remains a targeted one-shot direct control");input_discard(in);}
+ }
+ for(unsigned i=1;i<=2;i++){input_discard(&surfaces.contexts[i].input);input_jog_discard(&surfaces.contexts[i].input);surfaces.surfaces[i].novation=old[i-1];}s->clips=saved;s->clips_available=available;s->project_owner=project;
+ puts("PASS shipped direct Pro/X Double and Insert-Capture, Pro Quantise, one-shot/reversed modifier handling; former Actions opener exposes no palette and ordinary pads remain ordinary; ALSA/MPC snapshots substituted");
+}
+/* Both hardware copy gestures retain source identity across a publication miss. */
+static void launchpad_publication_checks(const MirrorState *state,ControllerRuntime *runtime){
+ CopiedMirror *s=runtime->snapshot;ClipCopy saved=s->clips;unsigned available=s->clips_available,project=s->project_owner,now=runtime->now;
+ NovationState old[2]={surfaces.surfaces[1].novation,surfaces.surfaces[2].novation};
+ ClipState *publication=calloc(1,sizeof(*publication));need(publication!=NULL,"publication miss fixture");atomic_store(&publication->revision,3);
+ s->project_owner=77;s->clips_available=1;s->clips=(ClipCopy){.status=CLIP_SOURCE_READY,.tick=now,.epoch=s->epoch,.project_owner=77,.lanes=100,.columns=16,.rows=9};
+ for(unsigned i=1;i<=2;i++){ClipProjection *v=s->clips.views+i;*v=(ClipProjection){.status=CLIP_SOURCE_READY,.tick=now,.first_row=0};for(unsigned c=0;c<8;c++)v->track_owner[c]=100+c;v->cells[8]=(ClipCell){CLIP_READY,1000};}
+ for(unsigned i=1;i<=2;i++){
+  Surface *surface=surfaces.surfaces+i;NovationState *n=&surface->novation;MirrorInput *in=&surfaces.contexts[i].input;unsigned copy=i==1?97:50;
+  for(unsigned variant=0;variant<4;variant++){
+   memset(n->held,0,sizeof(n->held));n->copy_source=(ClipEditSource){0};n->copy_held=0;n->layer=NOV_CLIPS;n->clip_row=n->clip_column=0;s->clips_available=1;s->project_owner=77;for(unsigned j=1;j<=2;j++)s->clips.views[j].cells[8].identity=1000;input_discard(in);
+   fake_input_reset();native_push(i,0xb0,copy,127);native_push(i,0x90,71,76);native_push(i,0x90,71,0);need(collection_drain(&surfaces,state,runtime)&&n->copy_source.kind==1,"real copy source selected");
+   s->clips_available=clip_copy_read(publication,&s->clips);novation_budget(n);need(native_output(surface,surfaces.banks+i,s,now)&&n->copy_source.kind==1,"publication miss preserves copy source");
+   if(variant==1){s->clips_available=1;for(unsigned j=1;j<=2;j++)s->clips.views[j].cells[8].identity=1001;native_copy_validate(n,s);need(!n->copy_source.kind,"changed native clip identity invalidates copy source");}
+   else if(variant==2){s->project_owner=78;native_copy_validate(n,s);need(!n->copy_source.kind,"changed project invalidates copy during unavailable publication");s->project_owner=77;}
+   else{
+    if(!variant)s->clips_available=1;
+    fake_input_reset();native_push(i,0x90,51,127);native_push(i,0x90,51,0);need(collection_drain(&surfaces,state,runtime),"copy destination after publication miss");
+    need(variant?!in->step_count:in->step_count==1&&in->step_events[in->step_head].request.bits==CLIP_COPY&&in->step_events[in->step_head].request.effect_index==3,"copy requires fresh destination, never launches on miss");
+    if(variant){
+     need(n->copy_source.kind==1&&n->copy_source.clip==1000&&n->copy_source.row==1,"unavailable destination preserves original held copy source");
+     s->clips_available=1;fake_input_reset();native_push(i,0x90,51,76);native_push(i,0x90,51,0);
+     need(collection_drain(&surfaces,state,runtime)&&in->step_count==1,"next fresh destination queues exactly one paste");
+     const CommandRequest *r=&in->step_events[in->step_head].request;
+     need(r->bits==CLIP_COPY&&r->pad_owner==1000&&r->program_owner==100&&r->effect_slot==0&&r->effect_key==1&&r->effect_index==3,"fresh paste retains original source identity and chosen destination");
+    }
+   }
+   fake_input_reset();native_push(i,0xb0,copy,0);need(collection_drain(&surfaces,state,runtime),"copy release");input_discard(in);
+  }
+ }
+ for(unsigned i=1;i<=2;i++){input_discard(&surfaces.contexts[i].input);surfaces.surfaces[i].novation=old[i-1];}
+ s->clips=saved;s->clips_available=available;s->project_owner=project;free(publication);
+ puts("PASS both Launchpads retain copy across real odd-revision publication miss, retain it after an unavailable destination then paste once when fresh, and invalidate actual native source/project changes; MPC publication and ALSA substituted");
+}
+static void ack_midi(Surface *surface,MirrorBank *bank,ControllerRuntime *runtime,unsigned status,unsigned index,unsigned value){
+ snd_seq_event_t event;snd_seq_ev_clear(&event);if(status==0xb0)snd_seq_ev_set_controller(&event,0,index,value);else snd_seq_ev_set_noteon(&event,0,index,value);
+ event.source=surface->full;need(native_consume(surface,bank,NULL,runtime,&event,0),"ack gesture uses shipped MIDI decoder and intent owner");
+}
+static void ack_receipt(CommandState *c,InputFlight *tx,unsigned tick,unsigned refusal){
+ unsigned at=command_find(c,tx->flight);need(at<COMMAND_SLOTS,"ack receipt target slot");CommandSlot *slot=c->slots+at;CommandLane *lane=slot->lanes+1;const CommandRequest *r=&tx->step_request;
+ atomic_store(&lane->sequence,tx->flight);
+ for(unsigned i=0;i<3;i++){CommandEvent e={.kind=i==0?CE_CLIP_BEGIN:i==1?CE_CLIP_RETURN:CE_CLIP_ACCEPT,.request=tx->flight,.tick=tick,.token=c->owner_token,.reserved=CLIP_ACTION,.controller=r->effect_index,.program=r->qlink_root,.property=r->effect_generation,.revision=i<2?r->epoch:refusal,.bits=i==0?r->before_bits:i==1?r->bits:!refusal};command_event_store(lane->events+i,&e);}
+ atomic_store(&lane->published,3);atomic_store(&slot->processed,tx->flight);atomic_store(&slot->returned,tx->flight);atomic_store(&slot->dispatched,tx->flight);atomic_store(&slot->done,tx->flight);atomic_store(&slot->sealed,tx->flight);
+}
+static void launchpad_edit_ack_checks(void){
+ for(unsigned surface_index=1;surface_index<=2;surface_index++)for(unsigned variant=0;variant<7;variant++){
+  CommandState *c=calloc(1,sizeof(*c));InputFlight *flights=calloc(COMMAND_SLOTS,sizeof(*flights));SurfaceContext *context=malloc(sizeof(*context));need(c&&flights&&context,"ack fixture allocation");*context=surfaces.contexts[surface_index];
+  Surface surface=surfaces.surfaces[surface_index];surface.context=context;MirrorBank bank;bank_init(&bank);MIRROR_COPY(s);snapshot_fixture(&s,8);bank_apply(&bank,&s,100);
+  c->owner_token=123;atomic_store(&c->alive,1);need(input_begin(&context->input,c,flights),"ack input owner");MirrorInput *in=&context->input;in->origin_bank=&bank;
+  NovationState *n=&surface.novation;memset(n->held,0,sizeof(n->held));n->layer=NOV_CLIPS;n->clip_column=0;n->clip_row=1;n->copy_held=0;n->copy_source=(ClipEditSource){0};memset(n->led_valid,0,sizeof(n->led_valid));
+  s.clips_available=1;s.clips=(ClipCopy){.status=CLIP_SOURCE_READY,.tick=100,.epoch=s.epoch,.project_owner=77,.lanes=100,.columns=16,.rows=17};ClipProjection *v=s.clips.views+native_step_slot(&surface);*v=(ClipProjection){.status=CLIP_SOURCE_READY,.tick=100,.first_row=1};for(unsigned i=0;i<8;i++)v->track_owner[i]=100+i;v->cells[0]=(ClipCell){variant==0?CLIP_PLAYING:CLIP_READY,1000};v->scene_state[0]=CLIP_READY;
+  ControllerRuntime rt={.snapshot=&s,.now=100,.snapshot_attempted=1,.snapshot_result=1};unsigned pro=surface_index==2,modifier=pro?90:95,copy=pro?50:97,index=variant==6?89:81,status=variant==6?0xb0:0x90;
+  ack_midi(&surface,&bank,&rt,0xb0,modifier,127);ack_midi(&surface,&bank,&rt,0xb0,copy,127);ack_midi(&surface,&bank,&rt,status,index,127);ack_midi(&surface,&bank,&rt,status,index,0);ack_midi(&surface,&bank,&rt,0xb0,copy,0);ack_midi(&surface,&bank,&rt,0xb0,modifier,0);
+  need(in->step_count==1&&!in->clip_feedback_request,"queued edit never acknowledges early");input_step_submit(in,&s,100);unsigned at=command_find(c,atomic_load(&c->published));need(at<COMMAND_SLOTS,"ack edit published through real request owner");InputFlight *tx=flights+at;
+  for(unsigned pass=0;pass<20;pass++)need(native_output(&surface,&bank,&s,100),"pre-accept feedback");
+  unsigned normal=n->led_value[index],normal_style=n->led_style[index];need((variant==0?(normal==3&&normal_style==2):normal!=3)&&!in->clip_feedback_request,"published intent has no white acknowledgement");
+  if(variant==2){ack_midi(&surface,&bank,&rt,0xb0,pro?92:94,127);ack_midi(&surface,&bank,&rt,0xb0,pro?92:94,0);ack_midi(&surface,&bank,&rt,0xb0,pro?91:93,127);ack_midi(&surface,&bank,&rt,0xb0,pro?91:93,0);need(n->clip_column==0,"page away and back to original visible coordinates");}
+  if(variant==3){native_layer(&surface,&bank,NOV_VOLUME);native_layer(&surface,&bank,NOV_CLIPS);}
+  if(variant==4)s.epoch++;
+  if(variant==5){unsigned stop=stopping;stopping=1;surface_close(&surface,&bank);stopping=stop;}
+  ack_receipt(c,tx,101,variant==1?C_NOT_READY:0);s.heartbeat=102;input_settle(in,&bank,&s,102);
+  need(!in->error&&tx->acknowledged&&(variant==1?in->refused==1:in->settled==1),"receipt settles normally despite view/disconnect suppression");
+  unsigned flash_start=variant==0?302:102;
+  if(variant!=5){for(unsigned pass=0;pass<20;pass++)need(native_output(&surface,&bank,&s,flash_start),"settled edit acknowledgement feedback");}
+  if(variant==0||variant==6){need(in->clip_feedback_request&&n->led_value[index]==0&&n->led_style[index]==0,"accepted edit has distinct dark onset even over native white playing pulse");s.clips.tick=v->tick=flash_start+80;for(unsigned pass=0;pass<20;pass++)need(native_output(&surface,&bank,&s,flash_start+80),"ack bright phase");need(n->led_value[index]==3&&n->led_style[index]==0,"80ms dark onset becomes bright white");s.clips.tick=v->tick=flash_start+499;for(unsigned pass=0;pass<20;pass++)need(native_output(&surface,&bank,&s,flash_start+499),"ack held for half second");need(n->led_value[index]==3,"ack remains through499ms");s.clips.tick=v->tick=flash_start+500;for(unsigned pass=0;pass<20;pass++)need(native_output(&surface,&bank,&s,flash_start+500),"ack expiry restores native projection");need(!in->clip_feedback_request&&n->led_value[index]==normal&&n->led_style[index]==normal_style,"500ms expiry restores authoritative light without replay");}
+  else need(!in->clip_feedback_request&&(variant==5||n->led_value[index]!=3),"refused or changed view/project/disconnect cannot flash another target");
+  free(context);free(flights);free(c);
+ }
+ puts("PASS settled Launchpad edit acknowledgements: real Pro/X MIDI through request and validated receipt; no queued-only/refused flash, clip/scene dark80ms+white420ms then native LEDs including playing style2, paging away/back, mode, project and disconnect suppress visuals without canceling admitted settlement; native receipt and ALSA substituted");
+}
+
 static void lcxl_pad_mixer_checks(const MirrorState *state,ControllerRuntime *runtime){
  CopiedMirror *s=runtime->snapshot,*saved=calloc(1,sizeof(*saved));need(saved!=NULL,"pad mixer source save");*saved=*s;
  Surface *surface=surfaces.surfaces;MirrorBank *bank=surfaces.banks,old_bank=*bank;NovationState old=surface->novation;MirrorInput *in=&surfaces.contexts[0].input;
@@ -174,7 +314,7 @@ static void lcxl_pad_mixer_checks(const MirrorState *state,ControllerRuntime *ru
 static void lcxl_shift_select_checks(const MirrorState *state,ControllerRuntime *runtime){
  CopiedMirror *s=runtime->snapshot,*saved=calloc(1,sizeof(*saved));need(saved!=NULL,"shift select source save");*saved=*s;
  Surface *surface=surfaces.surfaces;MirrorBank *bank=surfaces.banks,old_bank=*bank;NovationState old=surface->novation,*n=&surface->novation;MirrorInput *in=&surfaces.contexts[0].input;
- snapshot_fixture(s,16);s->tracks[2].vptr=0x693147c;s->selection.bits=s->tracks[0].track;s->selected_serial=s->tracks[0].serial;s->pad_count=128;
+ snapshot_fixture(s,16);s->tracks[2].vptr=MODEL_KEYGROUPPROGRAM_VPTR;s->selection.bits=s->tracks[0].track;s->selected_serial=s->tracks[0].serial;s->pad_count=128;
  for(unsigned i=0;i<128;i++){CopiedTrack *pad=s->pads+i;*pad=s->tracks[0];pad->pad_owner=100+i;pad->pad_index=i;pad->pad_generation=1;}
  runtime->snapshot_pads=1;n->observed_mode=1;n->mute_select=0;n->shift_view=0;memset(n->held,0,sizeof(n->held));memset(n->touch,0,sizeof(n->touch));bank->view=BV_TRACK;bank->offset=0;bank_apply(bank,s,runtime->now);input_discard(in);
  fake_input_reset();native_push(0,0xb6,63,127);need(collection_drain(&surfaces,state,runtime)&&n->shift,"Shift held");
@@ -440,7 +580,7 @@ static void launchpad_side_checks(CopiedMirror *snapshot,unsigned now){
  snapshot->clips_available=0;snapshot->steps_available=0;
  NovationState old[2]={surfaces.surfaces[1].novation,surfaces.surfaces[2].novation};
  static const unsigned char x_clips[]={91,92,93,94,95,96,97,98},x_step[]={19,29,39,91,92,93,94,95,96,97},x_mixer[]={19,29,39,49,59,69,79,89,93,94,95,96,97},x_device[]={19,29,39,49,59,69,79,89,91,92,93,94,95,96,97};
- static const unsigned char p_clips[]={1,2,3,4,5,6,7,8,10,20,70,80,91,92,93,96,97,98},p_step[]={8,10,20,70,79,80,91,92,93,96,97},p_mixer[]={1,2,3,4,5,6,7,10,20,91,92,93,96,97},p_device[]={1,2,3,4,5,6,7,10,20,70,80,91,92,93,96,97};
+ static const unsigned char p_clips[]={1,2,3,4,5,6,7,8,10,20,40,50,60,70,80,90,91,92,93,96,97,98},p_step[]={8,10,20,70,79,80,91,92,93,96,97},p_mixer[]={1,2,3,4,5,6,7,10,20,91,92,93,96,97},p_device[]={1,2,3,4,5,6,7,10,20,70,80,91,92,93,96,97};
  struct {unsigned layer;const unsigned char *x,*p;unsigned xn,pn;const char *name;} cases[]={
   {NOV_CLIPS,x_clips,p_clips,sizeof(x_clips),sizeof(p_clips),"clip grid"},{NOV_STEP64,x_step,p_step,sizeof(x_step),sizeof(p_step),"64-step view"},{NOV_STEP16,x_step,p_step,sizeof(x_step),sizeof(p_step),"16-step view"},
   {NOV_SESSION,x_mixer,p_mixer,sizeof(x_mixer),sizeof(p_mixer),"mixer grid"},{NOV_VOLUME,x_mixer,p_mixer,sizeof(x_mixer),sizeof(p_mixer),"Volume"},{NOV_DEVICE,x_device,p_device,sizeof(x_device),sizeof(p_device),"Device"}};
@@ -798,7 +938,7 @@ static void novation_production_checks(void){
  for(unsigned i=0;i<40;i++)need(native_output(lc,bank,&snapshot,1700),"unavailable effect output");
  need(lc->novation.position_valid[8]&&lc->novation.position[8]==255,"unavailable source clears cached display value");need(native_captured(150,(unsigned char[]){0xf0,0,0x20,0x29,2,0x15,6,13,1,'-',0xf7},11)==1,"unavailable clear retries exactly once");native_capture_count=0;need(native_output(lc,bank,&snapshot,1700)&&!native_capture_count,"unavailable values clear once and then park");snapshot.effects_available=1;native_capture_count=0;for(unsigned i=0;i<8;i++)need(native_output(lc,bank,&snapshot,1700),"reacquired unchanged source output");NATIVE_HAS(150,0xf0,0,0x20,0x29,2,0x15,6,13,1,'9','5',0xf7);
  event=(NovationEvent){.kind=NOV_TOUCH,.index=0,.value=1};native_intent(lc,bank,&snapshot,&event,1700);bank->offset=8;bank_apply(bank,&snapshot,1701);input_discard(in);event=(NovationEvent){.kind=NOV_ABSOLUTE,.index=0,.value=64};native_intent(lc,bank,&snapshot,&event,1701);need(!in->desires[0][CF_VOLUME].pending,"held LCXL3 fader cannot retarget through bank remap");event=(NovationEvent){.kind=NOV_TOUCH,.index=0,.value=0};native_intent(lc,bank,&snapshot,&event,1702);
- launchpad_step_checks(state,&runtime);launchpad_pro_rebind_checks(state,&runtime);launchpad_clip_checks(state,&runtime);launchpad_clip_colour_checks(runtime.snapshot,runtime.now);launchpad_pick_checks(state,&runtime);launchpad_side_checks(runtime.snapshot,runtime.now);launchpad_pro_stop_clip_checks(state,&runtime);launchpad_layout_checks(state,&runtime);novation_play_toggle_checks(state,&runtime);
+ launchpad_step_checks(state,&runtime);launchpad_pro_rebind_checks(state,&runtime);launchpad_clip_checks(state,&runtime);launchpad_edit_checks(state,&runtime);launchpad_direct_checks(state,&runtime);launchpad_publication_checks(state,&runtime);launchpad_edit_ack_checks();launchpad_clip_colour_checks(runtime.snapshot,runtime.now);launchpad_pick_checks(state,&runtime);launchpad_side_checks(runtime.snapshot,runtime.now);launchpad_pro_stop_clip_checks(state,&runtime);launchpad_layout_checks(state,&runtime);novation_play_toggle_checks(state,&runtime);
  atomic_store(&state->ready,0);shared_fixture_time(state,1950);runtime_cycle_begin(&runtime);in->play_down=1;fake_input_reset();native_push(0,0xb6,30,1);native_push(0,0xbf,5,100);need(collection_drain(&surfaces,state,&runtime)&&bank->assignment==BA_TRACK&&lc->novation.observed_mode==1&&!in->play_down,"unready MPC still follows native mode reports and clears old transport holds");
  unsigned generation=lc->novation.generation;lc->novation.held[37]=lc->novation.touch[0]=1;lc->native_pickup[0].acquired=1;unsigned retained=surfaces.banks[1].offset;
  stopping=1;collection_disconnect(&surfaces,0);stopping=0;NATIVE_HAS(150,0xf0,0,0x20,0x29,2,0x15,2,0,0xf7);need(!lc->novation.held[37]&&!lc->novation.touch[0]&&!lc->native_pickup[0].acquired&&surfaces.banks[1].offset==retained,"disconnect resets only local physical state and sends disable even at clean stop");

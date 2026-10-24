@@ -46,8 +46,10 @@ int install_patches(uint32_t bias,int fail_after,void **mapping){
  for(unsigned i=0;i<PATCH_COUNT;i++)if(build_stub(code+i*STUB_BYTES,i,bias)>STUB_BYTES){munmap(code,STUB_MAPPING_BYTES);return 0;}
  __builtin___clear_cache((char*)code,(char*)code+STUB_MAPPING_BYTES);
  if(mprotect(code,STUB_MAPPING_BYTES,PROT_READ|PROT_EXEC)){munmap(code,STUB_MAPPING_BYTES);return 0;}
- uint32_t pages[PATCH_COUNT];unsigned count=0,changed=0;
- for(unsigned i=0;i<PATCH_COUNT;i++){uint32_t page=(bias+anchor[i])&~4095u;unsigned j;for(j=0;j<count;j++)if(pages[j]==page)break;if(j==count)pages[count++]=page;}
+ /* An 8-byte anchor may straddle a page boundary (two do in 3.10), so
+  * every page it touches is made writable, not only its first. */
+ uint32_t pages[2*PATCH_COUNT];unsigned count=0,changed=0;
+ for(unsigned i=0;i<PATCH_COUNT;i++)for(unsigned k=0;k<2;k++){uint32_t page=(bias+anchor[i]+7u*k)&~4095u;unsigned j;for(j=0;j<count;j++)if(pages[j]==page)break;if(j==count)pages[count++]=page;}
  for(unsigned i=0;i<count;i++)if(mprotect((void*)(uintptr_t)pages[i],4096,PROT_READ|PROT_WRITE|PROT_EXEC))goto rollback;
  for(unsigned i=0;i<PATCH_COUNT;i++){
   if(fail_after==(int)i)goto rollback;

@@ -18,13 +18,13 @@
  * instructions later. The call therefore inherits the execution context MPC
  * already uses for the same routine, and adds no new thread to it.
  */
-#define POINTER_ENABLE_RVA 0xba6658u
-#define POINTER_STATE_RVA 0x6b220d4u /* peer static table 6b220a8, cursor slot +0x2c */
+#define POINTER_ENABLE_RVA MODEL_POINTER_ENABLE
+#define POINTER_STATE_RVA MODEL_POINTER_STATE /* peer static table 6b220a8, cursor slot +0x2c */
 /* Exact 3.9.1 program headers: RX segment [0,6875d04), RW segment
  * [6877010,6bd6078). module_ranges carries p_filesz only, so the cursor slot,
  * which lives past the writable segment's file image, is qualified here. */
-_Static_assert(POINTER_ENABLE_RVA+8<=0x6875d04u,"enable setter inside the executable segment");
-_Static_assert(POINTER_STATE_RVA>=0x6877010u&&POINTER_STATE_RVA+4<=0x6bd6078u,"cursor slot inside the writable segment");
+_Static_assert(POINTER_ENABLE_RVA+8<=MODEL_EXECUTABLE_END,"enable setter inside the executable segment");
+_Static_assert(POINTER_STATE_RVA>=MODEL_WRITABLE_START&&POINTER_STATE_RVA+4<=MODEL_WRITABLE_END,"cursor slot inside the writable segment");
 static _Atomic uint32_t pointer_enabled;
 #ifdef COMMAND_COMPONENT
 static void (*component_pointer_enable)(unsigned);

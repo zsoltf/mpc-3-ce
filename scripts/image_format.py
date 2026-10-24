@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
 """Strict independent decoder for the one-partition AZ01 firmware used here."""
-import hashlib, lzma, pathlib, struct, sys
+import hashlib, json, lzma, pathlib, struct, sys
 OFFICIAL_SHA = '4c0f7797a006313fad206f9513eca8b3823e834c9e0941a6b5f088386cb835d6'
 ROOT_SIZE = 441279488
 
-def decode(path, output=None, reference=None):
+def decode(path, output=None, reference=None, *, mpc_310=False):
     b = pathlib.Path(path).read_bytes()
+    pin = json.loads((pathlib.Path(__file__).resolve().parents[1] / 'firmware/mpc-3.10.json').read_text()) if mpc_310 else None
+    root_size = pin['rootfs']['size'] if pin else ROOT_SIZE
+    # A composed image must name its exact stock reference. Without one this
+    # explicit profile admits only the pinned official image and decoded root.
+    if pin:
+        source = pathlib.Path(reference).read_bytes() if reference else b
+        assert len(source) == pin['image']['size'], 'wrong 3.10 stock image size'
+        assert hashlib.sha256(source).hexdigest() == pin['image']['sha256'], 'wrong 3.10 stock image hash'
     assert b[:4] == b'AZ01' and struct.unpack_from('<III', b, 4) == (1,264,23)
     assert b[16:40].endswith(b'\0')
     pos = 40
@@ -36,7 +44,10 @@ def decode(path, output=None, reference=None):
     assert b[aligned:] == b'EOF\0\x10\0\0\0'+bytes(8)
     dec = lzma.LZMADecompressor(format=lzma.FORMAT_XZ)
     root = dec.decompress(payload)
-    assert dec.eof and not dec.unused_data and len(root) == ROOT_SIZE
+    assert dec.eof and not dec.unused_data, 'incomplete or trailing XZ data'
+    assert len(root) == root_size, 'wrong root filesystem size'
+    if pin and not reference:
+        assert hashlib.sha256(root).hexdigest() == pin['rootfs']['sha256'], 'wrong 3.10 stock root hash'
     if reference:
         original = pathlib.Path(reference).read_bytes()
         assert b[:272] == original[:272] and b[280:320] == original[280:320]
@@ -48,5 +59,11 @@ def decode(path, output=None, reference=None):
             'compressed_bytes': size, 'compatible': names}
 
 if __name__ == '__main__':
-    import json
-    print(json.dumps(decode(*sys.argv[1:]), indent=2))
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('image')
+    parser.add_argument('output', nargs='?')
+    parser.add_argument('reference', nargs='?')
+    parser.add_argument('--mpc-3.10', dest='mpc_310', action='store_true')
+    args = parser.parse_args()
+    print(json.dumps(decode(args.image, args.output, args.reference, mpc_310=args.mpc_310), indent=2))

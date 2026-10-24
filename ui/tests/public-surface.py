@@ -15,7 +15,8 @@ assignment = (root / "screens/global-midi-learn-screen.cc").read_text()
 assignment_header = (root / "screens/global-midi-learn-screen.h").read_text()
 groups = (root / "screens/global-midi-learn-groups.cc").read_text()
 groups_header = (root / "screens/global-midi-learn-groups.h").read_text()
-private = (root / "private/mpc-3.9.1-profile.h").read_text()
+profiles = [(root / ("private/" + name)).read_text()
+            for name in ("mpc-3.9.1-profile.h", "mpc-3.10-profile.h")]
 diagnostic = (root / "examples/image-diagnostic/toolkit-example.cc").read_text()
 diagnostic_header = (root / "examples/image-diagnostic/toolkit-example.h").read_text()
 
@@ -53,7 +54,9 @@ assert "private/" not in slider_example and "private/" not in slider_example_hea
 assert "private/" not in toolkit_example and "private/" not in toolkit_example_header
 assert "private/" not in assignment and "private/" not in assignment_header
 assert "private/" not in groups and "private/" not in groups_header
-offsets = re.findall(r"#define MPC_UI_RVA_[A-Z0-9_]+ (0x[0-9a-f]+)u", private)
-assert len(offsets) == 58 and len(set(offsets)) == len(offsets)
-assert "bc054a3f3ba02c2d33ac9a515a4a8638964da779223502286d6a64b517bf1426" in private
+for private in profiles:
+    offsets = re.findall(r"#define MPC_UI_RVA_[A-Z0-9_]+ (0x[0-9a-f]+)u", private)
+    assert len(offsets) == 58 and len(set(offsets)) == len(offsets)
+assert "bc054a3f3ba02c2d33ac9a515a4a8638964da779223502286d6a64b517bf1426" in profiles[0]
+assert "753f838ca362d42c8cc3f5c9c3fcc604ba076b5919212e0301923a3c11c93494" in profiles[1]
 print("PASS public API/screens contain no raw host addresses or ABI vocabulary; pinned profile remains private")

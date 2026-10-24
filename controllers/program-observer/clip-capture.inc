@@ -33,21 +33,21 @@ static void clip_service(void){
   if(next.first_row>UINT32_MAX-7||next.first_column>UINT32_MAX-7){next.status=CLIP_SOURCE_UNAVAILABLE;*old=next;continue;}
   for(unsigned column=0;column<CLIP_SIDE;column++){
    unsigned native_column=next.first_column+column;if(native_column>=columns)continue;
-   uint32_t track=clip_native_track(lanes,native_column);if(!typed(track,0x6935554))continue;
+   uint32_t track=clip_native_track(lanes,native_column);if(!typed(track,MODEL_TRACK_VPTR))continue;
    next.track_owner[column]=channel_owner_id(track);
    for(unsigned row=0;row<CLIP_SIDE;row++){
     unsigned native_row=next.first_row+row;if(native_row>=rows)continue;
     ClipCell *cell=next.cells+row*CLIP_SIDE+column;unsigned state=clip_native_state(lanes,native_column,native_row);
     if(state>CLIP_WILL_STOP_OVERDUBBING){next.status=CLIP_SOURCE_UNAVAILABLE;continue;}
     ClipNativeShared clip=clip_native_lookup(lanes,native_column,native_row);
-    if(clip.object&&!typed(clip.object,0x692f010)){clip_native_release(&clip);next.status=CLIP_SOURCE_UNAVAILABLE;continue;}
+    if(clip.object&&!typed(clip.object,MODEL_CLIP_VPTR)){clip_native_release(&clip);next.status=CLIP_SOURCE_UNAVAILABLE;continue;}
     cell->state=state;cell->identity=clip.object;clip_native_release(&clip);
    }
   }
   for(unsigned row=0;row<CLIP_SIDE;row++)if(next.first_row+row<rows)next.scene_state[row]=clip_native_scene_state(lanes,next.first_row+row);
   next.generation=old->generation;
   if(next.status!=old->status||next.first_column!=old->first_column||next.first_row!=old->first_row||memcmp(next.track_owner,old->track_owner,sizeof(next.track_owner))||memcmp(next.scene_state,old->scene_state,sizeof(next.scene_state))||memcmp(next.cells,old->cells,sizeof(next.cells)))next.generation=next.generation==UINT32_MAX?1:next.generation+1;
-  if(word(root+0x754)!=lanes||word(root+0x24c)!=project||word(lanes+0x184)!=project)next.status=CLIP_SOURCE_UNAVAILABLE;
+  if(word(root+MODEL_ROOT_LANES)!=lanes||word(root+MODEL_ROOT_PROJECT)!=project||word(lanes+0x184)!=project)next.status=CLIP_SOURCE_UNAVAILABLE;
   *old=next;
  }
  clip_publish(&clip_current);

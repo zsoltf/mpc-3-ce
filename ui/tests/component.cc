@@ -1,6 +1,6 @@
 /* ARM composition test. Host widgets and parent adapter are explicit fixtures. */
 #include "../private/mpclearn-ui-private.h"
-#include "../private/mpc-3.9.1-profile.h"
+#include "../private/mpc-profile.h"
 #include "../examples/third-screen.h"
 #include "../examples/slider-screen.h"
 #include "../examples/toolkit-example.h"
@@ -995,10 +995,24 @@ int main() {
 
     GlobalIntentOwner global_owner = {};
     MpclearnGlobalLearnScreen global = {};
+    const unsigned global_first_child = fixture.count;
     require(mpclearn_global_learn_screen_open(
                 &global, context, parent, {0, 0, 1280, 690},
                 global_intent, &global_owner),
             "public assignment editor opens through toolkit");
+    void *global_background = mpc_ui_private_control_host_object(global.background);
+    Attached *global_surface = attached(global_background);
+    require(fixture.children[global_first_child].object == global_background &&
+            global_surface && global_surface->visible &&
+            global_surface->bounds[0] == 0 && global_surface->bounds[1] == 0 &&
+            global_surface->bounds[2] == 1280 && global_surface->bounds[3] == 690,
+            "inert Global background attaches first behind controls and covers the screen");
+    paint(global_background, 1, 1);
+    require(paint_fill == 0xff17181bu && paint_label && !strcmp(paint_label, " "),
+            "background contact keeps the flat blank surface paint");
+    click(global_background);
+    require(!global_owner.count,
+            "background contact publishes no mapping or navigation intent");
     const char *rows[MPCLEARN_GLOBAL_LEARN_MAX_GROUP_TARGETS] = {
         "025 Q-LINK 1", "026 Q-LINK 2", "027 Q-LINK 3"};
     MpclearnGlobalLearnView global_view = {};
@@ -1036,6 +1050,17 @@ int main() {
             "same-count list updates invalidate both native list paints");
     require(global_owner.count == 0,
             "programmatic list selection suppresses consumer intent");
+    global_view.can_previous_file = 0;
+    require(mpclearn_global_learn_screen_update(&global, &global_view) &&
+            !attached(mpc_ui_private_control_host_object(global.mapping_previous))->visible &&
+            global_surface->visible,
+            "catalog boundary hides Prev but retains the underlying contact surface");
+    click(global_background);
+    require(!global_owner.count,
+            "blank catalog boundary cannot publish Previous or Back");
+    global_view.can_previous_file = 1;
+    require(mpclearn_global_learn_screen_update(&global, &global_view),
+            "catalog Previous action restores normally away from the boundary");
     paint_list(mpc_ui_private_list_host_object(global.targets), 1, 1, 420, 52);
     require(paint_fill == 0xffd31145u &&
             paint_label && !strcmp(paint_label, rows[1]),

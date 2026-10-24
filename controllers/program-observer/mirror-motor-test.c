@@ -6,7 +6,7 @@
 static void need(int ok,const char *why){if(!ok){fprintf(stderr,"FAIL %s\n",why);exit(1);}}
 static void ready_snapshot(CopiedMirror *s,unsigned n,uint32_t epoch){
  memset(s,0,sizeof(*s));s->count=n;s->epoch=epoch;s->ready=s->alive=1;s->heartbeat=100;s->revision=2;
- for(unsigned i=0;i<n;i++)s->tracks[i]=(CopiedTrack){.serial=i+1,.track=0x10000+i*0x1000,.program=0x90000+i*0x1000,.incarnation=i+1,.binding=i+1,.vptr=0x6930c00,.revision=2,.bits=0x3f000000,.seed=1,.available=1};
+ for(unsigned i=0;i<n;i++)s->tracks[i]=(CopiedTrack){.serial=i+1,.track=0x10000+i*0x1000,.program=0x90000+i*0x1000,.incarnation=i+1,.binding=i+1,.vptr=MODEL_DRUMPROGRAM_VPTR,.revision=2,.bits=0x3f000000,.seed=1,.available=1};
 }
 static void release_all(MirrorBank *bank,uint32_t now){for(unsigned i=0;i<8;i++){bank_touch(bank,i,1,now);bank_touch(bank,i,0,now+1);}}
 int main(int argc,char **argv){

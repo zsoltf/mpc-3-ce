@@ -10,5 +10,9 @@ unsigned transport_queue_component_pending(void);
 unsigned transport_queue_component_manager_count(unsigned);
 unsigned transport_queue_component_trivial(void);
 void transport_queue_component_run(void);
+unsigned transport_queue_component_cancel(void);
+void transport_queue_component_reclaim(void);
+unsigned transport_queue_component_claim(void);
+void transport_queue_component_run_claimed(void);
 #endif
 #endif

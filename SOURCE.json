@@ -1,17 +1,41 @@
 {
-  "release": "v0.3.0",
-  "image_revision": "v0_3_0",
-  "firmware": "3.9.1 Gen1",
-  "runtime_format": "CMD31/MMV21",
-  "runtime_checksums": "firmware/prerelease-runtime.sha256",
+  "release": "v0.4.0",
+  "image_revision": "v0_4_0",
+  "firmware": "3.10.0 Gen1",
+  "runtime_format": "CMD32/MMV21",
+  "runtime_checksums": "firmware/v0.4.0-runtime.sha256",
+  "payload_checksums": "firmware/v0.4.0-payload.sha256",
+  "payload_checksums_sha256": "2d14239dc76e1f955ed12efd35b6c126c651772113211314477acddf61efd05f",
   "runtime_location": "/usr/share/mpclearn/mcu",
-  "qualified_hardware": "MPC Live II; full X-Touch MC/USB, Launchpad X, Launchpad Pro Mk3 and Launch Control XL3",
-  "image_flash_tested": true,
+  "qualified_hardware": "MPC Live II with X-Touch, Launch Control XL3, Launchpad X and Launchpad Pro Mk3. Prior installed 3.10 base and native direct-edit development runtime accepted; final copy-retry repair regression-reviewed. This rebuilt image has not been flashed.",
+  "image_flash_tested": false,
   "debug_image_flash_tested": false,
   "status": "release-candidate",
   "release_artifacts_current_for_source": true,
-  "product_candidate": "30e21adb78db7f5081ff46705b13cb444c6c8ffa",
-  "development_source_base": "30e21adb78db7f5081ff46705b13cb444c6c8ffa",
-  "diagnostics_status": "Existing optional USB diagnostics; not a new hardware qualification",
-  "native_info_label": "Inherited MPC CE v0.2.6 label; identify v0.3.0 by bundle filename and BUILD.json"
+  "product_candidate": "56a24d97d3cdb46533abaf901adbc5b460769521",
+  "development_source_base": "56a24d97d3cdb46533abaf901adbc5b460769521",
+  "recipe_source_commit": "56a24d97d3cdb46533abaf901adbc5b460769521",
+  "build_metadata": "BUILD.json is the immutable build-time candidate record. This release metadata records subsequent qualification of the exact payload and recipes.",
+  "diagnostics_status": "Offline exact recipe reconstruction and collector fixtures checked; native Debug image flash and USB report not qualified",
+  "native_info_label": "MPC 3 CE 0.4.0",
+  "recipes": {
+    "ssh": {
+      "manifest": "builder/resources/310/ssh/manifest.json",
+      "manifest_sha256": "feca3246e95b92a042a208ccd0b2a9c1edd275b79ebc8f63796ccb5804af2494",
+      "patch_sha256": "1baf377bb516e21accd946351906569a18d834d1c182fc0c4b3d242a4f8f375e",
+      "root_sha256": "9e66fd3fb739a6bd49e89adc15ea9619b3f9513bcf5cdf2c5ac8318183dfaa0b"
+    },
+    "no-ssh": {
+      "manifest": "builder/resources/310/no-ssh/manifest.json",
+      "manifest_sha256": "2bff8181d611a57e4ad019bf4dab1bd40b1f5f55b33371cdcae3ace71cc604da",
+      "patch_sha256": "f7d6dc3d100060768f2139bb46c4b06827bceda0175fb571af19ba0285eb7fc4",
+      "root_sha256": "0e0a446b6e2132cda5c513f552f59be4b4b29a8f663cc4c562fe66f75ee993e3"
+    },
+    "diagnostics": {
+      "manifest": "builder/resources/310/diagnostics/manifest.json",
+      "manifest_sha256": "c11f3da0bb7290b561bd2a03be6b95c1d0eeda9baf07a05a3f5c8f29ebcec4ac",
+      "patch_sha256": "311ea7af4adcbb058f30487170965ffa292e534e0de48e78fa25a85b38a24da0",
+      "root_sha256": "aae44b752fb351362f6641d9f8ea857bc769a17af244e7a31d4e2ddbb2122aa2"
+    }
+  }
 }

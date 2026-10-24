@@ -1,0 +1,17 @@
+{
+  "release": "v0.3.0",
+  "image_revision": "v0_3_0",
+  "firmware": "3.9.1 Gen1",
+  "runtime_format": "CMD31/MMV21",
+  "runtime_checksums": "firmware/prerelease-runtime.sha256",
+  "runtime_location": "/usr/share/mpclearn/mcu",
+  "qualified_hardware": "MPC Live II; full X-Touch MC/USB, Launchpad X, Launchpad Pro Mk3 and Launch Control XL3",
+  "image_flash_tested": true,
+  "debug_image_flash_tested": false,
+  "status": "release-candidate",
+  "release_artifacts_current_for_source": true,
+  "product_candidate": "30e21adb78db7f5081ff46705b13cb444c6c8ffa",
+  "development_source_base": "30e21adb78db7f5081ff46705b13cb444c6c8ffa",
+  "diagnostics_status": "Existing optional USB diagnostics; not a new hardware qualification",
+  "native_info_label": "Inherited MPC CE v0.2.6 label; identify v0.3.0 by bundle filename and BUILD.json"
+}

@@ -20,7 +20,43 @@ http://127.0.0.1:8765/builder.html for the image builder. Deploy only
 runtime; building the website does not require firmware, SSH keys, Docker or
 rebuilding the native runtime.
 
-## Native MCU runtime
+## MPC 3.10 candidate runtime
+
+The v0.4.0 candidate selects MPC 3.10 explicitly. Put the official Gen1 USB
+image at `inputs/MPC-3.10.0-Gen1-update.img`. With the Docker images described
+below available, extract the stock executable and compose the complete runtime:
+
+```sh
+mkdir -p build/mpc310
+docker run --rm --network none -v "$PWD:/work" -w /work mpclearn-build:local sh -ec '
+python3 scripts/image_format.py inputs/MPC-3.10.0-Gen1-update.img build/mpc310/rootfs.original.ext --mpc-3.10
+debugfs -R "dump /usr/bin/MPC /work/build/mpc310/MPC" build/mpc310/rootfs.original.ext
+'
+MPCLEARN_FIRMWARE=3.10 ./vst2/pd-rack-prototype/compose.sh /usr/share/mpclearn/mcu
+```
+
+The stock MPC SHA-256 is
+`753f838ca362d42c8cc3f5c9c3fcc604ba076b5919212e0301923a3c11c93494`.
+This works from an unpacked source snapshot without Git. The printed host
+stage contains the observer, Pd/Cardinal editors, Cardinal GPU presenter and
+`source-inputs.json`. The accepted SD plugin bundle is unchanged.
+
+For a private candidate image from the development checkout, pass that host
+stage, the accepted `plugins.squashfs`, a new output directory and the full
+source commit to `firmware/build-310-candidate.sh`. Packaging checks the composed
+source against the commit and writes the actual protocol/version in `BUILD.json`.
+Generate its SSH, no-SSH and Debug browser recipes with
+`firmware/build-310-recipes.sh OUTPUT_DIRECTORY`.
+A source-only local export uses `scripts/export_public.py --candidate-310 COMMIT
+--archive-directory NEW_DIRECTORY`; it does not publish anything. For a release
+snapshot, use the normal export described in [Publishing](PUBLISHING.md); the
+candidate option intentionally resets qualification metadata. The runtime's
+`BUILD.json` remains its original build-time record. Subsequent qualification is
+recorded in `release/public-source.json` against the unchanged payload and recipes.
+The v0.4.0 checksum files identify that payload; the older prerelease checksums and
+`release/public-source-v0.3.0.json` remain paired with the 3.9.1 packaging path.
+
+## MPC 3.9.1 runtime and historical v0.3.0 build
 
 Use Docker, Python 3, Clang with ARM cross-target support, and an official MPC
 3.9.1 Gen1 USB image. The tested host compiler is Apple Clang 17.0.0; the Docker

@@ -58,11 +58,11 @@ func loadPatch(variant recipeKind) (patchManifest, []byte, []byte, error) {
 	if variant != recipeNoSSH && variant != recipeSSH && variant != recipeDiagnostics {
 		return patchManifest{}, nil, nil, errors.New("unknown image recipe")
 	}
-	manifestBytes, err := assets.ReadFile("resources/" + string(variant) + "/manifest.json")
+	manifestBytes, err := assets.ReadFile(currentFirmware.Recipes + string(variant) + "/manifest.json")
 	if err != nil {
 		return patchManifest{}, nil, nil, err
 	}
-	patch, err := assets.ReadFile("resources/" + string(variant) + "/patch.bin")
+	patch, err := assets.ReadFile(currentFirmware.Recipes + string(variant) + "/patch.bin")
 	if err != nil {
 		return patchManifest{}, nil, nil, err
 	}

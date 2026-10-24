@@ -1,14 +1,14 @@
-/* Selection-only navigation for the focused 3.9.1 Grid. Shared by the outer
+/* Selection-only navigation for the focused native Grid. Shared by the outer
  * UI command drain and the panel wheel callback on that same qualified owner.
  * No retained items, timer or scan outside an explicit gesture/request.
  * See docs/note-selection.md for native evidence. */
-#define NOTE_GRID_VTABLE 0x69c67f0u
-#define NOTE_ITEM_VTABLE 0x69c6b4cu
-#define NOTE_HOLDER_VTABLE 0x6896efcu
-#define NOTE_BATCH_RVA 0x2e99764u
-#define NOTE_CLEAR_RVA 0x2e95f8cu
-#define NOTE_SELECT_RVA 0x2e962d4u
-#define NOTE_REVEAL_RVA 0x35f7234u
+#define NOTE_GRID_VTABLE MODEL_NOTE_GRID_VPTR
+#define NOTE_ITEM_VTABLE MODEL_NOTE_ITEM_VPTR
+#define NOTE_HOLDER_VTABLE MODEL_NOTE_HOLDER_VPTR
+#define NOTE_BATCH_RVA MODEL_INPUT_GRID_BATCH
+#define NOTE_CLEAR_RVA MODEL_INPUT_GRID_CLEAR
+#define NOTE_SELECT_RVA MODEL_INPUT_GRID_SELECT
+#define NOTE_REVEAL_RVA MODEL_INPUT_GRID_REVEAL
 #define NOTE_CHILD_LIMIT 4096u
 typedef struct {uint32_t item;int64_t time;unsigned pitch;} NotePosition;
 #ifdef COMMAND_COMPONENT
@@ -37,25 +37,25 @@ static uint32_t note_grid(void){
  return p?0:grid;
 }
 static int note_position(uint32_t grid,uint32_t item,NotePosition *out){
- if(!note_typed(item,NOTE_ITEM_VTABLE,0x114)||word(item+0x70)!=grid||word(item+0x104)!=grid||note_byte(item+0xe9))return 0;
- if((word(item+0x80)&255u)!=3u||(word(item+0xb8)&255u)!=3u)return 0;
- out->item=item;out->time=(int64_t)(((uint64_t)word(item+0xb4)<<32)|word(item+0xb0));out->pitch=note_byte(item+0xe0);return 1;
+ if(!note_typed(item,NOTE_ITEM_VTABLE,0x114)||word(item+MODEL_NOTE_OWNER)!=grid||word(item+MODEL_NOTE_SECOND_OWNER)!=grid||note_byte(item+MODEL_NOTE_ACTIVE))return 0;
+ if((word(item+MODEL_NOTE_ORIGINAL_TYPE)&255u)!=3u||(word(item+MODEL_NOTE_CURRENT_TYPE)&255u)!=3u)return 0;
+ out->item=item;out->time=(int64_t)(((uint64_t)word(item+MODEL_NOTE_CURRENT_TIME_HIGH)<<32)|word(item+MODEL_NOTE_CURRENT_TIME));out->pitch=note_byte(item+MODEL_NOTE_PITCH);return 1;
 }
 static int note_quiet(uint32_t item){
- if(note_byte(item+0x100)||word(item+0x110))return 0;
+ if(note_byte(item+MODEL_NOTE_QUIET)||word(item+MODEL_NOTE_PENDING))return 0;
  /* The live velocity-lane companion has a selection-state/repaint callback.
   * Unknown companions are not admitted to the clear/select composition. */
- uint32_t companion=word(item+0xfc);
+ uint32_t companion=word(item+MODEL_NOTE_COMPANION);
  if(companion){
-  if(!note_typed(companion,0x69c57fcu,0xec)||word(word(companion)+0xc0)!=observer_image_bias+0x2a3ab34u||(word(companion+0x68)&1u))return 0;
-  uint32_t owner=word(companion+0x70),parent=word(companion+0xc);
-  if(!note_typed(owner,0x69c5e10u,0x58)||word(word(owner)+0xc4)!=observer_image_bias+0x2a4a1c8u||
-     !note_typed(parent,0x69c5e10u,0x58)||word(parent+0x54)||word(word(parent)+0x4c)!=observer_image_bias+0xb24f60u)return 0;
+  if(!note_typed(companion,MODEL_NOTE_COMPANION_VPTR,0xec)||word(word(companion)+0xc0)!=observer_image_bias+MODEL_NOTE_COMPANION_SELECT||(word(companion+0x68)&1u))return 0;
+  uint32_t owner=word(companion+MODEL_NOTE_OWNER),parent=word(companion+0xc);
+  if(!note_typed(owner,MODEL_NOTE_COMPANION_OWNER_VPTR,0x58)||word(word(owner)+0xc4)!=observer_image_bias+MODEL_NOTE_COMPANION_REPAINT||
+     !note_typed(parent,MODEL_NOTE_COMPANION_OWNER_VPTR,0x58)||word(parent+0x54)||word(word(parent)+0x4c)!=observer_image_bias+MODEL_COMPONENT_DEFAULT_CALLBACK)return 0;
  }
- if(word(item+0x78)!=word(item+0xb0)||word(item+0x7c)!=word(item+0xb4)||
-    ((word(item+0x80)^word(item+0xb8))&~0x800u))return 0;
+ if(word(item+MODEL_NOTE_ORIGINAL_TIME)!=word(item+MODEL_NOTE_CURRENT_TIME)||word(item+MODEL_NOTE_ORIGINAL_TIME_HIGH)!=word(item+MODEL_NOTE_CURRENT_TIME_HIGH)||
+    ((word(item+MODEL_NOTE_ORIGINAL_TYPE)^word(item+MODEL_NOTE_CURRENT_TYPE))&~0x800u))return 0;
  /* Compare copied event payload, excluding native record alignment bytes. */
- for(unsigned i=0;i<37;i++)if(note_byte(item+0x88+i)!=note_byte(item+0xc0+i))return 0;
+ for(unsigned i=0;i<37;i++)if(note_byte(item+MODEL_NOTE_ORIGINAL_PAYLOAD+i)!=note_byte(item+MODEL_NOTE_CURRENT_PAYLOAD+i))return 0;
  return 1;
 }
 static int note_children(uint32_t grid,uint32_t *array,unsigned *count){
@@ -106,8 +106,8 @@ static int note_select_steps(int steps,unsigned *failure){
  }
  if(!target.item)return 0; /* empty grid or clamped endpoint */
  if(note_grid()!=grid||word(grid+0x20c)!=holder||!note_member(grid,target))return 0;
- uint32_t start[2]={word(target.item+0xb0),word(target.item+0xb4)};
- unsigned char payload[37];for(unsigned i=0;i<37;i++)payload[i]=(unsigned char)note_byte(target.item+0xc0+i);
+ uint32_t start[2]={word(target.item+MODEL_NOTE_CURRENT_TIME),word(target.item+MODEL_NOTE_CURRENT_TIME_HIGH)};
+ unsigned char payload[37];for(unsigned i=0;i<37;i++)payload[i]=(unsigned char)note_byte(target.item+MODEL_NOTE_CURRENT_PAYLOAD+i);
  note_native(0,grid,0);
  note_native(1,grid,0);
  /* This is inside the batch, before deferred callbacks run. Qualify again
@@ -123,10 +123,10 @@ static int note_select_steps(int steps,unsigned *failure){
  if(!applied||note_grid()!=grid||word(grid+0x20c)!=holder||word(grid+0x174)!=1){*failure=C_IDENTITY;return 0;}
  selected=word(grid+0x16c);if(!note_extent(selected,4))return 0;
  NotePosition result;if(!note_position(grid,word(selected),&result))return 0;
- if(word(result.item+0xb0)!=start[0]||word(result.item+0xb4)!=start[1]||!(word(result.item+0x80)&0x800u))return 0;
- for(unsigned i=0;i<37;i++)if(note_byte(result.item+0xc0+i)!=payload[i])return 0;
+ if(word(result.item+MODEL_NOTE_CURRENT_TIME)!=start[0]||word(result.item+MODEL_NOTE_CURRENT_TIME_HIGH)!=start[1]||!(word(result.item+MODEL_NOTE_ORIGINAL_TYPE)&0x800u))return 0;
+ for(unsigned i=0;i<37;i++)if(note_byte(result.item+MODEL_NOTE_CURRENT_PAYLOAD+i)!=payload[i])return 0;
  uint32_t viewport=word(grid+0x184);
- if(note_typed(viewport,0x693a7c4u,0x104))note_native(4,grid,result.item);
+ if(note_typed(viewport,MODEL_NOTE_VIEWPORT_VPTR,0x104))note_native(4,grid,result.item);
  return moved;
 }
 

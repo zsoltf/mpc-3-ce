@@ -32,7 +32,7 @@ python3 firmware/package.py --prerelease "$out/runtime" "$out/payload"
 mkdir -p "$out/MPCLEARN"
 cp "$bundle" "$out/MPCLEARN/plugins.squashfs"
 cp firmware/plugin-setup/README.md "$out/README.md"
-version=$(python3 -c 'import json; print(json.load(open("release/public-source.json"))["release"])')
+version=$(python3 -c 'import json; print(json.load(open("release/public-source-v0.3.0.json"))["release"])')
 image="$relative/MPC-3.9.1-Gen1-CE-$version-update.img"
 docker run --rm --network none -v "$repo:/work" -w /work \
  -v "$repo/inputs:/inputs:ro" -v "$out/payload:/payload:ro" \

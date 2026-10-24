@@ -49,7 +49,7 @@ func startWebBuild(this js.Value, args []js.Value) any {
 		image := js.Global().Get("Uint8Array").New(len(result.Image))
 		js.CopyBytesToJS(image, result.Image)
 		js.Global().Call("postMessage", map[string]any{
-			"type": "complete", "image": image, "imageSHA256": result.ImageSHA256, "sshEnabled": result.SSHEnabled, "diagnostics": result.Diagnostics,
+			"type": "complete", "image": image, "imageSHA256": result.ImageSHA256, "sshEnabled": result.SSHEnabled, "diagnostics": result.Diagnostics, "firmware": currentFirmware.Name,
 		}, []any{image.Get("buffer")})
 		result = memoryBuildResult{}
 		debug.FreeOSMemory()

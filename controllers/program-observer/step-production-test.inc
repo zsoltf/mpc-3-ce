@@ -7,23 +7,49 @@ static uint32_t step_fixture_track_lookup(uint32_t lanes,unsigned column){(void)
 static ClipNativeShared step_fixture_clip_lookup(uint32_t lanes,unsigned column,unsigned row){(void)lanes;(void)row;return (ClipNativeShared){column?0:step_fixture_clip,0};}
 
 static int step_fixture_scan(uint32_t owner,const uint32_t notes[4],int64_t first,unsigned division,unsigned tolerance,unsigned cells,uint32_t on[4][2]){
- require(owner==step_fixture_clip+0x388&&division==240&&tolerance==48,"absolute scan uses native source and division");
+ require(owner==step_fixture_clip+MODEL_CLIP_EVENT_OWNER&&division==240&&tolerance==48,"absolute scan uses native source and division");
  memset(on,0,8*sizeof(uint32_t));unsigned offset=(unsigned)(first/division);
  for(unsigned sound=0;sound<4;sound++)for(unsigned cell=0;cell<cells;cell++)if(notes[sound]<128&&offset+cell<64&&(step_fixture_pattern[notes[sound]][(offset+cell)/32]&(1u<<((offset+cell)%32))))on[sound][cell/32]|=1u<<(cell%32);
  return 1;
 }
 static unsigned step_fixture_edit(const CommandRequest *r,const StepCopy *s){
- require(s->control==word(root+0x398)&&r->effect_ap==word(s->program+0x1170+4*r->pad_index),"edit retains explicit mapped drum identity");
+ require(s->control==word(root+MODEL_ROOT_STEP_CONTROL)&&r->effect_ap==word(s->program+0x1170+4*r->pad_index),"edit retains explicit mapped drum identity");
  step_fixture_calls++;step_fixture_index=r->qlink_index;step_fixture_bits=r->bits;step_fixture_note=r->effect_ap;return 0;
 }
 static void step_fixture_projection(StepCopy *s){
  require(!step_native_read(s),"absolute source available");StepDemand d={.enabled=3};d.pad[0]=2;d.pad[1]=0;d.first_step[1]=16;
  step_project_views(s,&d);step_project_views(s,&d);
 }
+/* Reproduce the native blank Arrangement state: rooted Sequence and Clip
+ * exist before its used flag is set. Native event mutation is substituted. */
+static void step_blank_sequence_checks(uint32_t ctrl,uint32_t clip,uint32_t sequence){
+ StepDemand d={.enabled=1};d.bind_generation[0]=401;d.pad[0]=2;
+ put(sequence+0x258,0);StepCopy s;require(!step_native_read(&s),"blank selected Drum source is ready");
+ step_project_views(&s,&d);
+ require(s.views[0].status==STEP_READY&&s.views[0].target.clip==clip&&s.views[0].valid[0]==UINT32_MAX&&!s.views[0].on[0][0],"unused rooted Arrangement exposes empty editable steps");
+ CommandRequest first;require(step_request_bind_view(&first,&s,0,0,0,0)&&first.bits==1,"first note intent binds the existing blank native Clip");
+ put(project+0xa0,0);put(project+0x1e8,0);put(ctrl+0x68,0);
+ require(step_native_read(&s)==C_NOT_DRUM,"foreign selection has no selected Drum source");step_project_views(&s,&d);
+ require(s.views[0].status==STEP_READY&&s.views[0].target.clip==clip,"unused retained Sequence is not redirected by foreign selection");
+ put(sequence+0x258,1);step_project_views(&s,&d);
+ require(s.views[0].status==STEP_READY,"native first-note used transition retains the binding");
+ put(sequence+0x258,0);step_project_views(&s,&d);
+ require(s.views[0].status==STEP_UNAVAILABLE&&!step_bindings[0].clip.object,"cleared used Sequence invalidates binding even with unchanged Clip pointer");
+ put(project+0xa0,tracks[0].track);put(project+0x1e8,clip);put(ctrl+0x68,clip+MODEL_CLIP_EVENT_OWNER);
+ require(!step_native_read(&s),"cleared selected Sequence still has a native source");step_project_views(&s,&d);
+ require(s.views[0].status==STEP_UNAVAILABLE&&!step_bindings[0].clip.object,"invalidated generation does not silently reacquire cleared Sequence");
+ d.bind_generation[0]++;step_project_views(&s,&d);
+ require(s.views[0].status==STEP_READY&&s.views[0].target.clip==clip,"explicit re-entry may bind the newly blank rooted Sequence");
+ uint32_t slots=word(project+MODEL_PROJECT_SEQUENCES);put(slots,0);step_project_views(&s,&d);
+ require(s.views[0].status==STEP_UNAVAILABLE&&!step_bindings[0].clip.object,"unused status never bypasses rooted Sequence membership");
+ put(slots,sequence);put(sequence+0x258,1);
+ for(unsigned i=0;i<STEP_VIEWS;i++){step_bound_release(i);step_bound_attempt_epoch[i]=0;}
+ puts("PASS blank Arrangement binding: first-note intent, foreign selection, native-used transition, clearing invalidation, explicit re-entry and rooted membership (native used/event mutation substituted)");
+}
 /* Native mutation/lookup are substituted, but dispatch, interest withdrawal,
  * completion events and the bridge's sealed-receipt consumer are production. */
 static void step_lifecycle_checks(uint32_t ctrl,uint32_t clip){
- put(project+0xa0,tracks[0].track);put(project+0x1e8,clip);put(ctrl+0x68,clip+0x388);put(project+0x1b4,tracks[0].track);put(project+0x1bc,1);
+ put(project+0xa0,tracks[0].track);put(project+0x1e8,clip);put(ctrl+0x68,clip+MODEL_CLIP_EVENT_OWNER);put(project+0x1b4,tracks[0].track);put(project+0x1bc,1);
  put(tracks[0].program+0x1170+4*2,2);command_retire();
  for(unsigned branch=0;branch<4;branch++){
   unsigned now=100+100*branch,generation=10+2*branch;
@@ -64,7 +90,7 @@ static void step_lifecycle_checks(uint32_t ctrl,uint32_t clip){
 static unsigned step_fixture_stops,step_fixture_stop_kind,step_fixture_stop_column;
 static unsigned step_fixture_stop_emit(unsigned kind,uint32_t lanes,unsigned column,unsigned row){(void)lanes;(void)row;step_fixture_stops++;step_fixture_stop_kind=kind;step_fixture_stop_column=column;return 1;}
 static void step_stop_checks(uint32_t ctrl,uint32_t clip){
- put(project+0xa0,tracks[0].track);put(project+0x1e8,clip);put(ctrl+0x68,clip+0x388);put(project+0x1b4,tracks[0].track);put(project+0x1bc,1);put(ctrl+0x90,2);
+ put(project+0xa0,tracks[0].track);put(project+0x1e8,clip);put(ctrl+0x68,clip+MODEL_CLIP_EVENT_OWNER);put(project+0x1b4,tracks[0].track);put(project+0x1bc,1);put(ctrl+0x90,2);
  command_retire();step_fixture_clip=clip;memset(step_fixture_pattern,0,sizeof(step_fixture_pattern));
  for(unsigned i=0;i<STEP_VIEWS;i++){step_bound_release(i);step_bound_attempt_epoch[i]=0;}
  unsigned now=700;atomic_store(&fixture->heartbeat,now);atomic_store(&command_state->step_interest.until,5000);atomic_store(&command_state->step_interest.enabled,1);atomic_store(&command_state->step_interest.bind_generation[0],55);atomic_store(&command_state->step_interest.pad[0],2);
@@ -110,14 +136,14 @@ static void step_initial_source_checks(uint32_t ctrl,uint32_t clip){
   * turn the already-consumed generation into an initial acquisition again. */
  step_fixture_clip=0;step_project_views(&s,&d);
  require(!step_bindings[0].clip.object&&!step_bindings[1].clip.object,"deleted rooted targets release successful bindings");
- static unsigned char other_clip[0x400];uint32_t other=ptr(other_clip);put(other,0x692f010);put(other+0x388,0x6896efc);
- step_fixture_clip=other;put(project+0xa0,tracks[0].track);put(project+0x1e8,other);put(ctrl+0x68,other+0x388);lookups=step_fixture_track_lookups;
+ static unsigned char other_clip[0x400];uint32_t other=ptr(other_clip);put(other,MODEL_CLIP_VPTR);put(other+MODEL_CLIP_EVENT_OWNER,MODEL_EVENT_OWNER_VPTR);
+ step_fixture_clip=other;put(project+0xa0,tracks[0].track);put(project+0x1e8,other);put(ctrl+0x68,other+MODEL_CLIP_EVENT_OWNER);lookups=step_fixture_track_lookups;
  for(unsigned i=0;i<8;i++){require(!step_native_read(&s),"foreign Drum source is ready after invalidation");step_project_views(&s,&d);}
  require(!step_bindings[0].clip.object&&!step_bindings[1].clip.object&&s.views[0].status==STEP_UNAVAILABLE&&s.views[1].status==STEP_UNAVAILABLE&&step_fixture_track_lookups==lookups,"invalidated successful generations never acquire a foreign target");
  d.bind_generation[0]++;step_project_views(&s,&d);
  require(s.views[0].status==STEP_READY&&s.views[0].target.clip==other&&s.views[0].target.bind_generation==103&&s.views[1].status==STEP_UNAVAILABLE,"explicit new entry acquires current foreign Clip without reviving invalidated peer");
  CommandRequest stale={.effect_slot=1,.effect_position=102};require(step_request_match(&stale,&s)==C_IDENTITY,"previous binding generation cannot admit a newly submitted edit");
- step_fixture_clip=clip;put(project+0x1e8,clip);put(ctrl+0x68,clip+0x388);
+ step_fixture_clip=clip;put(project+0x1e8,clip);put(ctrl+0x68,clip+MODEL_CLIP_EVENT_OWNER);
  for(unsigned i=0;i<STEP_VIEWS;i++){step_bound_release(i);step_bound_attempt_epoch[i]=0;}
  puts("PASS initial unavailable Drum binding: Plugin to Drum same-generation recovery, no repeated unavailable acquisition, new-entry release, peer isolation, retained selection independence and no retarget after invalidation");
 }
@@ -127,19 +153,20 @@ static void step_owner_checks(void){
  initial(1);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);
  seed_fixture(0,0,0x3f000000,1);load_fixture();
  command_state->magic=COMMAND_MAGIC;command_state->version=COMMAND_VERSION;command_state->bytes=sizeof(*command_state);command_state->capacity=COMMAND_SLOTS;atomic_store(&command_state->step_interest.until,100);
- put(root+0x398,ptr(ctrl));put(root+0x39c,ptr(ctx));put(ptr(ctrl),0x690a8d0);put(ptr(ctrl)+0x68,ptr(clip)+0x388);put(ptr(ctrl)+0xa938,project+0x1c0);put(project+0x1e8,ptr(clip));put(ptr(clip),0x692f010);put(ptr(ctrl)+0xa940,ptr(quantiser));put(ptr(ctrl)+0xd8,3840);put(ptr(quantiser)+0x70,0x41800000);put(ptr(ctx)+0x1a8,15360);
+ put(root+MODEL_ROOT_STEP_CONTROL,ptr(ctrl));put(root+MODEL_ROOT_STEP_CONTEXT,ptr(ctx));put(ptr(ctrl),MODEL_STEP_CONTROL_VPTR);put(ptr(ctrl)+0x68,ptr(clip)+MODEL_CLIP_EVENT_OWNER);put(ptr(ctrl)+0xa938,project+0x1c0);put(project+0x1e8,ptr(clip));put(ptr(clip),MODEL_CLIP_VPTR);put(ptr(ctrl)+0xa940,ptr(quantiser));put(ptr(ctrl)+0xd8,3840);put(ptr(quantiser)+0x70,0x41800000);put(ptr(ctx)+0x1a8,15360);
  put(project+0xa0,tracks[0].track);put(project+0xe4,ptr(ctx));put(tracks[0].program+0x1140,0);for(unsigned i=0;i<128;i++)put(tracks[0].program+0x1170+4*i,i);
- put(root+0x754,ptr(lanes));put(ptr(lanes),0x6894708);put(ptr(lanes)+0x178,root);put(ptr(lanes)+0x184,project);put(ptr(lanes)+0x34,1);put(ptr(lanes)+0x48,9);
- sequence_slots[0]=ptr(ctx);put(project+0xa70,ptr(sequence_slots));put(project+0xa78,1);put(ptr(ctx)+0x250,0);put(ptr(ctx)+0x258,1);
- put(project+0x1b4,tracks[0].track);put(project+0x1b8,ptr(ctx));put(project+0x1bc,1);put(ptr(clip)+0x388,0x6896efc);step_fixture_clip=ptr(clip);component_clip_track=step_fixture_track_lookup;component_clip_lookup=step_fixture_clip_lookup;component_clip_state=step_fixture_clip_state;
+ put(root+MODEL_ROOT_LANES,ptr(lanes));put(ptr(lanes),MODEL_LANES_VPTR);put(ptr(lanes)+0x178,root);put(ptr(lanes)+0x184,project);put(ptr(lanes)+0x34,1);put(ptr(lanes)+0x48,9);
+ sequence_slots[0]=ptr(ctx);put(project+MODEL_PROJECT_SEQUENCES,ptr(sequence_slots));put(project+MODEL_PROJECT_SEQUENCE_COUNT,1);put(ptr(ctx)+0x250,0);put(ptr(ctx)+0x258,1);
+ put(project+0x1b4,tracks[0].track);put(project+0x1b8,ptr(ctx));put(project+0x1bc,1);put(ptr(clip)+MODEL_CLIP_EVENT_OWNER,MODEL_EVENT_OWNER_VPTR);step_fixture_clip=ptr(clip);component_clip_track=step_fixture_track_lookup;component_clip_lookup=step_fixture_clip_lookup;component_clip_state=step_fixture_clip_state;
  component_step_scan=step_fixture_scan;component_step_edit=step_fixture_edit;step_fixture_calls=0;memset(step_fixture_pattern,0,sizeof(step_fixture_pattern));
  atomic_store(&command_state->step_interest.epoch,epoch);atomic_store(&command_state->step_interest.enabled,3);atomic_store(command_state->step_interest.pad,2);atomic_store(command_state->step_interest.first_step+1,16);
+ step_blank_sequence_checks(ptr(ctrl),ptr(clip),ptr(ctx));
  step_initial_source_checks(ptr(ctrl),ptr(clip));
  StepCopy s;step_fixture_projection(&s);require(s.views[0].valid[0]==UINT32_MAX&&s.views[0].valid[1]==UINT32_MAX&&s.views[1].valid[1]==65535,"independent projections span the full sequence, not the native visible bar");
  CommandRequest r;require(step_request_bind_view(&r,&s,0,0,32,0)&&r.pad_index==2&&r.qlink_index==32,"offscreen nonselected intent pins A03 step33");
  /* A foreign selected track/clip cannot move either already bound view. */
  put(project+0xa0,0);put(project+0x1e8,0);put(ptr(ctrl)+0x68,0);
- StepCopy foreign;require(step_native_read(&foreign)!=C_OK,"new global selection is unavailable as a drum source");StepDemand bound_demand={.enabled=3};bound_demand.pad[0]=2;bound_demand.first_step[1]=16;step_project_views(&foreign,&bound_demand);require(foreign.views[0].status==STEP_READY&&foreign.views[0].target.event_owner==ptr(clip)+0x388&&foreign.views[1].status==STEP_READY,"selected clip changes retain both independently owned drum projections");
+ StepCopy foreign;require(step_native_read(&foreign)!=C_OK,"new global selection is unavailable as a drum source");StepDemand bound_demand={.enabled=3};bound_demand.pad[0]=2;bound_demand.first_step[1]=16;step_project_views(&foreign,&bound_demand);require(foreign.views[0].status==STEP_READY&&foreign.views[0].target.event_owner==ptr(clip)+MODEL_CLIP_EVENT_OWNER&&foreign.views[1].status==STEP_READY,"selected clip changes retain both independently owned drum projections");
  /* Native selection and visible page may change without redirecting this target. */
  put(ptr(ctrl)+0x90,1);put(ptr(ctrl)+0xd0,3840);put(ptr(ctrl)+0xd8,7680);
  unsigned at=submit_fixture(r);require(step_fixture_calls==1&&step_fixture_index==32&&step_fixture_note==2&&step_fixture_bits==1&&atomic_load(&command_state->slots[at].returned)&&!atomic_load(&command_state->slots[at].done),"absolute call return alone cannot settle a step");
@@ -149,28 +176,45 @@ static void step_owner_checks(void){
  input_events(&in,tx,at);require(!in.error,"read actual sealed step receipts");InputFlight saved=*tx;
  tx->step_events[2].tick=r.expires+1;input_settle(&in,&bank,&copy,4000);require(in.error==C_EXPIRED&&!atomic_load(&command_state->slots[at].settled),"native state observed after deadline cannot certify completion");
  *tx=saved;in.error=0;input_settle(&in,&bank,&copy,4000);require(!in.error&&tx->acknowledged&&atomic_load(&command_state->slots[at].settled)==1,"late consumer settles valid native evidence without replay");command_retire();require(atomic_load(&command_state->slots[at].reclaimed)==1&&step_fixture_calls==1&&step_current.views[1].status==STEP_READY,"withdrawn edit reclaimed once and peer remains available");atomic_store(&command_state->step_interest.enabled,3);
- atomic_store(&fixture->heartbeat,2);Context notice=context();notice.r[0]=ptr(ctrl)+12;notice.r[1]=ptr(clip)+0x388;notice.r[4]=ptr(clip)+0x388;step_bound_changed(&notice);step_project_views(&s,&bound_demand);step_project_views(&s,&bound_demand);
+ atomic_store(&fixture->heartbeat,2);Context notice=context();notice.r[0]=ptr(ctrl)+12;notice.r[1]=ptr(clip)+MODEL_CLIP_EVENT_OWNER;notice.r[4]=ptr(clip)+MODEL_CLIP_EVENT_OWNER;step_bound_changed(&notice);step_project_views(&s,&bound_demand);step_project_views(&s,&bound_demand);
  require(s.views[0].on[0][1]==1&&s.views[1].on[2][0]==65536,"one native edit updates both independently positioned surfaces");
  require(step_request_bind_view(&r,&s,0,0,32,2)&&r.bits==0,"lit absolute step requests removal");step_fixture_pattern[2][1]=0;at=submit_fixture(r);require(step_fixture_calls==1&&atomic_load(&command_state->slots[at].rejected)==C_SOURCE_CHANGED,"external native edit before dispatch refuses stale toggle");command_retire();
  step_bound_changed(&notice);step_project_views(&s,&bound_demand);step_project_views(&s,&bound_demand);require(step_request_bind_view(&r,&s,0,0,32,2),"fresh empty step");put(tracks[0].program+0x1170+4*2,90);at=submit_fixture(r);require(step_fixture_calls==1&&atomic_load(&command_state->slots[at].rejected)==C_IDENTITY,"mapped drum replacement refuses stale target");
- put(project+0xa0,tracks[0].track);put(project+0x1e8,ptr(clip));put(ptr(ctrl)+0x68,ptr(clip)+0x388);
+ put(project+0xa0,tracks[0].track);put(project+0x1e8,ptr(clip));put(ptr(ctrl)+0x68,ptr(clip)+MODEL_CLIP_EVENT_OWNER);
  static unsigned char sequencer[0x400],player[0x100];static uint32_t retained[3];
  put(ptr(ctrl)+0xaa1c,project);put(ptr(ctrl)+0xaa2c,ptr(sequencer));put(ptr(sequencer)+0x3f4,ptr(player));put(project+0x1b4,7);put(project+0x1b8,9);put(project+0x1bc,1);
  StepCopy clock_source;require(!step_native_read(&clock_source),"clock source member available");step_clock_read(&clock_source);atomic_store(&command_state->step_interest.until,100);
  struct {Context c;uint32_t stack[16];} clock_frame={0};clock_frame.c=context();retained[1]=ptr(ctrl);clock_frame.c.r[4]=ptr(retained);clock_frame.c.r[0]=480;clock_frame.c.r[1]=0;clock_frame.c.r[3]=ptr(player)+0x20;
  put(source_sp(&clock_frame.c)+0x34,7);put(source_sp(&clock_frame.c)+0x38,9);put(source_sp(&clock_frame.c)+0x3c,0xaabbcc01);call(&clock_frame.c,STEP_PLAYHEAD);
  step_clock_read(&clock_source);require(clock_source.clock_available&&clock_source.clock_value[0]==480&&!clock_source.clock_value[1],"actual scalar hook consumes native local tick and only engagement low byte");
- clock_frame.c.r[3]=ptr(player)+0x98;call(&clock_frame.c,STEP_PLAYHEAD);clock_source.clock_available=0;step_clock_read(&clock_source);require(!clock_source.clock_available,"native missing-player zero is unavailable, not step zero");
+ /* Both native selected-list hits leave separate row/timeline storage in r3.
+  * These are substituted getter results; the actual hook predicate is used. */
+ static uint32_t selected_row_tick[2][4];
+ for(unsigned list=0;list<2;list++){
+  clock_frame.c.r[0]=0;clock_frame.c.r[1]=0;clock_frame.c.r[3]=ptr(selected_row_tick[list]);call(&clock_frame.c,STEP_PLAYHEAD);
+  clock_source.clock_available=0;step_clock_read(&clock_source);require(clock_source.clock_available&&!clock_source.clock_value[0]&&!clock_source.clock_value[1],"either native selected-list hit retains valid tick zero");
+ }
+ clock_frame.c.r[0]=0;clock_frame.c.r[1]=0;clock_frame.c.r[3]=ptr(player)+MODEL_STEP_CLOCK_MISSING;call(&clock_frame.c,STEP_PLAYHEAD);clock_source.clock_available=0;step_clock_read(&clock_source);require(!clock_source.clock_available,"native missing-player zero is unavailable, not step zero");
  clock_frame.c.r[3]=ptr(player)+0x20;call(&clock_frame.c,STEP_PLAYHEAD);clock_source.clock_available=0;clock_source.tick=1002;step_clock_read(&clock_source);require(!clock_source.clock_available,"stale local clock disappears");
  clock_source.tick=2;put(project+0x1b4,8);step_clock_read(&clock_source);clock_source.clock_available=0;step_clock_read(&clock_source);require(!clock_source.clock_available,"selection key invalidates old native clock");
  /* A separately bound Clip clock uses the existing native all-player
   * callback, including its native row/source identity, not global selection. */
- static unsigned char player_storage[0x108],row_cache[0x204],timeline[0x70],row_vector[0xc0];uint32_t bound_player=ptr(player_storage)+8;
+ static unsigned char player_storage[MODEL_PLAYER_READ_SPAN+8],row_cache[0x204],timeline[0x70],row_vector[0xc0];uint32_t bound_player=ptr(player_storage)+8;
  StepTarget clock_target=s.views[0].target;clock_target.clock_available=0;
- put(bound_player+0x80,tracks[0].track);put(bound_player+0xe0,ptr(row_vector));put(bound_player+0xe4,ptr(row_vector)+sizeof(row_vector));put(bound_player+0xfc,ptr(timeline));put(ptr(row_vector),ptr(row_cache)+0x80);put(ptr(row_cache),0x68ac724);put(ptr(row_cache)+0x44,ptr(clip)+0x320);put(ptr(row_cache)+0x1ec,ptr(clip)+0x320);put(ptr(row_cache)+0x1fc,tracks[0].track);put(ptr(timeline)+0x44,1);put(ptr(timeline)+0x60,960);
+ put(bound_player+0x80,tracks[0].track);put(bound_player+MODEL_PLAYER_ROWS,ptr(row_vector));put(bound_player+MODEL_PLAYER_ROWS_END,ptr(row_vector)+sizeof(row_vector));put(bound_player+MODEL_PLAYER_TIMELINE_ZERO,ptr(timeline));put(ptr(row_vector),ptr(row_cache)+0x80);put(ptr(row_cache),MODEL_CLIP_CACHE_VPTR);put(ptr(row_cache)+0x44,ptr(clip)+MODEL_CLIP_AUDIO_DATA);put(ptr(row_cache)+0x1ec,ptr(clip)+MODEL_CLIP_AUDIO_DATA);put(ptr(row_cache)+0x1fc,tracks[0].track);put(ptr(timeline)+0x44,1);put(ptr(timeline)+0x60,960);
  step_bound_clock_read(0,tracks[0].track,&clock_target,2);Context advance=context();advance.r[0]=bound_player;advance.r[4]=bound_player-8;call(&advance,STEP_BOUND_PLAYHEAD);step_bound_clock_read(0,tracks[0].track,&clock_target,2);
  require(clock_target.clock_available&&clock_target.clock_value[0]==960,"bound primary row clock survives foreign global selection");
- atomic_store(&fixture->heartbeat,22);put(ptr(row_cache)+0x44,ptr(clip)+0x324);call(&advance,STEP_BOUND_PLAYHEAD);clock_target.clock_available=0;step_bound_clock_read(0,tracks[0].track,&clock_target,22);require(!clock_target.clock_available,"same row with another native Clip cache cannot paint old target playhead");
+ atomic_store(&fixture->heartbeat,22);put(ptr(row_cache)+0x44,ptr(clip)+MODEL_CLIP_AUDIO_DATA+4);call(&advance,STEP_BOUND_PLAYHEAD);clock_target.clock_available=0;step_bound_clock_read(0,tracks[0].track,&clock_target,22);require(!clock_target.clock_available,"same row with another native Clip cache cannot paint old target playhead");
+ put(ptr(row_cache)+0x44,ptr(clip)+MODEL_CLIP_AUDIO_DATA);
+ atomic_store(&command_state->step_interest.until,300);
+ const unsigned bad_offsets[]={0,0x1ec,0x1fc,0x200};
+ for(unsigned bad=0;bad<4;bad++){
+  unsigned now=42+20*bad,off=bad_offsets[bad];uint32_t prior=word(ptr(row_cache)+off);
+  put(ptr(row_cache)+off,prior+4);atomic_store(&fixture->heartbeat,now);call(&advance,STEP_BOUND_PLAYHEAD);clock_target.clock_available=0;step_bound_clock_read(0,tracks[0].track,&clock_target,now);
+  require(!clock_target.clock_available,"wrong cache type, data identity, Track or row cannot publish bound clock");put(ptr(row_cache)+off,prior);
+ }
+ atomic_store(&fixture->heartbeat,122);put(ptr(timeline)+0x44,0);call(&advance,STEP_BOUND_PLAYHEAD);clock_target.clock_available=0;step_bound_clock_read(0,tracks[0].track,&clock_target,122);require(!clock_target.clock_available,"stopped native timeline is unavailable");
+ atomic_store(&fixture->heartbeat,142);put(ptr(timeline)+0x44,1);put(ptr(timeline)+0x60,0);call(&advance,STEP_BOUND_PLAYHEAD);clock_target.clock_available=0;step_bound_clock_read(0,tracks[0].track,&clock_target,142);require(clock_target.clock_available&&!clock_target.clock_value[0],"bound clock recovers and keeps valid native step zero");
  step_stop_checks(ptr(ctrl),ptr(clip));
  step_lifecycle_checks(ptr(ctrl),ptr(clip));
  for(unsigned i=0;i<STEP_VIEWS;i++)step_bound_release(i);

@@ -35,6 +35,9 @@ enum {
  * recipe list, so these take consecutive ids rather than one repeated id. */
 #define M_WHEEL_FLUSH 298u
 #define M_WHEEL_FLUSH_LAST 301u
+/* Editor D1 ordinary return, after native queued cancellation/claimed wait. */
+#define GL_EDITOR_RETIRED 307u
+#define IO_TRACK_RETIRED 308u
 #define MODEL_FINITE_CLOSE 200u
 enum {MODEL_CONTEXT=32,MODEL_STACK,MODEL_ROOT,MODEL_INVALIDATE,MODEL_LOAD,
  MODEL_SNAPSHOT,MODEL_TRACK,MODEL_PROGRAM,MODEL_SCALARS,MODEL_FLAGS,MODEL_NAME,

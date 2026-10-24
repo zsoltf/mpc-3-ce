@@ -18,7 +18,7 @@ static void io_destination_point(Context *c,unsigned site){
  atomic_store(&io_destination_ready,0);io_graph_changed();
  if(site==IO_DEST_DEATH||site==IO_DEST_DELETE){atomic_store(&io_destination_key,0);return;}
  if(token()!=command_owner)return;
- if(site==IO_DEST_READY&&typed(key,0x68ad25c)){unsigned n=atomic_load(&io_destination_generation);if(n!=UINT32_MAX){atomic_store(&io_destination_generation,n+1);atomic_store_explicit(&io_destination_ready,1,memory_order_release);}}
+ if(site==IO_DEST_READY&&typed(key,MODEL_IO_DESTINATIONS_VPTR)){unsigned n=atomic_load(&io_destination_generation);if(n!=UINT32_MAX){atomic_store(&io_destination_generation,n+1);atomic_store_explicit(&io_destination_ready,1,memory_order_release);}}
 }
 typedef struct {_Atomic uint32_t key,live,ready,binding,generation;IOPortCatalogue choices[2];} IOProgramConnector;
 static IOProgramConnector io_program_connectors[IO_CONNECTORS];
@@ -48,7 +48,7 @@ static void io_string_catalogue(IOPortCatalogue *out,uint32_t property,int seed)
  atomic_store(&out->count,valid?count:0);atomic_store(&out->valid,valid);atomic_store_explicit(&out->revision,rev+2,memory_order_release);
 }
 static void io_program_point(Context *c,unsigned site){
- if(site==IO_STRING_CATALOGUE){uint32_t property=c->r[5];for(unsigned i=0;i<IO_CONNECTORS;i++){IOProgramConnector *n=io_program_connectors+i;if(n->live&&(property==n->key+0x534||property==n->key+0x60c)){unsigned audio=property==n->key+0x60c;if(token()!=command_owner){atomic_store(&n->choices[audio].valid,0);n->generation=0;n->ready=0;return;}io_string_catalogue(n->choices+audio,property,0);return;}}return;}
+ if(site==IO_STRING_CATALOGUE){uint32_t property=c->r[5];for(unsigned i=0;i<IO_CONNECTORS;i++){IOProgramConnector *n=io_program_connectors+i;if(n->live&&(property==n->key+MODEL_IO_PROGRAM_CATALOGUE||property==n->key+MODEL_IO_AUDIO_CATALOGUE)){unsigned audio=property==n->key+MODEL_IO_AUDIO_CATALOGUE;if(token()!=command_owner){atomic_store(&n->choices[audio].valid,0);n->generation=0;n->ready=0;return;}io_string_catalogue(n->choices+audio,property,0);return;}}return;}
  unsigned birth=site==IO_PC_BIRTH||site==IO_AC_BIRTH,dead=site==IO_PC_DEATH||site==IO_PC_DELETE||site==IO_AC_DEATH||site==IO_AC_DELETE,entry=site==IO_PC_BIND||site==IO_AC_BIND;
  uint32_t key=c->r[birth||dead||entry?0:site==IO_PC_BOUND?5:4];IOProgramConnector *n=io_program_copy(key);
  if(dead){if(n){n->ready=0;n->live=0;}return;}
@@ -63,13 +63,17 @@ static void io_program_point(Context *c,unsigned site){
   /* A nested or unobserved return cannot consume another invocation's frame. */
   if(f.key!=key||f.sp!=source_sp(c)+(audio?232:64))return;
   stack->depth--;
-  if(n&&f.generation&&n->generation==f.generation&&n->binding==f.binding&&typed(key,audio?0x68a241c:0x68d87e4)&&word(key+0x30)==f.binding)n->ready=1;
+  if(n&&f.generation&&n->generation==f.generation&&n->binding==f.binding&&typed(key,audio?MODEL_IO_AUDIO_CONNECTOR_VPTR:MODEL_IO_PROGRAM_CONNECTOR_VPTR)&&word(key+0x30)==f.binding)n->ready=1;
   return;
  }
  if(!n)return;
  if(site==IO_PC_EMPTY||site==IO_AC_EMPTY){io_string_catalogue(n->choices+(site==IO_AC_EMPTY),0,1);return;}
  if(entry){
   n->ready=0;unsigned generation=io_program_advance(n,atomic_load_explicit(&n->generation,memory_order_acquire));if(!generation)return;n->binding=c->r[2];
+  /* Native null-target branches never reach BOUND. They remain unavailable;
+   * only a non-null invocation needs a return frame to earn readiness. Keep
+   * generation invalidation above so an enclosing bind cannot become stale. */
+  if(!n->binding)return;
   IOProgramBinds *stack=io_program_binds+(site==IO_AC_BIND);
   if(stack->depth==IO_BIND_FRAMES){
    /* Overflow cannot certify any enclosing invocation. Keep its return
@@ -103,7 +107,7 @@ static void io_catalogue_copy(IOPortCatalogue *out,uint32_t property,int seed){
 }
 static void io_connector_point(Context *c,unsigned site){
  uint32_t key=c->r[site==IO_CONNECTOR_BIRTH||site==IO_CONNECTOR_DEATH||site==IO_CONNECTOR_DELETE||site==IO_BIND_ENTER?0:4];
- if(site==IO_PORT_CATALOGUE){uint32_t property=c->r[5];for(unsigned i=0;i<IO_CONNECTORS;i++){IOConnector *n=io_connectors+i;uint32_t k=atomic_load(&n->key);if(atomic_load(&n->live)&&(property==k+0x9bc||property==k+0x9f0)){if(token()!=command_owner){atomic_store(&n->ports[property==k+0x9f0].valid,0);atomic_store(&n->ready,0);return;}io_catalogue_copy(n->ports+(property==k+0x9f0),property,0);return;}}return;}
+ if(site==IO_PORT_CATALOGUE){uint32_t property=c->r[5];for(unsigned i=0;i<IO_CONNECTORS;i++){IOConnector *n=io_connectors+i;uint32_t k=atomic_load(&n->key);if(atomic_load(&n->live)&&(property==k+MODEL_IO_TRACK_INPUT_CATALOGUE||property==k+MODEL_IO_TRACK_OUTPUT_CATALOGUE)){if(token()!=command_owner){atomic_store(&n->ports[property==k+MODEL_IO_TRACK_OUTPUT_CATALOGUE].valid,0);atomic_store(&n->ready,0);return;}io_catalogue_copy(n->ports+(property==k+MODEL_IO_TRACK_OUTPUT_CATALOGUE),property,0);return;}}return;}
  IOConnector *n=io_connector_copy(key);
  if(site==IO_CONNECTOR_DEATH||site==IO_CONNECTOR_DELETE){if(n){atomic_store(&n->ready,0);atomic_store_explicit(&n->live,0,memory_order_release);}return;}
  if(token()!=command_owner){if(n)atomic_store(&n->ready,0);return;}
@@ -116,9 +120,9 @@ static void io_connector_point(Context *c,unsigned site){
  }
  if(!n)return;
  if(site==IO_INPUT_CATALOGUE_SEED||site==IO_OUTPUT_CATALOGUE_SEED){io_catalogue_copy(n->ports+(site==IO_OUTPUT_CATALOGUE_SEED),0,1);return;}
- if(site==IO_CONNECTOR_READY){if(typed(key,0x68a2710))atomic_store_explicit(&n->ready,1,memory_order_release);return;}
+ if(site==IO_CONNECTOR_READY){if(typed(key,MODEL_IO_TRACK_CONNECTOR_VPTR))atomic_store_explicit(&n->ready,1,memory_order_release);return;}
  if(site==IO_BIND_ENTER){atomic_store(&n->ready,0);if(io_binding_key||io_connector_serial==UINT32_MAX)return;atomic_store(&n->generation,++io_connector_serial);atomic_store(&n->binding,c->r[2]);io_binding_key=key;io_binding_sp=source_sp(c);io_binding_generation=atomic_load(&n->generation);return;}
- if(site==IO_BIND_DONE){if(io_binding_key==key&&io_binding_sp==source_sp(c)+64&&io_binding_generation==atomic_load(&n->generation)&&typed(key,0x68a2710)&&word(key+0x30)==atomic_load(&n->binding))atomic_store_explicit(&n->ready,1,memory_order_release);io_binding_key=io_binding_sp=io_binding_generation=0;}
+ if(site==IO_BIND_DONE){if(io_binding_key==key&&io_binding_sp==source_sp(c)+64&&io_binding_generation==atomic_load(&n->generation)&&typed(key,MODEL_IO_TRACK_CONNECTOR_VPTR)&&word(key+0x30)==atomic_load(&n->binding))atomic_store_explicit(&n->ready,1,memory_order_release);io_binding_key=io_binding_sp=io_binding_generation=0;}
 }
 /* Returns a copied native row only; unavailable rows stay visible but cannot
  * become an external choice. The native source property lock owns writes. */
@@ -132,11 +136,16 @@ static unsigned io_generation;
 static __thread unsigned io_submission __attribute__((tls_model("initial-exec")));
 static __thread unsigned io_setter_sp __attribute__((tls_model("initial-exec")));
 static _Atomic uint32_t io_payload[COMMAND_SLOTS],io_finished[COMMAND_SLOTS];
+/* Native queue ownership is separate from trace admission. ENTER publishes
+ * before the native decrement; D1 may observe zero before the late DONE hook.
+ * Only a post-drain flight with no ENTER can be retired as canceled. All
+ * identity words are atomic so an old scan cannot retire a reused slot. */
+static _Atomic uint32_t io_live[COMMAND_SLOTS],io_tracks[COMMAND_SLOTS],io_entered[COMMAND_SLOTS],io_retired[COMMAND_SLOTS];
 static uint32_t io_source_frame[COMMAND_SLOTS],io_helper[COMMAND_SLOTS],io_queue_result[COMMAND_SLOTS];
 typedef struct {uint32_t seq,payload,sp,lr;} IOCall;
 static __thread IOCall io_call __attribute__((tls_model("initial-exec")));
 static unsigned io_set_seen[COMMAND_SLOTS],io_done_seen[COMMAND_SLOTS],io_commit_seen[COMMAND_SLOTS],io_receipt[COMMAND_SLOTS],io_fault[COMMAND_SLOTS],io_audio_incarnation[COMMAND_SLOTS];
-static void io_initialize(void){memset(&io_current,0,sizeof(io_current));io_generation=io_connector_serial=io_bound_generation=0;io_program_serial=io_pc_bound=io_ac_bound=0;memset(io_program_binds,0,sizeof(io_program_binds));memset(io_program_connectors,0,sizeof(io_program_connectors));io_binding_key=io_binding_sp=io_binding_generation=0;memset(io_connectors,0,sizeof(io_connectors));atomic_store(&io_destination_key,0);atomic_store(&io_destination_ready,0);atomic_store(&io_destination_generation,0);atomic_store(&io_graph_generation,0);memset(&io_send_catalogue,0,sizeof(io_send_catalogue));memset(io_send_destinations,0,sizeof(io_send_destinations));io_send_generation=io_send_graph=io_send_track=io_send_owner=io_send_project=0;io_submission=io_setter_sp=0;memset(&io_call,0,sizeof(io_call));memset(io_payload,0,sizeof(io_payload));memset(io_finished,0,sizeof(io_finished));memset(io_source_frame,0,sizeof(io_source_frame));memset(io_helper,0,sizeof(io_helper));memset(io_queue_result,0,sizeof(io_queue_result));memset(io_set_seen,0,sizeof(io_set_seen));memset(io_done_seen,0,sizeof(io_done_seen));memset(io_commit_seen,0,sizeof(io_commit_seen));memset(io_receipt,0,sizeof(io_receipt));memset(io_fault,0,sizeof(io_fault));memset(io_audio_incarnation,0,sizeof(io_audio_incarnation));}
+static void io_initialize(void){memset(&io_current,0,sizeof(io_current));io_generation=io_connector_serial=io_bound_generation=0;io_program_serial=io_pc_bound=io_ac_bound=0;memset(io_program_binds,0,sizeof(io_program_binds));memset(io_program_connectors,0,sizeof(io_program_connectors));io_binding_key=io_binding_sp=io_binding_generation=0;memset(io_connectors,0,sizeof(io_connectors));atomic_store(&io_destination_key,0);atomic_store(&io_destination_ready,0);atomic_store(&io_destination_generation,0);atomic_store(&io_graph_generation,0);memset(&io_send_catalogue,0,sizeof(io_send_catalogue));memset(io_send_destinations,0,sizeof(io_send_destinations));io_send_generation=io_send_graph=io_send_track=io_send_owner=io_send_project=0;io_submission=io_setter_sp=0;memset(&io_call,0,sizeof(io_call));memset(io_live,0,sizeof(io_live));memset(io_tracks,0,sizeof(io_tracks));memset(io_entered,0,sizeof(io_entered));memset(io_retired,0,sizeof(io_retired));memset(io_payload,0,sizeof(io_payload));memset(io_finished,0,sizeof(io_finished));memset(io_source_frame,0,sizeof(io_source_frame));memset(io_helper,0,sizeof(io_helper));memset(io_queue_result,0,sizeof(io_queue_result));memset(io_set_seen,0,sizeof(io_set_seen));memset(io_done_seen,0,sizeof(io_done_seen));memset(io_commit_seen,0,sizeof(io_commit_seen));memset(io_receipt,0,sizeof(io_receipt));memset(io_fault,0,sizeof(io_fault));memset(io_audio_incarnation,0,sizeof(io_audio_incarnation));}
 static void io_publish(void){
  IOState *s=&mirror_state->io;unsigned rev=atomic_load(&s->revision);if(rev>UINT32_MAX-2){atomic_store(&s->error,IO_INVALID);return;}
  uint32_t words[IO_WORDS];memcpy(words,&io_current,sizeof(words));atomic_store(&s->revision,rev+1);atomic_thread_fence(memory_order_release);
@@ -145,10 +154,10 @@ static void io_publish(void){
 }
 static Track *io_track_source(Context *c,const IODemand *d,unsigned selected){
  if(!d->enabled||d->epoch!=epoch||token()!=command_owner||!ready||loading||reset_pending||depth||!active()||!root||!project||!pool||!command_queues||c->r[0]!=command_queues+4||word(c->r[0]+0xf0)||(selected&&(atomic_load(&command_state->new_project_intent)||atomic_load(&command_state->stop_requested))))return NULL;
- if(!typed(root,0x68d7bf8)||word(root+0x24c)!=project||!typed(project,0x6933c4c)||word(project+0xa94)!=pool||!typed(pool,0x68ad2c4))return NULL;
+ if(!typed(root,MODEL_ROOT_VPTR)||word(root+MODEL_ROOT_PROJECT)!=project||!typed(project,MODEL_PROJECT_VPTR)||word(project+MODEL_PROJECT_POOL)!=pool||!typed(pool,MODEL_POOL_VPTR))return NULL;
  ChannelCell *selection=selected?channel_cell(project+0x78):NULL;if(selected&&(!selection||!atomic_load(&selection->live)))return NULL;
  Track *t=NULL;for(unsigned i=0;i<count;i++)if(tracks[i].serial==d->serial){if(t)return NULL;t=tracks+i;}
- if(!t||t->transition||!t->track_owner||!t->program_owner||(selected&&atomic_load(&selection->bits)!=t->track)||channel_owner_id(t->track)!=t->track_owner||channel_owner_id(t->program)!=t->program_owner||!vector(pool,0x34,t->track)||!typed(t->track,0x6935554)||word(t->track+0x648)!=t->program||word(t->track+0x64c)!=t->kind||!typed(word(project+0xa90),0x68ad07c)||!program_member(word(project+0xa90),t))return NULL;
+ if(!t||t->transition||!t->track_owner||!t->program_owner||(selected&&atomic_load(&selection->bits)!=t->track)||channel_owner_id(t->track)!=t->track_owner||channel_owner_id(t->program)!=t->program_owner||!vector(pool,MODEL_POOL_BEGIN,t->track)||!typed(t->track,MODEL_TRACK_VPTR)||word(t->track+0x648)!=t->program||word(t->track+0x64c)!=t->kind||!typed(word(project+MODEL_PROJECT_PROGRAM_POOL),MODEL_PROGRAM_POOL_VPTR)||!program_member(word(project+MODEL_PROJECT_PROGRAM_POOL),t))return NULL;
  return t;
 }
 static Track *io_track(Context *c,const IODemand *d){return io_track_source(c,d,1);}
@@ -165,22 +174,22 @@ static int io_scalar(Track *t,unsigned tag,uint32_t property,IOField *out,uint32
 /* Borrow this chain only during the existing non-reentrant UI invocation.
  * No O/PC pointer or native String survives that invocation. */
 static uint32_t io_connector(Track *t){
- uint32_t o=word(root+0x75c);if(!pointer(o)||o>UINT32_MAX-8)return 0;
+ uint32_t o=word(root+MODEL_ROOT_IO);if(!pointer(o)||o>UINT32_MAX-8)return 0;
  uint32_t pc=word(o+8);if(!pointer(pc)||pc>UINT32_MAX-0x1540)return 0;
  uint32_t c=pc+0x2f4;
- IOConnector *n=io_connector_copy(c);if(!n||!atomic_load(&n->ready)||!typed(c,0x68a2710)||word(c+0x30)!=t->track||word(c+0xa34)!=pool)return 0;
+ IOConnector *n=io_connector_copy(c);if(!n||!atomic_load(&n->ready)||!typed(c,MODEL_IO_TRACK_CONNECTOR_VPTR)||word(c+0x30)!=t->track||word(c+MODEL_IO_TRACK_POOL)!=pool)return 0;
  return c;
 }
 static uint32_t io_program_native(Track *t,unsigned audio){
- uint32_t o=word(root+0x75c);if(!pointer(o)||o>UINT32_MAX-8)return 0;uint32_t pc=word(o+8);if(!pointer(pc)||pc>UINT32_MAX-0x1a00)return 0;
- uint32_t key=pc+(audio?0x12ec:0xd4c);IOProgramConnector *n=io_program_copy(key);
+ uint32_t o=word(root+MODEL_ROOT_IO);if(!pointer(o)||o>UINT32_MAX-8)return 0;uint32_t pc=word(o+8);if(!pointer(pc)||pc>UINT32_MAX-(MODEL_IO_COLLECTION_AUDIO+MODEL_IO_AUDIO_CONNECTOR_SIZE))return 0;
+ uint32_t key=pc+(audio?MODEL_IO_COLLECTION_AUDIO:MODEL_IO_COLLECTION_PROGRAM);IOProgramConnector *n=io_program_copy(key);
  unsigned generation=n?atomic_load_explicit(&n->generation,memory_order_acquire):0;
- if(!generation||!n->ready||!typed(key,audio?0x68a241c:0x68d87e4)||word(key+0x30)!=t->program||n->binding!=t->program)return 0;
+ if(!generation||!n->ready||!typed(key,audio?MODEL_IO_AUDIO_CONNECTOR_VPTR:MODEL_IO_PROGRAM_CONNECTOR_VPTR)||word(key+0x30)!=t->program||n->binding!=t->program)return 0;
  return n->live&&n->key==key&&n->ready&&atomic_load_explicit(&n->generation,memory_order_acquire)==generation?key:0;
 }
 static uint32_t io_destination_native(void){
  uint32_t d=atomic_load_explicit(&io_destination_key,memory_order_acquire);
- return d&&atomic_load_explicit(&io_destination_ready,memory_order_acquire)&&typed(d,0x68ad25c)&&word(project+0xad4)==d&&word(d+0x34)==pool?d:0;
+ return d&&atomic_load_explicit(&io_destination_ready,memory_order_acquire)&&typed(d,MODEL_IO_DESTINATIONS_VPTR)&&word(project+MODEL_PROJECT_SEND_DESTINATIONS)==d&&word(d+0x34)==pool?d:0;
 }
 static int io_send_seed(Track *t){
  uint32_t d=io_destination_native(),generation=atomic_load(&io_destination_generation),graph=atomic_load(&io_graph_generation),project_owner=channel_owner_id(project);
@@ -191,9 +200,9 @@ static int io_send_seed(Track *t){
  /* The native builder owns labels and cycle eligibility. Bound its membership
   * before invocation; copied row lifetimes end with the exact native destructor. */
  uint32_t nodes[IO_CHOICES],keys[IO_CHOICES],destinations[IO_CHOICES],stack[IO_CHOICES];unsigned used=0,depth=0;uint32_t node=word(d+0x40);
- while(node||depth){while(node){if(!pointer(node)||node>UINT32_MAX-24||depth==IO_CHOICES)return 0;for(unsigned i=0;i<used;i++)if(nodes[i]==node)return 0;for(unsigned i=0;i<depth;i++)if(stack[i]==node)return 0;stack[depth++]=node;node=word(node+8);}node=stack[--depth];if(used>=members)return 0;nodes[used]=node;keys[used]=word(node+0x10);destinations[used]=word(node+0x14);if(!channel_owner_id(destinations[used])||!vector(pool,0x34,destinations[used]))return 0;used++;node=word(node+0xc);}
+ while(node||depth){while(node){if(!pointer(node)||node>UINT32_MAX-24||depth==IO_CHOICES)return 0;for(unsigned i=0;i<used;i++)if(nodes[i]==node)return 0;for(unsigned i=0;i<depth;i++)if(stack[i]==node)return 0;stack[depth++]=node;node=word(node+8);}node=stack[--depth];if(used>=members)return 0;nodes[used]=node;keys[used]=word(node+0x10);destinations[used]=word(node+0x14);if(!channel_owner_id(destinations[used])||!vector(pool,MODEL_POOL_BEGIN,destinations[used]))return 0;used++;node=word(node+0xc);}
  if(used!=members)return 0;
- uint32_t native[3]={0,0,0};((void (*)(uint32_t*,void*,void*))(uintptr_t)(observer_image_bias+0x2699a90))(native,(void*)(uintptr_t)d,(void*)(uintptr_t)t->track);
+ uint32_t native[3]={0,0,0};((void (*)(uint32_t*,void*,void*))(uintptr_t)(observer_image_bias+MODEL_IO_SEND_DESCRIPTOR_BUILDER))(native,(void*)(uintptr_t)d,(void*)(uintptr_t)t->track);
  unsigned valid=1,count=0;uint32_t begin=native[0],end=native[1],cap=native[2];if(begin>end||end>cap||(end-begin)%12||(cap-begin)%12||(end-begin)/12!=members+1||!pointer(begin))valid=0;else count=(end-begin)/12;
  unsigned rev=atomic_load(&io_send_catalogue.revision);if((rev&1)||rev>UINT32_MAX-2)valid=0;atomic_store(&io_send_catalogue.revision,rev+1);
  for(unsigned i=0;valid&&i<count;i++){
@@ -203,22 +212,22 @@ static int io_send_seed(Track *t){
   char name[IO_TEXT]={0};for(unsigned j=0;j<IO_TEXT-1;j++){name[j]=*(const volatile char*)(uintptr_t)(text+j);if(!name[j])break;}
   atomic_store(&io_send_catalogue.rows[i].id,destination?destination+0x43c:0);atomic_store(&io_send_catalogue.rows[i].selectable,selectable);for(unsigned j=0;j<IO_TEXT/4;j++){uint32_t w;memcpy(&w,name+j*4,4);atomic_store(&io_send_catalogue.rows[i].text[j],w);}io_send_destinations[i]=(IOSendDestination){destination,owner};
  }
- ((void (*)(uint32_t*))(uintptr_t)(observer_image_bias+0x4c8140))(native);
+ ((void (*)(uint32_t*))(uintptr_t)(observer_image_bias+MODEL_IO_SEND_VECTOR_DESTRUCTOR))(native);
  if(d!=io_destination_native()||generation!=atomic_load(&io_destination_generation)||graph!=atomic_load(&io_graph_generation)||channel_owner_id(t->track)!=t->track_owner||channel_owner_id(project)!=project_owner)valid=0;
  atomic_store(&io_send_catalogue.count,valid?count:0);atomic_store(&io_send_catalogue.valid,valid);atomic_store_explicit(&io_send_catalogue.revision,rev+2,memory_order_release);
  io_send_generation=generation;io_send_graph=graph;io_send_track=t->track;io_send_owner=t->track_owner;io_send_project=project_owner;return valid;
 }
 static unsigned io_send_preflight(Track *t,uint32_t destination){
- uint32_t d=io_destination_native();if(!d||!typed(t->track,0x6935554)||channel_owner_id(t->track)!=t->track_owner)return C_IDENTITY;
- if(((uint32_t (*)(void*,void*))(uintptr_t)(observer_image_bias+0x257eec4))((void*)(uintptr_t)pool,(void*)(uintptr_t)(t->track+0x468))!=t->track)return C_NATIVE_MEMBERSHIP;
- if(destination){uint32_t target=destination-0x43c;unsigned found=0;for(unsigned i=0;i<atomic_load(&io_send_catalogue.count);i++)if(io_send_destinations[i].destination==target&&io_send_destinations[i].owner==channel_owner_id(target))found++;if(found!=1||!typed(target,0x6935554)||!vector(pool,0x34,target)||((uint32_t (*)(void*,void*))(uintptr_t)(observer_image_bias+0x25765d4))((void*)(uintptr_t)d,(void*)(uintptr_t)(target+0x468))!=target)return C_NATIVE_MEMBERSHIP;}
- uint32_t visited[3]={0,0,0};unsigned cyclic=((unsigned (*)(void*,void*,uint32_t*))(uintptr_t)(observer_image_bias+0x245f088))((void*)(uintptr_t)(t->track+0x41c),(void*)(uintptr_t)destination,visited);
- if(visited[0])((void (*)(void*,unsigned))(uintptr_t)(observer_image_bias+0x4a66cc))((void*)(uintptr_t)visited[0],visited[2]-visited[0]);
+ uint32_t d=io_destination_native();if(!d||!typed(t->track,MODEL_TRACK_VPTR)||channel_owner_id(t->track)!=t->track_owner)return C_IDENTITY;
+ if(((uint32_t (*)(void*,void*))(uintptr_t)(observer_image_bias+MODEL_MIDI_LOOKUP))((void*)(uintptr_t)pool,(void*)(uintptr_t)(t->track+0x468))!=t->track)return C_NATIVE_MEMBERSHIP;
+ if(destination){uint32_t target=destination-0x43c;unsigned found=0;for(unsigned i=0;i<atomic_load(&io_send_catalogue.count);i++)if(io_send_destinations[i].destination==target&&io_send_destinations[i].owner==channel_owner_id(target))found++;if(found!=1||!typed(target,MODEL_TRACK_VPTR)||!vector(pool,MODEL_POOL_BEGIN,target)||((uint32_t (*)(void*,void*))(uintptr_t)(observer_image_bias+MODEL_IO_SEND_DESTINATION_GUID_LOOKUP))((void*)(uintptr_t)d,(void*)(uintptr_t)(target+0x468))!=target)return C_NATIVE_MEMBERSHIP;}
+ uint32_t visited[3]={0,0,0};unsigned cyclic=((unsigned (*)(void*,void*,uint32_t*))(uintptr_t)(observer_image_bias+MODEL_IO_SEND_CYCLE_CHECK))((void*)(uintptr_t)(t->track+0x41c),(void*)(uintptr_t)destination,visited);
+ if(visited[0])((void (*)(void*,unsigned))(uintptr_t)(observer_image_bias+MODEL_SIZED_DELETE))((void*)(uintptr_t)visited[0],visited[2]-visited[0]);
  return cyclic?C_NATIVE_MEMBERSHIP:C_OK;
 }
 static int io_output_read(Track *t,IOField *f,uint32_t now){
  if(!command_mixable(t->program)||!io_scalar(t,CI_AUDIO_OUT,t->program+0x348,f,now))return 0;
- unsigned revision=f->revision;float value=((float (*)(void*,unsigned,unsigned))(uintptr_t)(observer_image_bias+0x250b754))((void*)(uintptr_t)t->program,0x101,325);
+ unsigned revision=f->revision;float value=((float (*)(void*,unsigned,unsigned))(uintptr_t)(observer_image_bias+MODEL_EFFECT_ENABLE_READ))((void*)(uintptr_t)t->program,0x101,325);
  IOField after={0};if(!(value>=0&&value<65536)||value!=(float)(unsigned)value||!io_scalar(t,CI_AUDIO_OUT,t->program+0x348,&after,now)||after.revision!=revision||after.incarnation!=f->incarnation||!command_mixable(t->program)||channel_owner_id(t->program)!=t->program_owner)return 0;
  f->value=(unsigned)value;return 1;
 }
@@ -229,8 +238,8 @@ static int io_output_agrees(Track *t){
 }
 static int io_audio_choice(Track *t,uint32_t connector,unsigned audio,unsigned row,unsigned *value){
  IOProgramConnector *n=io_program_copy(connector);if(!n||!n->ready||row>=atomic_load(&n->choices[audio].count)||!atomic_load(&n->choices[audio].valid))return 0;
- if(audio){uint32_t mapper=word(connector+0x6fc);if(!pointer(mapper)||mapper>UINT32_MAX-0x14)return 0;*value=((unsigned (*)(void*,unsigned))(uintptr_t)(observer_image_bias+0x269741c))((void*)(uintptr_t)mapper,row);}
- else{unsigned base=((unsigned (*)(void*))(uintptr_t)(observer_image_bias+0x26991b0))((void*)(uintptr_t)t->program);if(base>65535-row)return 0;*value=base+row;}
+ if(audio){uint32_t mapper=word(connector+MODEL_IO_AUDIO_MAPPER);if(!pointer(mapper)||mapper>UINT32_MAX-0x14)return 0;*value=((unsigned (*)(void*,unsigned))(uintptr_t)(observer_image_bias+MODEL_IO_AUDIO_INPUT_CHOICE_MAPPER))((void*)(uintptr_t)mapper,row);}
+ else{unsigned base=((unsigned (*)(void*))(uintptr_t)(observer_image_bias+MODEL_IO_AUDIO_OUTPUT_BASE_GETTER))((void*)(uintptr_t)t->program);if(base>65535-row)return 0;*value=base+row;}
  return *value<65536;
 }
 static void io_service(Context *c){
@@ -274,7 +283,7 @@ static void io_service(Context *c){
  if(t->kind<=5){IOField *f=io_current.fields+IO_SEND_TO;if(connector&&io_scalar(t,CI_SEND_TO,t->track+0x420,f,now)&&io_send_seed(t)){IOPortCatalogue *p=&io_send_catalogue;unsigned count=atomic_load(&p->count),matches=0;for(unsigned i=0;i<count;i++)if(atomic_load(&p->rows[i].id)==f->value){f->choice_index=i;matches++;}uint32_t id;unsigned selectable;if(matches==1&&io_port_row(p,f->choice_index,&id,&selectable,f->text)){f->choice_generation=atomic_load(&p->revision);f->choice_count=count;f->status=IO_READY;}}}
  else io_current.fields[IO_SEND_TO].status=IO_NOT_APPLICABLE;
  if(t->kind<=5){IOField *f=io_current.fields+IO_MONITOR;if(connector&&io_scalar(t,CI_MIDI_MONITOR,t->track+0x400,f,now)&&f->value<4){static const char *names[]={"Off","In","Auto","Merge"};f->status=IO_READY;f->choice_generation=1;f->choice_count=4;f->choice_index=f->value;memcpy(f->text,names[f->value],strlen(names[f->value])+1);}}
- else if(t->kind==6){IOField *f=io_current.fields+IO_MONITOR;if(ac&&typed(t->program,0x692fec4)&&io_scalar(t,CI_AUDIO_MONITOR,t->program+0x26c8,f,now)&&f->value<4){static const char *names[]={"Off","In","Auto","Merge"};f->status=IO_READY;f->choice_generation=1;f->choice_count=4;f->choice_index=f->value;memcpy(f->text,names[f->value],strlen(names[f->value])+1);}}
+ else if(t->kind==6){IOField *f=io_current.fields+IO_MONITOR;if(ac&&typed(t->program,MODEL_AUDIOPROGRAM_VPTR)&&io_scalar(t,CI_AUDIO_MONITOR,t->program+0x26c8,f,now)&&f->value<4){static const char *names[]={"Off","In","Auto","Merge"};f->status=IO_READY;f->choice_generation=1;f->choice_count=4;f->choice_index=f->value;memcpy(f->text,names[f->value],strlen(names[f->value])+1);}}
  else io_current.fields[IO_MONITOR].status=IO_NOT_APPLICABLE;
  for(unsigned audio=0;audio<2;audio++){
   unsigned field=audio?IO_AUDIO_IN:IO_AUDIO_OUT;IOField *f=io_current.fields+field;uint32_t key=audio?ac:pc;
@@ -336,7 +345,7 @@ static void io_setter_point(Context *c,unsigned site){
  unsigned at=command_find(command_state,io_submission);if(at>=COMMAND_SLOTS){trace_fail(C_TRACE_AMBIGUOUS);return;}
  const CommandRequest *r=&accepted[at].request;unsigned field=r->io_field;
  unsigned expected=field==IO_MIDI_IN_PORT?IO_INPUT_SET:field==IO_MIDI_OUT_PORT?IO_OUTPUT_SET:IO_FILTER_SET;
- unsigned lr=expected==IO_INPUT_SET?0x1e93c8c:expected==IO_OUTPUT_SET?0x1e93d6c:0x1e93cfc;
+ unsigned lr=expected==IO_INPUT_SET?MODEL_IO_INPUT_SET_LR:expected==IO_OUTPUT_SET?MODEL_IO_OUTPUT_SET_LR:MODEL_IO_FILTER_SET_LR;
  if(token()!=command_owner||!atomic_load(&command_in_hook)){io_fault[at]=C_OWNER;return;}
  if(site<=IO_FILTER_SET){
   if(site!=expected||c->r[0]!=accepted[at].property||c->lr!=observer_image_bias+lr)return;
@@ -363,6 +372,32 @@ static void io_source_commit(Context *c,unsigned site,unsigned at){
  * failure never erases a published payload or its pending-counter obligation. */
 static int io_async_field(unsigned field){return field==IO_MONITOR||field==IO_SEND_TO;}
 static int io_async_slot(unsigned at){return accepted[at].request.io_field==IO_SEND_TO||(accepted[at].request.io_field==IO_MONITOR&&accepted[at].property==accepted[at].track+0x400);}
+/* Runs before trace admission, including after trace failure. This is a
+ * conservative native-flight witness, not a successful source receipt. The
+ * native count/queue ordering guarantees a pre-ENTER claimed job cannot pass
+ * D1's drain; an ENTERed job stays active until its actual DONE path. */
+static void io_native_enter(uint32_t payload){
+ for(unsigned at=0;at<COMMAND_SLOTS;at++){
+  uint32_t seq=atomic_load_explicit(io_live+at,memory_order_seq_cst);
+  if(seq&&atomic_load_explicit(io_payload+at,memory_order_acquire)==payload)
+   atomic_store_explicit(io_entered+at,seq,memory_order_seq_cst);
+ }
+}
+static void io_track_retired(uint32_t track){
+ for(unsigned at=0;at<COMMAND_SLOTS;at++){
+  uint32_t seq=atomic_load_explicit(io_live+at,memory_order_seq_cst);
+  if(!seq||atomic_load_explicit(io_tracks+at,memory_order_seq_cst)!=track||atomic_load_explicit(io_entered+at,memory_order_seq_cst)==seq)continue;
+  uint32_t expected=seq;
+  if(!atomic_compare_exchange_strong_explicit(io_live+at,&expected,0,memory_order_seq_cst,memory_order_seq_cst))continue;
+  atomic_store_explicit(io_retired+at,seq,memory_order_release);
+  expected=seq;atomic_compare_exchange_strong_explicit(active_request+at,&expected,0,memory_order_seq_cst,memory_order_seq_cst);
+ }
+}
+static int io_native_finished(unsigned at,uint32_t seq){
+ uint32_t expected=seq;
+ if(!atomic_compare_exchange_strong_explicit(io_live+at,&expected,0,memory_order_seq_cst,memory_order_seq_cst))return 0;
+ atomic_store_explicit(io_finished+at,seq,memory_order_release);return 1;
+}
 static int io_job_find(uint32_t payload){
  int found=COMMAND_SLOTS;
  for(unsigned at=0;at<COMMAND_SLOTS;at++)if(atomic_load_explicit(active_request+at,memory_order_seq_cst)==accepted[at].request.seq&&command_io(accepted[at].request.reserved)&&io_async_slot(at)&&atomic_load_explicit(io_payload+at,memory_order_acquire)==payload&&!atomic_load_explicit(io_finished+at,memory_order_acquire)){if(found!=COMMAND_SLOTS)return -1;found=(int)at;}
@@ -378,15 +413,15 @@ static void io_job_point(Context *c,unsigned site){
   if(site==JG_PUBLISH&&(!io_source_frame[at]||c->r[8]!=io_source_frame[at]))return;
   const CommandRequest *r=&accepted[at].request;unsigned send=r->io_field==IO_SEND_TO;
   if(!io_async_field(r->io_field)||token()!=command_owner||!atomic_load(&command_in_hook)){io_fault[at]=C_OWNER;return;}
-  uint32_t object=accepted[at].track+(send?0x41c:0x3fc),invoker=observer_image_bias+(send?0x245ec10:0x245e634),manager=observer_image_bias+(send?0x245ebc4:0x245e5e8);
+  uint32_t object=accepted[at].track+(send?0x41c:0x3fc),invoker=observer_image_bias+(send?MODEL_IO_SEND_INVOKER:MODEL_IO_MONITOR_INVOKER),manager=observer_image_bias+(send?MODEL_IO_SEND_MANAGER:MODEL_IO_MONITOR_MANAGER);
   if(site==IO_MONITOR_PREPARE||site==IO_SEND_PREPARE){
    if(site!=(send?IO_SEND_PREPARE:IO_MONITOR_PREPARE)||io_source_frame[at]||io_queue_result[at]||c->r[4]!=object||c->r[5]!=io_helper[at]||c->r[9]!=accepted[at].native_bits||c->r[3]!=invoker){io_fault[at]=C_TRACE_AMBIGUOUS;return;}io_source_frame[at]=source_sp(c);return;
   }
   if(site==JG_PUBLISH){
    /* The GUI setter notifies other native listeners too. Only this live
     * prepared callable address owns our publication; its contents have moved. */
-   uint32_t cell=c->r[10];if(atomic_load(io_payload+at)||!qlink_span(cell,20)||c->r[7]!=command_queues+0xfc||c->r[9]!=(io_helper[at]|1u)||word(cell)!=invoker||word(cell+4)!=manager||word(cell+8)!=io_helper[at]||word(cell+12)!=accepted[at].native_bits||word(cell+16)!=object){io_fault[at]=C_TRACE_AMBIGUOUS;return;}
-   atomic_store_explicit(io_payload+at,cell+8,memory_order_release);io_job_event(c,CE_IO_QUEUE,at,accepted[at].native_bits);return;
+   uint32_t cell=c->r[10];if(atomic_load(io_payload+at)||!qlink_span(cell,20)||c->r[7]!=command_queues+MODEL_QUEUE_AUDIO||c->r[9]!=(io_helper[at]|1u)||word(cell)!=invoker||word(cell+4)!=manager||word(cell+8)!=io_helper[at]||word(cell+12)!=accepted[at].native_bits||word(cell+16)!=object){io_fault[at]=C_TRACE_AMBIGUOUS;return;}
+   atomic_store_explicit(io_payload+at,cell+8,memory_order_release);atomic_store_explicit(io_tracks+at,accepted[at].track,memory_order_seq_cst);atomic_store_explicit(io_live+at,r->seq,memory_order_seq_cst);io_job_event(c,CE_IO_QUEUE,at,accepted[at].native_bits);return;
   }
   if(site!=(send?IO_SEND_RESULT:IO_MONITOR_RESULT)||source_sp(c)!=io_source_frame[at]||io_queue_result[at]||c->r[0]>1){io_fault[at]=C_TRACE_AMBIGUOUS;return;}
   io_queue_result[at]=c->r[0]+1;io_job_event(c,CE_IO_RESULT,at,c->r[0]);
@@ -403,7 +438,7 @@ static void io_job_point(Context *c,unsigned site){
   io_call=(IOCall){r->seq,payload,source_sp(c),c->lr};io_job_event(c,CE_IO_ENTER,at,accepted[at].native_bits);
  }else{
   if(io_call.seq!=r->seq||io_call.payload!=payload||io_call.sp!=source_sp(c)||io_call.lr!=c->lr){trace_fail(C_TRACE_AMBIGUOUS);return;}
-  io_job_event(c,CE_IO_AUDIO_DONE,at,accepted[at].native_bits);memset(&io_call,0,sizeof(io_call));atomic_store_explicit(io_finished+at,r->seq,memory_order_release);
+  io_job_event(c,CE_IO_AUDIO_DONE,at,accepted[at].native_bits);memset(&io_call,0,sizeof(io_call));if(!io_native_finished(at,r->seq))trace_fail(C_TRACE_AMBIGUOUS);
  }
 }
 /* The audio cell can be publishing again after this request's callback ends.
@@ -439,6 +474,14 @@ static void io_complete(Context *c){
    else if(!io_output_agrees(t))continue;
    io_event(c,CE_IO_VALUE,at,actual.value,actual.revision);io_receipt[at]=r->seq;continue;
   }
+  if(native_started[at]&&command_io(r->reserved)&&io_async_slot(at)&&!io_receipted(at)&&atomic_load_explicit(io_retired+at,memory_order_acquire)==r->seq&&atomic_load_explicit(&slot->returned,memory_order_acquire)==r->seq){
+   /* No native callback ran. Publish the distinct native retirement evidence
+    * using retained scalar identity, never the now-destroyed Track/helper. */
+   if(io_fault[at]||!observer_running||atomic_load(&command_state->error)||atomic_load(&command_state->trace_error))continue;
+   io_job_event(c,CE_IO_RETIRED,at,accepted[at].native_bits);
+   io_event(c,CE_IO_VALUE,at,0,0);io_receipt[at]=r->seq;
+   atomic_store_explicit(&slot->done,r->seq,memory_order_release);continue;
+  }
   if(!native_started[at]||!command_io(r->reserved)||!io_async_slot(at)||io_receipted(at)||atomic_load_explicit(io_finished+at,memory_order_acquire)!=r->seq||atomic_load_explicit(&slot->returned,memory_order_acquire)!=r->seq)continue;
   Track *t=NULL;IOField actual={0},audio={0};int source=io_completion_source(c,at,&t,&actual);if(!source)continue;
   if(source<0){io_event(c,CE_IO_VALUE,at,0,0);io_receipt[at]=r->seq;atomic_store(active_request+at,0);atomic_store_explicit(&slot->done,r->seq,memory_order_release);continue;}
@@ -451,7 +494,7 @@ static void io_complete(Context *c){
 static void io_input_service(Context *c,unsigned at,const CommandRequest *r){
  CommandSlot *slot=command_state->slots+at;Track *t=NULL;uint32_t connector=0;IOField field={0};unsigned why=io_resolve(c,r,&t,&connector,&field);if(why==COMMAND_WAIT_HEARTBEAT)return;
  for(unsigned i=0;i<COMMAND_SLOTS;i++)if(i!=at){CommandSlot *other=command_state->slots+i;unsigned seq=atomic_load(&other->published);if(seq&&seq<r->seq&&seq!=atomic_load(&other->reclaimed)){CommandRequest old;if(!command_request_read(other,seq,&old)||command_conflict(&old,r))return;}}
- accepted[at].request=*r;accepted[at].property=r->global_owner;accepted[at].program=t?t->program:0;accepted[at].track=t?t->track:0;accepted[at].synchronous=1;native_started[at]=0;io_set_seen[at]=io_done_seen[at]=io_commit_seen[at]=io_receipt[at]=io_fault[at]=io_audio_incarnation[at]=0;io_source_frame[at]=io_helper[at]=io_queue_result[at]=0;atomic_store(io_payload+at,0);atomic_store(io_finished+at,0);
+ accepted[at].request=*r;accepted[at].property=r->global_owner;accepted[at].program=t?t->program:0;accepted[at].track=t?t->track:0;accepted[at].synchronous=1;native_started[at]=0;io_set_seen[at]=io_done_seen[at]=io_commit_seen[at]=io_receipt[at]=io_fault[at]=io_audio_incarnation[at]=0;io_source_frame[at]=io_helper[at]=io_queue_result[at]=0;atomic_store(io_live+at,0);atomic_store(io_tracks+at,0);atomic_store(io_entered+at,0);atomic_store(io_retired+at,0);atomic_store(io_payload+at,0);atomic_store(io_finished+at,0);
  for(unsigned i=0;i<COMMAND_LANES;i++){CommandLane *l=slot->lanes+i;atomic_store(&l->sequence,0);atomic_thread_fence(memory_order_release);atomic_store(&l->published,0);atomic_store_explicit(&l->sequence,r->seq,memory_order_release);}atomic_store(&slot->rejected,0);
  if(why)goto refused;
  unsigned value=0;
@@ -495,8 +538,8 @@ static void io_input_service(Context *c,unsigned at,const CommandRequest *r){
  }
  native_started[at]=r->seq;io_submission=r->seq;
  if(io_async_slot(at)){
-  if(r->io_field==IO_MONITOR)((void (*)(void*,void*,const unsigned*))(uintptr_t)(observer_image_bias+0x1e93ba0))((void*)(uintptr_t)connector,(void*)(uintptr_t)accepted[at].property,&value);
-  else ((void (*)(void*,void*,uint32_t))(uintptr_t)(observer_image_bias+0x1e8ac24))((void*)(uintptr_t)(connector+0x464),NULL,value);
+  if(r->io_field==IO_MONITOR)((void (*)(void*,void*,const unsigned*))(uintptr_t)(observer_image_bias+MODEL_IO_MONITOR_FACADE))((void*)(uintptr_t)connector,(void*)(uintptr_t)accepted[at].property,&value);
+  else ((void (*)(void*,void*,uint32_t))(uintptr_t)(observer_image_bias+MODEL_IO_SEND_FACADE))((void*)(uintptr_t)(connector+0x464),NULL,value);
   io_submission=0;io_event(c,CE_RETURN,at,value,r->io_generation);
   /* Native listeners may already have rebound the visible connector. The
    * accepted job retains its original source; completion checks it separately. */
@@ -505,10 +548,10 @@ static void io_input_service(Context *c,unsigned at,const CommandRequest *r){
  }
  if(r->io_field==IO_MONITOR){
   io_set_seen[at]=r->seq;io_event(c,CE_IO_SET,at,field.value,field.revision);
-  ((void (*)(void*,void*,unsigned))(uintptr_t)(observer_image_bias+0x1e5d8b8))((void*)(uintptr_t)connector,NULL,value);
+  ((void (*)(void*,void*,unsigned))(uintptr_t)(observer_image_bias+MODEL_IO_AUDIOMONITOR_FACADE))((void*)(uintptr_t)connector,NULL,value);
   io_done_seen[at]=r->seq;io_event(c,CE_IO_DONE,at,value,r->io_generation);
  }else{
- uint32_t function=observer_image_bias+(r->io_field==IO_MIDI_IN_CHANNEL?0x1e8943c:r->io_field==IO_MIDI_OUT_CHANNEL?0x1e88d30:r->io_field==IO_MIDI_IN_PORT?0x1e897c0:0x1e890b4);
+ uint32_t function=observer_image_bias+(r->io_field==IO_MIDI_IN_CHANNEL?MODEL_IO_MIDI_INPUT_CHANNEL_FACADE:r->io_field==IO_MIDI_OUT_CHANNEL?MODEL_IO_MIDI_OUTPUT_CHANNEL_FACADE:r->io_field==IO_MIDI_IN_PORT?MODEL_IO_MIDI_INPUT_PORT_FACADE:MODEL_IO_MIDI_OUTPUT_PORT_FACADE);
  ((void (*)(void*,void*,uint32_t))(uintptr_t)function)((void*)(uintptr_t)connector,(void*)(uintptr_t)r->global_owner,value);
  }
  io_submission=0;io_setter_sp=0;io_event(c,CE_RETURN,at,value,r->io_generation);

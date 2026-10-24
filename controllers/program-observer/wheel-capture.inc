@@ -36,7 +36,7 @@
 /* Folded scroll-handler range holding both scroll handlers, guarded so the
  * register this hook trusts and the control flow around the site are
  * install-time verified, not only the eight displaced bytes. */
-#define WHEEL_HANDLER_RVA 0xbd1e2cu
+#define WHEEL_HANDLER_RVA MODEL_INPUT_SCROLL_FOLD
 #define WHEEL_HANDLER_LENGTH 0x3d4u
 /* Active UIFocusController slot in .bss, read by the app's own accessor
  * 2b64174 and written by the TouchFocusController methods as controllers
@@ -45,7 +45,7 @@
  * slot, which lives past the writable segment's file image, is qualified
  * here the way pointer-capture.inc qualifies the peer's cursor slot. */
 #define M_NATIVE_WHEEL 302u
-#define FOCUS_SLOT_RVA 0x6b6f798u
+#define FOCUS_SLOT_RVA MODEL_FOCUS_SLOT
 /* TouchFocusController::DataWheelUp / ::DataWheelDown, one folded exidx range
  * [35c2b04,35c2e24). UIFocusController is the primary base of all four
  * concrete focus-controller classes, so these are what vtable slots 6 and 7
@@ -63,7 +63,7 @@
  * float velocity multiplied on every call whose gap is under a threshold) and
  * truncates the result with sxtb at 32db98c, so N calls microseconds apart ramp
  * the velocity until the signed byte wraps. One call with a count does not. */
-#define WHEEL_ROTATE_RVA 0x35c28f4u
+#define WHEEL_ROTATE_RVA MODEL_INPUT_FOCUS_ROTATE
 #define WHEEL_ROTATE_LENGTH 0xe8u
 /* juce::Component fields the hardware path's liveness walk b74904 reads: the
  * controller's HW-focused component at +0xe4, and the flags byte at +0x68
@@ -71,12 +71,12 @@
 #define WHEEL_FOCUSED_OFFSET 0xe4u
 #define WHEEL_FLAGS_OFFSET 0x68u
 #define WHEEL_VISIBLE_FLAG 2u
-#define WHEEL_LIVENESS_RVA 0xb74904u
+#define WHEEL_LIVENESS_RVA MODEL_INPUT_LIVENESS_GUARD_HEAD
 #define WHEEL_LIVENESS_LENGTH 0x54u
-_Static_assert(WHEEL_HANDLER_RVA+WHEEL_HANDLER_LENGTH<=0x6875d04u,"host scroll handler inside the executable segment");
-_Static_assert(WHEEL_ROTATE_RVA+WHEEL_ROTATE_LENGTH<=0x6875d04u,"data-wheel rotation entry inside the executable segment");
-_Static_assert(FOCUS_SLOT_RVA>=0x6877010u&&FOCUS_SLOT_RVA+4<=0x6bd6078u,"focus controller slot inside the writable segment");
-_Static_assert(WHEEL_LIVENESS_RVA+WHEEL_LIVENESS_LENGTH<=0x6875d04u,"liveness walk inside the executable segment");
+_Static_assert(WHEEL_HANDLER_RVA+WHEEL_HANDLER_LENGTH<=MODEL_EXECUTABLE_END,"host scroll handler inside the executable segment");
+_Static_assert(WHEEL_ROTATE_RVA+WHEEL_ROTATE_LENGTH<=MODEL_EXECUTABLE_END,"data-wheel rotation entry inside the executable segment");
+_Static_assert(FOCUS_SLOT_RVA>=MODEL_WRITABLE_START&&FOCUS_SLOT_RVA+4<=MODEL_WRITABLE_END,"focus controller slot inside the writable segment");
+_Static_assert(WHEEL_LIVENESS_RVA+WHEEL_LIVENESS_LENGTH<=MODEL_EXECUTABLE_END,"liveness walk inside the executable segment");
 /* One detent of a standard wheel. libinput's v120 API reports a detent as 120
  * units (that is the whole point of the v120 scale), and the handler scales it
  * by the 1/512 literal at bd21e8 before storing deltaY, so one detent is
@@ -93,7 +93,7 @@ _Static_assert(WHEEL_LIVENESS_RVA+WHEEL_LIVENESS_LENGTH<=0x6875d04u,"liveness wa
 #define WHEEL_COARSE 0u
 /* The only four vptrs a legal receiver can carry: TouchPageContainer,
  * OverlayContainer, TouchFocusController and OverlayFocusController. */
-static const uint32_t wheel_focus_vtables[4]={0x699ee00u,0x69c3090u,0x69c3af4u,0x69c8f9cu};
+static const uint32_t wheel_focus_vtables[4]={MODEL_FOCUS_PAGE_VPTR,MODEL_FOCUS_OVERLAY_VPTR,MODEL_FOCUS_CONTROLLER_VPTR,MODEL_FOCUS_OVERLAY_CONTROLLER_VPTR};
 /* Sub-notch remainder and whole notches not yet delivered. Written only under
  * the command_owner check below, so these are owner-thread values and need no
  * atomic. The split exists so the accumulation can stay per event while the

@@ -3,7 +3,7 @@ using size_t = __SIZE_TYPE__;
 using uintptr_t = __UINTPTR_TYPE__;
 #include "include/mpclearn-ui.h"
 #include "private/mpclearn-ui-private.h"
-#include "private/mpc-3.9.1-profile.h"
+#include "private/mpc-profile.h"
 #ifdef MPCLEARN_CARDINAL_GPU
 #include "private/cardinal-gpu/presenter.inc"
 #endif
@@ -866,7 +866,7 @@ extern "C" void mpc_ui_context_clear_error(MpcUiContext *context) {
 extern "C" MpcUiContext *mpc_ui_private_context_from_admitted(
     const MpcUiAdmittedProfile *admitted) {
     if (!admitted || admitted->bytes != sizeof(*admitted) ||
-        admitted->profile != MPC_UI_PROFILE_MPC_3_9_1 ||
+        admitted->profile != MPC_UI_PROFILE_SELECTED ||
         !admitted->image_bias || !admitted->ui_thread_id ||
         admitted->image_bias > UINT32_MAX - MPC_UI_RVA_LIST_MODEL_VTABLE)
         return nullptr;

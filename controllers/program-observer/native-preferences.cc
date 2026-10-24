@@ -7,11 +7,18 @@ using int32_t=__INT32_TYPE__;
 #include "native-preferences.h"
 #include "../../ui/include/mpclearn-ui.h"
 #include "../../ui/private/mpclearn-ui-private.h"
-#include "../../ui/private/mpc-3.9.1-profile.h"
+#include "../../ui/private/mpc-profile.h"
+#include "native-preferences-profile.h"
 #include "../../ui/screens/global-midi-learn-groups.h"
 #include "../../ui/screens/global-midi-learn-screen.h"
 #ifndef MPCLEARN_NATIVE_UI_EXAMPLE
 #define MPCLEARN_NATIVE_UI_EXAMPLE 0
+#endif
+#ifndef MPCLEARN_NATIVE_PLUGIN_CONTROLS
+#define MPCLEARN_NATIVE_PLUGIN_CONTROLS 0
+#endif
+#if MPCLEARN_NATIVE_PLUGIN_CONTROLS
+#include "plugin-controls-binding.h"
 #endif
 #if MPCLEARN_NATIVE_UI_EXAMPLE
 #include "../../ui/examples/toolkit-example.h"
@@ -181,6 +188,9 @@ struct LauncherInstance {
  MpclearnToolkitExampleApp example_app;uint32_t example_open_counted;
 #endif
  uint32_t orphaned;
+#if MPCLEARN_NATIVE_PLUGIN_CONTROLS
+ MpclearnPluginControlsScreen plugin_screen;
+#endif
 };
 struct GlobalCapture { void *app,*owner,*view_controller;uint32_t ui_thread_id; };
 
@@ -212,7 +222,7 @@ static LauncherInstance *launcher_overlay_instance(void *overlay){for(auto &inst
 static MpcUiContext *create_toolkit_context() {
  uint32_t thread=(uint32_t)syscall(224);
  if(toolkit_component_host)return mpc_ui_private_context_for_component(toolkit_component_host,thread);
- MpcUiAdmittedProfile admitted={sizeof(admitted),MPC_UI_PROFILE_MPC_3_9_1,image_bias,thread};
+ MpcUiAdmittedProfile admitted={sizeof(admitted),MPC_UI_PROFILE_SELECTED,image_bias,thread};
  return mpc_ui_private_context_from_admitted(&admitted);
 }
 
@@ -469,12 +479,12 @@ static void refresh_selection(PreferencesInstance *found) noexcept {
  else if(status==NATIVE_PREFERENCES_WRITE_FAILED)message="Controller settings could not be saved.";
  else if(status==NATIVE_PREFERENCES_RESTART_FAILED)message="The controller bridge could not be restarted.";
  else if(status==NATIVE_PREFERENCES_STALE)message="The MIDI port list changed. Choose the ports again.";
- if(state&&state->inventory_status==NATIVE_PREFERENCES_INVALID)instruction="Too many MIDI ports, or a port name is too long.";
- else if(editor&&found->missing_ports)message="Choose both From controller and To controller ports.";
+ if((!state||state->inventory_status!=NATIVE_PREFERENCES_INVALID)&&editor&&found->missing_ports)message="Choose both From controller and To controller ports.";
  if(!editor&&found->detect_text[0]&&status!=NATIVE_PREFERENCES_PENDING&&status!=NATIVE_PREFERENCES_APPLYING)message=found->detect_text;
  else if(editor&&(found->draft_profile==NATIVE_CONTROLLER_LPX||found->draft_profile==NATIVE_CONTROLLER_LPP3))instruction="Turn off Track, Global and Control for this MIDI port.";
  else if(editor&&found->draft_profile==NATIVE_CONTROLLER_MPK249)instruction="Turn Receive MMC off in MIDI/Sync. Use the CE program.";
  else if(editor&&found->draft_profile>=NATIVE_CONTROLLER_MPK_MINI3)instruction="Load the CE program on the controller before applying.";
+ if(state&&state->inventory_status==NATIVE_PREFERENCES_INVALID)instruction="Too many MIDI ports, or a port name is too long.";
  found->status_text[0]=0;controller_append(found->status_text,sizeof(found->status_text),message);controller_append(found->status_text,sizeof(found->status_text),"\n");controller_append(found->status_text,sizeof(found->status_text),instruction);
  if(found->status_label&&!mpc_ui_label_text(found->status_label,found->status_text))failure(NP_UNEXPECTED_EXCEPTION);
  /* Commit the requested selection after visibility work, while every native
@@ -516,55 +526,55 @@ static void configure_host(uint32_t bias) {
  core.sized_delete=(HostSizedDelete)(uintptr_t)(bias+MPC_UI_RVA_SIZED_DELETE);
  core.set_visible=(HostSetVisible)(uintptr_t)(bias+MPC_UI_RVA_SET_VISIBLE);
  core.repaint=(HostRepaint)(uintptr_t)(bias+MPC_UI_RVA_REPAINT);
- preferences.std_string_ctor=(StdStringCtor)(uintptr_t)(bias+0x03665c60);
- preferences.tab_ctor=(NotImplementedCtor)(uintptr_t)(bias+0x0369d174);
- preferences.tab_dtor=(HostCompleteDestructor)(uintptr_t)(bias+0x0369cdec);
- preferences.tab_remove=(TabChild)(uintptr_t)(bias+0x036a047c);
- preferences.tab_vtable=(const unsigned char*)(uintptr_t)(bias+0x069cd0b4);
- launcher.overlay_add=(OverlayAdd)(uintptr_t)(bias+0x03664150);
+ preferences.std_string_ctor=(StdStringCtor)(uintptr_t)(bias+NP_RVA_PREFERENCES_STD_STRING_CTOR);
+ preferences.tab_ctor=(NotImplementedCtor)(uintptr_t)(bias+NP_RVA_PREFERENCES_TAB_CTOR);
+ preferences.tab_dtor=(HostCompleteDestructor)(uintptr_t)(bias+NP_RVA_PREFERENCES_TAB_DTOR);
+ preferences.tab_remove=(TabChild)(uintptr_t)(bias+NP_RVA_PREFERENCES_TAB_REMOVE);
+ preferences.tab_vtable=(const unsigned char*)(uintptr_t)(bias+NP_RVA_PREFERENCES_TAB_VTABLE);
+ launcher.overlay_add=(OverlayAdd)(uintptr_t)(bias+NP_RVA_LAUNCHER_OVERLAY_ADD);
  launcher.remove_child=(HostRemoveChild)(uintptr_t)(bias+MPC_UI_RVA_REMOVE_CHILD);
- launcher.overlay_complete=(HostCompleteDestructor)(uintptr_t)(bias+0x03663334);
- launcher.overlay_deleting=(HostCompleteDestructor)(uintptr_t)(bias+0x03663404);
- launcher.overlay_vtable=(const unsigned char*)(uintptr_t)(bias+0x069cabac);
- global_host.file_handler=(GlobalFileHandler)(uintptr_t)(bias+0x018b49f8);
- global_host.target_fixed=(GlobalTargetFixed)(uintptr_t)(bias+0x018bdd90);
- global_host.target_dtor=(GlobalTargetDtor)(uintptr_t)(bias+0x018bdc20);
- global_host.lookup=(GlobalLookupPairing)(uintptr_t)(bias+0x018b5840);
- global_host.format_mapping=(GlobalFormatMapping)(uintptr_t)(bias+0x018bed00);
- global_host.target_label=(GlobalTargetLabel)(uintptr_t)(bias+0x02fa6e84);
+ launcher.overlay_complete=(HostCompleteDestructor)(uintptr_t)(bias+NP_RVA_LAUNCHER_OVERLAY_COMPLETE);
+ launcher.overlay_deleting=(HostCompleteDestructor)(uintptr_t)(bias+NP_RVA_LAUNCHER_OVERLAY_DELETING);
+ launcher.overlay_vtable=(const unsigned char*)(uintptr_t)(bias+NP_RVA_LAUNCHER_OVERLAY_VTABLE);
+ global_host.file_handler=(GlobalFileHandler)(uintptr_t)(bias+NP_RVA_GLOBAL_FILE_HANDLER);
+ global_host.target_fixed=(GlobalTargetFixed)(uintptr_t)(bias+NP_RVA_GLOBAL_TARGET_FIXED);
+ global_host.target_dtor=(GlobalTargetDtor)(uintptr_t)(bias+NP_RVA_GLOBAL_TARGET_DTOR);
+ global_host.lookup=(GlobalLookupPairing)(uintptr_t)(bias+NP_RVA_GLOBAL_LOOKUP);
+ global_host.format_mapping=(GlobalFormatMapping)(uintptr_t)(bias+NP_RVA_GLOBAL_FORMAT_MAPPING);
+ global_host.target_label=(GlobalTargetLabel)(uintptr_t)(bias+NP_RVA_GLOBAL_TARGET_LABEL);
  global_host.string_dtor=(GlobalStringDtor)(uintptr_t)(bias+MPC_UI_RVA_STRING_DTOR);
- global_host.select_target=(GlobalSelectTarget)(uintptr_t)(bias+0x018737dc);
- global_host.set_learn_intent=(GlobalSetLearnIntent)(uintptr_t)(bias+0x02ad5e0c);
- global_host.file_name=(GlobalFileName)(uintptr_t)(bias+0x018a7da8);
- global_host.duplicate_file=(GlobalFileAction)(uintptr_t)(bias+0x02ad5f88);
- global_host.create_file=(GlobalFileAction)(uintptr_t)(bias+0x02ad7adc);
- global_host.export_file=(GlobalExportFile)(uintptr_t)(bias+0x018b2068);
- global_host.select_file=(GlobalSelectFile)(uintptr_t)(bias+0x02ad71e0);
- global_host.clear_target=(GlobalClearTarget)(uintptr_t)(bias+0x02ad60f0);
- global_host.note_message=(GlobalMessageFactory)(uintptr_t)(bias+0x007d6d8c);
- global_host.cc_message=(GlobalMessageFactory)(uintptr_t)(bias+0x007d6d4c);
- global_host.pitch_message=(GlobalPitchFactory)(uintptr_t)(bias+0x007d6c90);
- global_host.message_dtor=(GlobalMessageDtor)(uintptr_t)(bias+0x007d594c);
- global_host.mapping_ctor=(GlobalMappingCtor)(uintptr_t)(bias+0x018ba570);
- global_host.commit_mapping=(GlobalCommitMapping)(uintptr_t)(bias+0x018b7558);
- global_host.set_control=(GlobalSetControl)(uintptr_t)(bias+0x018b6220);
- global_host.set_reverse=(GlobalSetReverse)(uintptr_t)(bias+0x018b6360);
- global_host.signal_dtor=(GlobalSignalDtor)(uintptr_t)(bias+0x01efc91c);
- global_host.free_block=(GlobalFree)(uintptr_t)(bias+0x004a68f4);
+ global_host.select_target=(GlobalSelectTarget)(uintptr_t)(bias+NP_RVA_GLOBAL_SELECT_TARGET);
+ global_host.set_learn_intent=(GlobalSetLearnIntent)(uintptr_t)(bias+NP_RVA_GLOBAL_SET_LEARN_INTENT);
+ global_host.file_name=(GlobalFileName)(uintptr_t)(bias+NP_RVA_GLOBAL_FILE_NAME);
+ global_host.duplicate_file=(GlobalFileAction)(uintptr_t)(bias+NP_RVA_GLOBAL_DUPLICATE_FILE);
+ global_host.create_file=(GlobalFileAction)(uintptr_t)(bias+NP_RVA_GLOBAL_CREATE_FILE);
+ global_host.export_file=(GlobalExportFile)(uintptr_t)(bias+NP_RVA_GLOBAL_EXPORT_FILE);
+ global_host.select_file=(GlobalSelectFile)(uintptr_t)(bias+NP_RVA_GLOBAL_SELECT_FILE);
+ global_host.clear_target=(GlobalClearTarget)(uintptr_t)(bias+NP_RVA_GLOBAL_CLEAR_TARGET);
+ global_host.note_message=(GlobalMessageFactory)(uintptr_t)(bias+NP_RVA_GLOBAL_NOTE_MESSAGE);
+ global_host.cc_message=(GlobalMessageFactory)(uintptr_t)(bias+NP_RVA_GLOBAL_CC_MESSAGE);
+ global_host.pitch_message=(GlobalPitchFactory)(uintptr_t)(bias+NP_RVA_GLOBAL_PITCH_MESSAGE);
+ global_host.message_dtor=(GlobalMessageDtor)(uintptr_t)(bias+NP_RVA_GLOBAL_MESSAGE_DTOR);
+ global_host.mapping_ctor=(GlobalMappingCtor)(uintptr_t)(bias+NP_RVA_GLOBAL_MAPPING_CTOR);
+ global_host.commit_mapping=(GlobalCommitMapping)(uintptr_t)(bias+NP_RVA_GLOBAL_COMMIT_MAPPING);
+ global_host.set_control=(GlobalSetControl)(uintptr_t)(bias+NP_RVA_GLOBAL_SET_CONTROL);
+ global_host.set_reverse=(GlobalSetReverse)(uintptr_t)(bias+NP_RVA_GLOBAL_SET_REVERSE);
+ global_host.signal_dtor=(GlobalSignalDtor)(uintptr_t)(bias+NP_RVA_GLOBAL_SIGNAL_DTOR);
+ global_host.free_block=(GlobalFree)(uintptr_t)(bias+NP_RVA_GLOBAL_FREE_BLOCK);
  global_host.string_ctor=(GlobalStringCtor)(uintptr_t)(bias+MPC_UI_RVA_STRING_CTOR);
- global_host.file_ctor=(GlobalFileCtor)(uintptr_t)(bias+0x00986680);
- global_host.user_midi_directory=(GlobalFileFactory)(uintptr_t)(bias+0x015a7cf0);
- global_host.chooser_initial_directory=(GlobalFileFactory)(uintptr_t)(bias+0x015a8034);
- global_host.filename=(GlobalFileNameOnly)(uintptr_t)(bias+0x00956d44);
- global_host.string_utf8=(GlobalStringUtf8)(uintptr_t)(bias+0x0093352c);
- global_host.child_file=(GlobalChildFile)(uintptr_t)(bias+0x009866f8);
- global_host.file_exists=(GlobalFilePredicate)(uintptr_t)(bias+0x0094da2c);
- global_host.file_exists_as_file=(GlobalFilePredicate)(uintptr_t)(bias+0x0094da68);
- global_host.copy_file=(GlobalCopyFile)(uintptr_t)(bias+0x0096b708);
- global_host.open_mapping=(GlobalOpenMapping)(uintptr_t)(bias+0x018bed5c);
- global_host.register_mapping=(GlobalRegisterMapping)(uintptr_t)(bias+0x018ad794);
- global_host.select_handler_file=(GlobalSelectHandlerFile)(uintptr_t)(bias+0x018b3420);
- global_host.release_control=(GlobalReleaseControl)(uintptr_t)(bias+0x00c96a68);
+ global_host.file_ctor=(GlobalFileCtor)(uintptr_t)(bias+NP_RVA_GLOBAL_FILE_CTOR);
+ global_host.user_midi_directory=(GlobalFileFactory)(uintptr_t)(bias+NP_RVA_GLOBAL_USER_MIDI_DIRECTORY);
+ global_host.chooser_initial_directory=(GlobalFileFactory)(uintptr_t)(bias+NP_RVA_GLOBAL_CHOOSER_INITIAL_DIRECTORY);
+ global_host.filename=(GlobalFileNameOnly)(uintptr_t)(bias+NP_RVA_GLOBAL_FILENAME);
+ global_host.string_utf8=(GlobalStringUtf8)(uintptr_t)(bias+MPC_UI_RVA_STRING_UTF8);
+ global_host.child_file=(GlobalChildFile)(uintptr_t)(bias+NP_RVA_GLOBAL_CHILD_FILE);
+ global_host.file_exists=(GlobalFilePredicate)(uintptr_t)(bias+NP_RVA_GLOBAL_FILE_EXISTS);
+ global_host.file_exists_as_file=(GlobalFilePredicate)(uintptr_t)(bias+NP_RVA_GLOBAL_FILE_EXISTS_AS_FILE);
+ global_host.copy_file=(GlobalCopyFile)(uintptr_t)(bias+NP_RVA_GLOBAL_COPY_FILE);
+ global_host.open_mapping=(GlobalOpenMapping)(uintptr_t)(bias+NP_RVA_GLOBAL_OPEN_MAPPING);
+ global_host.register_mapping=(GlobalRegisterMapping)(uintptr_t)(bias+NP_RVA_GLOBAL_REGISTER_MAPPING);
+ global_host.select_handler_file=(GlobalSelectHandlerFile)(uintptr_t)(bias+NP_RVA_GLOBAL_SELECT_HANDLER_FILE);
+ global_host.release_control=(GlobalReleaseControl)(uintptr_t)(bias+NP_RVA_GLOBAL_RELEASE_CONTROL);
  global_host.chooser_open=nullptr;
 }
 
@@ -574,7 +584,7 @@ static int insert_tab(Context *c) {
  alignas(8) unsigned char label[24]={};PreferencesInstance *instance=nullptr;
  try {
   uint32_t overlay=c->r[11];
-  if(!overlay||frame_word(c,0x68)!=overlay+0x160){failure(NP_BAD_CONTEXT);return 0;}
+  if(!overlay||frame_word(c,NP_PREFERENCES_FRAME_SIGNAL)!=overlay+0x160){failure(NP_BAD_CONTEXT);return 0;}
   if(preferences_overlay_instance((void*)(uintptr_t)overlay))return 1;
   uint32_t *vector=(uint32_t*)(uintptr_t)(overlay+0x1b8);uint32_t begin=vector[0],end=vector[1],cap=vector[2];
   if((!begin&&(end||cap))||begin>end||end>cap||((begin|end|cap)&3)||(begin&&(end-begin)/4>64)){failure(NP_BAD_VECTOR);return 0;}
@@ -585,10 +595,10 @@ static int insert_tab(Context *c) {
   preferences.std_string_ctor(label,"CONTROLLERS");
   uint32_t scroll=*(uint32_t*)(uintptr_t)(overlay+0x1a4),stock_parent=*(uint32_t*)(uintptr_t)(overlay+0x1a8);
   if(!scroll||!stock_parent||stock_parent>0xffffffffu-8u)throw NP_BAD_CONTEXT;
-  uint32_t index=frame_word(c,0x5c);
+  uint32_t index=frame_word(c,NP_PREFERENCES_FRAME_INDEX);
   preferences.tab_ctor(tab,index,(void*)(uintptr_t)scroll,(void*)(uintptr_t)(stock_parent+8),
    frame_float(c,0x198),frame_float(c,0x194),frame_float(c,0x1a0),frame_float(c,0x1a4),frame_float(c,0x19c),
-   *(float*)(uintptr_t)(overlay+0x1c8),label,(void*)(uintptr_t)(overlay+0x160),(void*)(uintptr_t)frame_word(c,0x50));
+   *(float*)(uintptr_t)(overlay+0x1c8),label,(void*)(uintptr_t)(overlay+0x160),(void*)(uintptr_t)frame_word(c,NP_PREFERENCES_FRAME_LABEL));
   tab_constructed=true;
   void *content=*(void**)((unsigned char*)tab+0x4c),*placeholder=*(void**)((unsigned char*)tab+0x70);
   if(!content||!placeholder)throw NP_BAD_CONTEXT;
@@ -632,7 +642,7 @@ static int insert_tab(Context *c) {
    vector[0]=(uint32_t)(uintptr_t)next;vector[1]=(uint32_t)(uintptr_t)(next+count+1);vector[2]=(uint32_t)(uintptr_t)(next+count+2);
    if(begin)core.sized_delete((void*)(uintptr_t)begin,cap-begin);
   }else{*(uint32_t*)(uintptr_t)end=(uint32_t)(uintptr_t)tab;vector[1]=end+4;}
-  set_frame_word(c,0x5c,index+1);
+  set_frame_word(c,NP_PREFERENCES_FRAME_INDEX,index+1);
   if(state){
    increment(&state->tabs_created);__atomic_add_fetch(&state->buttons_created,10u,__ATOMIC_RELAXED);increment(&state->live_tabs);
    state->last_overlay=overlay;state->last_tab=(uint32_t)(uintptr_t)tab;
@@ -737,7 +747,7 @@ static bool snapshot_global_files(GlobalFileCatalog &catalog) noexcept {
 static bool read_global_file_name(void *file,char *out,size_t bytes) noexcept {
  HostString name={};bool name_live=false;
  try {
-  if(!file||*(void**)file!=(void*)(uintptr_t)(image_bias+0x0689c878u))throw NP_GLOBAL_CONTEXT;
+  if(!file||*(void**)file!=(void*)(uintptr_t)(image_bias+NP_VPTR_GLOBAL_FILE))throw NP_GLOBAL_CONTEXT;
   if(global_host.file_name(&name,file)!=&name)throw NP_GLOBAL_READBACK;name_live=true;
   text_clear(out,bytes);text_append(out,bytes,"MAPPING: ");
   char value[48]={};if(!host_text(value,sizeof(value),name))throw NP_GLOBAL_READBACK;
@@ -786,12 +796,20 @@ static void compose_global_draft(LauncherInstance &instance) {
  text_clear(instance.edit_mode_text,sizeof(instance.edit_mode_text));text_append(instance.edit_mode_text,sizeof(instance.edit_mode_text),"MODE: ");text_append(instance.edit_mode_text,sizeof(instance.edit_mode_text),mapping_mode_name(instance.draft_mapping.control));
  text_clear(instance.edit_reverse_text,sizeof(instance.edit_reverse_text));text_append(instance.edit_reverse_text,sizeof(instance.edit_reverse_text),instance.draft_mapping.reverse?"REVERSE: ON":"REVERSE: OFF");
 }
+/* CE's established 120-row navigation is stable; only the native enum changed.
+ * Native 118 is Browser Help in 3.10 and has no CE row in this release. */
+static uint32_t global_native_target_id(uint32_t target) {
+#ifdef MODEL_FIRMWARE_310
+ if(target>=118u&&target<120u)return target+1u;
+#endif
+ return target;
+}
 static bool read_global_mapping(uint32_t target,const GlobalMappingSnapshot *before,GlobalMappingSnapshot &mapping,
  char *assignment,size_t assignment_bytes,bool *changed) noexcept {
  GlobalTarget native_target={};GlobalLookup lookup={};HostString mapping_text={};
  bool target_live=false,mapping_text_live=false;mapping={};if(assignment&&assignment_bytes)text_clear(assignment,assignment_bytes);
  try {
-  if(global_host.target_fixed(&native_target,(int32_t)target)!=&native_target)throw NP_GLOBAL_READBACK;target_live=true;
+  if(global_host.target_fixed(&native_target,(int32_t)global_native_target_id(target))!=&native_target)throw NP_GLOBAL_READBACK;target_live=true;
   if(global_host.lookup(&lookup,(unsigned char*)global_capture.owner+0x19c,&native_target)!=&lookup)throw NP_GLOBAL_READBACK;
   if(lookup.found&&lookup.mapping){
    memcpy(&mapping.type,(unsigned char*)lookup.mapping+0x9c,4);memcpy(&mapping.control,(unsigned char*)lookup.mapping+0xa0,4);
@@ -817,7 +835,7 @@ static bool read_global_mapping(uint32_t target,const GlobalMappingSnapshot *bef
 static bool build_global_row(LauncherInstance &instance,unsigned row,uint32_t target) noexcept {
  HostString label={};bool label_live=false;char assignment[32]={};GlobalMappingSnapshot mapping={};
  try {
-  if(global_host.target_label(&label,target)!=&label)throw NP_GLOBAL_READBACK;label_live=true;
+  if(global_host.target_label(&label,global_native_target_id(target))!=&label)throw NP_GLOBAL_READBACK;label_live=true;
   if(!host_text(instance.row_label[row],sizeof(instance.row_label[row]),label))throw NP_GLOBAL_READBACK;
   label_live=false;global_host.string_dtor(&label);
   if(!read_global_mapping(target,nullptr,mapping,assignment,sizeof(assignment),nullptr))return false;
@@ -829,8 +847,8 @@ struct GlobalLearnObservation {uint32_t pending,owner_value,mirror_value;};
 static constexpr uint32_t GLOBAL_LEARN_WAIT_LIMIT=128u;
 
 static bool global_context_live() {
- if(!global_ready()||*(void**)((unsigned char*)global_capture.app+0x3c0)!=global_capture.owner||
-    *(void**)((unsigned char*)global_capture.app+0x7cc)!=global_capture.view_controller||
+ if(!global_ready()||*(void**)((unsigned char*)global_capture.app+NP_GLOBAL_ROOT_OWNER)!=global_capture.owner||
+    *(void**)((unsigned char*)global_capture.app+NP_GLOBAL_ROOT_VC)!=global_capture.view_controller||
     *(void**)((unsigned char*)global_capture.view_controller+0x138)!=global_capture.owner)return false;
  try {return *(void**)((unsigned char*)global_capture.view_controller+0x13c)==global_file_handler();}
  catch(...){return false;}
@@ -878,7 +896,7 @@ static bool select_global_target(LauncherInstance &instance,uint32_t target) noe
  if(target>=120u||instance.learn_state!=NATIVE_GLOBAL_LEARN_IDLE||instance.learn_intent!=LEARN_INTENT_NONE)return false;
  GlobalTarget native_target={};bool target_live=false;
  try {
-  if(!global_context_live()||global_host.target_fixed(&native_target,(int32_t)target)!=&native_target)throw NP_GLOBAL_CONTEXT;
+  if(!global_context_live()||global_host.target_fixed(&native_target,(int32_t)global_native_target_id(target))!=&native_target)throw NP_GLOBAL_CONTEXT;
   target_live=true;global_host.select_target((unsigned char*)global_capture.owner+0x38,&native_target);
   target_live=false;global_host.target_dtor(&native_target);instance.selected_target=target;
   if(state)increment(&state->global_target_selections);return true;
@@ -925,9 +943,9 @@ static ImportOutcome import_global_file(LauncherInstance &instance,void *handler
   if(!chooser)throw NP_GLOBAL_CONTEXT;
   auto open=global_host.chooser_open;
   if(!open){
-   if(*(void**)chooser!=(void*)(uintptr_t)(image_bias+0x0689c134u))throw NP_GLOBAL_CONTEXT;
+   if(*(void**)chooser!=(void*)(uintptr_t)(image_bias+NP_VPTR_GLOBAL_CHOOSER))throw NP_GLOBAL_CONTEXT;
    open=(GlobalChooserOpen)(*(void***)chooser)[2];
-   if(open!=(GlobalChooserOpen)(uintptr_t)(image_bias+0x01801cd4u))throw NP_GLOBAL_CONTEXT;
+   if(open!=(GlobalChooserOpen)(uintptr_t)(image_bias+NP_RVA_GLOBAL_CHOOSER_OPEN))throw NP_GLOBAL_CONTEXT;
   }
   global_host.string_ctor(&title,"Import MIDI Mapping");title_live=true;
   global_host.string_ctor(&empty,"");empty_live=true;
@@ -983,14 +1001,14 @@ static ExportOutcome export_global_file(void *handler,void *selected) noexcept {
  ExportOutcome outcome=EXPORT_FAILED;
  try {
   if(!handler||!selected||global_selected_file(handler)!=selected||
-     *(void**)selected!=(void*)(uintptr_t)(image_bias+0x0689c878u))throw NP_GLOBAL_CONTEXT;
+     *(void**)selected!=(void*)(uintptr_t)(image_bias+NP_VPTR_GLOBAL_FILE))throw NP_GLOBAL_CONTEXT;
   void *chooser=*(void**)((unsigned char*)global_capture.view_controller+0x130);
   if(!chooser)throw NP_GLOBAL_CONTEXT;
   auto open=global_host.chooser_open;
   if(!open){
-   if(*(void**)chooser!=(void*)(uintptr_t)(image_bias+0x0689c134u))throw NP_GLOBAL_CONTEXT;
+   if(*(void**)chooser!=(void*)(uintptr_t)(image_bias+NP_VPTR_GLOBAL_CHOOSER))throw NP_GLOBAL_CONTEXT;
    open=(GlobalChooserOpen)(*(void***)chooser)[2];
-   if(open!=(GlobalChooserOpen)(uintptr_t)(image_bias+0x01801cd4u))throw NP_GLOBAL_CONTEXT;
+   if(open!=(GlobalChooserOpen)(uintptr_t)(image_bias+NP_RVA_GLOBAL_CHOOSER_OPEN))throw NP_GLOBAL_CONTEXT;
   }
   global_host.string_ctor(&title,"Export MIDI Mapping");title_live=true;
   global_host.string_ctor(&empty,"");empty_live=true;
@@ -1051,7 +1069,7 @@ static bool run_global_file_action(LauncherInstance &instance,uint32_t action) n
   else {
    if(instance.selected_target>=MPCLEARN_GLOBAL_LEARN_TARGET_COUNT||
       __atomic_load_n((unsigned char*)before_handler+0x9c,__ATOMIC_ACQUIRE))throw NP_GLOBAL_FILE_ACTION;
-   if(global_host.target_fixed(&target,(int32_t)instance.selected_target)!=&target)throw NP_GLOBAL_FILE_ACTION;
+   if(global_host.target_fixed(&target,(int32_t)global_native_target_id(instance.selected_target))!=&target)throw NP_GLOBAL_FILE_ACTION;
    target_live=true;global_host.clear_target(global_capture.view_controller,&target);
    target_live=false;global_host.target_dtor(&target);
   }
@@ -1297,7 +1315,7 @@ static bool apply_global_draft(LauncherInstance &instance) noexcept {
   if(!snapshot_global_files(current)||current.handler!=before.handler||current.selected!=before.selected||
      current.index!=before.index||__atomic_load_n((unsigned char*)current.handler+0x9c,__ATOMIC_ACQUIRE))
    throw NP_GLOBAL_FILE_ACTION;
-  if(global_host.target_fixed(&target,(int32_t)instance.selected_target)!=&target)throw NP_GLOBAL_FILE_ACTION;
+  if(global_host.target_fixed(&target,(int32_t)global_native_target_id(instance.selected_target))!=&target)throw NP_GLOBAL_FILE_ACTION;
   target_live=true;
   if(requested.type==1)global_host.note_message(message,requested.channel,requested.data1,127u);
   else if(requested.type==2)global_host.cc_message(message,requested.channel,requested.data1,0u);
@@ -1441,6 +1459,37 @@ static int global_app_open(void *owner,MpcUiAppHost *host,MpcUiContext *context,
 static const MpcUiAppCallbacks global_app_callbacks __attribute__((unused))={
  sizeof(MpcUiAppCallbacks),global_app_open,global_app_prepare_close,global_app_close
 };
+#if MPCLEARN_NATIVE_PLUGIN_CONTROLS
+static void plugin_action(void *owner,uint32_t intent) {
+ auto &instance=*(LauncherInstance*)owner;
+ if(intent==MPCLEARN_PLUGIN_BACK){
+  plugin_controls_active(0);
+  if(!mpc_ui_app_request_close(instance.app_host))failure(NP_TOOLKIT_NAVIGATION);
+ }else plugin_controls_navigate(intent);
+}
+static void plugin_slider(void *owner,uint32_t row,uint32_t event,double value) {
+ auto &instance=*(LauncherInstance*)owner;
+ plugin_controls_gesture(instance.plugin_screen.binding,row,event,value);
+}
+static int plugin_open(void *owner,MpcUiAppHost *,MpcUiContext *context,MpcUiParent *parent,MpcUiRect bounds) {
+ auto &instance=*(LauncherInstance*)owner;
+ if(!mpclearn_plugin_controls_open(&instance.plugin_screen,context,parent,bounds,plugin_action,plugin_slider,&instance))return 0;
+ plugin_controls_active(1);
+ if(state){increment(&state->shells_created);increment(&state->live_shells);}return 1;
+}
+static int plugin_prepare_close(void *owner,int) {
+ auto &instance=*(LauncherInstance*)owner;
+ plugin_controls_active(0);mpclearn_plugin_controls_cancel(&instance.plugin_screen);
+ return MPC_UI_APP_CLOSE_READY;
+}
+static int plugin_close(void *owner) {
+ auto &instance=*(LauncherInstance*)owner;
+ plugin_controls_active(0);
+ if(!mpclearn_plugin_controls_close(&instance.plugin_screen))return 0;
+ if(state){increment(&state->shells_destroyed);decrement(&state->live_shells);}return 1;
+}
+static const MpcUiAppCallbacks plugin_callbacks={sizeof(MpcUiAppCallbacks),plugin_open,plugin_prepare_close,plugin_close};
+#endif
 #if MPCLEARN_NATIVE_UI_EXAMPLE
 static void example_mark_closed(LauncherInstance &instance) {
  if(!instance.example_open_counted)return;
@@ -1474,7 +1523,9 @@ static bool register_launcher_app(LauncherInstance &instance,MpcUiRect bounds) {
  if(instance.app_host)return true;
  MpcUiAppHost *host=mpc_ui_private_app_host_create(instance.context,instance.navigation_parent,bounds);
  if(!host)return false;
-#if MPCLEARN_NATIVE_UI_EXAMPLE
+#if MPCLEARN_NATIVE_PLUGIN_CONTROLS
+ bool ok=mpc_ui_app_register(host,&plugin_callbacks,&instance);
+#elif MPCLEARN_NATIVE_UI_EXAMPLE
  bool ok=mpclearn_toolkit_example_app_init(&instance.example_app,64.0,example_action,example_slider,&instance)&&
   mpc_ui_app_register(host,mpclearn_toolkit_example_app_callbacks(),&instance.example_app);
 #else
@@ -1487,7 +1538,7 @@ static bool launcher_suspend_safe(const LauncherInstance &instance) {
  if(!instance.app_host||!mpc_ui_app_is_open(instance.app_host)||
     mpc_ui_private_app_host_is_suspended(instance.app_host))return true;
  if(mpc_ui_app_is_closing(instance.app_host))return false;
-#if MPCLEARN_NATIVE_UI_EXAMPLE
+#if MPCLEARN_NATIVE_PLUGIN_CONTROLS || MPCLEARN_NATIVE_UI_EXAMPLE
  return true;
 #else
  return instance.file_action==FILE_ACTION_NONE&&
@@ -1554,7 +1605,9 @@ static int attach_launcher_entry(Context *c) {
  MpcUiParent *parent=mpc_ui_private_component_parent(instance->context,second);
  MpcUiScreen *screen=parent?mpc_ui_screen_create(instance->context,parent,{0,0,904,684}):nullptr;
  const char *label=
-#if MPCLEARN_NATIVE_UI_EXAMPLE
+#if MPCLEARN_NATIVE_PLUGIN_CONTROLS
+  "3 BAND EQ";
+#elif MPCLEARN_NATIVE_UI_EXAMPLE
   "UI TOOLKIT EXAMPLE";
 #else
   "GLOBAL MIDI LEARN";
@@ -1598,7 +1651,7 @@ static int capture_global_owner(Context *c) {
  void *app=(void*)(uintptr_t)c->r[4],*view_controller=(void*)(uintptr_t)c->r[5];
  void *file_handler=(void*)(uintptr_t)c->r[6],*owner=(void*)(uintptr_t)c->r[7];
  if(!app||!view_controller||!owner||
-    *(void**)((unsigned char*)app+0x3c0)!=owner||
+    *(void**)((unsigned char*)app+NP_GLOBAL_ROOT_OWNER)!=owner||
     *(void**)((unsigned char*)view_controller+0x138)!=owner||
     *(void**)((unsigned char*)view_controller+0x13c)!=file_handler){failure(NP_GLOBAL_CONTEXT);return 0;}
  void *observed=nullptr;
@@ -1634,6 +1687,16 @@ static void process_launcher_pending() noexcept {
    else if(!mpc_ui_app_is_open(instance.app_host))example_mark_closed(instance);
 #endif
   }
+#if MPCLEARN_NATIVE_PLUGIN_CONTROLS
+  if(instance.plugin_screen.screen){
+   bool visible=!mpc_ui_private_app_host_is_suspended(instance.app_host)&&!mpc_ui_app_is_closing(instance.app_host);
+   plugin_controls_active(visible);
+   if(!visible)mpclearn_plugin_controls_cancel(&instance.plugin_screen);
+   else {MpclearnPluginControlsSnapshot snapshot={};
+    if(!plugin_controls_snapshot(&snapshot)||!mpclearn_plugin_controls_refresh(&instance.plugin_screen,&snapshot))failure(NP_TOOLKIT_NAVIGATION);
+   }
+  }
+#endif
  }
 }
 static void process_global_pending() noexcept {
@@ -1645,6 +1708,9 @@ static void process_global_pending() noexcept {
 }
 static void launcher_overlay_destructor(void *overlay,int deleting) noexcept {
  LauncherInstance *instance=launcher_overlay_instance(overlay);if(!instance){failure(NP_LAUNCHER_CONTEXT);return;}
+#if MPCLEARN_NATIVE_PLUGIN_CONTROLS
+ if(instance->plugin_screen.screen)plugin_controls_active(0);
+#endif
  uint32_t callback_depth=instance->app_host?mpc_ui_private_app_host_callback_depth(instance->app_host):0;
  uint32_t consumer_open=instance->app_host&&mpc_ui_app_is_open(instance->app_host);
  uint32_t busy=instance->resume_requested||instance->file_action!=FILE_ACTION_NONE||instance->learn_intent!=LEARN_INTENT_NONE||

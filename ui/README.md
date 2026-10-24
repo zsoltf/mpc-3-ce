@@ -4,8 +4,8 @@
 
 Use the primary checkout at `/Users/zsolt/dev/codex/mpclearn`. Screen authors
 include [include/mpclearn-ui.h](include/mpclearn-ui.h); they do not need firmware
-addresses, object offsets or private headers. The toolkit currently targets the
-qualified Gen1 MPC 3.9.1 host. A screen still needs an admitted host adapter;
+addresses, object offsets or private headers. The toolkit preserves the qualified Gen1 MPC 3.9.1 host and has an explicit
+3.10 development profile described below. A screen still needs an admitted host adapter;
 the library alone does not register a new app or plug-in editor.
 
 1. Start from [examples/toolkit-example.cc](examples/toolkit-example.cc) and its
@@ -78,9 +78,10 @@ public API.
 
 Public screens receive only opaque `MpcUiContext` and `MpcUiParent` handles.
 Raw addresses, object sizes, copied vtable details and the pinned executable
-identity live under [private/](private/). The current private profile names the
-exact MPC 3.9.1 executable SHA256 and resolves the host functions already
-qualified by the native Preferences work.
+identity live under [private/](private/). Each selected private profile names its exact executable SHA256 and resolves
+the host functions through the existing Native Preferences admission. The
+3.9.1 profile retains its native qualification; the 3.10 profile currently has
+static and offline component evidence, with native qualification outstanding.
 
 `mpc_ui_private_context_from_admitted` does not replace executable admission.
 An app adapter calls it only after its existing observer admission accepts the
@@ -487,3 +488,76 @@ aligned with 16px padding and retain native fitting without horizontal shrink.
 The painter needs at least 48px (one primary line) or 74px (two); taller rows
 add vertical breathing room. A null detail
 callback restores the ordinary painter; existing lists do not opt in implicitly.
+
+# Explicit 3.10 build profile
+
+`MPCLEARN_FIRMWARE=3.10 ./ui/build.sh` selects the private 3.10 profile for the
+standalone toolkit component build. The composed Native Preferences build
+instead force-includes the exact command preparation's `model-build-profile.h`
+in every C/C++ object. `private/mpc-profile.h` selects one profile at compile
+time; the adapter still requires matching admission from its runtime owner.
+This does not detect firmware at runtime or admit a binary by version name.
+
+The 58 coordinates in `private/mpc-3.10-profile.h` are based on the exact stock
+ELF SHA256 `753f838ca362d42c8cc3f5c9c3fcc604ba076b5919212e0301923a3c11c93494`.
+RTTI constructors/deleting destructors establish Button/Label/ListBox/Slider
+sizes `0x100/0x100/0xac/0xcc`, and the copied Button/ListBoxModel tables retain
+212/68 bytes. The ListRow coordinate is already a vptr; other table coordinates
+name headers. Native callbacks establish row/model fields, MouseListener slots
+9/10 and hard-float magnification, 28-byte BitmapData, and the 0x48-byte copied
+keyboard session. Direct branches and PC-relative literals were inspected;
+numeric similarity alone is not layout evidence.
+
+Trace locators: `/tmp/mpclearn-m25-ui-trace/report.md`,
+`followup-closure.md`, `body-evidence.json`, `reviewed-branch-targets.json`,
+`reviewed-literal-targets.json` and `followup-details.json` in that directory.
+The external keyboard service is Engine `+0x130`, separately traced in
+`/tmp/mpclearn-m25-editor-trace/report.md`; the toolkit receives that owner
+through its existing adapter API. The separately recorded generic implementation
+closure is `integration-closure.json` and `integration-closure.md` in the same
+UI trace directory. Composed Native Preferences admission remains separate from
+the standalone component gate.
+Component checks substitute native widgets, callbacks, Graphics and input.
+Native rendering, gestures, keyboard lifetime and playback remain device
+qualification boundaries.
+
+
+The production composition uses the existing entry points:
+
+```sh
+MPCLEARN_FIRMWARE=3.10 controllers/program-observer/native-preferences-build.sh \
+  /path/to/exact-3.10-CE-MPC /path/to/exact-3.10-stock-MPC /data/mpclearn/dev
+MPCLEARN_FIRMWARE=3.10 controllers/program-observer/native-preferences-check.sh
+```
+
+The build prepares the command/bridge package first, then verifies the exact
+stock and CE inputs against `native-preferences-310-coordinates.json`. It emits
+the native ranges and selected layout together. The generated command profile
+and native layout directories are passed to every composed C/C++ compilation;
+there is no runtime firmware fallback. `MPCLEARN_FIRMWARE=3.9.1` retains the
+preservation build. Source export and final image recipe selection are separate.
+
+The command owner installs the shared Property destructor detour first.
+`native-preferences-join.py` checks its displaced pair and literal relocation,
+then checks the native UI's untouched 320-byte tail. Static preparation still
+verifies the complete destructor. Existing prepare scripts and runtime
+installers retain admission ownership; the coordinate manifest is traced data.
+Inherited prefix/fold guards remain identified in provenance; separately traced
+complete bodies cover the ListBox/Slider and text-session tails. The text-close
+facade plus active setter is 0x1f8 bytes, including both final literals.
+
+The adapter retains CE's 120 Global MIDI Learn rows. In the 3.10 profile it maps
+CE IDs 118/119 to native 119/120 at label/Target construction boundaries; native
+118 (Browser Help) is not a CE row. Native 95 supplies Akai's Track Mixer label.
+Selection stays with the existing screen instance, and the native owner still
+performs lookup, Learn, Clear and manual commit. This does not rewrite `.xmm`
+files or establish compatibility of old serialized numeric target IDs.
+
+The ARM component calls the actual resolver at nonzero bias before substituting
+native callbacks. Independent expected addresses and distinct old/new stack
+slots catch stale function, owner and Preferences frame coordinates. The normal
+and public-example modes exercise Controllers/Detect and Global Learn or the
+existing toolkit example. Native widget execution, filesystem/modal interaction,
+rendering, hardware input and playback are still substituted or unobserved;
+passes here do not establish native fit or audio compatibility. Parked plugin
+controls remain disabled in the production composition.

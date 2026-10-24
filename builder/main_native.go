@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	input := flag.String("input", "", "official MPC 3.9.1 Gen1 update image")
+	input := flag.String("input", "", "official MPC 3.9.1 or 3.10 Gen1 update image")
 	output := flag.String("output", "", "new personal -update.img path")
 	publicKeyPath := flag.String("public-key", "", "optional owner Ed25519 public key; SSH stays disabled when omitted")
 	diagnostics := flag.Bool("diagnostics", false, "build the no-SSH current-report debug image")

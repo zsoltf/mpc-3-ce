@@ -40,11 +40,11 @@ static int qlink_span(uint32_t p,unsigned bytes){return pointer(p)&&p<=UINT32_MA
 static int qlink_resolve(Context *c,const QLinkDemand *d,QLinkNative *n){
  memset(n,0,sizeof(*n));
  if(!d->enabled||d->epoch!=epoch||token()!=command_owner||!ready||loading||reset_pending||depth||!active()||!root||!project||!command_queues||c->r[0]!=command_queues+4||word(c->r[0]+0xf0)||atomic_load(&command_state->new_project_intent)||atomic_load(&command_state->stop_requested))return 0;
- if(!typed(root,0x68d7bf8)||word(root+0x24c)!=project||!typed(project,0x6933c4c))return 0;
- n->root=root;n->controls=word(root+0x388);n->queue=word(root+0xf8);n->wrapper=word(root+0x540);
+ if(!typed(root,MODEL_ROOT_VPTR)||word(root+MODEL_ROOT_PROJECT)!=project||!typed(project,MODEL_PROJECT_VPTR))return 0;
+ n->root=root;n->controls=word(root+MODEL_ROOT_CONTROLS);n->queue=word(root+MODEL_ROOT_QUEUES);n->wrapper=word(root+MODEL_ROOT_QLINK_WRAPPER);
  if(!qlink_span(n->controls,0x3c)||!qlink_span(n->wrapper,12)||n->queue!=command_queues)return 0;
  n->provider=word(n->controls+0x30);n->labels=word(n->controls+0x38);n->mode=word(n->controls+0x2c);
- if(!qlink_span(n->provider,0x38)||!qlink_span(n->labels,0x20)||!typed(n->mode,0x68962d8)||!qlink_span(n->mode,0xc8)||word(n->wrapper)!=n->queue||word(n->wrapper+8)!=n->provider||word(n->provider+0x28)!=QLINK_SLOTS)return 0;
+ if(!qlink_span(n->provider,0x38)||!qlink_span(n->labels,0x20)||!typed(n->mode,MODEL_QLINK_TOUCH_VPTR)||!qlink_span(n->mode,0xc8)||word(n->wrapper)!=n->queue||word(n->wrapper+8)!=n->provider||word(n->provider+0x28)!=QLINK_SLOTS)return 0;
  if(word(n->labels+0x10)!=QLINK_SLOTS||word(n->labels+0x18)!=QLINK_SLOTS||word(n->labels+0x1c)!=QLINK_SLOTS)return 0;
  n->sources=word(n->provider+0x2c);n->descriptors=word(n->provider+0x30);n->cache=word(n->provider+0x34);n->strings=word(n->labels+0x14);
  if(!qlink_span(n->sources,QLINK_SLOTS*0x84)||!qlink_span(n->descriptors,QLINK_SLOTS*0x68)||!qlink_span(n->cache,QLINK_SLOTS*4)||!qlink_span(n->strings,QLINK_SLOTS*12))return 0;
@@ -54,11 +54,11 @@ static int qlink_resolve(Context *c,const QLinkDemand *d,QLinkNative *n){
  * Only this existing qualified UI drain resolves and samples its scalar state. */
 static int qlink_mode_resolve(Context *c,unsigned wanted_epoch,uint32_t *controller,unsigned *id,unsigned *count){
  QLinkNative n;QLinkDemand d={.enabled=1,.epoch=wanted_epoch};if(!qlink_resolve(c,&d,&n))return 0;
- uint32_t owner=word(root+0x750);if(!qlink_span(owner,0xac))return 0;
- uint32_t k=word(owner+0xa8);if(!typed(k,0x6897870)||!qlink_span(k,0x548)||word(k+8)!=command_queues||(atomic_load_explicit(&qlink_mode_dead,memory_order_acquire)==k&&qlink_mode_root==root))return 0;
+ uint32_t owner=word(root+MODEL_ROOT_QLINK_OWNER);if(!qlink_span(owner,MODEL_QLINK_OWNER_SPAN))return 0;
+ uint32_t k=word(owner+MODEL_QLINK_OWNER_CONTROLLER);if(!typed(k,MODEL_QLINK_CONTROLLER_VPTR)||!qlink_span(k,0x548)||word(k+8)!=command_queues||(atomic_load_explicit(&qlink_mode_dead,memory_order_acquire)==k&&qlink_mode_root==root))return 0;
  uint32_t capability=word(k+0x524);if(!qlink_span(capability,0x2c))return 0;
  unsigned h=word(capability+0x28),current=word(k+0x5c),available=h==14||h==16?15:14;
- if(current>=available||word(root+0x750)!=owner||word(owner+0xa8)!=k||word(k+8)!=command_queues||word(k+0x524)!=capability||word(capability+0x28)!=h||word(k+0x5c)!=current)return 0;
+ if(current>=available||word(root+MODEL_ROOT_QLINK_OWNER)!=owner||word(owner+MODEL_QLINK_OWNER_CONTROLLER)!=k||word(k+8)!=command_queues||word(k+0x524)!=capability||word(capability+0x28)!=h||word(k+0x5c)!=current)return 0;
  *controller=k;*id=current;*count=available;return 1;
 }
 static int qlink_mode_sample(Context *c,unsigned now){
@@ -129,7 +129,7 @@ static int qlink_sample(Context *c,const QLinkDemand *d,const QLinkNative *n,uns
  qlink_reading=1;slot.kind=word(record);slot.gesture_activity=*(const volatile unsigned char*)(uintptr_t)(n->sources+0x84*i+0x28);
  int strings=qlink_string(name,slot.name,&slot.name_status)&&qlink_string(text,slot.text,&slot.text_status);
  unsigned witness=qlink_witness_read(i,qlink_current.generation,raw,&slot.refresh_revision,&slot.refresh_tick,slot.refresh_matches);
- float value=((float (*)(void*,unsigned))(uintptr_t)(observer_image_bias+0x14ddc94))((void*)(uintptr_t)n->wrapper,i);qlink_current.reads++;
+ float value=((float (*)(void*,unsigned))(uintptr_t)(observer_image_bias+MODEL_QLINK_GET))((void*)(uintptr_t)n->wrapper,i);qlink_current.reads++;
  QLinkNative after;int same=!atomic_load(&s->invalid)&&!atomic_load(&s->error)&&sem==qlink_semantic_revision()&&qlink_resolve(c,d,&after)&&!memcmp(n,&after,sizeof(*n));
  qlink_reading=0;if(!same){atomic_store(&s->invalid,1);return 0;}
  if(word(record+4)!=name||word(record+8)!=text||word(record)!=slot.kind||word(n->cache+4*i)!=raw)return 2; /* Transient value/text race; retry without remapping. */

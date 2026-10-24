@@ -1,128 +1,17 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>X-Touch guide - MPC 3 CE</title>
-  <meta name="description" content="Mix the MPC with motor faders on a Behringer X-Touch: setup, channel strips, views, effects, transport and the jog wheel.">
+  <meta name="description" content="Mix the MPC with motorized faders on a Behringer X-Touch: setup, channel strips, views, effects, transport and the jog wheel.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <script>try{const t=localStorage.getItem('theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t;}catch(e){}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site.css">
   <style>
-    /* Shared design system, kept identical in index.html, builder.html and guide.html:
-       tokens, type scale, links, code, tables, numbered steps, buttons, header and footer. */
-    :root {
-      color-scheme: light;
-      --page: #f7f7f5; --page-2: #ecedea; --surface: #ffffff; --ink: #15171a; --ink-2: #454a52; --ink-3: #5c636b; --line: #d5d8dc; --line-2: #e6e8e5;
-      --red: #c8322a; --red-hover: #a9271f; --red-soft: #fbe9e7; --red-text: #8f2219;
-      /* White on the CTA red passes 4.5:1 in both themes. */
-      --cta: #d6362a; --cta-hover: #bb291e; --cta-ink: #ffffff;
-      --ok: #1f7a4d; --ok-soft: #e6f4ec; --ok-line: #cfe6d8;
-      --header: rgba(247,247,245,.92);
-      --sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-      --radius: 10px; --radius-s: 6px;
-    }
-    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-      color-scheme: dark;
-      --page: #0f1013; --page-2: #181a1e; --surface: #15171a; --ink: #eceef1; --ink-2: #b0b5bc; --ink-3: #8a9099; --line: #2c2f35; --line-2: #212328;
-      --red: #f0594e; --red-hover: #ff7067; --red-soft: #33191a; --red-text: #ffb3ab;
-      --ok: #5fcf8f; --ok-soft: #13271b; --ok-line: #24472f;
-      --header: rgba(15,16,19,.85);
-    } }
-    :root[data-theme="dark"] {
-      color-scheme: dark;
-      --page: #0f1013; --page-2: #181a1e; --surface: #15171a; --ink: #eceef1; --ink-2: #b0b5bc; --ink-3: #8a9099; --line: #2c2f35; --line-2: #212328;
-      --red: #f0594e; --red-hover: #ff7067; --red-soft: #33191a; --red-text: #ffb3ab;
-      --ok: #5fcf8f; --ok-soft: #13271b; --ok-line: #24472f;
-      --header: rgba(15,16,19,.85);
-    }
 
-    * { box-sizing: border-box; }
-    html { background: var(--page); scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
-    body { margin: 0; font-family: var(--sans); font-size: 16px; line-height: 1.6; color: var(--ink); background: var(--page); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
-    h1, h2, h3 { color: var(--ink); text-wrap: balance; }
-    p, li, dd, td { text-wrap: pretty; }
-    h1 { font-size: clamp(32px, 4vw, 52px); font-weight: 600; letter-spacing: -.04em; line-height: 1.08; margin: 0; }
-    h2 { font-size: clamp(26px, 2.6vw, 34px); font-weight: 600; letter-spacing: -.03em; line-height: 1.15; margin: 0 0 14px; }
-    h3 { font-size: 18px; font-weight: 600; letter-spacing: -.015em; line-height: 1.3; margin: 0 0 6px; }
-    .lead { margin: 16px 0 0; font-size: 18px; line-height: 1.6; color: var(--ink-2); max-width: 58ch; }
-    .small { font-size: 14px; color: var(--ink-3); }
-    a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-    a:hover { color: var(--red); }
-    :focus-visible { outline: 2px solid var(--red); outline-offset: 3px; border-radius: 4px; }
-    code, kbd { font-family: var(--mono); font-size: .86em; }
-    code { background: var(--page-2); padding: 2px 6px; border-radius: 5px; overflow-wrap: anywhere; }
-    kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; background: var(--surface); white-space: nowrap; }
-    [hidden] { display: none !important; }
-    .wrap { width: min(1200px, 100% - 48px); margin-inline: auto; }
-    @media (max-width: 640px) { .wrap { width: calc(100% - 32px); } }
-
-    /* Tables: rules between rows, quiet column headings */
-    .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 15px; }
-    caption { caption-side: top; text-align: left; font-size: 18px; font-weight: 600; letter-spacing: -.015em; color: var(--ink); padding-bottom: 10px; }
-    th, td { text-align: left; vertical-align: top; padding: 11px 18px 11px 0; border-top: 1px solid var(--line); line-height: 1.5; }
-    thead th { border-top: 0; padding-top: 0; font-size: 13px; font-weight: 600; color: var(--ink-3); }
-    tbody th, td:first-child { color: var(--ink); font-weight: 600; }
-    td { color: var(--ink-2); }
-    td small { display: block; color: var(--ink-3); font-weight: 400; font-size: 13px; }
-
-    /* Numbered steps: one marker style for every sequence */
-    .numbered { list-style: none; counter-reset: n; margin: 0; padding: 0; }
-    .numbered > li { counter-increment: n; position: relative; padding-left: 46px; }
-    .numbered > li::before { content: counter(n); position: absolute; left: 0; top: 0; width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--ink); display: grid; place-items: center; font-size: 14px; font-weight: 600; line-height: 1; color: var(--ink); }
-
-    /* Buttons: one style, one primary (the red call to action) */
-    .btn { appearance: none; font: inherit; font-size: 14px; font-weight: 600; line-height: 1.1; border: 1px solid var(--line); border-radius: var(--radius-s); padding: 12px 18px; background: transparent; color: var(--ink); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; transition: background .15s, border-color .15s, color .15s; white-space: nowrap; }
-    .btn:hover { background: var(--ink); border-color: var(--ink); color: var(--page); }
-    .btn:active { transform: translateY(1px); }
-    .btn.small { padding: 9px 13px; font-size: 13px; }
-    .btn.primary { background: var(--cta); border-color: var(--cta); color: var(--cta-ink); }
-    .btn.primary:hover { background: var(--cta-hover); border-color: var(--cta-hover); color: var(--cta-ink); }
-    .btn:disabled { opacity: .4; cursor: default; transform: none; }
-    .btn:disabled:hover { background: transparent; border-color: var(--line); color: var(--ink); }
-    .btn.primary:disabled:hover { background: var(--cta); border-color: var(--cta); color: var(--cta-ink); }
-    .btn.quiet { border-color: transparent; color: var(--ink-2); padding-inline: 8px; }
-    .btn.quiet:hover { background: transparent; color: var(--red); }
-
-    /* Header */
-    .top { position: sticky; top: 0; z-index: 20; background: var(--header); backdrop-filter: saturate(150%) blur(12px); -webkit-backdrop-filter: saturate(150%) blur(12px); border-bottom: 1px solid var(--line); }
-    .top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 64px; }
-    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; }
-    .brand:hover { color: var(--ink); }
-    .brand .mark { width: 26px; height: 26px; border-radius: 7px; background: var(--ink); display: grid; place-items: center; }
-    .brand .mark i { display: block; width: 10px; height: 10px; border-radius: 2px; background: var(--cta); }
-    .brand .tag { font-size: 12px; font-weight: 600; color: var(--ink-3); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
-    .top nav { display: flex; align-items: center; gap: 22px; font-size: 15px; font-weight: 600; }
-    .top nav a:not(.btn) { text-decoration: none; color: var(--ink-2); white-space: nowrap; }
-    .top nav a:not(.btn):hover, .top nav a[aria-current="page"]:not(.btn) { color: var(--ink); }
-    .top .btn { padding: 9px 14px; }
-    .theme { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border: 0; background: transparent; color: var(--ink-2); border-radius: 8px; cursor: pointer; }
-    .theme:hover { background: var(--page-2); color: var(--ink); }
-    .theme svg { width: 18px; height: 18px; }
-    .theme .sun { display: none; }
-    :root[data-theme="dark"] .theme .sun { display: block; }
-    :root[data-theme="dark"] .theme .moon { display: none; }
-    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .theme .sun { display: block; } :root:not([data-theme="light"]) .theme .moon { display: none; } }
-    @media (max-width: 860px) { .top nav .opt { display: none; } }
-    @media (max-width: 560px) { .brand .tag { display: none; } .top nav { gap: 10px; } .top nav .btn { padding: 9px 12px; font-size: 14px; } }
-    @media (max-width: 440px) { .top nav .opt2 { display: none; } }
-
-    /* Footer */
-    footer { padding: 36px 0 56px; border-top: 1px solid var(--line); font-size: 14px; color: var(--ink-3); }
-    footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px 32px; }
-    footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
-    footer nav a { color: var(--ink-2); text-decoration: none; font-weight: 600; }
-    footer nav a:hover { color: var(--red); }
-    footer p { margin: 0; max-width: 64ch; }
-    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } }
-
-    /* Page head, shared by the builder and the guide */
-    .page-head { padding: 64px 0 8px; }
-    .doc { max-width: 880px; }
 
     /* Guide */
     main { padding-bottom: 88px; }
@@ -160,27 +49,24 @@
   </style>
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="./"><span class="mark"><i></i></span>MPC 3 CE <span class="tag">v0.3.0</span></a>
+    <a class="brand" href="./"><span class="mark"><i></i></span>MPC 3 CE</a>
     <nav aria-label="Site">
+      <a class="opt" href="./#features">Features</a>
+      <a class="opt" href="./#setup">Setup</a>
       <a class="opt2" href="guide.html" aria-current="page">X-Touch guide</a>
-      <a class="opt" href="xtouch-cheatsheet.md" download title="Download the X-Touch cheat sheet as a text file">Cheat sheet</a>
-      <a class="opt" href="https://github.com/zsoltf/mpc-3-ce" rel="noopener noreferrer">GitHub</a>
-      <button class="theme" type="button" id="themeToggle" aria-label="Switch color theme" title="Switch color theme">
-        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
-        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-      </button>
       <a class="btn primary" href="builder.html">Build your image</a>
     </nav>
   </div>
 </header>
 
-<main>
+<main id="main">
 <div class="wrap"><div class="doc">
   <div class="page-head">
     <h1>X-Touch guide</h1>
-    <p class="lead">Mix the MPC with motor faders on a full-size <strong>Behringer X-Touch</strong>. It connects when a project loads and follows the MPC: faders, names, colors and meters update as you work, also while you use a Launchpad or XL3.</p>
+    <p class="lead">Mix the MPC with motorized faders on a full-size <strong>Behringer X-Touch</strong>. It connects when a project loads and follows the MPC: faders, names, colors and meters update as you work, also while you use a Launchpad or XL3.</p>
     <div class="tools">
       <button class="btn small" type="button" onclick="window.print()">Print or save as PDF</button>
       <a class="btn small" href="xtouch-cheatsheet.md" download>Text cheat sheet</a>
@@ -192,7 +78,6 @@
       <li><a href="#plugins">Effects and Q-Link knobs</a></li>
       <li><a href="#transport">Transport</a></li>
       <li><a href="#jog">Jog wheel and cursor keys</a></li>
-      <li><a href="#files">Copy files over Wi-Fi</a></li>
       <li><a href="#limits">Not available</a></li>
     </ul>
   </div>
@@ -305,7 +190,7 @@
       <table>
         <thead><tr><th>Button</th><th>Action</th></tr></thead>
         <tbody>
-          <tr><td>Save</td><td>Not enabled. Save from the MPC.</td></tr>
+          <tr><td>Save</td><td>Save the project. MPC opens its normal save dialog for an unnamed project.</td></tr>
           <tr><td>Undo</td><td>Undo. <kbd>Shift</kbd>+<kbd>Undo</kbd> is Redo.</td></tr>
           <tr><td>Read/Off</td><td>Automation Read.</td></tr>
           <tr><td>Write</td><td>Automation Write.</td></tr>
@@ -333,23 +218,13 @@
     <p>A hard flick can keep moving briefly after you stop.</p>
   </section>
 
-  <section id="files">
-    <h2>Copy files over Wi-Fi</h2>
-    <p>An image built with your SSH key can also copy files. Connect with <code>sftp</code>, <code>scp</code> or an app such as Cyberduck, WinSCP or FileZilla: user <code>root</code>, your private key, and the address shown in the MPC's Wi-Fi settings.</p>
-    <ul>
-      <li>Your USB drive is <code>/media/MPC</code>, named after its label. The internal storage is <code>/media/az01-internal-sd</code>.</li>
-      <li>Copied files show up in the Browser right away.</li>
-      <li>Expect 1&ndash;2 MB/s over Wi-Fi. Don't replace a file a loaded project is using.</li>
-    </ul>
-  </section>
-
   <section id="limits">
     <h2>Not available</h2>
     <ul>
       <li>Pad names, colors, meters, Select and Arm in Drum Mix; MIDI pan and sends; CV track volume.</li>
       <li>Chooser navigation from the controller: Add Track, Add Effect and Replace Effect open on the MPC and finish there.</li>
       <li>Plug-in presets, parameter reset to default, and parameter pages for synth instances.</li>
-      <li>SMPTE display. This page covers the full-size X-Touch. See the <a href="./#launchpad">Launchpad layout</a> and the <a href="https://github.com/zsoltf/mpc-3-ce/blob/main/docs/controller-programs.md">controller guide</a> for Launchpad, XL3, MCU/HUI and Akai profiles.</li>
+      <li>SMPTE display. This page covers the full-size X-Touch. See the <a href="CONTROLLERS.md">controller guide</a> for Launchpad, XL3, MCU/HUI and Akai profiles.</li>
     </ul>
   </section>
 
@@ -363,19 +238,13 @@
       <a href="guide.html">X-Touch guide</a>
       <a href="xtouch-cheatsheet.md" download>Cheat sheet</a>
       <a href="https://github.com/zsoltf/mpc-3-ce/releases" rel="noopener noreferrer">Releases</a>
-      <a href="https://github.com/zsoltf/mpc-3-ce/issues" rel="noopener noreferrer">Report a result or bug</a>
+      <a href="https://github.com/zsoltf/mpc-3-ce/issues" rel="noopener noreferrer">Report a bug</a>
       <a href="https://github.com/zsoltf/mpc-3-ce" rel="noopener noreferrer">GitHub</a>
     </nav>
-    <p>MPC 3 CE, the Controller Edition. Built on research from <a href="https://github.com/TheKikGen/MPC-LiveXplore" rel="noopener noreferrer">MPC-LiveXplore</a>. Unofficial, and not affiliated with Akai, inMusic, Behringer or Novation. Please don't share the images you build.</p>
+    <p>MPC 3 CE. Built on research from <a href="https://github.com/TheKikGen/MPC-LiveXplore" rel="noopener noreferrer">MPC-LiveXplore</a>. Unofficial, and not affiliated with Akai, inMusic, Behringer or Novation. Please don't share the images you build.</p>
   </div>
 </footer>
 <script>
-document.querySelector('#themeToggle').onclick = () => {
-  const root = document.documentElement;
-  const dark = root.dataset.theme === 'dark' || (!root.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches);
-  root.dataset.theme = dark ? 'light' : 'dark';
-  try { localStorage.setItem('theme', root.dataset.theme); } catch (e) {}
-};
 </script>
 </body>
 </html>

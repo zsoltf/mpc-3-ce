@@ -54,9 +54,9 @@ static PadOwner *pad_property(uint32_t property,unsigned *field){
 }
 static uint32_t pad_frame(Context *c,int copy,unsigned extra){
  uint32_t sp=source_sp(c)+extra,p;
- if(extra&&word(source_sp(c)+0x8c)!=observer_image_bias+(copy?0x236faf4:0x236f090))return 0;
- if(!copy){if(word(sp+0xb4)!=observer_image_bias+0x237034c||word(sp+0x114)!=observer_image_bias+0x23705f8||word(sp+0x13c)!=observer_image_bias+0x243727c)return 0;p=word(sp+0x12c);}
- else{if(word(sp+0x8c)!=observer_image_bias+0x2370710||word(sp+0xf4)!=observer_image_bias+0x2370a7c||word(sp+0x10c)!=observer_image_bias+0x2435c28)return 0;p=word(sp+0xf8);}
+ if(extra&&word(source_sp(c)+0x8c)!=observer_image_bias+(copy?MODEL_MUTE_COPY_LR:MODEL_MUTE_NORMAL_LR))return 0;
+ if(!copy){if(word(sp+0xb4)!=observer_image_bias+MODEL_SEED_NORMAL_LR1||word(sp+0x114)!=observer_image_bias+MODEL_SEED_NORMAL_LR2||word(sp+0x13c)!=observer_image_bias+MODEL_PAD_NORMAL_SEED_LR3)return 0;p=word(sp+0x12c);}
+ else{if(word(sp+0x8c)!=observer_image_bias+MODEL_SEED_COPY_LR1||word(sp+0xf4)!=observer_image_bias+MODEL_SEED_COPY_LR2||word(sp+0x10c)!=observer_image_bias+MODEL_PAD_COPY_SEED_LR3)return 0;p=word(sp+0xf8);}
  PadOwner *o=pad_owner(p);return pointer(p)&&c->r[4]==p+(extra?0xc:0)&&o&&atomic_load(&o->live)&&!atomic_load(&o->complete)?p:0;
 }
 typedef struct {uint32_t parent,owner,sp,index,second,swap;} PadMutation;
@@ -76,7 +76,7 @@ static int pad_publish_slot(PadParent *p,unsigned index){
  uint32_t d=atomic_load(&p->address),a=word(d+0x1fec),b=word(d+0x1ff0),cap=word(d+0x1ff4);
  if(!pointer(a)||b<a||cap<b||(b-a)%4||(cap-a)%4||(cap-a)/4>PAD_SLOTS||index>=(b-a)/4)return 0;
  uint32_t child=word(a+index*4);unsigned id=0;
- if(child){PadOwner *o=pad_owner(child);if(!o||!atomic_load(&o->live)||!atomic_load(&o->complete)||atomic_load(&o->parent)!=d||atomic_load(&o->parent_owner)!=atomic_load(&p->owner)||!typed(child,0x692f650)||word(child+0x13b0)!=d||word(child+0x12dc)!=index)return 0;id=atomic_load(&o->incarnation);}
+ if(child){PadOwner *o=pad_owner(child);if(!o||!atomic_load(&o->live)||!atomic_load(&o->complete)||atomic_load(&o->parent)!=d||atomic_load(&o->parent_owner)!=atomic_load(&p->owner)||!typed(child,MODEL_INSTRUMENT_VPTR)||word(child+MODEL_INSTRUMENT_PARENT)!=d||word(child+MODEL_INSTRUMENT_SLOT)!=index)return 0;id=atomic_load(&o->incarnation);}
  PadMembership *m=p->slots+index;unsigned gen=atomic_load(&m->generation);if(gen==UINT32_MAX){pad_error(PD_WRAP);return 0;}
  atomic_store(&m->owner,id);atomic_store(&m->generation,gen+1);return 1;
 }
@@ -90,7 +90,7 @@ static void pad_membership_end(uint32_t sp,int swap){
 }
 static void pad_hook(Context *c,unsigned site){
  if(site==PD_BIRTH||site==PD_COPY){pad_birth(c->r[0],c->r[site==PD_COPY?2:1]);return;}
- if(site==PD_COMPLETE||site==PD_COPY_COMPLETE){PadOwner *p=pad_owner(c->r[4]);if(!pad_on_owner()||!p||!atomic_load(&p->live)||!typed(c->r[4],0x692f650)){pad_error(PD_LIFETIME);return;}for(unsigned f=0;f<PF_COUNT;f++)if(!atomic_load(&p->fields[f].live)){pad_error(PD_LIFETIME);return;}atomic_store_explicit(&p->complete,1,memory_order_release);return;}
+ if(site==PD_COMPLETE||site==PD_COPY_COMPLETE){PadOwner *p=pad_owner(c->r[4]);if(!pad_on_owner()||!p||!atomic_load(&p->live)||!typed(c->r[4],MODEL_INSTRUMENT_VPTR)){pad_error(PD_LIFETIME);return;}for(unsigned f=0;f<PF_COUNT;f++)if(!atomic_load(&p->fields[f].live)){pad_error(PD_LIFETIME);return;}atomic_store_explicit(&p->complete,1,memory_order_release);return;}
  if(site==PD_DEATH||site==PD_DELETE){PadOwner *p=pad_owner(c->r[0]);if(p)atomic_store_explicit(&p->live,0,memory_order_release);return;}
  if(site==PD_PARENT_CHANGE){PadOwner *p=pad_owner(c->r[0]);if(p&&atomic_load(&p->live)&&atomic_load(&p->parent)!=c->r[2]){atomic_store_explicit(&p->live,0,memory_order_release);pad_error(PD_MEMBERSHIP);}return;}
  if(site==PD_BIND||site==PD_SWAP){pad_membership_begin(c->r[0],c->r[1],c->r[2],site==PD_SWAP,source_sp(c));return;}

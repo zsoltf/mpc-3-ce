@@ -13,6 +13,11 @@
  * kind. This seam sits between the identity stores and the incarnation store
  * and holds that order to its contract. Declared before the allocator is
  * included, so it takes scalars rather than a ChannelOwner. */
+#ifdef MODEL_FIRMWARE_310
+#define INPUT_IMAGE(old_value,new_value) (new_value)
+#else
+#define INPUT_IMAGE(old_value,new_value) (old_value)
+#endif
 static unsigned channel_owner_publishes;
 static void channel_owner_publish(uint32_t,unsigned,unsigned,uint32_t,unsigned,unsigned);
 #define CHANNEL_OWNER_PUBLISH(o,a,k,i) channel_owner_publish(atomic_load(&(o)->address),atomic_load(&(o)->kind),atomic_load(&(o)->incarnation),(a),(k),(i))
@@ -36,7 +41,7 @@ static void *fixture_peer_pages,*fixture_focus_page;
 extern uint32_t saved_sp,captured_sp,captured_pair[2];
 void exercise(Context*,void*,Context*);void capture_a(void);
 void component_listener(void){}
-static unsigned char root_object[0xa00],project_object[0xb00],pool_object[0x130],file_handler[0x80];
+static unsigned char root_object[0xa00],project_object[MODEL_PROJECT_EXTENT+0x100],pool_object[MODEL_POOL_EXTENT],file_handler[0x80];
 static unsigned char track_objects[MIRROR_TRACKS+1][0x650] __attribute__((aligned(8)));
 static unsigned char program_objects[MIRROR_TRACKS+1][0x3000] __attribute__((aligned(8)));
 static uint32_t members[MIRROR_TRACKS+1],program_members[MIRROR_TRACKS];
@@ -67,10 +72,11 @@ static int branch_enters_patch_interior(uint32_t pc,uint32_t instruction,uint32_
 static void exclusive_retry_checks(void){
  static uint32_t payload[2][8] __attribute__((aligned(8)));
  static uint32_t pending[16] __attribute__((aligned(64)));
- const uint32_t starts[2]={0x128f750,0x12c5aec};
+ const unsigned kinds[2]={QS_TARGETS,QS_GROUPS};
  for(unsigned n=0;n<2;n++){
-  uint32_t a=starts[n],loop=a+8,branch=loop+20;unsigned site=0;
-  while(site<PATCH_COUNT&&anchor[site]!=a)site++;
+  unsigned site=0;while(site<PATCH_COUNT&&hook_ids[site]!=kinds[n])site++;
+  require(site<PATCH_COUNT,"native vector hook is selected");
+  uint32_t a=anchor[site],loop=a+8,branch=loop+20;
   require(site<PATCH_COUNT&&capture_after_pair[site],"retry fixture uses corrected production post-store hook");
   const unsigned char *native=NULL;
   for(unsigned g=0;g<sizeof(guards)/sizeof(guards[0]);g++)
@@ -173,7 +179,7 @@ static void replay_checks(void){
   if(hook_ids[i]==IO_AUDIO_MONITOR_BIRTH)in.r[3]=ptr(replay_io_vectors[4]);
   if(hook_ids[i]==IO_PC_EMPTY)in.r[3]=ptr(replay_io_vectors[5]);
   if(hook_ids[i]==IO_AUDIO_MONITOR_COPY)in.r[7]=ptr(program_objects[2]); /* copied enum load uses native source P+2000 */
-  if(anchor[i]==0x2374f88)in.r[2]=0; /* displaced indexed load uses a byte offset */
+  if(hook_ids[i]==CH_SOLO_AUDIO_BIRTH)in.r[2]=0; /* displaced indexed load uses a byte offset */
   if(hook_ids[i]==GL_AUTO_STATE)in.r[7]=ptr(program_objects[2]); /* displaced pair loads through r7 */
   if(hook_ids[i]==M_POINTER_DEVICE)in.r[6]=ptr(track_objects[0]); /* displaced pair loads cursor x/y through the cursor state object in r6 */
   if(hook_ids[i]==M_WHEEL_DATA)in.r[4]=ptr(track_objects[0]); /* displaced NEON pair loads the cursor x/y vector through r4 */
@@ -196,7 +202,7 @@ static void replay_checks(void){
   replay_memory(0);
   if(hook_ids[i]==PX_RETIRE)put(inputs[i].r[3]+0x34,ptr(replay_enqueuer));
   if(hook_ids[i]==QS_MODE_VALUE)put(inputs[i].r[0]+0x50,ptr(program_objects[1]));
-  if(hook_ids[i]==GL_EDITOR_PUBLISH)put(inputs[i].r[4]+0x904,0); /* displaced pair loads then stores this slot */
+  if(hook_ids[i]==GL_EDITOR_PUBLISH)put(inputs[i].r[4]+MODEL_APP_EDITOR,0); /* displaced pair loads then stores this slot */
   uint32_t *entry=(uint32_t*)(uintptr_t)anchor[i];jump(&entry,ptr((unsigned char*)gates+i*STUB_BYTES));uint32_t *continuation=(uint32_t*)(uintptr_t)(anchor[i]+8);jump(&continuation,ptr(capture_a));__builtin___clear_cache((char*)(uintptr_t)anchor[i],(char*)(uintptr_t)(anchor[i]+16));
   Context actual;exercise(inputs+i,(void*)(uintptr_t)anchor[i],&actual);
   if(memcmp(&actual,outputs+i,sizeof(actual))){fprintf(stderr,"replay site=%u\n",i);for(unsigned k=0;k<80;k++)if(((uint32_t*)&actual)[k]!=((uint32_t*)&outputs[i])[k])fprintf(stderr,"word%u %08x != %08x\n",k,((uint32_t*)&actual)[k],((uint32_t*)&outputs[i])[k]);}
@@ -226,16 +232,16 @@ static void initial(unsigned n){
  mirror_state=fixture;memset(fixture,0,sizeof(*fixture));fixture->magic=MIRROR_MAGIC;fixture->version=MIRROR_VERSION;fixture->bytes=sizeof(*fixture);fixture->pid=getpid();fixture->capacity=MIRROR_CELLS;
  struct timespec now;clock_gettime(CLOCK_MONOTONIC,&now);fixture->origin_sec=now.tv_sec;fixture->origin_nsec=now.tv_nsec;atomic_store(&fixture->alive,1);
  count=retired_count=depth=root=project=pool=epoch=serial=binding=generation=owner=ready=reset_pending=loading=load_token=load_sp=returned=0;memset(tracks,0,sizeof(tracks));memset(&mutation,0,sizeof(mutation));memset(&creating,0,sizeof(creating));
- put(ptr(root_object)+0x318,ptr(recording_fixture_factory));put(ptr(root_object)+0x2e4,ptr(recording_fixture_audio));
- put(ptr(recording_fixture_factory),0x6899fa0);put(ptr(recording_fixture_factory)+4,ptr(queue_object));put(ptr(recording_fixture_factory)+0x10,ptr(queue_object));put(ptr(recording_fixture_factory)+0x14,ptr(project_object));put(ptr(recording_fixture_factory)+0x28,word(ptr(recording_fixture_audio)+0x3bc));put(ptr(recording_fixture_factory)+0x30,word(ptr(project_object)+0xab0));
- put(ptr(root_object)+0xf8,ptr(queue_object));put(ptr(queue_object),0x68aeaf0);put(ptr(queue_object)+4,0x68aeadc);put(ptr(project_object)+0xa90,ptr(program_pool));put(ptr(program_pool),0x68ad07c);put(ptr(program_pool)+0x1c,ptr(program_members));put(ptr(program_pool)+0x20,ptr(program_members)+4*n);put(ptr(program_pool)+0x24,ptr(program_members)+sizeof(program_members));
- put(ptr(root_object),0x68d7bf8);put(ptr(root_object)+0x24c,ptr(project_object));put(ptr(project_object),0x6933c4c);put(ptr(project_object)+0xa94,ptr(pool_object));put(ptr(pool_object),0x68ad2c4);put(ptr(pool_object)+0x34,ptr(members));put(ptr(pool_object)+0x38,ptr(members)+4*n);put(ptr(pool_object)+0x3c,ptr(members)+MIRROR_TRACKS*4);put(ptr(file_handler)+0x68,ptr(project_object));
- for(unsigned i=0;i<n;i++){program_members[i]=ptr(program_objects[i]);members[i]=ptr(track_objects[i]);put(members[i],0x6935554);put(members[i]+0x46c,0x69355e0);put(members[i]+0x648,ptr(program_objects[i]));put(members[i]+0x64c,0);put(ptr(program_objects[i]),0x6930c00);put(ptr(program_objects[i])+0x5d8,0x7fc00001);}
+ put(ptr(root_object)+MODEL_ROOT_COMMAND_FACTORY,ptr(recording_fixture_factory));put(ptr(root_object)+MODEL_ROOT_AUDIO,ptr(recording_fixture_audio));
+ put(ptr(recording_fixture_factory),MODEL_COMMAND_FACTORY_VPTR);put(ptr(recording_fixture_factory)+4,ptr(queue_object));put(ptr(recording_fixture_factory)+0x10,ptr(queue_object));put(ptr(recording_fixture_factory)+0x14,ptr(project_object));put(ptr(recording_fixture_factory)+0x28,word(ptr(recording_fixture_audio)+MODEL_AUDIO_SEQUENCER));put(ptr(recording_fixture_factory)+0x30,word(ptr(project_object)+MODEL_PROJECT_HISTORY));
+ put(ptr(root_object)+MODEL_ROOT_QUEUES,ptr(queue_object));put(ptr(queue_object),MODEL_THREAD_QUEUES_VPTR);put(ptr(queue_object)+4,MODEL_PER_THREAD_QUEUES_VPTR);put(ptr(project_object)+MODEL_PROJECT_PROGRAM_POOL,ptr(program_pool));put(ptr(program_pool),MODEL_PROGRAM_POOL_VPTR);put(ptr(program_pool)+0x1c,ptr(program_members));put(ptr(program_pool)+0x20,ptr(program_members)+4*n);put(ptr(program_pool)+0x24,ptr(program_members)+sizeof(program_members));
+ put(ptr(root_object),MODEL_ROOT_VPTR);put(ptr(root_object)+MODEL_ROOT_PROJECT,ptr(project_object));put(ptr(project_object),MODEL_PROJECT_VPTR);put(ptr(project_object)+MODEL_PROJECT_POOL,ptr(pool_object));put(ptr(pool_object),MODEL_POOL_VPTR);put(ptr(pool_object)+MODEL_POOL_BEGIN,ptr(members));put(ptr(pool_object)+MODEL_POOL_END,ptr(members)+4*n);put(ptr(pool_object)+MODEL_POOL_CAPACITY,ptr(members)+MIRROR_TRACKS*4);put(ptr(file_handler)+0x68,ptr(project_object));
+ for(unsigned i=0;i<n;i++){program_members[i]=ptr(program_objects[i]);members[i]=ptr(track_objects[i]);put(members[i],MODEL_TRACK_VPTR);put(members[i]+0x46c,MODEL_TRACK_ARMABLE_VPTR);put(members[i]+0x648,ptr(program_objects[i]));put(members[i]+0x64c,0);put(ptr(program_objects[i]),MODEL_DRUMPROGRAM_VPTR);put(ptr(program_objects[i])+0x5d8,0x7fc00001);}
 }
 static void seed_fixture(unsigned index,int copy,uint32_t bits,int qualified){
  struct {Context c;uint32_t stack[96];} f={0};f.c=context();uint32_t p=ptr(program_objects[index]);f.c.r[4]=p+0x3c;
- if(!copy){f.c.r[5]=p+0x5b0;f.c.d[8]=bits;f.stack[0xb4/4]=0x237034c;f.stack[0x114/4]=0x23705f8;f.stack[0x13c/4]=qualified?0x2514c08:0x243727c;f.stack[0x12c/4]=p;}
- else{f.c.r[7]=p+0x5b0;f.c.r[3]=bits;f.stack[0x8c/4]=0x2370710;f.stack[0xf4/4]=0x2370a7c;f.stack[0x10c/4]=qualified?0x2514334:0x2435c28;f.stack[0xf8/4]=p;}
+ if(!copy){f.c.r[5]=p+0x5b0;f.c.d[8]=bits;f.stack[0xb4/4]=MODEL_SEED_NORMAL_LR1;f.stack[0x114/4]=MODEL_SEED_NORMAL_LR2;f.stack[0x13c/4]=qualified?MODEL_SEED_NORMAL_LR3:MODEL_PAD_NORMAL_SEED_LR3;f.stack[0x12c/4]=p;}
+ else{f.c.r[7]=p+0x5b0;f.c.r[3]=bits;f.stack[0x8c/4]=MODEL_SEED_COPY_LR1;f.stack[0xf4/4]=MODEL_SEED_COPY_LR2;f.stack[0x10c/4]=qualified?MODEL_SEED_COPY_LR3:MODEL_PAD_COPY_SEED_LR3;f.stack[0xf8/4]=p;}
  call(&f.c,copy?MIRROR_SEED_COPY:MIRROR_SEED_NORMAL);
 }
 static void channel_fixture(unsigned n){
@@ -245,15 +251,33 @@ static void channel_fixture(unsigned n){
   uint32_t t=ptr(track_objects[i]),p=ptr(program_objects[i]);
   if(channel_owner_id(t))continue;
   f.c.r[0]=t;call(&f.c,CH_TRACK_BIRTH);f.c.r[0]=p;call(&f.c,CH_PROGRAM_BIRTH);
-  f.c.r[4]=p+0x3c;f.c.d[16]=0x3f000000;f.stack[0xb4/4]=0x237034c;f.stack[0x114/4]=0x23705f8;f.stack[0x13c/4]=0x2514c08;f.stack[0x12c/4]=p;call(&f.c,CH_PAN_BIRTH);
+  f.c.r[4]=p+0x3c;f.c.d[16]=0x3f000000;f.stack[0xb4/4]=MODEL_SEED_NORMAL_LR1;f.stack[0x114/4]=MODEL_SEED_NORMAL_LR2;f.stack[0x13c/4]=MODEL_SEED_NORMAL_LR3;f.stack[0x12c/4]=p;call(&f.c,CH_PAN_BIRTH);
   for(unsigned send=0;send<4;send++){f.c.r[8]=p+0x428+0x38*send;f.c.r[7]=0;call(&f.c,CH_SEND_BIRTH);}
-  f.c.r[4]=p+0x48;f.c.r[3]=f.c.r[10]=0;f.stack[0x8c/4]=0x236f090;f.stack[0x144/4]=0x237034c;f.stack[0x1a4/4]=0x23705f8;f.stack[0x1cc/4]=0x2514c08;f.stack[0x1bc/4]=p;
+  f.c.r[4]=p+0x48;f.c.r[3]=f.c.r[10]=0;f.stack[0x8c/4]=MODEL_MUTE_NORMAL_LR;f.stack[0x144/4]=MODEL_SEED_NORMAL_LR1;f.stack[0x1a4/4]=MODEL_SEED_NORMAL_LR2;f.stack[0x1cc/4]=MODEL_SEED_NORMAL_LR3;f.stack[0x1bc/4]=p;
   call(&f.c,CH_MUTE_BIRTH);call(&f.c,CH_SOLO_BIRTH);call(&f.c,CH_SOLO_AUDIO_BIRTH);call(&f.c,CH_EFFECTIVE_BIRTH);
   put(t+0x468,ptr("Channel"));f.c.r[4]=t;call(&f.c,CH_NAME_BIRTH);f.c.r[3]=0xffdd4488;call(&f.c,CH_COLOR_BIRTH);
-  f.c.r[4]=t+0x46c;f.c.r[3]=0;f.stack[0x6c/4]=0x2652458;call(&f.c,CH_ARM_BIRTH);put(t+0x48c,1);
+  f.c.r[4]=t+0x46c;f.c.r[3]=0;f.stack[0x6c/4]=MODEL_ARM_BIRTH_LR;call(&f.c,CH_ARM_BIRTH);put(t+0x48c,1);
  }
 }
-static void load_fixture(void){channel_fixture((word(ptr(pool_object)+0x38)-ptr(members))/4);Context c=context();c.r[0]=ptr(root_object);call(&c,M_RESET);c.r[2]=ptr(project_object);c.lr=0x17b7fb8;call(&c,M_LOAD_ENTER);c.r[0]=4;c.r[5]=ptr(file_handler);call(&c,M_LOAD_RETURN);call(&c,M_LOAD_READY);require(active()&&ready,"owner-qualified initial inventory");}
+#if MODEL_LOAD_RESULT_INDIRECT
+static uint32_t fixture_load_result[2];
+#endif
+static void enter_load(Context *c){
+ c->r[MODEL_LOAD_PROJECT_REGISTER]=ptr(project_object);c->lr=MODEL_LOAD_RETURN;
+#if MODEL_LOAD_RESULT_INDIRECT
+ fixture_load_result[0]=0;fixture_load_result[1]=0;c->r[0]=ptr(fixture_load_result);
+#endif
+ call(c,M_LOAD_ENTER);
+}
+static void return_load(Context *c,unsigned status){
+#if MODEL_LOAD_RESULT_INDIRECT
+ fixture_load_result[0]=status;c->r[0]=ptr(fixture_load_result);
+#else
+ c->r[0]=status;
+#endif
+ c->r[5]=ptr(file_handler);call(c,M_LOAD_RETURN);
+}
+static void load_fixture(void){channel_fixture((word(ptr(pool_object)+MODEL_POOL_END)-ptr(members))/4);Context c=context();c.r[0]=ptr(root_object);call(&c,M_RESET);enter_load(&c);return_load(&c,4);call(&c,M_LOAD_READY);require(active()&&ready,"owner-qualified initial inventory");}
 
 static unsigned dispatched_calls,defer_audio,queue_foreign;
 static uint32_t fake_program,fake_bits,fake_controller=7,fake_field;
@@ -267,12 +291,12 @@ static void *fake_audio(void *unused){
   * writer's queue item, body and completion inside this request's window. */
  if(queue_foreign){
   Context f=context();f.r[0]=ptr(other);call(&f,M_QUEUE_ENTER);
-  f=context();f.lr=0x25178d4;f.r[0]=fake_program;f.r[1]=0x101;f.r[2]=fake_controller;f.d[0]=fake_bits^1u;call(&f,M_COMMAND_BODY);
-  f=context();f.lr=0x25178d4;f.r[0]=fake_program;f.r[1]=0x101;f.r[2]=fake_controller+1;f.d[0]=fake_bits;call(&f,M_COMMAND_BODY);
+  f=context();f.lr=MODEL_QUEUE_RETURN;f.r[0]=fake_program;f.r[1]=0x101;f.r[2]=fake_controller;f.d[0]=fake_bits^1u;call(&f,M_COMMAND_BODY);
+  f=context();f.lr=MODEL_QUEUE_RETURN;f.r[0]=fake_program;f.r[1]=0x101;f.r[2]=fake_controller+1;f.d[0]=fake_bits;call(&f,M_COMMAND_BODY);
   f=context();f.r[4]=ptr(other);f.r[3]=other[0];call(&f,M_QUEUE_DONE);
   require(!atomic_load(&command_state->trace_error),"another writer's queue item, body and completion inside this request's window must not poison it");
  }
- *body=context();body->lr=0x25178d4;body->r[0]=fake_program;body->r[1]=0x101;body->r[2]=fake_controller;body->d[0]=fake_bits;call(body,M_COMMAND_BODY);
+ *body=context();body->lr=MODEL_QUEUE_RETURN;body->r[0]=fake_program;body->r[1]=0x101;body->r[2]=fake_controller;body->d[0]=fake_bits;call(body,M_COMMAND_BODY);
  Context scalar=context();scalar.r[5]=fake_program+channel_offset(command_source_field(fake_field));scalar.d[8]=fake_bits;scalar.r[7]=accepted[0].request.bits;call(&scalar,fake_field==CF_MUTE?M_MUTE:fake_field==CF_SOLO?CH_BOOL_COMMIT:M_FLOAT);
  *body=context();body->r[4]=ptr(tuple);body->r[3]=tuple[0];call(body,M_QUEUE_DONE);return NULL;
 }
@@ -302,9 +326,9 @@ static void *foreign_required(void *unused){(void)unused;Context c=context();cal
 static void component_pause(unsigned at){
  if(at==5&&probe_inject){
   if(probe_inject==1){pthread_t t;require(!pthread_create(&t,NULL,foreign_required,NULL)&&!pthread_join(t,NULL),"foreign violation before BLX");}
-  else if(probe_inject==3){uint32_t m=word(root+0x2e4)+0x260,offset=tracks[0].kind==7?0x78:tracks[0].kind==8?0x84:0x90;put(m+offset+4,word(m+offset));}
-  else if(probe_inject==4)channel_owner_death(word(root+0x2e4)+0x260);
-  else put(0x6930c28,0x250ba78);
+  else if(probe_inject==3){uint32_t m=word(root+MODEL_ROOT_AUDIO)+MODEL_AUDIO_MIXER,offset=tracks[0].kind==7?0x78:tracks[0].kind==8?0x84:0x90;put(m+offset+4,word(m+offset));}
+  else if(probe_inject==4)channel_owner_death(word(root+MODEL_ROOT_AUDIO)+MODEL_AUDIO_MIXER);
+  else put((MODEL_DRUMPROGRAM_VPTR+0x28),(MODEL_PROGRAM_CONTROL+4));
   return;
  }
  if(at!=atomic_load(&pause_at))return;
@@ -384,14 +408,14 @@ static uint32_t key_image_word(const unsigned char *body,uint32_t base,uint32_t 
  return add+8+value+offset;
 }
 static void pointer_device_checks(void){
- unsigned site=0;while(site<PATCH_COUNT&&anchor[site]!=0xba6884)site++;
+ unsigned site=0;while(site<PATCH_COUNT&&anchor[site]!=INPUT_IMAGE(0xba6884,0xbc94d4u))site++;
  require(site<PATCH_COUNT&&hook_ids[site]==M_POINTER_DEVICE,"peer pointer-device join is an installed site with its own hook id");
  const unsigned char join[8]={0x30,0x10,0x96,0xe5,0x34,0x20,0x96,0xe5};
  require(!memcmp(expected[site],join,8),"displaced pair is the exact cursor x/y load pair");
  require(!capture_after_pair[site]&&!relocated[site][0]&&!relocated[site][1]&&!branch_target[site][0]&&!branch_target[site][1],"plain displaced pair with no literal or branch word");
  /* One hook body at four drain-loop anchors: consecutive ids, same recipe
   * shape, and both host wrapper functions guarded whole. */
- const uint32_t flush_anchors[4]={0xa0a0d0,0xa0d9f0,0xa09c90,0xa0d5e4};
+ const uint32_t flush_anchors[4]={INPUT_IMAGE(0xa0a0d0,0xa2cd20u),INPUT_IMAGE(0xa0d9f0,0xa30640u),INPUT_IMAGE(0xa09c90,0xa2c8e0u),INPUT_IMAGE(0xa0d5e4,0xa30234u)};
  const unsigned char flush_pair[2][8]={{0xf2,0x37,0xd7,0xe1,0x00,0x00,0x53,0xe3},{0xf2,0x37,0xd4,0xe1,0x00,0x00,0x53,0xe3}};
  for(unsigned f=0;f<4;f++){
   unsigned at=0;while(at<PATCH_COUNT&&anchor[at]!=flush_anchors[f])at++;
@@ -400,32 +424,32 @@ static void pointer_device_checks(void){
   require(!memcmp(expected[at],flush_pair[f&1],8),"displaced pair is the exact signed half-word load and compare");
   require(!capture_after_pair[at]&&!relocated[at][0]&&!relocated[at][1]&&!branch_target[at][0]&&!branch_target[at][1],"plain displaced pair with no literal or branch word");
  }
- require(guarded_bytes(0xa09c24,0xab4)&&guarded_bytes(0xa0d50c,0xa78),"both libinput drain wrappers guarded as whole native functions");
- const unsigned char *setter=guarded_bytes(0xba6658,0x128),*handler=guarded_bytes(0xba6780,0x308);
+ require(guarded_bytes(INPUT_IMAGE(0xa09c24,0xa2c874u),0xab4)&&guarded_bytes(INPUT_IMAGE(0xa0d50c,0xa3015cu),0xa78),"both libinput drain wrappers guarded as whole native functions");
+ const unsigned char *setter=guarded_bytes(INPUT_IMAGE(0xba6658,0xbc92a8u),0x128),*handler=guarded_bytes(INPUT_IMAGE(0xba6780,0xbc93d0u),0x308);
  require(setter&&handler,"called setter and host handler guarded as whole native functions");
  const uint32_t enable_store=0xe5c04038,setter_tail=0xea028663,handler_tail=0xea0285e1;
- require(!memcmp(setter+(0xba6690-0xba6658),&enable_store,4),"setter still stores the enable byte at cursor object+0x38");
- require(!memcmp(setter+(0xba66a0-0xba6658),&setter_tail,4),"setter still tail-calls the cursor show/move routine");
- require(!memcmp(handler+(0xba68a8-0xba6780),&handler_tail,4),"host handler reaches that same routine itself right after the join");
+ require(!memcmp(setter+(INPUT_IMAGE(0xba6690,0xbc92e0u)-INPUT_IMAGE(0xba6658,0xbc92a8u)),&enable_store,4),"setter still stores the enable byte at cursor object+0x38");
+ require(!memcmp(setter+(INPUT_IMAGE(0xba66a0,0xbc92f0u)-INPUT_IMAGE(0xba6658,0xbc92a8u)),&setter_tail,4),"setter still tail-calls the cursor show/move routine");
+ require(!memcmp(handler+(INPUT_IMAGE(0xba68a8,0xbc94f8u)-INPUT_IMAGE(0xba6780,0xbc93d0u)),&handler_tail,4),"host handler reaches that same routine itself right after the join");
  /* The cursor slot the hook checks is the one the host handler itself loads:
   * decode its pc-relative literal rather than restating the address. */
  const uint32_t table_load=0xe59f8288,table_add=0xe08f8008,cursor_load=0xe598602c;
- require(!memcmp(handler+(0xba67e0-0xba6780),&table_load,4)&&!memcmp(handler+(0xba67e4-0xba6780),&table_add,4),"host handler still forms the peer static table from one pc-relative literal");
- require(!memcmp(handler+(0xba67e8-0xba6780),&cursor_load,4),"it still takes the cursor state object from that table +0x2c");
- uint32_t table_literal;memcpy(&table_literal,handler+(0xba6a70-0xba6780),4);
- require(0xba67ecu+table_literal+0x2cu==POINTER_STATE_RVA,"the handler's own table literal names the exact slot the hook checks");
+ require(!memcmp(handler+(INPUT_IMAGE(0xba67e0,0xbc9430u)-INPUT_IMAGE(0xba6780,0xbc93d0u)),&table_load,4)&&!memcmp(handler+(INPUT_IMAGE(0xba67e4,0xbc9434u)-INPUT_IMAGE(0xba6780,0xbc93d0u)),&table_add,4),"host handler still forms the peer static table from one pc-relative literal");
+ require(!memcmp(handler+(INPUT_IMAGE(0xba67e8,0xbc9438u)-INPUT_IMAGE(0xba6780,0xbc93d0u)),&cursor_load,4),"it still takes the cursor state object from that table +0x2c");
+ uint32_t table_literal;memcpy(&table_literal,handler+(INPUT_IMAGE(0xba6a70,0xbc96c0u)-INPUT_IMAGE(0xba6780,0xbc93d0u)),4);
+ require(INPUT_IMAGE(0xba67ecu,0xbc943cu)+table_literal+0x2cu==POINTER_STATE_RVA,"the handler's own table literal names the exact slot the hook checks");
  static unsigned char cursor[0x3c] __attribute__((aligned(8)));
  static uint32_t devices[2];
- require(fixture_peer_pages==(void*)0x6b22000,"peer static table reuses the already reserved JUCE fixture pages");
+ require(fixture_peer_pages==(void*)(KEY_STATICS_RVA&~4095u),"peer static table reuses the already reserved JUCE fixture pages");
  memset(command_state,0,sizeof(*command_state));initial(1);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);
  component_pointer_enable=pointer_enable_fixture;pointer_enable_calls=0;pointer_enable_argument=0;atomic_store(&pointer_enabled,0);
  memset(cursor,0,sizeof cursor);
  Context c=context();c.r[6]=ptr(cursor);
- put(0x6b220d4,0);call(&c,M_POINTER_DEVICE);
+ put(INPUT_IMAGE(0x6b220d4,0x6f35fd4u),0);call(&c,M_POINTER_DEVICE);
  require(!pointer_enable_calls,"no enable before the peer owns a cursor state object");
- put(0x6b220d4,ptr(cursor)+4);call(&c,M_POINTER_DEVICE);
+ put(INPUT_IMAGE(0x6b220d4,0x6f35fd4u),ptr(cursor)+4);call(&c,M_POINTER_DEVICE);
  require(!pointer_enable_calls,"no enable for a receiver the peer's own slot does not name");
- put(0x6b220d4,ptr(cursor));put(ptr(cursor)+0x24,ptr(devices));put(ptr(cursor)+0x28,ptr(devices));
+ put(INPUT_IMAGE(0x6b220d4,0x6f35fd4u),ptr(cursor));put(ptr(cursor)+0x24,ptr(devices));put(ptr(cursor)+0x28,ptr(devices));
  call(&c,M_POINTER_DEVICE);
  require(!pointer_enable_calls,"no enable while no pointer device is present");
  devices[0]=0x1000;put(ptr(cursor)+0x28,ptr(devices)+4);
@@ -460,11 +484,18 @@ static uint32_t wheel_branch(uint32_t pc,uint32_t instruction){
  int32_t displacement=(int32_t)(instruction<<8)>>6;
  return pc+8+(uint32_t)displacement;
 }
+/* Decode a checked ARM B/BL, including conditional branches in native state
+ * setters. Call-only assertions above retain their stricter BL predicate. */
+static uint32_t fixture_branch_target(uint32_t pc,uint32_t instruction){
+ if((instruction&0x0e000000u)!=0x0a000000u||(instruction>>28)==15)return 0;
+ int32_t displacement=(int32_t)(instruction<<8)>>6;
+ return pc+8+(uint32_t)displacement;
+}
 /* Exactly one call, to the rotation entry, on the fixture's receiver, with this
  * signed count and coarse 0. The count is what the first device build got
  * wrong, so nothing here accepts a repeated call. */
 static unsigned wheel_one(int delta){
- return wheel_calls==1&&wheel_functions[0]==0x35c28f4u&&wheel_receivers[0]==wheel_focus_receiver&&wheel_deltas[0]==delta&&wheel_coarse[0]==0;
+ return wheel_calls==1&&wheel_functions[0]==INPUT_IMAGE(0x35c28f4u,0x38481fcu)&&wheel_receivers[0]==wheel_focus_receiver&&wheel_deltas[0]==delta&&wheel_coarse[0]==0;
 }
 /* Publish one JOG_DATA request, let the app's own UI drain service it, then
  * seal, settle and reclaim it so the mailbox is idle for the next case. Returns
@@ -491,71 +522,71 @@ static int wheel_command_case(int delta){
  return delivered;
 }
 static void wheel_data_checks(void){
- unsigned site=0;while(site<PATCH_COUNT&&anchor[site]!=0xbd20e0)site++;
+ unsigned site=0;while(site<PATCH_COUNT&&anchor[site]!=INPUT_IMAGE(0xbd20e0,0xbf4d30u))site++;
  require(site<PATCH_COUNT&&hook_ids[site]==M_WHEEL_DATA,"peer SCROLL_WHEEL handler is an installed site with its own hook id");
  const unsigned char scroll[8]={0x8f,0x07,0x64,0xf4,0x10,0x30,0x8d,0xe2};
  require(!memcmp(expected[site],scroll,8),"displaced pair is the exact cursor vector load and stack add");
  require(!capture_after_pair[site]&&!relocated[site][0]&&!relocated[site][1]&&!branch_target[site][0]&&!branch_target[site][1],"plain displaced pair with no literal or branch word");
- const unsigned char *handler=guarded_bytes(0xbd1e2c,0x3d4),*dispatch=guarded_bytes(0x35c28f4,0xe8),*accessor=guarded_bytes(0x2b64174,0x10),*dispatcher=guarded_bytes(0xbd2200,0x188);
+ const unsigned char *handler=guarded_bytes(INPUT_IMAGE(0xbd1e2c,0xbf4a7cu),0x3d4),*dispatch=guarded_bytes(INPUT_IMAGE(0x35c28f4,0x38481fcu),0xe8),*accessor=guarded_bytes(INPUT_IMAGE(0x2b64174,0xfa9ff0u),0x10),*dispatcher=guarded_bytes(INPUT_IMAGE(0xbd2200,0xbf4e50u),0x188);
  require(handler&&dispatch&&accessor&&dispatcher,"folded scroll-handler range, the peer event switch, the data-wheel rotation entry and the focus accessor guarded as whole native ranges");
  /* The mouse's own event type is 404 SCROLL_WHEEL. The switch at bd2224 is a
   * pc-relative table: it reaches the wheel handler bd2008 through bd2300 and
   * the finger/continuous handler bd1e2c through bd229c. The site must sit in
   * the first, which a touchpad-only range would never see. */
  const uint32_t table_jump=0x908ff103,wheel_arm=0xea00002d,wheel_tail=0xeaffff3c,finger_arm=0xea000013;
- require(!memcmp(dispatcher+(0xbd222c-0xbd2200),&table_jump,4),"the switch still indexes its arms from bd2234, so type 404 is the fifth arm");
- require(!memcmp(dispatcher+(0xbd2244-0xbd2200),&wheel_arm,4),"event switch still sends libinput type 404 to the SCROLL_WHEEL arm");
- require(!memcmp(dispatcher+(0xbd2310-0xbd2200),&wheel_tail,4),"that arm still tail-calls the handler holding this site");
- require(!memcmp(dispatcher+(0xbd2248-0xbd2200),&finger_arm,4),"types 405 and 406 still go to the separate finger/continuous handler");
+ require(!memcmp(dispatcher+(INPUT_IMAGE(0xbd222c,0xbf4e7cu)-INPUT_IMAGE(0xbd2200,0xbf4e50u)),&table_jump,4),"the switch still indexes its arms from bd2234, so type 404 is the fifth arm");
+ require(!memcmp(dispatcher+(INPUT_IMAGE(0xbd2244,0xbf4e94u)-INPUT_IMAGE(0xbd2200,0xbf4e50u)),&wheel_arm,4),"event switch still sends libinput type 404 to the SCROLL_WHEEL arm");
+ require(!memcmp(dispatcher+(INPUT_IMAGE(0xbd2310,0xbf4f60u)-INPUT_IMAGE(0xbd2200,0xbf4e50u)),&wheel_tail,4),"that arm still tail-calls the handler holding this site");
+ require(!memcmp(dispatcher+(INPUT_IMAGE(0xbd2248,0xbf4e98u)-INPUT_IMAGE(0xbd2200,0xbf4e50u)),&finger_arm,4),"types 405 and 406 still go to the separate finger/continuous handler");
  const uint32_t enable_load=0xe5d43038,details_base=0xe28d6028,scale_load=0xeddf0b47,scale_multiply=0xee200b20,delta_y=0xed8d0a0b,juce_delivery=0xebfffd20;
- require(!memcmp(handler+(0xbd2044-0xbd1e2c),&enable_load,4),"wheel handler still reads the same cursor-state enable byte at +0x38");
- require(!memcmp(handler+(0xbd2098-0xbd1e2c),&details_base,4),"r6 at the site is still the wheel details the handler builds at sp+40");
- require(!memcmp(handler+(0xbd20c4-0xbd1e2c),&scale_load,4)&&!memcmp(handler+(0xbd20d0-0xbd1e2c),&scale_multiply,4),"vertical v120 result is still scaled by the pc-relative double literal");
- require(!memcmp(handler+(0xbd20d8-0xbd1e2c),&delta_y,4),"the scaled vertical delta is still stored at the wheel details +4");
- require(!memcmp(handler+(0xbd21c8-0xbd1e2c),&juce_delivery,4),"the app's own JUCE wheel delivery still follows the site");
+ require(!memcmp(handler+(INPUT_IMAGE(0xbd2044,0xbf4c94u)-INPUT_IMAGE(0xbd1e2c,0xbf4a7cu)),&enable_load,4),"wheel handler still reads the same cursor-state enable byte at +0x38");
+ require(!memcmp(handler+(INPUT_IMAGE(0xbd2098,0xbf4ce8u)-INPUT_IMAGE(0xbd1e2c,0xbf4a7cu)),&details_base,4),"r6 at the site is still the wheel details the handler builds at sp+40");
+ require(!memcmp(handler+(INPUT_IMAGE(0xbd20c4,0xbf4d14u)-INPUT_IMAGE(0xbd1e2c,0xbf4a7cu)),&scale_load,4)&&!memcmp(handler+(INPUT_IMAGE(0xbd20d0,0xbf4d20u)-INPUT_IMAGE(0xbd1e2c,0xbf4a7cu)),&scale_multiply,4),"vertical v120 result is still scaled by the pc-relative double literal");
+ require(!memcmp(handler+(INPUT_IMAGE(0xbd20d8,0xbf4d28u)-INPUT_IMAGE(0xbd1e2c,0xbf4a7cu)),&delta_y,4),"the scaled vertical delta is still stored at the wheel details +4");
+ require(!memcmp(handler+(INPUT_IMAGE(0xbd21c8,0xbf4e18u)-INPUT_IMAGE(0xbd1e2c,0xbf4a7cu)),&juce_delivery,4),"the app's own JUCE wheel delivery still follows the site");
  /* WHEEL_NOTCH is derived from the image, not asserted against it: both scroll
   * reads must be the v120 API (whose detent is 120 units, unlike the plain
   * get_scroll_value the finger handler uses), and the vertical scale literal
   * supplies the divisor. */
- uint32_t axis[2];memcpy(axis,handler+(0xbd20a4-0xbd1e2c),4);memcpy(axis+1,handler+(0xbd20c0-0xbd1e2c),4);
- uint32_t v120=wheel_branch(0xbd20a4,axis[0]),other=wheel_branch(0xbd20c0,axis[1]);
+ uint32_t axis[2];memcpy(axis,handler+(INPUT_IMAGE(0xbd20a4,0xbf4cf4u)-INPUT_IMAGE(0xbd1e2c,0xbf4a7cu)),4);memcpy(axis+1,handler+(INPUT_IMAGE(0xbd20c0,0xbf4d10u)-INPUT_IMAGE(0xbd1e2c,0xbf4a7cu)),4);
+ uint32_t v120=wheel_branch(INPUT_IMAGE(0xbd20a4,0xbf4cf4u),axis[0]),other=wheel_branch(INPUT_IMAGE(0xbd20c0,0xbf4d10u),axis[1]);
  require(v120&&v120==other,"both scroll reads still call one and the same import");
- uint32_t plain[1];memcpy(plain,handler+(0xbd1ec8-0xbd1e2c),4);
- require(v120!=wheel_branch(0xbd1ec8,plain[0]),"that import is not the plain get_scroll_value the finger handler calls, so it is the v120 API");
+ uint32_t plain[1];memcpy(plain,handler+(INPUT_IMAGE(0xbd1ec8,0xbf4b18u)-INPUT_IMAGE(0xbd1e2c,0xbf4a7cu)),4);
+ require(v120!=wheel_branch(INPUT_IMAGE(0xbd1ec8,0xbf4b18u),plain[0]),"that import is not the plain get_scroll_value the finger handler calls, so it is the v120 API");
  double horizontal,vertical;
- memcpy(&horizontal,handler+(0xbd21e0-0xbd1e2c),8);memcpy(&vertical,handler+(0xbd21e8-0xbd1e2c),8);
+ memcpy(&horizontal,handler+(INPUT_IMAGE(0xbd21e0,0xbf4e30u)-INPUT_IMAGE(0xbd1e2c,0xbf4a7cu)),8);memcpy(&vertical,handler+(INPUT_IMAGE(0xbd21e8,0xbf4e38u)-INPUT_IMAGE(0xbd1e2c,0xbf4a7cu)),8);
  require(horizontal==1.0/512.0&&vertical==-1.0/512.0,"the handler still scales v120 units by 1/512, negating the vertical axis");
  require(WHEEL_NOTCH==(float)(120.0*-vertical),"WHEEL_NOTCH is one 120-unit v120 detent through the image's own scale");
  /* The slot the hook reads is the one the app's own accessor loads: decode its
   * pc-relative literal rather than restating the address. */
  uint32_t accessor_words[4];memcpy(accessor_words,accessor,16);
  require(accessor_words[0]==0xe59f3004u&&accessor_words[1]==0xe79f0003u&&accessor_words[2]==0xe12fff1eu,"focus accessor is still ldr/ldr/bx over one pc-relative literal");
- require(0x2b64180u+accessor_words[3]==FOCUS_SLOT_RVA,"the accessor still names the exact slot the hook reads");
- uint32_t focused_load=0xe59000e4,rotate_cast=0xeb08df1d,rotate_slot=0xe5933028,pass_coarse=0xe1a02006,pass_delta=0xe1a01005,tail=0xe12fff13;
- require(!memcmp(dispatch+(0x35c28f4-0x35c28f4),&focused_load,4),"ProcessDataWheelRotation still starts from the controller's own focused component at +0xe4");
- require(!memcmp(dispatch+(0x35c2944-0x35c28f4),&rotate_cast,4),"it still casts that component with the app's __dynamic_cast");
- require(!memcmp(dispatch+(0x35c295c-0x35c28f4),&rotate_slot,4),"it still reads HWFocusable slot 10, the rotation slot that takes a count");
- require(!memcmp(dispatch+(0x35c297c-0x35c28f4),&pass_coarse,4)&&!memcmp(dispatch+(0x35c2980-0x35c28f4),&pass_delta,4),"it still forwards this hook's delta in r1 and coarse in r2");
- require(!memcmp(dispatch+(0x35c2998-0x35c28f4),&tail,4),"it still tail-calls that slot");
+ require(INPUT_IMAGE(0x2b64180u,0xfa9ffcu)+accessor_words[3]==FOCUS_SLOT_RVA,"the accessor still names the exact slot the hook reads");
+ uint32_t focused_load=0xe59000e4,rotate_cast=INPUT_IMAGE(0xeb08df1d,0xeb0ecf30u),rotate_slot=INPUT_IMAGE(0xe5933028,0xe5933020u),pass_coarse=0xe1a02006,pass_delta=0xe1a01005,tail=0xe12fff13;
+ require(!memcmp(dispatch+(INPUT_IMAGE(0x35c28f4,0x38481fcu)-INPUT_IMAGE(0x35c28f4,0x38481fcu)),&focused_load,4),"ProcessDataWheelRotation still starts from the controller's own focused component at +0xe4");
+ require(!memcmp(dispatch+(INPUT_IMAGE(0x35c2944,0x384824cu)-INPUT_IMAGE(0x35c28f4,0x38481fcu)),&rotate_cast,4),"it still casts that component with the app's __dynamic_cast");
+ require(!memcmp(dispatch+(INPUT_IMAGE(0x35c295c,0x3848264u)-INPUT_IMAGE(0x35c28f4,0x38481fcu)),&rotate_slot,4),"it reads the selected image HWFocusable rotation slot that takes a count");
+ require(!memcmp(dispatch+(INPUT_IMAGE(0x35c297c,0x3848284u)-INPUT_IMAGE(0x35c28f4,0x38481fcu)),&pass_coarse,4)&&!memcmp(dispatch+(INPUT_IMAGE(0x35c2980,0x3848288u)-INPUT_IMAGE(0x35c28f4,0x38481fcu)),&pass_delta,4),"it still forwards this hook's delta in r1 and coarse in r2");
+ require(!memcmp(dispatch+(INPUT_IMAGE(0x35c2998,0x38482a0u)-INPUT_IMAGE(0x35c28f4,0x38481fcu)),&tail,4),"it still tail-calls that slot");
  /* The visible flag the hook tests is the one the hardware path's own liveness
   * walk tests, read out of that walk rather than restated. */
- const unsigned char *liveness=guarded_bytes(0xb74904,0x54);
+ const unsigned char *liveness=guarded_bytes(INPUT_IMAGE(0xb74904,0xb97554u),0x54);
  require(liveness!=NULL,"hardware liveness walk guarded as a native range");
  const uint32_t parent_load=0xe590300c,flags_load=0xe5d02068,flag_test=0xe3120002,climb=0x1afffff8;
- require(!memcmp(liveness+(0xb7491c-0xb74904),&parent_load,4),"the walk still climbs juce::Component parents at +0xc");
- uint32_t flags_word;memcpy(&flags_word,liveness+(0xb7492c-0xb74904),4);
+ require(!memcmp(liveness+(INPUT_IMAGE(0xb7491c,0xb9756cu)-INPUT_IMAGE(0xb74904,0xb97554u)),&parent_load,4),"the walk still climbs juce::Component parents at +0xc");
+ uint32_t flags_word;memcpy(&flags_word,liveness+(INPUT_IMAGE(0xb7492c,0xb9757cu)-INPUT_IMAGE(0xb74904,0xb97554u)),4);
  require(flags_word==flags_load&&(flags_word&0xfff)==WHEEL_FLAGS_OFFSET,"the walk still reads the component flags byte at the offset the hook reads");
- uint32_t test_word;memcpy(&test_word,liveness+(0xb74930-0xb74904),4);
+ uint32_t test_word;memcpy(&test_word,liveness+(INPUT_IMAGE(0xb74930,0xb97580u)-INPUT_IMAGE(0xb74904,0xb97554u)),4);
  require(test_word==flag_test&&(test_word&0xff)==WHEEL_VISIBLE_FLAG,"the walk still requires the flag bit the hook requires");
- require(!memcmp(liveness+(0xb74934-0xb74904),&climb,4),"a set bit still means keep walking, a clear bit still means not showing");
+ require(!memcmp(liveness+(INPUT_IMAGE(0xb74934,0xb97584u)-INPUT_IMAGE(0xb74904,0xb97554u)),&climb,4),"a set bit still means keep walking, a clear bit still means not showing");
  /* The four legal vptrs are pinned where they live, in the RW image, by
   * model-prepare.py at recipe time: their runtime words carry the load bias,
   * so a byte guard over them would fail at install and cannot be checked here. */
  static unsigned char details[16] __attribute__((aligned(8)));
  static unsigned char controller[0x100] __attribute__((aligned(8)));
  static unsigned char focused[0x80] __attribute__((aligned(8)));
- fixture_focus_page=mmap((void*)0x6b6f000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);
- require(fixture_focus_page==(void*)0x6b6f000,"active focus controller slot fixture page at exact address");
+ fixture_focus_page=mmap((void*)(FOCUS_SLOT_RVA&~4095u),4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);
+ require(fixture_focus_page==(void*)(FOCUS_SLOT_RVA&~4095u),"active focus controller slot fixture page at exact address");
  memset(command_state,0,sizeof(*command_state));initial(1);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);
  command_state->magic=COMMAND_MAGIC;command_state->version=COMMAND_VERSION;command_state->bytes=sizeof(*command_state);command_state->capacity=COMMAND_SLOTS;
  component_wheel_call=wheel_call_fixture;wheel_calls=0;wheel_remainder=0.0f;wheel_pending=0;
@@ -563,7 +594,7 @@ static void wheel_data_checks(void){
  memset(controller,0,sizeof controller);memset(focused,0,sizeof focused);
  put(wheel_focus_receiver+WHEEL_FOCUSED_OFFSET,ptr(focused));
  put(ptr(focused)+WHEEL_FLAGS_OFFSET,WHEEL_VISIBLE_FLAG);
- put(0x6b6f798,wheel_focus_receiver);put(wheel_focus_receiver,wheel_focus_vtables[2]);
+ put(INPUT_IMAGE(0x6b6f798,0x6f3b5f8u),wheel_focus_receiver);put(wheel_focus_receiver,wheel_focus_vtables[2]);
  Context c=context();c.r[6]=ptr(details);
  /* One turn of the wheel is one event plus one drain end. */
 #define WHEEL_EVENT(delta) do{wheel_put_float(ptr(details),0.0f);wheel_put_float(ptr(details)+4,(delta));call(&c,M_WHEEL_DATA);}while(0)
@@ -602,11 +633,11 @@ static void wheel_data_checks(void){
  WHEEL_EVENT(WHEEL_NOTCH);WHEEL_DRAIN();
  require(!wheel_calls,"no step for a focused component without the visible flag the app's own liveness walk requires");
  put(ptr(focused)+WHEEL_FLAGS_OFFSET,WHEEL_VISIBLE_FLAG);
- put(0x6b6f798,0);WHEEL_EVENT(WHEEL_NOTCH);WHEEL_DRAIN();
+ put(INPUT_IMAGE(0x6b6f798,0x6f3b5f8u),0);WHEEL_EVENT(WHEEL_NOTCH);WHEEL_DRAIN();
  require(!wheel_calls,"no step while the app has no active focus controller");
- put(0x6b6f798,1);WHEEL_EVENT(WHEEL_NOTCH);WHEEL_DRAIN();
+ put(INPUT_IMAGE(0x6b6f798,0x6f3b5f8u),1);WHEEL_EVENT(WHEEL_NOTCH);WHEEL_DRAIN();
  require(!wheel_calls,"no step for a non-pointer focus controller slot");
- put(0x6b6f798,wheel_focus_receiver);
+ put(INPUT_IMAGE(0x6b6f798,0x6f3b5f8u),wheel_focus_receiver);
  put(wheel_focus_receiver,wheel_focus_vtables[3]+4);
  WHEEL_EVENT(WHEEL_NOTCH);WHEEL_DRAIN();
  require(!wheel_calls,"no step for a receiver whose vptr is not one of the four focus controllers");
@@ -655,7 +686,7 @@ static void wheel_data_checks(void){
  WHEEL_DRAIN();
  require(wheel_one(WHEEL_MAX_STEPS),"and delivers one clamped call");
  wheel_calls=0;wheel_remainder=0.0f;wheel_pending=0;
- require(command_state->magic==COMMAND_MAGIC&&command_state->version==COMMAND_VERSION&&mirror_state->magic==MIRROR_MAGIC&&mirror_state->version==MIRROR_VERSION,"CMD31 and MMV17 unchanged");
+ require(command_state->magic==COMMAND_MAGIC&&command_state->version==COMMAND_VERSION&&mirror_state->magic==MIRROR_MAGIC&&mirror_state->version==MIRROR_VERSION,"CMD32 and MMV17 unchanged");
  require(!atomic_load(&command_violation)&&!atomic_load(&command_state->error)&&!atomic_load(&mirror_state->error)&&atomic_load(&observer_running),"product hook enrolls no lane and publishes no diagnostic failure");
  require(!command_state->published&&!command_state->reclaimed,"no record published and no lane enrolled");
 #undef WHEEL_EVENT
@@ -670,7 +701,7 @@ static void wheel_data_checks(void){
  memset(command_state,0,sizeof(*command_state));initial(1);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);
  command_state->magic=COMMAND_MAGIC;command_state->version=COMMAND_VERSION;command_state->bytes=sizeof(*command_state);command_state->capacity=COMMAND_SLOTS;
  component_wheel_call=wheel_call_fixture;wheel_calls=0;wheel_remainder=0.0f;wheel_pending=0;
- put(0x6b6f798,wheel_focus_receiver);put(wheel_focus_receiver,wheel_focus_vtables[2]);
+ put(INPUT_IMAGE(0x6b6f798,0x6f3b5f8u),wheel_focus_receiver);put(wheel_focus_receiver,wheel_focus_vtables[2]);
  put(wheel_focus_receiver+WHEEL_FOCUSED_OFFSET,wheel_focus_focused);put(wheel_focus_focused+WHEEL_FLAGS_OFFSET,WHEEL_VISIBLE_FLAG);
  seed_fixture(0,0,0x3f000000,1);load_fixture();
  require(wheel_command_case(2)==2&&wheel_one(2),"a published data-wheel request is exactly one call carrying its own count");
@@ -688,9 +719,9 @@ static void wheel_data_checks(void){
  put(wheel_focus_receiver,wheel_focus_vtables[3]+4);
  require(!wheel_command_case(2)&&!wheel_calls,"a receiver whose vptr is none of the four focus controllers completes with a zero step");
  put(wheel_focus_receiver,wheel_focus_vtables[2]);
- put(0x6b6f798,0);
+ put(INPUT_IMAGE(0x6b6f798,0x6f3b5f8u),0);
  require(!wheel_command_case(2)&&!wheel_calls,"no active focus controller completes with a zero step");
- put(0x6b6f798,wheel_focus_receiver);
+ put(INPUT_IMAGE(0x6b6f798,0x6f3b5f8u),wheel_focus_receiver);
  require(wheel_command_case(1)==1,"recovery: the next request after four suppressed ones still turns the wheel once");
  /* Single flight. service_one can service several slots inside one drain, so
   * only refusing the second publication keeps the app's accelerator seeing one
@@ -713,9 +744,9 @@ static void wheel_data_checks(void){
  wheel_calls=0;unsigned bad_at=submit_fixture(foreign);
  require(!wheel_calls&&atomic_load(&command_state->slots[bad_at].rejected)==C_FORMAT&&atomic_load(&command_state->slots[bad_at].done)!=atomic_load(&command_state->slots[bad_at].published),"a data-wheel request naming any other target is refused without a call");
  command_retire();
- require(command_state->magic==COMMAND_MAGIC&&command_state->version==COMMAND_VERSION&&mirror_state->magic==MIRROR_MAGIC&&mirror_state->version==MIRROR_VERSION,"CMD31 and MMV17 unchanged by the data-wheel lane");
+ require(command_state->magic==COMMAND_MAGIC&&command_state->version==COMMAND_VERSION&&mirror_state->magic==MIRROR_MAGIC&&mirror_state->version==MIRROR_VERSION,"CMD32 and MMV17 unchanged by the data-wheel lane");
  require(!atomic_load(&command_violation)&&!atomic_load(&command_state->error)&&!atomic_load(&command_state->trace_error),"data-wheel lane publishes no diagnostic failure");
- observer_running=0;put(ptr(root_object)+0x2e4,0);free(fixture);free(command_state);fixture=saved_mirror;mirror_state=saved_mirror;command_state=saved_commands;
+ observer_running=0;put(ptr(root_object)+MODEL_ROOT_AUDIO,0);free(fixture);free(command_state);fixture=saved_mirror;mirror_state=saved_mirror;command_state=saved_commands;
  require(!atomic_load(&command_state->published)&&!atomic_load(&command_state->reclaimed),"the data-wheel lane fixture leaves the shared mailbox untouched");
  component_wheel_call=NULL;wheel_remainder=0.0f;wheel_pending=0;
  puts("PASS wheel recipe matches the exact image, and the observer banks the peer's own vertical delta per event, zeroes the JUCE wheel it passes on, and delivers one clamped signed data-wheel count per drain to the app's active focus controller on the owning thread only (native ProcessDataWheelRotation substituted)");
@@ -776,16 +807,16 @@ static void note_call_fixture(unsigned kind,uint32_t grid,uint32_t item){
  require(grid==ptr(note_grid_fixture),"every native selection call receives the focused Grid");
  if(note_call_count<8)note_call_kinds[note_call_count]=kind;
  note_call_count++;
- if(kind==1){for(unsigned i=0;i<word(grid+0x174);i++){uint32_t s=word(word(grid+0x16c)+i*4);put(s+0x80,word(s+0x80)&~0x800u);}put(grid+0x174,0);}
- else if(kind==2){put(item+0x80,word(item+0x80)|0x800u);put(word(grid+0x16c),item);put(grid+0x174,1);note_selected_item=item;}
+ if(kind==1){for(unsigned i=0;i<word(grid+0x174);i++){uint32_t s=word(word(grid+0x16c)+i*4);put(s+MODEL_NOTE_ORIGINAL_TYPE,word(s+MODEL_NOTE_ORIGINAL_TYPE)&~0x800u);}put(grid+0x174,0);}
+ else if(kind==2){put(item+MODEL_NOTE_ORIGINAL_TYPE,word(item+MODEL_NOTE_ORIGINAL_TYPE)|0x800u);put(word(grid+0x16c),item);put(grid+0x174,1);note_selected_item=item;}
 }
 /* One Grid note: its live event record at +0xb0 and the copied record at +0x78
  * that note_quiet requires to match, with the pitch inside the payload. */
 static void note_item_fixture(unsigned i,uint32_t time,unsigned pitch){
  unsigned char *raw=(unsigned char*)note_items_fixture[i];uint32_t item=ptr(raw);memset(raw,0,sizeof note_items_fixture[i]);
- put(item,NOTE_ITEM_VTABLE);put(item+0x70,ptr(note_grid_fixture));put(item+0x104,ptr(note_grid_fixture));
- put(item+0xb0,time);put(item+0xb8,3);raw[0xc0]=0x90;raw[0xc4]=100;raw[0xe0]=(unsigned char)pitch;
- memcpy(raw+0x78,raw+0xb0,8);put(item+0x80,3);memcpy(raw+0x88,raw+0xc0,37);
+ put(item,NOTE_ITEM_VTABLE);put(item+MODEL_NOTE_OWNER,ptr(note_grid_fixture));put(item+MODEL_NOTE_SECOND_OWNER,ptr(note_grid_fixture));
+ put(item+MODEL_NOTE_CURRENT_TIME,time);put(item+MODEL_NOTE_CURRENT_TYPE,3);raw[MODEL_NOTE_CURRENT_PAYLOAD]=0x90;raw[MODEL_NOTE_CURRENT_PAYLOAD+4]=100;raw[MODEL_NOTE_PITCH]=(unsigned char)pitch;
+ memcpy(raw+MODEL_NOTE_ORIGINAL_TIME,raw+MODEL_NOTE_CURRENT_TIME,8);put(item+MODEL_NOTE_ORIGINAL_TYPE,3);memcpy(raw+MODEL_NOTE_ORIGINAL_PAYLOAD,raw+MODEL_NOTE_CURRENT_PAYLOAD,37);
 }
 static int note_run(int steps){
  note_call_count=0;note_selected_item=0;unsigned why=0;int moved=note_dispatch(steps,&why);
@@ -811,13 +842,13 @@ static void note_selection_checks(void){
  require(note_run(1)==1&&note_selected_item==lower,"of two notes with one start, the lower pitch comes first");
  require(note_run(1)==1&&note_selected_item==higher,"then the higher");
  require(note_run(1)==1&&note_selected_item==latest,"then the latest");
- require(word(grid+0x174)==1&&(word(latest+0x80)&0x800u)&&!(word(higher+0x80)&0x800u),"exactly one note carries the selection");
+ require(word(grid+0x174)==1&&(word(latest+MODEL_NOTE_ORIGINAL_TYPE)&0x800u)&&!(word(higher+MODEL_NOTE_ORIGINAL_TYPE)&0x800u),"exactly one note carries the selection");
  require(!note_run(1)&&!note_call_count,"past the last note nothing moves and no native call is made");
  require(note_run(-3)==-3&&note_selected_item==earliest&&note_one_batch(),"three steps back in one request is one batch that lands three notes back");
  require(!note_run(-1)&&!note_call_count,"past the first note nothing moves either");
  require(note_run(9)==3&&note_selected_item==latest&&note_one_batch(),"a request larger than the notes ahead clamps at the last note and reports only the moves it made");
  for(unsigned i=0;i<4;i++){unsigned char *raw=(unsigned char*)note_items_fixture[i];
-  require(!memcmp(raw+0x78,raw+0xb0,8)&&!memcmp(raw+0x88,raw+0xc0,37),"selection leaves every note's start and payload untouched");}
+  require(!memcmp(raw+MODEL_NOTE_ORIGINAL_TIME,raw+MODEL_NOTE_CURRENT_TIME,8)&&!memcmp(raw+MODEL_NOTE_ORIGINAL_PAYLOAD,raw+MODEL_NOTE_CURRENT_PAYLOAD,37),"selection leaves every note's start and payload untouched");}
  /* Nothing is navigated unless the app's own focus is a visible Grid, and
   * nothing happens off the thread that owns the observer's command work. */
  put(grid+0x68,0);require(!note_run(-1)&&!note_call_count,"a hidden Grid is never navigated");put(grid+0x68,2);
@@ -851,19 +882,19 @@ static void native_note_seed(unsigned n){
  component_note_call=native_note_effect;native_note_close=0;
 }
 static void native_note_exercise(Context in,int consumed){
- Context expected=in,actual;expected.r[0]=in.r[5];expected.r[3]=consumed?ptr(note_wheel_consumed):word(in.r[3]+0x20);expected.lr=0x331ea44;
+ Context expected=in,actual;expected.r[0]=in.r[5];expected.r[3]=consumed?ptr(note_wheel_consumed):word(in.r[3]+0x20);expected.lr=INPUT_IMAGE(0x331ea44,0x35a3a50u);
  dispatch_count=0;note_call_count=0;note_selected_item=0;
- exercise(&in,(void*)0x331ea38,&actual);
+ exercise(&in,(void*)INPUT_IMAGE(0x331ea38,0x35a3a44u),&actual);
  require(!memcmp(&actual,&expected,sizeof(actual))&&captured_sp==saved_sp,"native wheel gate preserves every register/flag and stack word except consumed r3 and the original BLX link");
  require(dispatch_count==(consumed?0u:1u)&&route==1,"stock rotation runs exactly once only on unconsumed input; original continuation reached");
 }
 static void native_note_checks(void){
  initial(1);memset(command_state,0,sizeof(*command_state));command_initialize();observer_running=1;observer_image_bias=0;ready=1;
- unsigned site=0;while(site<PATCH_COUNT&&anchor[site]!=0x331ea38)site++;
+ unsigned site=0;while(site<PATCH_COUNT&&anchor[site]!=INPUT_IMAGE(0x331ea38,0x35a3a44u))site++;
  require(site<PATCH_COUNT&&hook_ids[site]==M_NATIVE_WHEEL&&capture_after_pair[site],"panel wheel is the qualified post-pair production hook");
- require(guarded_bytes(0x331e6f4,0x490)&&guarded_bytes(0x331e37c,0x1b8)&&guarded_bytes(0x10dfe2c,0x278),"callback construction, modifier getter and full native callback guarded");
+ require(guarded_bytes(INPUT_IMAGE(0x331e6f4,0x35a3700u),0x490)&&guarded_bytes(INPUT_IMAGE(0x331e37c,0x35a3388u),0x1b8)&&guarded_bytes(INPUT_IMAGE(0x10dfe2c,0x155e700u),INPUT_IMAGE(0x278,0xc)),"callback construction, modifier getter and full native callback guarded");
  require(word(ptr(note_wheel_consumed))==0xe12fff1e,"consumed callee is exactly a preserving ARM BX LR");
- uint32_t *entry=(uint32_t*)0x331ea38;memcpy(entry,expected[site],8);entry[2]=0xe12fff33;
+ uint32_t *entry=(uint32_t*)INPUT_IMAGE(0x331ea38,0x35a3a44u);memcpy(entry,expected[site],8);entry[2]=0xe12fff33;
  uint32_t *tail=entry+3;jump(&tail,ptr(capture_a));__builtin___clear_cache((char*)entry,(char*)tail);
  uint32_t *rotation=(uint32_t*)(uintptr_t)WHEEL_ROTATE_RVA;jump(&rotation,ptr(native_note_rotation_fixture));__builtin___clear_cache((char*)(uintptr_t)WHEEL_ROTATE_RVA,(char*)rotation);
  static uint32_t table[9];table[8]=WHEEL_ROTATE_RVA;
@@ -881,11 +912,11 @@ static void native_note_checks(void){
  for(unsigned i=0;i<128;i++){in.r[1]=(uint32_t)-1;native_note_exercise(in,1);require(note_selected_item==ptr(note_items_fixture[127-i]),"every consecutive negative burst event selects its previous note");}
  native_note_exercise(in,1);require(!note_call_count,"first endpoint consumes without stock editing");
  in.r[1]=0;native_note_exercise(in,1);require(!note_call_count,"zero represented count is a consumed no-op");
- for(unsigned i=0;i<260;i++){unsigned char *raw=(unsigned char*)note_items_fixture[i];require(!memcmp(raw+0x78,raw+0xb0,8)&&!memcmp(raw+0x88,raw+0xc0,37),"full burst and bound cases preserve every fixture note payload");}
+ for(unsigned i=0;i<260;i++){unsigned char *raw=(unsigned char*)note_items_fixture[i];require(!memcmp(raw+MODEL_NOTE_ORIGINAL_TIME,raw+MODEL_NOTE_CURRENT_TIME,8)&&!memcmp(raw+MODEL_NOTE_ORIGINAL_PAYLOAD,raw+MODEL_NOTE_CURRENT_PAYLOAD,37),"full burst and bound cases preserve every fixture note payload");}
  component_note_call=note_call_fixture;require(note_run(127)==4&&note_selected_item==ptr(note_items_fixture[4]),"X-Touch retains its four-step clamp independently of native range");component_note_call=native_note_effect;
  native_note_seed(0);in.r[1]=1;native_note_exercise(in,1);require(!note_call_count,"empty Grid consumes without native editing");
  native_note_seed(2);put(ptr(note_grid_fixture)+0x32c,1);native_note_exercise(in,1);require(!note_call_count,"active Grid gesture consumes without selecting or editing");put(ptr(note_grid_fixture)+0x32c,0);
- put(ptr(note_items_fixture[0])+0x100,1);native_note_exercise(in,1);require(!note_call_count,"active note gesture also stays consumed");put(ptr(note_items_fixture[0])+0x100,0);
+ put(ptr(note_items_fixture[0])+MODEL_NOTE_QUIET,1);{NotePosition position;require(note_position(ptr(note_grid_fixture),ptr(note_items_fixture[0]),&position)&&!note_quiet(position.item),"busy note remains identity-valid and fails only quiet predicate");}native_note_exercise(in,1);require(!note_call_count,"active note gesture also stays consumed");put(ptr(note_items_fixture[0])+MODEL_NOTE_QUIET,0);
  in.r[1]=127;native_note_exercise(in,1);require(note_selected_item==ptr(note_items_fixture[1]),"overshoot clamps to last note");native_note_exercise(in,1);require(!note_call_count,"last endpoint consumes without stock editing");
  in.r[1]=1;in.r[2]=0;native_note_exercise(in,0);require(!note_call_count,"Shift release returns stock behavior");
  in.r[2]=2;native_note_exercise(in,0);require(!note_call_count,"unknown modifier retains stock behavior");in.r[2]=1;
@@ -904,8 +935,8 @@ static void native_note_checks(void){
  /* Also execute the original reference-release loop, with only its owning
   * objects and subsequent stack epilogue substituted. It must decrement once. */
  observer_running=1;native_note_seed(2);
- const unsigned char *callback=guarded_bytes(0x331e6f4,0x490);
- memcpy(entry+3,callback+(0x331ea44-0x331e6f4),0x20);tail=(uint32_t*)0x331ea64;jump(&tail,ptr(capture_a));
+ const unsigned char *callback=guarded_bytes(INPUT_IMAGE(0x331e6f4,0x35a3700u),0x490);
+ memcpy(entry+3,callback+(INPUT_IMAGE(0x331ea44,0x35a3a50u)-INPUT_IMAGE(0x331e6f4,0x35a3700u)),0x20);tail=(uint32_t*)INPUT_IMAGE(0x331ea64,0x35a3a70u);jump(&tail,ptr(capture_a));
  static uint32_t reference[2],payload[1];payload[0]=ptr(reference);in.r[4]=ptr(payload);
  memcpy(entry,expected[site],8);__builtin___clear_cache((char*)entry,(char*)tail);
  Context before_cleanup,after_cleanup;reference[1]=7;dispatch_count=0;exercise(&in,entry,&before_cleanup);
@@ -921,25 +952,28 @@ static void native_note_checks(void){
 static void focus_press_checks(void){
  /* No new hook site: the press entry is called, never patched. */
  for(unsigned i=0;i<PATCH_COUNT;i++)require(anchor[i]!=PRESS_ENTRY_RVA,"the controller press entry hosts no patch site");
- const unsigned char *body=guarded_bytes(PRESS_ENTRY_RVA,PRESS_ENTRY_LENGTH),*performer=guarded_bytes(0x331e6f4,0x490),*accessor=guarded_bytes(0x2b64174,0x10);
+ const unsigned char *body=guarded_bytes(PRESS_ENTRY_RVA,PRESS_ENTRY_LENGTH),*performer=guarded_bytes(INPUT_IMAGE(0x331e6f4,0x35a3700u),0x490),*accessor=guarded_bytes(INPUT_IMAGE(0x2b64174,0xfa9ff0u),0x10);
  require(body&&performer&&accessor,"press entry, its global-action performer group and the focus accessor guarded as whole native ranges");
- const uint32_t focused_load=0xe59000e4,keep_id=0xe1a05001,hwfocusable_slot=0xe592201c,restore_id=0xe1a01005,press_tail=0xe12fff12;
+ const uint32_t focused_load=0xe59000e4,keep_id=0xe1a05001,hwfocusable_slot=INPUT_IMAGE(0xe592201c,0xe5922028u),restore_id=0xe1a01005,press_tail=0xe12fff12;
  require(!memcmp(body,&focused_load,4)&&(focused_load&0xfff)==WHEEL_FOCUSED_OFFSET,"slot 5 still starts from the controller's own focused component at the offset the data-wheel entry uses");
- require(!memcmp(body+(0x35c2670-PRESS_ENTRY_RVA),&keep_id,4),"it still keeps its int argument across the dynamic cast");
- require(!memcmp(body+(0x35c26a0-PRESS_ENTRY_RVA),&hwfocusable_slot,4),"it still resolves HWFocusable slot 7 at vtable+0x1c on that component");
- require(!memcmp(body+(0x35c26c0-PRESS_ENTRY_RVA),&restore_id,4)&&!memcmp(body+(0x35c26d4-PRESS_ENTRY_RVA),&press_tail,4),"and still tail-calls that slot with the same int this lane supplies");
- uint32_t accessor_call;memcpy(&accessor_call,performer+(0x331e8fc-0x331e6f4),4);
- require(wheel_branch(0x331e8fc,accessor_call)==0x2b64174,"the app's own wheel-push performer still takes its receiver from the active-focus-controller accessor this lane reads");
+ require(!memcmp(body+(INPUT_IMAGE(0x35c2670,0x3847f78u)-PRESS_ENTRY_RVA),&keep_id,4),"it still keeps its int argument across the dynamic cast");
+ require(!memcmp(body+(INPUT_IMAGE(0x35c26a0,0x3847fa8u)-PRESS_ENTRY_RVA),&hwfocusable_slot,4),"it resolves the selected image HWFocusable press slot on that component");
+ require(!memcmp(body+(INPUT_IMAGE(0x35c26c0,0x3847fc8u)-PRESS_ENTRY_RVA),&restore_id,4)&&!memcmp(body+(INPUT_IMAGE(0x35c26d4,0x3847fdcu)-PRESS_ENTRY_RVA),&press_tail,4),"and still tail-calls that slot with the same int this lane supplies");
+ uint32_t accessor_call;memcpy(&accessor_call,performer+(INPUT_IMAGE(0x331e8fc,0x35a3908u)-INPUT_IMAGE(0x331e6f4,0x35a3700u)),4);
+ #ifdef MODEL_FIRMWARE_310
+ {const unsigned char *veneer=guarded_bytes(0x38066e4,12);uint32_t w[3];require(veneer!=NULL,"native press focus veneer guarded");memcpy(w,veneer,12);require(w[0]==0xe59fc000&&w[1]==0xe08ff00c&&0x38066e4u+12+w[2]==0xfa9ff0,"native press veneer resolves actual focus getter");}
+#endif
+ require(wheel_branch(INPUT_IMAGE(0x331e8fc,0x35a3908u),accessor_call)==INPUT_IMAGE(0x2b64174,0x38066e4u),"the app's own wheel-push performer still takes its receiver from the active-focus-controller accessor this lane reads");
  const uint32_t receiver_vtable=0xe5953000,button_load=0xe5941008,receiver_argument=0xe1a00005,slot_five=0xe5933014,virtual_call=0xe12fff33;
- require(!memcmp(performer+(0x331e944-0x331e6f4),&receiver_vtable,4),"it still reads that receiver's own vptr");
- require(!memcmp(performer+(0x331e948-0x331e6f4),&button_load,4),"the id it passes is still its action object's own field at +8, which is the field the device reading came from");
- require(!memcmp(performer+(0x331e94c-0x331e6f4),&receiver_argument,4)&&!memcmp(performer+(0x331e950-0x331e6f4),&slot_five,4)&&!memcmp(performer+(0x331e954-0x331e6f4),&virtual_call,4),"and it still reaches the press entry as vtable slot 5 at +0x14 with that receiver in r0 and that id in r1");
+ require(!memcmp(performer+(INPUT_IMAGE(0x331e944,0x35a3950u)-INPUT_IMAGE(0x331e6f4,0x35a3700u)),&receiver_vtable,4),"it still reads that receiver's own vptr");
+ require(!memcmp(performer+(INPUT_IMAGE(0x331e948,0x35a3954u)-INPUT_IMAGE(0x331e6f4,0x35a3700u)),&button_load,4),"the id it passes is still its action object's own field at +8, which is the field the device reading came from");
+ require(!memcmp(performer+(INPUT_IMAGE(0x331e94c,0x35a3958u)-INPUT_IMAGE(0x331e6f4,0x35a3700u)),&receiver_argument,4)&&!memcmp(performer+(INPUT_IMAGE(0x331e950,0x35a395cu)-INPUT_IMAGE(0x331e6f4,0x35a3700u)),&slot_five,4)&&!memcmp(performer+(INPUT_IMAGE(0x331e954,0x35a3960u)-INPUT_IMAGE(0x331e6f4,0x35a3700u)),&virtual_call,4),"and it still reaches the press entry as vtable slot 5 at +0x14 with that receiver in r0 and that id in r1");
  /* The four legal vptrs carrying slot 5 at +0x14 are pinned where they live, in
   * the RW image, by model-prepare.py at recipe time: their runtime words carry
   * the load bias, so a byte guard over them would fail at install. */
  static unsigned char controller[0x100] __attribute__((aligned(8)));
  static unsigned char focused[0x80] __attribute__((aligned(8)));
- require(fixture_focus_page==(void*)0x6b6f000,"press fixture reuses its already reserved active focus page");
+ require(fixture_focus_page==(void*)(FOCUS_SLOT_RVA&~4095u),"press fixture reuses its already reserved active focus page");
  MirrorState *saved_mirror=fixture;CommandState *saved_commands=command_state;
  fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"press lane fixture storage");
  memset(command_state,0,sizeof(*command_state));initial(1);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);
@@ -948,7 +982,7 @@ static void focus_press_checks(void){
  memset(controller,0,sizeof controller);memset(focused,0,sizeof focused);
  press_receiver=ptr(controller);
  put(press_receiver+WHEEL_FOCUSED_OFFSET,ptr(focused));put(ptr(focused)+WHEEL_FLAGS_OFFSET,WHEEL_VISIBLE_FLAG);
- put(0x6b6f798,press_receiver);put(press_receiver,wheel_focus_vtables[0]);
+ put(INPUT_IMAGE(0x6b6f798,0x6f3b5f8u),press_receiver);put(press_receiver,wheel_focus_vtables[0]);
  /* The data-wheel lane shares this receiver here, so one drain can be shown to
   * carry exactly one of the two operations. */
  wheel_focus_receiver=press_receiver;
@@ -970,9 +1004,9 @@ static void focus_press_checks(void){
  put(press_receiver,wheel_focus_vtables[3]+4);
  require(!press_command_case()&&!press_calls,"a receiver whose vptr is none of the four focus controllers completes with a zero call flag");
  put(press_receiver,wheel_focus_vtables[0]);
- put(0x6b6f798,0);
+ put(INPUT_IMAGE(0x6b6f798,0x6f3b5f8u),0);
  require(!press_command_case()&&!press_calls,"no active focus controller completes with a zero call flag");
- put(0x6b6f798,press_receiver);
+ put(INPUT_IMAGE(0x6b6f798,0x6f3b5f8u),press_receiver);
  require(press_command_case()==1&&press_one(),"recovery: the next press after four suppressed ones still reaches the app's press entry");
  /* Any id but the measured one is a format refusal, not a call: this lane
   * delivers the panel data wheel's own push and nothing else. */
@@ -1008,9 +1042,9 @@ static void focus_press_checks(void){
  press_calls=0;wheel_calls=0;call(&press_drain,COMMAND_DRAIN);
  require(wheel_one(1)&&!press_calls,"the data-wheel request is then delivered as its own single call");
  command_retire();require(command_publish_settlement(command_state,step.seq),"the data-wheel request settles");command_retire();
- require(command_state->magic==COMMAND_MAGIC&&command_state->version==COMMAND_VERSION&&mirror_state->magic==MIRROR_MAGIC&&mirror_state->version==MIRROR_VERSION,"CMD31 and MMV17 unchanged by the press lane");
+ require(command_state->magic==COMMAND_MAGIC&&command_state->version==COMMAND_VERSION&&mirror_state->magic==MIRROR_MAGIC&&mirror_state->version==MIRROR_VERSION,"CMD32 and MMV17 unchanged by the press lane");
  require(!atomic_load(&command_violation)&&!atomic_load(&command_state->error)&&!atomic_load(&command_state->trace_error),"press lane publishes no diagnostic failure");
- observer_running=0;put(ptr(root_object)+0x2e4,0);free(fixture);free(command_state);fixture=saved_mirror;mirror_state=saved_mirror;command_state=saved_commands;
+ observer_running=0;put(ptr(root_object)+MODEL_ROOT_AUDIO,0);free(fixture);free(command_state);fixture=saved_mirror;mirror_state=saved_mirror;command_state=saved_commands;
  require(!atomic_load(&command_state->published)&&!atomic_load(&command_state->reclaimed),"the press lane fixture leaves the shared mailbox untouched");
  component_press_call=NULL;component_wheel_call=NULL;press_calls=0;wheel_calls=0;
  puts("PASS X-Touch data-wheel push lane: the app's own performer still reaches the guarded press entry as focus-controller slot 5 with its action id, no site is patched there, one published JOG_PRESS request is one call carrying the device-measured id on each legal receiver, suppression completes with a zero call flag, a wrong id or foreign target is refused, and command_conflict keeps one focus-controller request in flight across presses and data-wheel steps (native press entry substituted)");
@@ -1018,11 +1052,11 @@ static void focus_press_checks(void){
 static void new_project_checks(void){
  MirrorState *saved_fixture=fixture;CommandState *saved_commands=command_state;
  fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"intent fixture storage");
- void *env_page=mmap((void*)0x6b26000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);require(env_page==(void*)0x6b26000,"Environment singleton fixture page at exact address");
- put(0x6b26814,ptr(root_object));
+ void *env_page=mmap((void*)(MODEL_ENVIRONMENT_SLOT&~4095u),4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);require(env_page==(void*)(MODEL_ENVIRONMENT_SLOT&~4095u),"Environment singleton fixture page at exact address");
+ put(MODEL_ENVIRONMENT_SLOT,ptr(root_object));
  for(unsigned test=0;test<4;test++){
   memset(command_state,0,sizeof(*command_state));initial(1);command_initialize();observer_running=1;atomic_store(&command_state->alive,1);
-  Context c=context();c.r[0]=ptr(root_object);c.r[1]=test==1?1:0;c.lr=test==2?0x25703f0:0x25703f4;if(test==3)atomic_store(&command_state->stop_requested,1);
+  Context c=context();c.r[0]=ptr(root_object);c.r[1]=test==1?1:0;c.lr=test==2?(MODEL_NEW_PROJECT_RETURN-4):MODEL_NEW_PROJECT_RETURN;if(test==3)atomic_store(&command_state->stop_requested,1);
   call(&c,158);require(atomic_load(&command_state->new_project_intent)==(test?3u:1u),"only exact accepted caller, zero flag, live owner and no stop grants native intent");
   if(!test){c.lr=0x1595000;call(&c,158);require(atomic_load(&command_state->new_project_intent)==3,"later native shutdown revokes positive intent");}
  }
@@ -1031,7 +1065,7 @@ static void new_project_checks(void){
   external_operation=external_result=0;external_request=(CommandRequest){.seq=1,.bits=0x3f200000};atomic_store(&pause_at,pause);atomic_store(&pause_reached,0);atomic_store(&pause_resume,0);
   pthread_t writer;require(!pthread_create(&writer,NULL,paused_external,NULL),"intent publication race writer");
   while(!atomic_load(&pause_reached)){struct timespec delay={0,1000000};nanosleep(&delay,NULL);}
-  Context c=context();c.r[0]=ptr(root_object);c.r[1]=0;c.lr=0x25703f4;call(&c,158);
+  Context c=context();c.r[0]=ptr(root_object);c.r[1]=0;c.lr=MODEL_NEW_PROJECT_RETURN;call(&c,158);
   atomic_store(&pause_resume,1);require(!pthread_join(writer,NULL),"intent publication race leaves");atomic_store(&pause_at,0);
   require(!external_result&&!atomic_load(&command_state->published)&&!atomic_load(&command_state->slots[0].published)&&!atomic_load(&command_state->error),"native intent inhibits admission/frontier without manufacturing rejection or receipt");
   CommandSlot *q=command_state->slots;command_request_store(q,&external_request);atomic_store(&q->published,1);atomic_store(&command_state->published,1);atomic_store(&q->sealed,1);
@@ -1066,7 +1100,7 @@ static void repair_checks(void){
   memset(command_state,0,sizeof(*command_state));initial(1);command_initialize();observer_running=1;seed_fixture(0,0,0x3f000000,1);load_fixture();
   component_dispatch=fake_dispatch;dispatched_calls=0;probe_inject=injection;unsigned n=submit_fixture(request(0x3f200000));probe_inject=0;
   require(!dispatched_calls&&atomic_load(&command_state->slots[n].rejected)&&!atomic_load(&command_state->slots[n].dispatched)&&!atomic_load(&command_state->slots[n].returned)&&!atomic_load(&command_state->slots[n].done)&&!atomic_load(&observer_running),"foreign stop/changed method aborts before target and successful dispatch flags");
-  put(0x6930c28,0x250ba74);put(0x6930c78,0x1375c68);
+  put((MODEL_DRUMPROGRAM_VPTR+0x28),MODEL_PROGRAM_CONTROL);put((MODEL_DRUMPROGRAM_VPTR+0x78),MODEL_MIXABLE_PREDICATE);
  }
  free(fixture);free(command_state);fixture=saved_fixture;mirror_state=fixture;command_state=saved_commands;dispatched_calls=0;
  puts("PASS deterministic pre-registration/normal-seed/copy-seed/float/death close flights and immutable closed output; foreign violation and method replacement after resolve call neither target");
@@ -1235,7 +1269,7 @@ static void snapshot_clear_checks(void){
 }
 static void channel_checks(void){
  MirrorState *save=fixture;CommandState *csave=command_state;fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"channel fixtures");
- require(mmap((void*)0x6935000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)==(void*)0x6935000,"Track method fixture at exact address");put(0x693557c,0x26500f8);
+ require(mmap((void*)(MODEL_TRACK_VPTR&~4095u),4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)==(void*)(MODEL_TRACK_VPTR&~4095u),"Track method fixture at exact address");put((MODEL_TRACK_VPTR+0x28),MODEL_ARM_TRACK);
  initial(2);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);component_dispatch=fake_dispatch;
  seed_fixture(0,0,0x3f000000,1);seed_fixture(1,0,0x3f000000,1);load_fixture();
  MIRROR_COPY(out);require(copy_mirror(fixture,&out),"retained channel snapshot");
@@ -1256,9 +1290,9 @@ static void channel_checks(void){
  }
  /* Nonzero copy constructor seeds, before any generic setter notification. */
  struct {Context c;uint32_t stack[128];} f={0};uint32_t p=ptr(program_objects[1]);f.c=context();f.c.r[0]=p;call(&f.c,CH_PROGRAM_COPY);
- f.c.r[4]=p+0x3c;f.c.r[7]=0x3e800000;f.stack[0x8c/4]=0x2370710;f.stack[0xf4/4]=0x2370a7c;f.stack[0x10c/4]=0x2514334;f.stack[0xf8/4]=p;call(&f.c,CH_PAN_COPY);
+ f.c.r[4]=p+0x3c;f.c.r[7]=0x3e800000;f.stack[0x8c/4]=MODEL_SEED_COPY_LR1;f.stack[0xf4/4]=MODEL_SEED_COPY_LR2;f.stack[0x10c/4]=MODEL_SEED_COPY_LR3;f.stack[0xf8/4]=p;call(&f.c,CH_PAN_COPY);
  for(unsigned send=0;send<4;send++){f.c.r[5]=p+0x428+0x38*(send+1);f.c.r[3]=0x3e800000;call(&f.c,CH_SEND_COPY);}
- f.c.r[4]=p+0x48;f.c.r[2]=f.c.r[3]=f.c.r[6]=1;f.stack[0x8c/4]=0x236faf4;f.stack[0x11c/4]=0x2370710;f.stack[0x184/4]=0x2370a7c;f.stack[0x19c/4]=0x2514334;f.stack[0x188/4]=p;
+ f.c.r[4]=p+0x48;f.c.r[2]=f.c.r[3]=f.c.r[6]=1;f.stack[0x8c/4]=MODEL_MUTE_COPY_LR;f.stack[0x11c/4]=MODEL_SEED_COPY_LR1;f.stack[0x184/4]=MODEL_SEED_COPY_LR2;f.stack[0x19c/4]=MODEL_SEED_COPY_LR3;f.stack[0x188/4]=p;
  call(&f.c,CH_MUTE_COPY);call(&f.c,CH_SOLO_COPY);call(&f.c,CH_SOLO_AUDIO_COPY);call(&f.c,CH_EFFECTIVE_COPY);
  unsigned copied[]={CF_PAN,CF_MUTE,CF_SOLO,CF_SOLO_AUDIO,CF_EFFECTIVE_MUTE};for(unsigned i=0;i<5;i++){MIRROR_FIELD(field);require(copy_channel(&fixture->channel,channel_owner_id(p),copied[i],&field)&&field.seed==2&&!field.updates&&field.bits==(i?1:0x3e800000),"nonzero copy seed without changes");}
  Context c=context();c.r[0]=p+0x3d0;call(&c,MIRROR_PROPERTY_DESTROY);MIRROR_FIELD(field);require(!copy_channel(&fixture->channel,channel_owner_id(p),CF_PAN,&field)&&copy_channel(&fixture->channel,channel_owner_id(p),CF_MUTE,&field),"property death isolates unavailable field");
@@ -1268,7 +1302,7 @@ static void channel_checks(void){
   * this fixture substitutes native owner construction and getter execution. */
  uint32_t ownerp=ptr(program_objects[3]);Context gc=context();gc.r[0]=ownerp;call(&gc,CH_MIXER_BIRTH);gc.r[4]=ownerp;gc.r[5]=0x3f400000;call(&gc,CH_MASTER_BIRTH);
  require(copy_channel(&fixture->channel,channel_owner_id(ownerp),CF_MASTER,&field)&&field.bits==0x3f400000,"distinct master constructor seed");
- gc.r[5]=ownerp+0xa8;gc.d[8]=0x3e800000;call(&gc,M_FLOAT);require(copy_channel(&fixture->channel,channel_owner_id(ownerp),CF_MASTER,&field)&&field.bits==0x3e800000,"master generic committed source");gc.r[0]=ownerp;call(&gc,CH_MIXER_DEATH);require(!copy_channel(&fixture->channel,channel_owner_id(ownerp),CF_MASTER,&field),"master owner destruction unavailable");
+ gc.r[5]=ownerp+MODEL_MIXER_MASTER;gc.d[8]=0x3e800000;call(&gc,M_FLOAT);require(copy_channel(&fixture->channel,channel_owner_id(ownerp),CF_MASTER,&field)&&field.bits==0x3e800000,"master generic committed source");gc.r[0]=ownerp;call(&gc,CH_MIXER_DEATH);require(!copy_channel(&fixture->channel,channel_owner_id(ownerp),CF_MASTER,&field),"master owner destruction unavailable");
  gc.r[0]=ownerp;call(&gc,CH_TIMELINE_BIRTH);gc.r[4]=ownerp;gc.r[3]=0;call(&gc,CH_PLAYING_BIRTH);gc.r[5]=ownerp+0xec;gc.r[7]=1;call(&gc,M_MUTE);require(copy_channel(&fixture->channel,channel_owner_id(ownerp),CF_PLAYING,&field)&&field.bits==1,"Timeline native playing commit");
  uint32_t tuple[3]={12,2,480};atomic_store(&fixture->sequencer,ownerp);atomic_store(&fixture->heartbeat,100);gc.r[0]=ptr(tuple);gc.r[1]=ownerp;call(&gc,CH_POSITION_ENTER);positions[position_depth-1].sp=source_sp(&gc)+24;gc.r[4]=ptr(tuple);gc.r[5]=ownerp;call(&gc,CH_POSITION_EXIT);require(copy_mirror(fixture,&out)&&out.position_available&&out.bar==12&&out.beat==2&&out.clock==480,"completed signature-aware BBT copied from current native output");
  atomic_store(&fixture->heartbeat,1100);require(copy_mirror(fixture,&out)&&!out.position_available,"on-demand BBT sample visibly expires");atomic_store(&fixture->heartbeat,1200);gc.r[0]=ptr(tuple);gc.r[1]=ownerp;call(&gc,CH_POSITION_ENTER);positions[position_depth-1].sp=source_sp(&gc)+24;atomic_store(&fixture->epoch,99);call(&gc,CH_POSITION_EXIT);require(copy_mirror(fixture,&out)&&!out.position_available,"BBT call spanning project generation is discarded");
@@ -1754,7 +1788,7 @@ static void jog_dispatch_fixture(uint32_t x,unsigned op,int32_t delta){
   Context u=context();u.r[7]=ptr(queue_object)+0x14;u.r[9]=ptr(project_object)|1;u.r[10]=ptr(jog_unrelated_slot);call(&u,JG_PUBLISH);
   require(!atomic_load(&command_state->trace_error),"unrelated native history publication on the shared seam must not poison an open jog submission");
  }
- Context c=context();c.r[7]=ptr(queue_object)+0xfc;c.r[9]=(x+8)|1;c.r[10]=ptr(jog_native_slot);call(&c,JG_PUBLISH);
+ Context c=context();c.r[7]=ptr(queue_object)+MODEL_QUEUE_AUDIO;c.r[9]=(x+8)|1;c.r[10]=ptr(jog_native_slot);call(&c,JG_PUBLISH);
  if(jog_fixture_fault||jog_fixture_defer){c.r[0]=1;call(&c,JG_BAR_RESULT+3*unit);return;}
  /* Real audio may finish as soon as publication resumes, before the native
   * facade reaches its enqueue result or returns to the UI caller. */
@@ -1786,7 +1820,7 @@ static void jog_checks(void){
  for(unsigned trial=0;trial<6;trial++){
   memset(command_state,0,sizeof(*command_state));initial(1);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);component_jog_dispatch=jog_dispatch_fixture;jog_fixture_fault=trial==3;jog_fixture_epoch=trial==2?2:0;jog_fixture_calls=0;jog_fixture_defer=trial==5;jog_fixture_foreign=trial==0;
   uint32_t a=ptr(jog_audio_object),s=ptr(jog_sequencer_object),t=ptr(jog_timeline_object),u=ptr(jog_time_object),x=ptr(jog_async_object);
-  put(ptr(root_object)+0x2e4,a);put(a+0xa8,ptr(queue_object));put(a+0x3d8,x);put(a+0x3bc,s);put(a+0x3a4,t);put(a+0x3a0,u);put(x,0x689fdac);put(x+8,ptr(queue_object));put(x+0x40,s);put(t,0x69091b0);put(s+0x400,t);put(s+0x3fc,u);
+  put(ptr(root_object)+MODEL_ROOT_AUDIO,a);put(a+0xa8,ptr(queue_object));put(a+MODEL_AUDIO_NAVIGATOR,x);put(a+MODEL_AUDIO_SEQUENCER,s);put(a+MODEL_AUDIO_TIMELINE,t);put(a+MODEL_AUDIO_TIME,u);put(x,MODEL_ASYNC_SEQUENCER_VPTR);put(x+8,ptr(queue_object));put(x+0x40,s);put(t,MODEL_TIMELINE_VPTR);put(s+0x400,t);put(s+0x3fc,u);
   seed_fixture(0,0,0x3f000000,1);load_fixture();
   CommandRequest r={.pid=command_state->pid,.start_lo=command_state->start_lo,.start_hi=command_state->start_hi,.origin_sec=command_state->origin_sec,.origin_nsec=command_state->origin_nsec,.epoch=epoch,.bits=(uint32_t)(trial==1?-2:3),.expires=120000,.reserved=JOG_BAR+(trial%3),.project_owner=channel_owner_id(project)};
   if(trial==0)navigation_source_checks(t);
@@ -1817,9 +1851,9 @@ static void jog_checks(void){
   component_jog_dispatch=jog_dispatch_fixture;component_wheel_call=wheel_call_fixture;
   jog_fixture_fault=0;jog_fixture_epoch=0;jog_fixture_calls=0;jog_fixture_defer=1;
   uint32_t a=ptr(jog_audio_object),sq=ptr(jog_sequencer_object),tl=ptr(jog_timeline_object),tm=ptr(jog_time_object),x=ptr(jog_async_object);
-  put(ptr(root_object)+0x2e4,a);put(a+0xa8,ptr(queue_object));put(a+0x3d8,x);put(a+0x3bc,sq);put(a+0x3a4,tl);put(a+0x3a0,tm);put(x,0x689fdac);put(x+8,ptr(queue_object));put(x+0x40,sq);put(tl,0x69091b0);put(sq+0x400,tl);put(sq+0x3fc,tm);
+  put(ptr(root_object)+MODEL_ROOT_AUDIO,a);put(a+0xa8,ptr(queue_object));put(a+MODEL_AUDIO_NAVIGATOR,x);put(a+MODEL_AUDIO_SEQUENCER,sq);put(a+MODEL_AUDIO_TIMELINE,tl);put(a+MODEL_AUDIO_TIME,tm);put(x,MODEL_ASYNC_SEQUENCER_VPTR);put(x+8,ptr(queue_object));put(x+0x40,sq);put(tl,MODEL_TIMELINE_VPTR);put(sq+0x400,tl);put(sq+0x3fc,tm);
   seed_fixture(0,0,0x3f000000,1);load_fixture();
-  put(0x6b6f798,wheel_focus_receiver);put(wheel_focus_receiver,wheel_focus_vtables[2]);
+  put(INPUT_IMAGE(0x6b6f798,0x6f3b5f8u),wheel_focus_receiver);put(wheel_focus_receiver,wheel_focus_vtables[2]);
   put(wheel_focus_receiver+WHEEL_FOCUSED_OFFSET,wheel_focus_focused);put(wheel_focus_focused+WHEEL_FLAGS_OFFSET,WHEEL_VISIBLE_FLAG);
   CommandRequest base={.pid=command_state->pid,.start_lo=command_state->start_lo,.start_hi=command_state->start_hi,.origin_sec=command_state->origin_sec,.origin_nsec=command_state->origin_nsec,.epoch=epoch,.expires=120000};
   CommandRequest jog=base;jog.seq=1;jog.bits=1;jog.reserved=JOG_BEAT;jog.project_owner=channel_owner_id(project);
@@ -1841,9 +1875,9 @@ static void jog_checks(void){
   component_jog_dispatch=jog_dispatch_fixture;component_wheel_call=wheel_call_fixture;
   jog_fixture_fault=0;jog_fixture_epoch=0;jog_fixture_calls=0;jog_fixture_defer=0;
   uint32_t a=ptr(jog_audio_object),sq=ptr(jog_sequencer_object),tl=ptr(jog_timeline_object),tm=ptr(jog_time_object),x=ptr(jog_async_object);
-  put(ptr(root_object)+0x2e4,a);put(a+0xa8,ptr(queue_object));put(a+0x3d8,x);put(a+0x3bc,sq);put(a+0x3a4,tl);put(a+0x3a0,tm);put(x,0x689fdac);put(x+8,ptr(queue_object));put(x+0x40,sq);put(tl,0x69091b0);put(sq+0x400,tl);put(sq+0x3fc,tm);
+  put(ptr(root_object)+MODEL_ROOT_AUDIO,a);put(a+0xa8,ptr(queue_object));put(a+MODEL_AUDIO_NAVIGATOR,x);put(a+MODEL_AUDIO_SEQUENCER,sq);put(a+MODEL_AUDIO_TIMELINE,tl);put(a+MODEL_AUDIO_TIME,tm);put(x,MODEL_ASYNC_SEQUENCER_VPTR);put(x+8,ptr(queue_object));put(x+0x40,sq);put(tl,MODEL_TIMELINE_VPTR);put(sq+0x400,tl);put(sq+0x3fc,tm);
   seed_fixture(0,0,0x3f000000,1);load_fixture();
-  put(0x6b6f798,wheel_focus_receiver);put(wheel_focus_receiver,wheel_focus_vtables[2]);
+  put(INPUT_IMAGE(0x6b6f798,0x6f3b5f8u),wheel_focus_receiver);put(wheel_focus_receiver,wheel_focus_vtables[2]);
   put(wheel_focus_receiver+WHEEL_FOCUSED_OFFSET,wheel_focus_focused);put(wheel_focus_focused+WHEEL_FLAGS_OFFSET,WHEEL_VISIBLE_FLAG);
   Context destroy=context();destroy.r[0]=x;call(&destroy,JG_DESTROY);
   CommandRequest base={.pid=command_state->pid,.start_lo=command_state->start_lo,.start_hi=command_state->start_hi,.origin_sec=command_state->origin_sec,.origin_nsec=command_state->origin_nsec,.epoch=epoch,.expires=120000};
@@ -1855,7 +1889,7 @@ static void jog_checks(void){
   require(wheel_one(-2)&&atomic_load(&command_state->slots[1].done)==2&&!atomic_load(&command_state->slots[1].rejected),"the same drain still turns the data wheel, so the data-wheel lane does not consult jog_resolve");
   component_wheel_call=NULL;
  }
- observer_running=0;put(ptr(root_object)+0x2e4,0);free(fixture);free(command_state);fixture=saved;mirror_state=saved;command_state=saved_command;
+ observer_running=0;put(ptr(root_object)+MODEL_ROOT_AUDIO,0);free(fixture);free(command_state);fixture=saved;mirror_state=saved;command_state=saved_command;
  puts("PASS data-wheel requests stay out of the jog lane: no jog_resolve, no facade call, no shared retention, and they complete beside a retained native jog and after its AsyncSequencer is retired (native bodies substituted)");
  puts("PASS exact native queue payload correlation, early callback completion before enqueue result/return, independent UI retirement, signed bar/beat/pulse ABI, actual callback thread, no-op completion, execution epoch, wrong-callable and owner-destruction rejection (native body substituted)");
 }
@@ -1864,23 +1898,23 @@ static uint32_t master_fixture_slot[5];static unsigned master_fixture_trial,mast
 static uint32_t master_unrelated_slot[2]={0x1477d3c,0x1472d90};
 static void *master_audio_fixture(void *unused){
  (void)unused;union {uint64_t align;unsigned char bytes[sizeof(Context)+8];} frames;
- Context *enter=(Context*)(frames.bytes+8),*done=(Context*)frames.bytes;uint32_t m=ptr(jog_audio_object)+0x260;
+ Context *enter=(Context*)(frames.bytes+8),*done=(Context*)frames.bytes;uint32_t m=ptr(jog_audio_object)+MODEL_AUDIO_MIXER;
  *enter=context();enter->r[0]=ptr(master_fixture_slot+2);call(enter,MS_ENTER);
  /* Automation Write armed: a master setter call on another Mixer object inside
   * this command's window is proof it is not this command's own call. */
  if(master_fixture_trial==7){Context foreign=context();foreign.r[0]=ptr(jog_audio_object);foreign.r[1]=0;foreign.d[0]=0x3f400000;call(&foreign,MS_SET_ENTER);foreign=context();foreign.r[4]=ptr(jog_audio_object);call(&foreign,MS_SET_DONE);}
  Context setter=context();setter.r[0]=m;setter.r[1]=0;setter.d[0]=master_fixture_trial==2?0x3e800000:0x3f200000;call(&setter,MS_SET_ENTER);
- if(master_fixture_trial!=1){Context scalar=context();scalar.r[5]=m+0xa8;scalar.d[8]=setter.d[0];call(&scalar,M_FLOAT);}
+ if(master_fixture_trial!=1){Context scalar=context();scalar.r[5]=m+MODEL_MIXER_MASTER;scalar.d[8]=setter.d[0];call(&scalar,M_FLOAT);}
  setter=context();setter.r[4]=m;call(&setter,MS_SET_DONE);
  *done=context();done->r[4]=ptr(master_fixture_slot+2);call(done,MS_DONE);return NULL;
 }
 static void master_dispatch_fixture(uint32_t f,unsigned index,float value){
  master_fixture_calls++;uint32_t bits;memcpy(&bits,&value,4);require(f==ptr(master_fixture_factory)&&index==0&&bits==0x3f200000,"actual ARM hard-float factory ABI r0/r1/s0");
- uint32_t b=ptr(master_fixture_block),c=b+0x10,m=ptr(jog_audio_object)+0x260;
- put(c,0x68eeaa8);put(c+0x34,ptr(queue_object));put(c+0x3c,m);put(c+0x40,0);put(c+0x44,bits);
+ uint32_t b=ptr(master_fixture_block),c=b+0x10,m=ptr(jog_audio_object)+MODEL_AUDIO_MIXER;
+ put(c,MODEL_SETMIXER_VPTR);put(c+0x34,ptr(queue_object));put(c+0x3c,m);put(c+0x40,0);put(c+0x44,bits);
  Context frame=context();frame.r[5]=f;frame.r[4]=b;frame.r[6]=c;call(&frame,MS_CREATE);
- put(c+0x2c,c);put(c+0x30,b);master_fixture_slot[0]=0x13bfd1c;master_fixture_slot[1]=master_fixture_trial==3?0x13bfd64:0x13bfdf0;master_fixture_slot[2]=c+0x34;master_fixture_slot[3]=c;master_fixture_slot[4]=b;
- frame=context();frame.r[7]=ptr(queue_object)+0xfc;frame.r[9]=(c+0x34)|1;frame.r[10]=ptr(master_fixture_slot);call(&frame,JG_PUBLISH);
+ put(c+0x2c,c);put(c+0x30,b);master_fixture_slot[0]=MODEL_MASTER_INVOKER;master_fixture_slot[1]=master_fixture_trial==3?0x13bfd64:MODEL_MASTER_MANAGER;master_fixture_slot[2]=c+0x34;master_fixture_slot[3]=c;master_fixture_slot[4]=b;
+ frame=context();frame.r[7]=ptr(queue_object)+MODEL_QUEUE_AUDIO;frame.r[9]=(c+0x34)|1;frame.r[10]=ptr(master_fixture_slot);call(&frame,JG_PUBLISH);
  if(master_fixture_trial==3)return;
  if(master_fixture_trial==6){call(&frame,JG_PUBLISH);frame.r[0]=1;call(&frame,MS_RESULT);return;}
  if(master_fixture_trial==5){frame.r[0]=1;call(&frame,MS_RESULT);frame.r[7]=ptr(queue_object)+0x14;frame.r[9]=ptr(project_object)|1;frame.r[10]=ptr(master_unrelated_slot);call(&frame,JG_PUBLISH);return;}
@@ -1893,7 +1927,7 @@ static void master_checks(void){
  MirrorState *saved=fixture;CommandState *saved_command=command_state;fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"master state fixture");
  for(unsigned trial=0;trial<8;trial++){
   master_fixture_trial=trial;master_fixture_calls=0;memset(command_state,0,sizeof(*command_state));initial(1);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);component_master_dispatch=master_dispatch_fixture;
-  uint32_t a=ptr(jog_audio_object),m=a+0x260,f=ptr(master_fixture_factory);memset(jog_audio_object,0,sizeof(jog_audio_object));put(ptr(root_object)+0x2e4,a);put(ptr(root_object)+0x318,f);put(a+0xa8,ptr(queue_object));put(m,0x6898b34);put(f,0x6899fa0);put(f+4,ptr(queue_object));put(f+0x10,ptr(queue_object));put(f+0x14,ptr(project_object));put(f+0x30,word(ptr(project_object)+0xab0));put(f+0x40,m);
+  uint32_t a=ptr(jog_audio_object),m=a+MODEL_AUDIO_MIXER,f=ptr(master_fixture_factory);memset(jog_audio_object,0,sizeof(jog_audio_object));put(ptr(root_object)+MODEL_ROOT_AUDIO,a);put(ptr(root_object)+MODEL_ROOT_COMMAND_FACTORY,f);put(a+0xa8,ptr(queue_object));put(m,MODEL_MIXER_VPTR);put(f,MODEL_COMMAND_FACTORY_VPTR);put(f+4,ptr(queue_object));put(f+0x10,ptr(queue_object));put(f+0x14,ptr(project_object));put(f+0x30,word(ptr(project_object)+MODEL_PROJECT_HISTORY));put(f+0x40,m);
   Context frame=context();frame.r[0]=m;call(&frame,CH_MIXER_BIRTH);frame.r[4]=m;frame.r[5]=trial==1?0x3f200000:0x3f000000;call(&frame,CH_MASTER_BIRTH);seed_fixture(0,0,0x3f000000,1);load_fixture();
   MIRROR_COPY(out);require(copy_mirror(fixture,&out)&&out.master.available,"actual retained master field joins current embedded Mixer");
   CommandRequest r={.pid=command_state->pid,.start_lo=command_state->start_lo,.start_hi=command_state->start_hi,.origin_sec=command_state->origin_sec,.origin_nsec=command_state->origin_nsec,.epoch=epoch,.bits=0x3f200000,.expires=120000,.before_bits=out.master.bits,.before_revision=out.master.revision,.reserved=CF_MASTER,.field_incarnation=out.master.incarnation,.project_owner=out.project_owner,.global_owner=out.master.owner_incarnation};
@@ -1903,13 +1937,13 @@ static void master_checks(void){
   if(trial==3||trial==4||trial==6){require(!atomic_load(&slot->done)&&(trial!=4?atomic_load(&command_state->trace_error)==C_TRACE_AMBIGUOUS:!master_fixture_calls&&atomic_load(&slot->rejected)==C_NATIVE_MEMBERSHIP),"wrong callable/dead factory never certify master execution");continue;}
   require(master_fixture_calls==1&&atomic_load(&slot->done)==1&&atomic_load(&slot->returned)==1&&!atomic_load(&slot->rejected)&&!atomic_load(&command_state->trace_error),"independent master UI/audio milestones retain attribution");command_retire();require(atomic_load(&slot->sealed)==1,"master source leaves before seal");
   atomic_store(&fixture->heartbeat,1);require(copy_mirror(fixture,&out),"read actual source publication after body completion");MirrorInput in={.commands=command_state};MirrorBank bank;bank_init(&bank);bank_apply(&bank,&out,1);
-  in.flights[at]=(InputFlight){.flight=1,.field=CF_MASTER,.bits=r.bits,.expires=120000,.before_revision=r.before_revision,.field_incarnation=r.field_incarnation,.property=m+0xa8,.global_owner=r.global_owner,.global_epoch=r.epoch};
+  in.flights[at]=(InputFlight){.flight=1,.field=CF_MASTER,.bits=r.bits,.expires=120000,.before_revision=r.before_revision,.field_incarnation=r.field_incarnation,.property=m+MODEL_MIXER_MASTER,.global_owner=r.global_owner,.global_epoch=r.epoch};
   input_drain(&in,&bank,&out,1);require(!in.error&&in.settled==1,"actual producer events consumed by production master settlement policy");
   require(out.master.bits==(trial==2?0x3e800000:r.bits)&&out.master.revision==(trial==1?r.before_revision:r.before_revision+2),"native no-change and history-adjusted actual source are not desired-value acknowledgements");
   unsigned commits=0,sets=0;for(unsigned lane=0;lane<COMMAND_LANES;lane++)for(unsigned j=0;j<atomic_load(&slot->lanes[lane].published);j++){CommandEvent e;require(command_event_read(slot->lanes+lane,1,j,&e),"master retained event read");commits+=e.kind==CE_MASTER_COMMIT;sets+=e.kind==CE_MASTER_SET;}
   require(commits==(trial==1?0:1)&&sets==1,"no manufactured commit for native no-op, and exactly one setter receipt beside foreign master traffic");command_retire();require(command_idle(command_state),"master settled source request reclaims independently");
  }
- observer_running=0;put(ptr(root_object)+0x318,0);put(ptr(root_object)+0x2e4,0);free(fixture);free(command_state);fixture=saved;mirror_state=saved;command_state=saved_command;
+ observer_running=0;put(ptr(root_object)+MODEL_ROOT_COMMAND_FACTORY,0);put(ptr(root_object)+MODEL_ROOT_AUDIO,0);free(fixture);free(command_state);fixture=saved;mirror_state=saved;command_state=saved_command;
  puts("PASS master hard-float factory ABI, retained command/payload correlation, early audio completion, actual source/consumer settlement, no-change/history-adjusted value, unrelated history publication/delayed callback, duplicate exact publication, malformed callable and dead factory rejection (native body substituted)");
 }
 static uint32_t recording_fixture_n[24],recording_fixture_w[34],recording_fixture_cp[48],recording_fixture_q[4],recording_fixture_vtable[4];
@@ -1932,20 +1966,20 @@ static void *recording_first_fixture(void *unused){
  *enter=context();enter->r[0]=n;call(enter,RC_ENTER);
  if(recording_foreign){
   uint32_t fcp=ptr(recording_foreign_cp);
-  put(fcp,0x689fe14);put(fcp+0x80,ptr(track_objects[1]));put(fcp+0x18,ptr(queue_object));recording_foreign_q[0]=ptr(recording_fixture_vtable);
-  Context f=context();f.r[0]=fcp;f.r[2]=n+0x18;f.lr=0x1c04b60;call(&f,RC_PRODUCER);
+  put(fcp,MODEL_CLIP_PLAYER_VPTR);put(fcp+0x80,ptr(track_objects[1]));put(fcp+0x18,ptr(queue_object));recording_foreign_q[0]=ptr(recording_fixture_vtable);
+  Context f=context();f.r[0]=fcp;f.r[2]=n+0x18;f.lr=MODEL_RECORD_PRODUCER_LR;call(&f,RC_PRODUCER);
   f=context();f.r[0]=ptr(recording_foreign_q);f.r[4]=fcp;f.r[6]=fcp+0x1c;f.r[8]=fcp+0x18;call(&f,RC_ENQUEUER);
-  f=context();f.r[0]=p;f.r[2]=n+0x18;f.lr=0x1c04b60;call(&f,RC_APPLY);
-  f=context();f.r[0]=ptr(program_objects[1]);f.r[2]=n+0x18;f.lr=0x1c04b94;call(&f,RC_APPLY);
+  f=context();f.r[0]=p;f.r[2]=n+0x18;f.lr=MODEL_RECORD_PRODUCER_LR;call(&f,RC_APPLY);
+  f=context();f.r[0]=ptr(program_objects[1]);f.r[2]=n+0x18;f.lr=MODEL_RECORD_APPLY_LR;call(&f,RC_APPLY);
   require(!atomic_load(&command_state->trace_error),"the application's own record callbacks inside this command's recording call must not poison it");
  }
  if(recording_trial!=1){
   if(recording_trial>=2){
-   Context c=context();c.r[0]=cp;c.r[2]=n+0x18;c.lr=0x1c04b60;call(&c,RC_PRODUCER);
+   Context c=context();c.r[0]=cp;c.r[2]=n+0x18;c.lr=MODEL_RECORD_PRODUCER_LR;call(&c,RC_PRODUCER);
    c=context();c.r[0]=ptr(recording_fixture_q);c.r[4]=cp;c.r[6]=cp+0x1c;c.r[8]=cp+0x18;call(&c,RC_ENQUEUER);
    if(recording_foreign){
     uint32_t fcp=ptr(recording_foreign_cp);
-    Context f=context();f.r[0]=fcp;f.r[2]=n+0x18;f.lr=0x1c04b60;call(&f,RC_PRODUCER);
+    Context f=context();f.r[0]=fcp;f.r[2]=n+0x18;f.lr=MODEL_RECORD_PRODUCER_LR;call(&f,RC_PRODUCER);
     f=context();f.r[0]=ptr(recording_foreign_q);f.r[4]=fcp;f.r[6]=fcp+0x1c;f.r[8]=fcp+0x18;call(&f,RC_ENQUEUER);
     require(!atomic_load(&command_state->trace_error),"another producer and its enqueuer after this command's own was retained must not poison it");
    }
@@ -1955,7 +1989,7 @@ static void *recording_first_fixture(void *unused){
    if(recording_trial==2){pthread_t second;require(!pthread_create(&second,NULL,recording_second_fixture,NULL)&&!pthread_join(second,NULL),"second native recorder callback runs on independent ARM thread (body substituted)");}
    c=context();c.r[0]=1;call(&c,RC_ENQUEUE_RETURN);
   }
-  Context c=context();c.r[0]=p;c.r[2]=n+0x18;c.lr=0x1c04b94;call(&c,RC_APPLY);
+  Context c=context();c.r[0]=p;c.r[2]=n+0x18;c.lr=MODEL_RECORD_APPLY_LR;call(&c,RC_APPLY);
   c=context();c.r[5]=p+0x5b0;c.d[8]=0x3f200000;call(&c,M_FLOAT);
  }
  *end=context();end->r[4]=n;call(end,RC_DONE);return NULL;
@@ -1964,15 +1998,15 @@ static void recording_dispatch_fixture(uint32_t f,uint32_t p,unsigned kind,unsig
  uint32_t bits;memcpy(&bits,&value,4);require(f==ptr(recording_fixture_factory)&&p==ptr(program_objects[0])&&kind==0x101&&ctrl==7&&bits==0x3f200000,"recording GUI facade r0F/r1P/r2kind/r3controller/s0value seam");
  memset(recording_fixture_n,0,sizeof(recording_fixture_n));memset(recording_fixture_w,0,sizeof(recording_fixture_w));memset(recording_fixture_cp,0,sizeof(recording_fixture_cp));
  uint32_t n=ptr(recording_fixture_n+2),w=ptr(recording_fixture_w+2),cp=ptr(recording_fixture_cp);
- recording_fixture_n[0]=0x13cf830;recording_fixture_n[1]=0x13d18b0;put(n,f+4);put(n+8,f);put(n+0xc,0x101);put(n+0x10,7);put(n+0x14,p);put(n+0x20,2);put(n+0x28,0x101);put(n+0x2c,bits);put(n+0x30,7);put(n+0x50,ptr(track_objects[0]));
- recording_fixture_w[0]=0x1bbce38;recording_fixture_w[1]=0x1bbf2e8;put(w,cp+0x18);put(w+8,cp);put(w+0xc,ptr(track_objects[0]));put(w+0x18,1234);put(w+0x20,2);put(w+0x28,0x101);put(w+0x2c,bits);put(w+0x30,7);
- put(cp,0x689fe14);put(cp+0x80,ptr(track_objects[0]));put(cp+0x18,ptr(queue_object));/* The producer chooses its enqueuer: RS_NONLOCKING is the thread-specific arm
+ recording_fixture_n[0]=MODEL_RECORD_INVOKER;recording_fixture_n[1]=MODEL_RECORD_MANAGER;put(n,f+4);put(n+8,f);put(n+0xc,0x101);put(n+0x10,7);put(n+0x14,p);put(n+0x20,2);put(n+0x28,0x101);put(n+0x2c,bits);put(n+0x30,7);put(n+0x50,ptr(track_objects[0]));
+ recording_fixture_w[0]=MODEL_RECORD_SECOND_INVOKER;recording_fixture_w[1]=MODEL_RECORD_SECOND_MANAGER;put(w,cp+0x18);put(w+8,cp);put(w+0xc,ptr(track_objects[0]));put(w+0x18,1234);put(w+0x20,2);put(w+0x28,0x101);put(w+0x2c,bits);put(w+0x30,7);
+ put(cp,MODEL_CLIP_PLAYER_VPTR);put(cp+0x80,ptr(track_objects[0]));put(cp+0x18,ptr(queue_object));/* The producer chooses its enqueuer: RS_NONLOCKING is the thread-specific arm
   * hardware measured on the record path, RS_LOCKING the embedded fallback,
   * RS_NOOP the implementation that drops the work, RS_UNREADABLE an object
   * whose class cannot be read. */
  recording_fixture_q[0]=recording_shape==RS_UNREADABLE?1u:ptr(recording_fixture_vtable);
- recording_fixture_vtable[2]=recording_shape==RS_NONLOCKING?0x134b794:recording_shape==RS_NOOP?0x28c8108:0x28c4078;
- Context c=context();c.r[7]=ptr(queue_object)+0xfc;c.r[9]=(f+4)|1u;c.r[10]=ptr(recording_fixture_n);call(&c,JG_PUBLISH);
+ recording_fixture_vtable[2]=recording_shape==RS_NONLOCKING?MODEL_ENQUEUE_NONLOCKING:recording_shape==RS_NOOP?MODEL_ENQUEUE_NOOP:MODEL_ENQUEUE_LOCKING;
+ Context c=context();c.r[7]=ptr(queue_object)+MODEL_QUEUE_AUDIO;c.r[9]=(f+4)|1u;c.r[10]=ptr(recording_fixture_n);call(&c,JG_PUBLISH);
  pthread_t first;require(!pthread_create(&first,NULL,recording_first_fixture,NULL)&&!pthread_join(first,NULL),"first GUI recording queue callback on ARM source thread (native body substituted)");
  command_retire();require(!atomic_load(&command_state->slots[0].sealed),"GUI submission flight prevents recording reclaim before facade return");
 }
@@ -1987,7 +2021,7 @@ static void recording_checks(void){
     * one embedded at manager+0x18, so a regression cannot silently go back to
     * modelling only the fallback. The retained identity is q+4, which the
     * second publication then has to match. */
-   require(recording_fixture_vtable[2]==0x134b794&&ptr(recording_fixture_q)!=word(ptr(recording_fixture_cp)+0x18)+0x18,"trial models the thread-specific NonLockingQueueEnqueuer arm, not the embedded fallback");
+   require(recording_fixture_vtable[2]==MODEL_ENQUEUE_NONLOCKING&&ptr(recording_fixture_q)!=word(ptr(recording_fixture_cp)+0x18)+0x18,"trial models the thread-specific NonLockingQueueEnqueuer arm, not the embedded fallback");
    require(recording_queue[at]==ptr(recording_fixture_q)+4,"the admitted thread-specific enqueuer retains its own queue identity");
   }
   if(trial==4){require(atomic_load(&command_state->trace_error)==C_TRACE_AMBIGUOUS&&!atomic_load(&slot->done),"duplicate exact recorder publication cannot certify completion");continue;}
@@ -2002,6 +2036,7 @@ static void recording_checks(void){
  puts("PASS GUI recording facade, source application, native no-Clip no-op, first/second queue correlation, early/delayed recorder callback, duplicate publication rejection and real consumer settlement (native bodies/history/recorder buffering substituted)");
 }
 static unsigned char general_fixture_auto[0xc0],general_fixture_editor[0x560],general_fixture_controls[0x100],general_fixture_responder[0x234],general_fixture_timeline[0x160],general_fixture_zoom[0x158];
+static unsigned save_nested_drains,save_facade_calls,save_queued_at,save_queued_seq;
 /* juce::Desktop, its desktopComponents storage and the top-level component the
  * application's own key path reaches: the objects the corrected peer
  * resolution reads instead of the enrolled Editor. */
@@ -2041,7 +2076,7 @@ static void key_record(unsigned kind,uint32_t argument){
  * the placement would otherwise hand back an unrelated page and let the lane
  * write into the heap. */
 #define KEY_FIXTURE_BASE (KEY_STATICS_RVA&~0xfffu)
-#define KEY_FIXTURE_BYTES 0x3000u
+#define KEY_FIXTURE_BYTES (((KEY_DOWN_BITMAP_RVA+KEY_DOWN_BITMAP_BYTES+4095u)&~4095u)-KEY_FIXTURE_BASE)
 static void key_statics_reserve(void){
  void *page=mmap((void*)(uintptr_t)KEY_FIXTURE_BASE,KEY_FIXTURE_BYTES,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);
  require(page==(void*)(uintptr_t)KEY_FIXTURE_BASE,"JUCE peer statics fixture pages at their exact image addresses");fixture_peer_pages=page;
@@ -2068,12 +2103,33 @@ static unsigned key_press_fixture(uint32_t peer,const uint32_t *key){
  key_record(KEY_CALL_PRESS,peer);return key_press_result;
 }
 static void global_dispatch_fixture(unsigned op,uint32_t target,uint32_t function,unsigned bits){
+ if(op==GLOBAL_SAVE){
+  ++save_facade_calls;
+  if(save_nested_drains){
+   unsigned outer=global_call.id,at=command_find(command_state,outer);
+   require(at<COMMAND_SLOTS&&atomic_load(&command_in_hook),"Save runs inside the existing owner drain");
+   CommandRequest queued={.seq=atomic_load(&command_state->published)+1,.epoch=epoch,.expires=120000,
+    .reserved=GLOBAL_ZOOM_IN,.project_owner=channel_owner_id(project),.global_owner=channel_owner_id(ptr(general_fixture_zoom))};
+   save_queued_at=command_free(command_state);save_queued_seq=queued.seq;
+   require(command_publish_request_at(command_state,&queued,save_queued_at),"queue another request while native Save pumps messages");
+   unsigned consumed=atomic_load(&command_state->consumed);
+   for(unsigned n=0;n<save_nested_drains;n++){
+    Context nested=context();nested.r[0]=ptr(queue_object)+4;call(&nested,COMMAND_DRAIN);
+    require(atomic_load(&observer_running)&&!atomic_load(&command_state->error)&&!atomic_load(&command_violation)&&
+     atomic_load(&command_in_hook)==1&&global_call.id==outer&&atomic_load(&active_request[at])==outer&&
+     atomic_load(&command_state->slots[at].done)!=outer&&atomic_load(&command_state->slots[save_queued_at].processed)!=save_queued_seq&&
+     atomic_load(&command_state->consumed)==consumed,
+     "nested drain preserves outer Save and queued work without a receipt or recursive service");
+   }
+  }
+ }
  if(command_toggle(op)){
   Context c=context();unsigned site;
   require(bits<=1,"native intent is boolean");toggle_calls++;
-  if(command_record(op)){require(target==toggle_recorder,"Record receiver differs from qualified RP owner");unsigned mode=bits?3:0;put(toggle_properties+0x528,mode);c.r[5]=toggle_properties+0x500;c.r[7]=mode;site=source_site_at(0x1c2ce9c);}
-  else if(op==GLOBAL_CLICK_TOGGLE){require(target==toggle_click,"Click native receiver");*(unsigned char*)(uintptr_t)(target+0x34)=bits;c.r[5]=target+0xc;c.r[7]=bits;site=source_site_at(0xe29938);}
-  else {require(target==word(ptr(project_object)+0xe4)+0x210,"Loop freshly uses current configured Sequence");*(unsigned char*)(uintptr_t)(target+0x28)=bits;c.r[5]=target;c.r[7]=bits;site=source_site_at(0xe29938);}
+  require(function==observer_image_bias+(command_record(op)?INPUT_IMAGE(0x1c27e90u,0x2007564u):op==GLOBAL_CLICK_TOGGLE?INPUT_IMAGE(0x1beaad0u,0x1fcc1d0u):INPUT_IMAGE(0xe298bcu,0xe4d948u)),"global toggle dispatch uses the actual selected native facade target");
+  if(command_record(op)){require(target==toggle_recorder,"Record receiver differs from qualified RP owner");unsigned mode=bits?3:0;put(toggle_properties+0x528,mode);c.r[5]=toggle_properties+0x500;c.r[7]=mode;site=source_site_at(INPUT_IMAGE(0x1c2ce9c,0x200c430u));}
+  else if(op==GLOBAL_CLICK_TOGGLE){require(target==toggle_click,"Click native receiver");*(unsigned char*)(uintptr_t)(target+0x34)=bits;c.r[5]=target+0xc;c.r[7]=bits;site=source_site_at(INPUT_IMAGE(0xe29938,0xe4d9c4u));}
+  else {require(target==word(ptr(project_object)+0xe4)+0x210,"Loop freshly uses current configured Sequence");*(unsigned char*)(uintptr_t)(target+0x28)=bits;c.r[5]=target;c.r[7]=bits;site=source_site_at(INPUT_IMAGE(0xe29938,0xe4d9c4u));}
   if(toggle_fault!=1)call(&c,site);
   if(toggle_fault==2)put(ptr(project_object)+0xe4,1); /* invalid new link: postguard must not dereference it */
   return;
@@ -2083,9 +2139,9 @@ static void global_dispatch_fixture(unsigned op,uint32_t target,uint32_t functio
   require(token()!=command_owner&&!atomic_load(lane_in_hook+local_lane-1),"transport native call runs on audio thread outside trace hook interval");
   unsigned lane=trace_enter(0x132);require(lane<COMMAND_LANES,"native transport may enter ordinary source hooks");trace_leave(lane);transport_calls++;
   require(target==ptr(general_fixture_responder),"transport uses responder reached from qualified Editor root");
-  require(function==(op==GLOBAL_PLAY?0xf2358c:0xf23628),"transport uses exact native Play/Stop method");return;
+  require(function==(op==GLOBAL_PLAY?MODEL_TRANSPORT_PLAY:MODEL_TRANSPORT_STOP),"transport uses exact native Play/Stop method");return;
  }
- if(op!=CF_AUTOMATION){require(target==ptr(op==GLOBAL_SAVE||command_page(op)||command_key(op)||command_history(op)||command_sequence_duplicate(op)?general_fixture_editor:general_fixture_zoom),"native utility keeps enrolled editor/zoom owner");require(function==(command_key(op)?0xbc18ec:command_sequence_duplicate(op)?SEQ_DUP_CONFIRM_RVA:0x2c70f20)||!command_history(op),"Undo/Redo use qualified Editor perform facade");
+ if(op!=CF_AUTOMATION){require(target==ptr(op==GLOBAL_SAVE||command_page(op)||command_key(op)||command_history(op)||command_sequence_duplicate(op)?general_fixture_editor:general_fixture_zoom),"native utility keeps enrolled editor/zoom owner");require(function==(command_key(op)?INPUT_IMAGE(0xbc18ec,0xbe453cu):command_sequence_duplicate(op)?SEQ_DUP_CONFIRM_RVA:INPUT_IMAGE(0x2c70f20,0x2ead1b8u))||!command_history(op),"Undo/Redo use qualified Editor perform facade");
   /* Duplicate Sequence names the confirm entry it calls, not the generic
    * action dispatcher, and it builds no key press. */
   if(command_sequence_duplicate(op))require(function==SEQ_DUP_CONFIRM_RVA&&!bits,"the duplicate operation names the application's own CopySequence confirm and carries no value");
@@ -2132,7 +2188,7 @@ static void duplicate_record(unsigned kind){
 }
 /* The application's own rule, re-run over the same Project array the lane
  * pinned: walk the slots in order and take the first whose used byte is clear.
- * The image assertions require 0x0255c32c to still be exactly that walk. */
+ * The image assertions require INPUT_IMAGE(0x0255c32c,0x290f3b8u) to still be exactly that walk. */
 static void duplicate_first_unused_fixture(uint32_t out,uint32_t proj){
  duplicate_record(DUP_CALL_FIRST);duplicate_first_project=proj;
  uint32_t count=word(proj+SEQ_DUP_PROJECT_COUNT),slots=word(proj+SEQ_DUP_PROJECT_SEQUENCES);
@@ -2170,14 +2226,20 @@ static unsigned duplicate_case(uint32_t editor,unsigned *seq_out,unsigned *at_ou
  if(seq_out)*seq_out=seq;
  return atomic_load(&command_state->slots[at].rejected);
 }
+#ifdef MODEL_FIRMWARE_310
+#include "sequence-duplicate-component-310.inc"
+#endif
 static void sequence_duplicate_checks(uint32_t editor,uint32_t audio){
  /* No new hook site: Confirm is called, never patched. */
  for(unsigned i=0;i<PATCH_COUNT;i++)require(anchor[i]!=SEQ_DUP_CONFIRM_RVA,"the CopySequence confirm hosts no patch site");
+#ifdef MODEL_FIRMWARE_310
+ sequence_duplicate_native_310_checks();
+#else
  const unsigned char *confirm=guarded_bytes(SEQ_DUP_CONFIRM_RVA,SEQ_DUP_CONFIRM_LENGTH);
  const unsigned char *ctor=guarded_bytes(0x13fabdc,0x1b8),*execute=guarded_bytes(0x13fb584,0x9d4),*undo=guarded_bytes(0x13f8b8c,0x538);
  const unsigned char *accessors=guarded_bytes(SEQ_DUP_ACCESSORS_RVA,SEQ_DUP_ACCESSORS_LENGTH),*naming=guarded_bytes(SEQ_DUP_DEFAULT_NAME_RVA,SEQ_DUP_DEFAULT_NAME_LENGTH);
- const unsigned char *dispatcher=guarded_bytes(0x2c70f20,0x2300),*navigate=guarded_bytes(0x1bba0e0,0x178),*copy=guarded_bytes(0x25c3990,0xd94);
- require(confirm&&ctor&&execute&&undo&&accessors&&naming&&dispatcher&&navigate&&copy&&guarded_bytes(0x1477a08,0x22c)&&guarded_bytes(0x911e40,0x270)&&guarded_bytes(0x925c70,0x2d8),"confirm, the command constructor, execute, undo, the sequence accessors, the default name, CommandManager::perform, the sequence copy, the navigator call and both String ranges guarded as whole native ranges");
+ const unsigned char *dispatcher=guarded_bytes(INPUT_IMAGE(0x2c70f20,0x2ead1b8u),0x2300),*navigate=guarded_bytes(0x1bba0e0,0x178),*copy=guarded_bytes(0x25c3990,0xd94);
+ require(confirm&&ctor&&execute&&undo&&accessors&&naming&&dispatcher&&navigate&&copy&&guarded_bytes(0x1477a08,0x22c)&&guarded_bytes(INPUT_IMAGE(0x911e40,0x934b18u),0x270)&&guarded_bytes(INPUT_IMAGE(0x925c70,0x948a20u),0x2d8),"confirm, the command constructor, execute, undo, the sequence accessors, the default name, CommandManager::perform, the sequence copy, the navigator call and both String ranges guarded as whole native ranges");
 #define DUP_WORD(body,base,address,value) do{uint32_t dup_w;memcpy(&dup_w,(body)+((address)-(base)),4);require(dup_w==(value),"image shape");}while(0)
  /* Confirm reads exactly the six block words this lane fills, and nothing more:
   * the destination, the source, the navigator, the Project, the dead seventh
@@ -2256,7 +2318,7 @@ static void sequence_duplicate_checks(uint32_t editor,uint32_t audio){
   require(call_word!=0,"the navigator entry is real code, not a stub");}
  /* The first-unused-slot rule the fixture re-runs: the count, the array, the
   * used byte and the two out stores, at the offsets this lane pins. */
- DUP_WORD(accessors,SEQ_DUP_ACCESSORS_RVA,0x255c32c,0xe591ca78u);
+ DUP_WORD(accessors,SEQ_DUP_ACCESSORS_RVA,INPUT_IMAGE(0x255c32c,0x290f3b8u),0xe591ca78u);
  DUP_WORD(accessors,SEQ_DUP_ACCESSORS_RVA,0x255c338,0xe5911a70u);
  DUP_WORD(accessors,SEQ_DUP_ACCESSORS_RVA,0x255c344,0xe5d22258u);
  DUP_WORD(accessors,SEQ_DUP_ACCESSORS_RVA,0x255c36c,0xe5803000u);
@@ -2270,11 +2332,12 @@ static void sequence_duplicate_checks(uint32_t editor,uint32_t audio){
  DUP_WORD(naming,SEQ_DUP_DEFAULT_NAME_RVA,0x25b9688,0xe2844001u);
  /* The navigator chain is the literal chain the application's own generic
   * action dispatcher uses on this very editor pointer. */
- DUP_WORD(dispatcher,0x2c70f20,0x2c71b68,0xe594337cu);
- DUP_WORD(dispatcher,0x2c70f20,0x2c71b6c,0xe59332e4u);
- DUP_WORD(dispatcher,0x2c70f20,0x2c71b70,0xe59303d8u);
+ DUP_WORD(dispatcher,INPUT_IMAGE(0x2c70f20,0x2ead1b8u),0x2c71b68,0xe594337cu);
+ DUP_WORD(dispatcher,INPUT_IMAGE(0x2c70f20,0x2ead1b8u),0x2c71b6c,0xe59332e4u);
+ DUP_WORD(dispatcher,INPUT_IMAGE(0x2c70f20,0x2ead1b8u),0x2c71b70,0xe59303d8u);
  require((0xe594337cu&0xfffu)==SEQ_DUP_EDITOR_ROOT&&(0xe59332e4u&0xfffu)==SEQ_DUP_ROOT_AUDIO&&(0xe59303d8u&0xfffu)==SEQ_DUP_AUDIO_NAVIGATOR,"hop for hop, at the three offsets this lane walks");
 #undef DUP_WORD
+#endif
  component_sequence_first_unused=duplicate_first_unused_fixture;component_sequence_default_name=duplicate_name_fixture;
  component_sequence_confirm=duplicate_confirm_fixture;component_sequence_string_free=duplicate_string_free_fixture;
  uint32_t proj=ptr(project_object),navigator=ptr(duplicate_navigator_object),manager=ptr(duplicate_manager_object);
@@ -2285,7 +2348,7 @@ static void sequence_duplicate_checks(uint32_t editor,uint32_t audio){
  put(proj+SEQ_DUP_PROJECT_SEQUENCES,ptr(duplicate_slot_array));put(proj+SEQ_DUP_PROJECT_COUNT,4);
  put(proj+SEQ_DUP_PROJECT_CURRENT,duplicate_slot_array[1]);put(proj+SEQ_DUP_PROJECT_MANAGER,manager);
  put(audio+SEQ_DUP_AUDIO_NAVIGATOR,navigator);
- require(typed(proj,0x6933c4c)&&word(ptr(root_object)+0x24c)==proj&&word(editor+SEQ_DUP_EDITOR_ROOT)==ptr(root_object)&&word(ptr(root_object)+SEQ_DUP_ROOT_AUDIO)==audio,"the duplicate fixture uses the same enrolled Project, root, editor and engine object the other global operations use");
+ require(typed(proj,MODEL_PROJECT_VPTR)&&word(ptr(root_object)+MODEL_ROOT_PROJECT)==proj&&word(editor+SEQ_DUP_EDITOR_ROOT)==ptr(root_object)&&word(ptr(root_object)+SEQ_DUP_ROOT_AUDIO)==audio,"the duplicate fixture uses the same enrolled Project, root, editor and engine object the other global operations use");
  /* One accepted duplicate: the current sequence, slot 1, into the first unused
   * slot, 2, named for that slot, submitted once. */
  unsigned seq=0,at=0;duplicate_name_live=duplicate_name_live_at_confirm=0;
@@ -2376,16 +2439,16 @@ static void general_checks(void){
  MirrorState *saved=fixture;CommandState *csaved=command_state;fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"general state fixture");
  initial(1);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);component_global_dispatch=global_dispatch_fixture;
  uint32_t g=ptr(general_fixture_auto),e=ptr(general_fixture_editor),z=ptr(general_fixture_zoom),controls=ptr(general_fixture_controls),responder=ptr(general_fixture_responder),timeline=ptr(general_fixture_timeline);
- put(g,0x68ac48c);put(ptr(project_object)+0xaac,g);put(ptr(root_object)+0x388,controls);put(controls+0x78,z);put(controls+0xf0,responder);
+ put(g,MODEL_AUTOMATION_VPTR);put(ptr(project_object)+MODEL_PROJECT_AUTOMATION,g);put(ptr(root_object)+MODEL_ROOT_CONTROLS,controls);put(controls+0x78,z);put(controls+MODEL_CONTROLS_TRANSPORT,responder);
  Context c=context();c.r[0]=g;call(&c,CH_AUTOMATION_OWNER);c.r[4]=g;c.r[2]=0;call(&c,CH_AUTOMATION_BIRTH);
- put(e,0x695395c);put(e+0x230,0x6953b1c);put(e+0x2c8,ptr(queue_object));put(e+0x2cc,7);put(e+0x37c,ptr(root_object));put(ptr(root_object)+0x834,e);
+ put(e,MODEL_EDITOR_VPTR);put(e+0x230,MODEL_EDITOR_SECONDARY_VPTR);put(e+0x2c8,ptr(queue_object));put(e+0x2cc,7);put(e+0x37c,ptr(root_object));put(ptr(root_object)+MODEL_APP_EDITOR-0xd0,e);
  c=context();c.r[4]=ptr(root_object)-0xd0;c.r[5]=e;call(&c,GL_EDITOR_PUBLISH);
  unsigned char *objects=calloc(1,0x2400);require(objects!=NULL,"native intent fixture objects");
  uint32_t a=ptr(recording_fixture_audio),seq=ptr(objects),metronome=ptr(objects+0x1c00);
  toggle_recorder=ptr(objects+0x500);toggle_properties=ptr(objects+0x700);toggle_click=ptr(objects+0xd00);toggle_sequence=ptr(objects+0x1100);
- put(ptr(root_object)+0x2e4,a);put(a+0x3bc,seq);put(a+0x3a4,timeline);put(timeline,0x69091b0);put(seq+0x400,timeline);put(responder+0x1f0,seq);put(seq+0x3ec,toggle_recorder);put(toggle_recorder,0x68a0318);put(toggle_recorder+0x98,toggle_properties);put(toggle_properties,0x68a0340);
- put(a+0x3c0,toggle_click);put(a+0x3b8,metronome);put(metronome,0x689febc);put(toggle_click,0x689fed4);put(toggle_click+0x60,metronome);put(toggle_click+0x64,seq);
- put(toggle_sequence,0x6934b18);put(toggle_sequence+0x400,0x6934b18);put(ptr(project_object)+0xe4,toggle_sequence);
+ put(ptr(root_object)+MODEL_ROOT_AUDIO,a);put(a+MODEL_AUDIO_SEQUENCER,seq);put(a+MODEL_AUDIO_TIMELINE,timeline);put(timeline,MODEL_TIMELINE_VPTR);put(seq+0x400,timeline);put(responder+0x1f0,seq);put(seq+0x3ec,toggle_recorder);put(toggle_recorder,MODEL_RECORDER_VPTR);put(toggle_recorder+0x98,toggle_properties);put(toggle_properties,MODEL_RECORD_PROPERTIES_VPTR);
+ put(a+MODEL_AUDIO_CLICK,toggle_click);put(a+MODEL_AUDIO_METRONOME,metronome);put(metronome,MODEL_METRONOME_VPTR);put(toggle_click,MODEL_CLICK_VPTR);put(toggle_click+0x60,metronome);put(toggle_click+0x64,seq);
+ put(toggle_sequence,MODEL_SEQUENCE_VPTR);put(toggle_sequence+0x400,MODEL_SEQUENCE_VPTR);put(ptr(project_object)+0xe4,toggle_sequence);
  c=context();c.r[0]=toggle_properties;call(&c,CH_RECORD_OWNER);c.r[4]=toggle_properties;c.r[3]=0;call(&c,CH_RECORD_BIRTH);
  c=context();c.r[0]=toggle_click;call(&c,GL_CLICK_OWNER);c.r[4]=toggle_click;c.r[3]=0;call(&c,GL_CLICK_BIRTH);
  seed_fixture(0,0,0x3f000000,1);load_fixture();
@@ -2395,31 +2458,31 @@ static void general_checks(void){
  /* The modifier word, the keysDown bitmap and the focused-component slot the
   * lane names are the ones the app's own keyboard handler bc1cfc names: decode
   * its pc-relative literals instead of restating the addresses. */
- const unsigned char *keyboard=guarded_bytes(0xbc1cfc,0xb6c),*press_body=guarded_bytes(0xbc18ec,0x378);
- const unsigned char *peer_body=guarded_bytes(0xb740bc,0x170),*peer_for=guarded_bytes(0xb74074,0x48);
- const unsigned char *desktop_body=guarded_bytes(0xb73474,0x70),*find_body=guarded_bytes(0xb9a904,0x14c);
- require(keyboard&&press_body&&peer_body&&peer_for&&desktop_body&&find_body&&guarded_bytes(0xb74600,0x24c)&&guarded_bytes(0xb899b8,0xa8),"peer keyboard handler, handleKeyPress, the peer lookup and the getPeerFor body it tail-calls, Desktop::getInstance, findComponentAt, the up/down bracket and the modifier notification guarded as whole native ranges");
- require(KEY_STATICS_RVA+KEY_MODIFIERS_OFFSET==key_image_word(keyboard,0xbc1cfc,0xbc2838,0xbc229c,0x10),"the modifier word is the one the handler hands to juce::KeyPress");
- require(KEY_DOWN_BITMAP_RVA==key_image_word(keyboard,0xbc1cfc,0xbc282c,0xbc21c8,0),"the keysDown bitmap is the one the handler clears on release");
- require(KEY_DOWN_BITMAP_RVA==key_image_word(keyboard,0xbc1cfc,0xbc2810,0xbc1e20,0),"and the one it sets before delivery");
- require(KEY_STATICS_RVA+KEY_FOCUS_OFFSET==key_image_word(press_body,0xbc18ec,0xbc1c40,0xbc18f8,0x50),"the focused-component slot is the one handleKeyPress itself reads");
+ const unsigned char *keyboard=guarded_bytes(INPUT_IMAGE(0xbc1cfc,0xbe494cu),0xb6c),*press_body=guarded_bytes(INPUT_IMAGE(0xbc18ec,0xbe453cu),0x378);
+ const unsigned char *peer_body=guarded_bytes(INPUT_IMAGE(0xb740bc,0xb96d0cu),0x170),*peer_for=guarded_bytes(INPUT_IMAGE(0xb74074,0xb96cc4u),0x48);
+ const unsigned char *desktop_body=guarded_bytes(INPUT_IMAGE(0xb73474,0xb960c4u),0x70),*find_body=guarded_bytes(INPUT_IMAGE(0xb9a904,0xbbd554u),0x14c);
+ require(keyboard&&press_body&&peer_body&&peer_for&&desktop_body&&find_body&&guarded_bytes(INPUT_IMAGE(0xb74600,0xb97250u),0x24c)&&guarded_bytes(INPUT_IMAGE(0xb899b8,0xbac608u),0xa8),"peer keyboard handler, handleKeyPress, the peer lookup and the getPeerFor body it tail-calls, Desktop::getInstance, findComponentAt, the up/down bracket and the modifier notification guarded as whole native ranges");
+ require(KEY_STATICS_RVA+KEY_MODIFIERS_OFFSET==key_image_word(keyboard,INPUT_IMAGE(0xbc1cfc,0xbe494cu),INPUT_IMAGE(0xbc2838,0xbe5488u),INPUT_IMAGE(0xbc229c,0xbe4eecu),0x10),"the modifier word is the one the handler hands to juce::KeyPress");
+ require(KEY_DOWN_BITMAP_RVA==key_image_word(keyboard,INPUT_IMAGE(0xbc1cfc,0xbe494cu),INPUT_IMAGE(0xbc282c,0xbe547cu),INPUT_IMAGE(0xbc21c8,0xbe4e18u),0),"the keysDown bitmap is the one the handler clears on release");
+ require(KEY_DOWN_BITMAP_RVA==key_image_word(keyboard,INPUT_IMAGE(0xbc1cfc,0xbe494cu),INPUT_IMAGE(0xbc2810,0xbe5460u),INPUT_IMAGE(0xbc1e20,0xbe4a70u),0),"and the one it sets before delivery");
+ require(KEY_STATICS_RVA+KEY_FOCUS_OFFSET==key_image_word(press_body,INPUT_IMAGE(0xbc18ec,0xbe453cu),INPUT_IMAGE(0xbc1c40,0xbe4890u),INPUT_IMAGE(0xbc18f8,0xbe4548u),0x50),"the focused-component slot is the one handleKeyPress itself reads");
  /* The corrected peer resolution, taken from the application's own two
   * functions rather than restated: the juce::Desktop singleton slot
   * Desktop::getInstance reads, and the desktopComponents list and count
   * Desktop::findComponentAt walks. */
- require(KEY_STATICS_RVA+KEY_DESKTOP_OFFSET==key_image_word(desktop_body,0xb73474,0xb734dc,0xb7347c,KEY_DESKTOP_OFFSET),"the Desktop singleton slot is the one Desktop::getInstance reads out of the same JUCE static table");
+ require(KEY_STATICS_RVA+KEY_DESKTOP_OFFSET==key_image_word(desktop_body,INPUT_IMAGE(0xb73474,0xb960c4u),INPUT_IMAGE(0xb734dc,0xb9612cu),INPUT_IMAGE(0xb7347c,0xb960ccu),KEY_DESKTOP_OFFSET),"the Desktop singleton slot is the one Desktop::getInstance reads out of the same JUCE static table");
  {const uint32_t desktop_load=0xe5934044,count_load=0xe590403c,list_load=0xe5963034,flags_load=0xe5d03068,parent_load=0xe590000c,peer_tail=0xeaffffe5,component_load=0xe5902004;
-  require(!memcmp(desktop_body+(0xb73480-0xb73474),&desktop_load,4),"Desktop::getInstance still loads the singleton from that slot and only constructs when it is null");
-  require(!memcmp(find_body+(0xb9a908-0xb9a904),&count_load,4)&&!memcmp(find_body+(0xb9a960-0xb9a904),&list_load,4),"findComponentAt still takes the desktop component count from +0x3c and the list from +0x34");
-  require(!memcmp(peer_body,&flags_load,4)&&!memcmp(peer_body+(0xb740c8-0xb740bc),&parent_load,4)&&!memcmp(peer_body+(0xb740d8-0xb740bc),&peer_tail,4),"Component::getPeer still tests the heavyweight flag at +0x68, walks parentComponent at +0xc and tail-calls getPeerFor, so a detached component yields no peer");
-  require(!memcmp(peer_for+(0xb74098-0xb74074),&component_load,4),"getPeerFor still identifies a peer by the component at +4");}
+  require(!memcmp(desktop_body+(INPUT_IMAGE(0xb73480,0xb960d0u)-INPUT_IMAGE(0xb73474,0xb960c4u)),&desktop_load,4),"Desktop::getInstance still loads the singleton from that slot and only constructs when it is null");
+  require(!memcmp(find_body+(INPUT_IMAGE(0xb9a908,0xbbd558u)-INPUT_IMAGE(0xb9a904,0xbbd554u)),&count_load,4)&&!memcmp(find_body+(INPUT_IMAGE(0xb9a960,0xbbd5b0u)-INPUT_IMAGE(0xb9a904,0xbbd554u)),&list_load,4),"findComponentAt still takes the desktop component count from +0x3c and the list from +0x34");
+  require(!memcmp(peer_body,&flags_load,4)&&!memcmp(peer_body+(INPUT_IMAGE(0xb740c8,0xb96d18u)-INPUT_IMAGE(0xb740bc,0xb96d0cu)),&parent_load,4)&&!memcmp(peer_body+(INPUT_IMAGE(0xb740d8,0xb96d28u)-INPUT_IMAGE(0xb740bc,0xb96d0cu)),&peer_tail,4),"Component::getPeer still tests the heavyweight flag at +0x68, walks parentComponent at +0xc and tail-calls getPeerFor, so a detached component yields no peer");
+  require(!memcmp(peer_for+(INPUT_IMAGE(0xb74098,0xb96ce8u)-INPUT_IMAGE(0xb74074,0xb96cc4u)),&component_load,4),"getPeerFor still identifies a peer by the component at +4");}
  {const uint32_t modifier_store=0xe5823010,bracket=0xebfec895,notify=0xebff1dcf,deliver=0xebfffd8e,clear_bit=0xe1c22007,set_bit=0xe1822007,strip=0xe3c33070;
-  require(!memcmp(keyboard+(0xbc23cc-0xbc1cfc),&modifier_store,4),"the handler still edits that modifier word in place for a modifier keysym");
-  require(!memcmp(keyboard+(0xbc23a4-0xbc1cfc),&bracket,4),"it still brackets with handleKeyUpOrDown");
-  require(!memcmp(keyboard+(0xbc2274-0xbc1cfc),&notify,4),"it still calls handleModifierKeysChange when that word changed");
-  require(!memcmp(keyboard+(0xbc22ac-0xbc1cfc),&deliver,4),"it still delivers the press through handleKeyPress");
-  require(!memcmp(keyboard+(0xbc1e1c-0xbc1cfc),&set_bit,4)&&!memcmp(keyboard+(0xbc21bc-0xbc1cfc),&clear_bit,4),"it still sets the keysDown bit on the way down and clears it on release");
-  require(!memcmp(keyboard+(0xbc22a4-0xbc1cfc),&strip,4),"and still strips the mouse-button bits out of the modifiers it passes");}
+  require(!memcmp(keyboard+(INPUT_IMAGE(0xbc23cc,0xbe501cu)-INPUT_IMAGE(0xbc1cfc,0xbe494cu)),&modifier_store,4),"the handler still edits that modifier word in place for a modifier keysym");
+  require(!memcmp(keyboard+(INPUT_IMAGE(0xbc23a4,0xbe4ff4u)-INPUT_IMAGE(0xbc1cfc,0xbe494cu)),&bracket,4),"it still brackets with handleKeyUpOrDown");
+  require(!memcmp(keyboard+(INPUT_IMAGE(0xbc2274,0xbe4ec4u)-INPUT_IMAGE(0xbc1cfc,0xbe494cu)),&notify,4),"it still calls handleModifierKeysChange when that word changed");
+  require(!memcmp(keyboard+(INPUT_IMAGE(0xbc22ac,0xbe4efcu)-INPUT_IMAGE(0xbc1cfc,0xbe494cu)),&deliver,4),"it still delivers the press through handleKeyPress");
+  require(!memcmp(keyboard+(INPUT_IMAGE(0xbc1e1c,0xbe4a6cu)-INPUT_IMAGE(0xbc1cfc,0xbe494cu)),&set_bit,4)&&!memcmp(keyboard+(INPUT_IMAGE(0xbc21bc,0xbe4e0cu)-INPUT_IMAGE(0xbc1cfc,0xbe494cu)),&clear_bit,4),"it still sets the keysDown bit on the way down and clears it on release");
+  require(!memcmp(keyboard+(INPUT_IMAGE(0xbc22a4,0xbe4ef4u)-INPUT_IMAGE(0xbc1cfc,0xbe494cu)),&strip,4),"and still strips the mouse-button bits out of the modifiers it passes");}
  component_key_peer=key_peer_fixture;component_key_modifiers_changed=key_modifiers_fixture;
  component_key_up_down=key_up_down_fixture;component_key_press=key_press_fixture;
  static unsigned char key_peer_object[0x40] __attribute__((aligned(8)));
@@ -2445,7 +2508,8 @@ static void general_checks(void){
   put(key_modifier_address(),modifiers_before);
   put(KEY_STATICS_RVA+KEY_FOCUS_OFFSET,i&1?ptr(general_fixture_editor):0);
   if(command_key(op)){neighbour=(unsigned char)(0xa5u&~key_bitmap_mask(op));*(unsigned char*)(uintptr_t)key_bitmap_address(op)=neighbour;}
-  unsigned at=submit_fixture(r),seq=atomic_load(&command_state->published);command_retire();
+  save_nested_drains=op==GLOBAL_SAVE?2u:0u;
+  unsigned at=submit_fixture(r),seq=atomic_load(&command_state->slots[at].published);command_retire();
   if(command_transport(op)){
    require(transport_queue_component_pending()&&atomic_load(&command_state->slots[at].done)!=seq&&word(e+0x2cc)==holder_count+1,"transport transfers one Editor queue-holder reference and cannot complete on UI submission");
    require(transport_queue_component_manager_count(0)==copies+1&&transport_queue_component_manager_count(1)==destroys&&transport_queue_component_trivial()==1,"native queue copies capture and replaces source with empty manager");
@@ -2480,8 +2544,22 @@ static void general_checks(void){
   }else require(!key_call_count,"a non-key global operation makes none of the peer keyboard calls");
   atomic_store(&fixture->heartbeat,i+1);require(copy_mirror(fixture,&out),"general completed snapshot");MirrorInput in={.commands=command_state};MirrorBank bank;bank_init(&bank);bank_apply(&bank,&out,i+1);
   in.flights[at]=(InputFlight){.flight=seq,.field=op,.bits=bits,.expires=120000,.field_incarnation=field,.property=op==CF_AUTOMATION?g+0xc:0,.global_owner=r.global_owner,.global_epoch=epoch};
-  input_drain(&in,&bank,&out,i+1);require(!in.error&&in.settled==1,"production global consumer accepts native whole-operation proof");command_retire();require(command_idle(command_state),"general facade slot reclaims");
+  if(op==GLOBAL_SAVE){
+   require(save_facade_calls==1&&atomic_load(&command_state->slots[save_queued_at].done)==save_queued_seq,
+           "outer drain performs Save once and then services the request queued by its native message loop");
+   unsigned begins=0,ends=0;
+   for(unsigned lane=0;lane<COMMAND_LANES;lane++)for(unsigned j=0;j<atomic_load(&command_state->slots[at].lanes[lane].published);j++){
+    CommandEvent ev;require(command_event_read(command_state->slots[at].lanes+lane,seq,j,&ev),"Save event read");
+    begins+=ev.kind==CE_GLOBAL_BEGIN;ends+=ev.kind==CE_GLOBAL_END;
+   }
+   require(begins==1&&ends==1,"nested drains add no duplicate Save begin or completion receipt");
+   in.flights[save_queued_at]=(InputFlight){.flight=save_queued_seq,.field=GLOBAL_ZOOM_IN,.expires=120000,
+    .global_owner=channel_owner_id(z),.global_epoch=epoch};
+  }
+  input_drain(&in,&bank,&out,i+1);require(!in.error&&in.settled==(op==GLOBAL_SAVE?2u:1u),"production global consumer accepts native whole-operation proof");command_retire();require(command_idle(command_state),"general facade slot reclaims");
  }
+ save_nested_drains=0;
+ puts("PASS nested owning-thread Save drains defer without touching the outer flight or queued request; one facade receipt and later queued request settle through the production consumer (native Save/message loop substituted)");
  /* The peer pin and the corrected resolution both fail closed. A peer whose
   * first word is a foreign vtable, a peer that names a different component, a
   * desktop with no component and a top-level component that is not on the
@@ -2524,6 +2602,42 @@ static void general_checks(void){
  require(transport_queue_component_pending(),"retired unresolved receipt cannot block later transport");command_close();require(!command_quiescent(),"queued transport holds observer close open");
  pthread_t close_audio;require(!pthread_create(&close_audio,NULL,transport_queue_runner,NULL)&&!pthread_join(close_audio,NULL),"closed transport callback drains");
  require(transport_calls==transport_before&&command_quiescent()&&word(e+0x2cc)==holder_before&&!atomic_load(&command_state->error)&&!atomic_load(&command_state->trace_error)&&atomic_load(&command_state->slots[close_at].done)!=close_seq,"close skips native transport and drains without false completion");
+ /* Native D1 may cancel queued work without calling either callable entry.
+  * Claimed work must still finish before D1 reaches its ordinary return. */
+ unsigned old_at=close_at,old_seq=close_seq;
+ for(unsigned claimed=0;claimed<2;claimed++){
+  /* A permanently closed command file is never reopened. Each lane starts a
+   * fresh process fixture, retaining sequence values to exercise stale CAS. */
+  free(command_state);command_state=calloc(1,sizeof(*command_state));require(command_state!=NULL,"fresh cancellation process fixture");command_initialize();command_queues=ptr(queue_object);atomic_store(&command_state->published,old_seq);atomic_store(&observer_running,1);
+  channel_owner_birth(e,CO_EDITOR);atomic_store(&fixture->general.editor,e);atomic_store(&fixture->general.editor_root,root);atomic_store(&fixture->general.editor_owner,channel_owner_id(e));
+  transport_request.global_owner=channel_owner_id(e);transport_request.reserved=claimed?GLOBAL_STOP:GLOBAL_PLAY;
+  unsigned canceled_at=submit_fixture(transport_request),canceled_seq=atomic_load(&command_state->published);
+  require(transport_queue_component_pending()&&atomic_load(active_request+canceled_at)==canceled_seq,"reused Editor admits a distinct transport flight");
+  transport_finish(old_at,old_seq);require(!global_quiescent()&&atomic_load(active_request+canceled_at)==canceled_seq,"old completed sequence cannot retire a new flight");
+  if(claimed)require(transport_queue_component_claim(),"native queue claims callable before Editor retirement");
+  Context death=context();death.r[0]=e;call(&death,GL_EDITOR_DEATH);
+  require(!global_quiescent()&&atomic_load(active_request+canceled_at)==canceled_seq,"Editor entry does not retire queued or claimed work");
+  unsigned destroys=transport_queue_component_manager_count(1);
+  require(transport_queue_component_cancel()==!claimed,"native cancellation removes only unclaimed entries");
+  if(claimed){
+   require(word(e+0x2cc)==holder_before+1&&!global_quiescent(),"claimed holder remains live until audio callback returns");
+   transport_queue_component_run_claimed();
+   require(transport_queue_component_manager_count(1)==destroys+1,"claimed callable runs and destroys normally");
+  }else require(transport_queue_component_manager_count(1)==destroys&&!global_quiescent(),"native canceled callable skips callback and manager until D1 drain receipt");
+  command_close();Context retired=context();retired.r[5]=e+4;call(&retired,GL_EDITOR_RETIRED);
+  if(!claimed)require(!command_quiescent(),"unrelated Editor return cannot retire this holder");
+  retired.r[5]=e;call(&retired,GL_EDITOR_RETIRED);call(&retired,GL_EDITOR_RETIRED);
+  require(command_quiescent()&&global_quiescent()&&!atomic_load(active_request+canceled_at)&&word(e+0x2cc)==holder_before&&transport_calls==transport_before&&atomic_load(&command_state->slots[canceled_at].done)!=canceled_seq&&!atomic_load(&command_state->error)&&!atomic_load(&command_state->trace_error),"post-drain Editor retirement settles once without invented applied completion");
+  transport_queue_component_reclaim();
+  require(transport_queue_component_manager_count(1)==destroys+1&&word(e+0x2cc)==holder_before&&global_quiescent(),"later canceled-slot manager destroys capture without second holder release or CE settlement");
+  unsigned mirror_alive=atomic_load(&fixture->alive);
+  require(command_finalize()&&atomic_load(&command_state->closed)&&atomic_load(&command_state->error)==C_CLOSED&&atomic_load(&command_state->slots[canceled_at].done)!=canceled_seq&&!atomic_load(&fixture->alive),"finite close reports canceled command incomplete, never applied");
+  /* Other cases reuse the synthetic native graph in a fresh command process. */
+  atomic_store(&fixture->alive,mirror_alive);
+  old_at=canceled_at;old_seq=canceled_seq;
+ }
+ channel_owner_birth(e,CO_EDITOR);atomic_store(&fixture->general.editor,e);atomic_store(&fixture->general.editor_owner,channel_owner_id(e));
+ puts("PASS Editor queued cancellation, claimed callback drain, post-D1 close, unrelated owner, repeated retirement and reused Editor/sequence exclusion; native queue/dtor bodies substituted, canceled requests never report applied");
  /* Destroy this closed fixture with unresolved receipts intact. */
  free(command_state);command_state=transport_saved;command_initialize();command_queues=ptr(queue_object);atomic_store(&observer_running,1);
  /* Intent tests use the real request publisher, UI drain, source hooks and
@@ -2586,11 +2700,16 @@ static void general_checks(void){
  toggle_fault=0;put(ptr(project_object)+0xe4,0);
  /* Same consumer composition, source-owned native meter observation; demand
   * allocation/release is the explicitly substituted boundary in this harness. */
- uint32_t meter=ptr(program_objects[0])+0x2f4,old_meter=word(meter);put(meter,0x68ac3d4);put(meter+0x1c,0x3f000000);put(meter+0x20,0x3e800000);put(meter+0x34,1);
+ uint32_t meter=ptr(program_objects[0])+0x2f4,old_meter=word(meter);put(meter,MODEL_METER_VPTR);put(meter+0x1c,0x3f000000);put(meter+0x20,0x3e800000);put(meter+0x34,1);
  request_meter_bank(0);c=context();c.r[0]=ptr(queue_object)+4;call(&c,COMMAND_DRAIN);require(atomic_load(&fixture->meters.tokens)==1&&tracks[0].meter,"offscreen native meter demand enrolled on owner drain");
  c=context();c.r[7]=meter;call(&c,ME_STEREO);MeterCell *mc=meter_find(meter);require(mc&&atomic_load(&mc->lanes[0].left)==0x3f000000&&atomic_load(&mc->lanes[0].right)==0x3e800000,"native meter source lanes copy linear amplitude");
  atomic_store(&command_state->stop_requested,1);c=context();c.r[0]=ptr(queue_object)+4;call(&c,COMMAND_DRAIN);require(!atomic_load(&fixture->meters.tokens)&&atomic_load(&fixture->meters.closed),"explicit source stop releases all UI-owner meter demand");
- observer_running=0;free(objects);put(meter,old_meter);put(ptr(root_object)+0x388,0);free(fixture);free(command_state);fixture=saved;mirror_state=saved;command_state=csaved;
+ atomic_store(&command_in_hook,1);c=context();call(&c,M_RESET);
+ require(atomic_load(&command_state->error)==C_REENTRY&&atomic_load(&command_violation)==((M_RESET<<16)|C_REENTRY)&&
+         !atomic_load(&observer_running)&&atomic_load(&command_in_hook)==1,
+         "non-drain source reentry still closes the lane without releasing the outer flight");
+ atomic_store(&command_in_hook,0);
+ observer_running=0;free(objects);put(meter,old_meter);put(ptr(root_object)+MODEL_ROOT_CONTROLS,0);free(fixture);free(command_state);fixture=saved;mirror_state=saved;command_state=csaved;
  puts("PASS Off/Read/Write whole native facade, Save/Zoom/focused key owner routing, every key operation delivered in the peer keyboard handler's own shape (image-derived modifier word, keysDown bit, focused-component slot and Desktop singleton slot; the peer resolved from the application's own desktop component list rather than the enrolled Editor and refused at C_IDENTITY for a foreign vtable, a mismatched component, an empty desktop list or a detached top-level component; shift change, up/down bracket, KeyPress triple with its text character, every borrowed word put back) with its focused-component diagnostic in the settlement event and no such call for a non-key operation, exact Editor Undo/Redo facade and rooted TransportControlsResponder Play/Stop targets, production settlement, fresh Record/Click/Loop intent pairs and configured commit/link rejection, offscreen meter source/demand closure (native method bodies and hardware substituted)");
 }
 /* Native bus Programs are absent from Project.ProgramPool. Exercise the same
@@ -2600,8 +2719,8 @@ static void send_destination_checks(void){
  MirrorState *saved=fixture;CommandState *csaved=command_state;fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"send destination fixture");
  initial(4);command_initialize();observer_running=1;observer_image_bias=0;
  for(unsigned i=0;i<4;i++)seed_fixture(i,0,0x3f000000,1);
- uint32_t a=ptr(recording_fixture_audio),m=a+0x260,send[4]={ptr(program_objects[2]),ptr(program_objects[0]),ptr(program_objects[3]),ptr(program_objects[1])};put(ptr(root_object)+0x2e4,a);put(m,0x6898b34);
- Context c=context();c.r[0]=m;call(&c,CH_MIXER_BIRTH);load_fixture();for(unsigned i=0;i<4;i++)put(send[i],0x6931f70);put(m+0x78,ptr(send));put(m+0x7c,ptr(send)+16);put(m+0x80,ptr(send)+16);
+ uint32_t a=ptr(recording_fixture_audio),m=a+MODEL_AUDIO_MIXER,send[4]={ptr(program_objects[2]),ptr(program_objects[0]),ptr(program_objects[3]),ptr(program_objects[1])};put(ptr(root_object)+MODEL_ROOT_AUDIO,a);put(m,MODEL_MIXER_VPTR);
+ Context c=context();c.r[0]=m;call(&c,CH_MIXER_BIRTH);load_fixture();for(unsigned i=0;i<4;i++)put(send[i],MODEL_SENDPROGRAM_VPTR);put(m+0x78,ptr(send));put(m+0x7c,ptr(send)+16);put(m+0x80,ptr(send)+16);
  c=context();c.r[0]=ptr(queue_object)+4;send_destinations(&c);MIRROR_COPY(out);require(copy_mirror(fixture,&out),"actual source-reader send snapshot");
  for(unsigned i=0;i<4;i++)require(out.send_programs[i]==send[i]&&out.send_owners[i]==channel_owner_id(send[i]),"native Mixer order survives independent Track order");
  channel_owner_death(send[1]);require(copy_mirror(fixture,&out)&&!out.send_programs[1]&&out.send_programs[0],"retired destination cannot inherit a name from retained stale identity");
@@ -2612,17 +2731,18 @@ static void send_destination_checks(void){
 static void bus_membership_checks(void){
  MirrorState *saved=fixture;CommandState *csaved=command_state;
  fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"bus fixture state");
- void *tables=mmap((void*)0x6931000,8192,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);require(tables==(void*)0x6931000,"bus method fixture pages at exact address");
- const uint32_t types[]={0x6931f70,0x6932150,0x6931bb0,0x6931d90};
+ uint32_t table_start=MODEL_OUTPUTPROGRAM_VPTR&~4095u,table_end=(MODEL_SUBMIXPROGRAM_VPTR+0x7c+4095u)&~4095u;
+ void *tables=mmap((void*)(uintptr_t)table_start,table_end-table_start,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);require(tables==(void*)(uintptr_t)table_start,"bus method fixture pages at exact address");
+ const uint32_t types[]={MODEL_SENDPROGRAM_VPTR,MODEL_SUBMIXPROGRAM_VPTR,MODEL_OUTPUTPROGRAM_VPTR,MODEL_MASTEROUTPUTPROGRAM_VPTR};
  for(unsigned subtype=0;subtype<4;subtype++)for(unsigned trial=0;trial<6;trial++){
   unsigned category=subtype<3?subtype:2;
   memset(command_state,0,sizeof(*command_state));initial(2);command_initialize();atomic_store(&command_state->alive,1);observer_running=1;observer_image_bias=0;component_dispatch=fake_dispatch;dispatched_calls=0;defer_audio=0;
-  uint32_t m=ptr(recording_fixture_audio)+0x260,p=ptr(program_objects[0]),registry[]={ptr(program_objects[1])},buses[3]={0};
-  buses[category]=p;put(m,0x6898b34);Context c=context();c.r[0]=m;call(&c,CH_MIXER_BIRTH);
+  uint32_t m=ptr(recording_fixture_audio)+MODEL_AUDIO_MIXER,p=ptr(program_objects[0]),registry[]={ptr(program_objects[1])},buses[3]={0};
+  buses[category]=p;put(m,MODEL_MIXER_VPTR);Context c=context();c.r[0]=m;call(&c,CH_MIXER_BIRTH);
   for(unsigned j=0;j<3;j++){put(m+0x78+12*j,ptr(buses+j));put(m+0x7c+12*j,ptr(buses+j)+4);put(m+0x80+12*j,ptr(buses+j)+4);}
   put(ptr(program_pool)+0x1c,ptr(registry));put(ptr(program_pool)+0x20,ptr(registry)+4);put(ptr(program_pool)+0x24,ptr(registry)+4);
-  put(p,types[subtype]);put(types[subtype]+0x28,0x250ba74);put(types[subtype]+0x78,0x1375c68);put(ptr(track_objects[0])+0x64c,7+category);
-  for(unsigned j=0;j<2;j++){uint32_t n=ptr(program_objects[j])+0x2f4;put(n,0x68ac3d4);put(n+0x1c,0x3f000000);put(n+0x20,0x3e800000);put(n+0x34,1);seed_fixture(j,0,0x3f000000,1);}
+  put(p,types[subtype]);put(types[subtype]+0x28,MODEL_PROGRAM_CONTROL);put(types[subtype]+0x78,MODEL_MIXABLE_PREDICATE);put(ptr(track_objects[0])+0x64c,7+category);
+  for(unsigned j=0;j<2;j++){uint32_t n=ptr(program_objects[j])+0x2f4;put(n,MODEL_METER_VPTR);put(n+0x1c,0x3f000000);put(n+0x20,0x3e800000);put(n+0x34,1);seed_fixture(j,0,0x3f000000,1);}
   load_fixture();request_meter_bank(UINT32_MAX);
   if(trial==1){buses[category]=0;buses[(category+1)%3]=p;}
   if(trial==2)buses[category]=0;
@@ -2648,14 +2768,14 @@ static void bus_membership_checks(void){
   }
   atomic_store(&command_state->stop_requested,1);c=context();c.r[0]=ptr(queue_object)+4;call(&c,COMMAND_DRAIN);require(!atomic_load(&fixture->meters.tokens)&&atomic_load(&fixture->meters.closed),"bus demand releases completely on stop");
  }
- observer_running=0;munmap(tables,8192);memset(recording_fixture_audio,0,sizeof(recording_fixture_audio));free(fixture);free(command_state);fixture=saved;mirror_state=saved;command_state=csaved;
+ observer_running=0;munmap(tables,table_end-table_start);memset(recording_fixture_audio,0,sizeof(recording_fixture_audio));free(fixture);free(command_state);fixture=saved;mirror_state=saved;command_state=csaved;
  puts("PASS Return/Submix/Output/MasterOutput native-owner membership shared by meter and command admission, mixed ProgramPool demand, wrong-category/lost-member/dead-owner rejection, post-resolve membership/owner loss, and production source/consumer settlement (native objects, allocation and method bodies substituted)");
 }
 static void meter_interest_checks(void){
  MirrorState *saved=fixture;CommandState *csaved=command_state;
  fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"meter interest fixture");
  initial(12);command_initialize();atomic_store(&command_state->alive,1);observer_running=1;
- for(unsigned i=0;i<12;i++){uint32_t n=ptr(program_objects[i])+0x2f4;put(n,0x68ac3d4);seed_fixture(i,0,0x3f000000,1);}
+ for(unsigned i=0;i<12;i++){uint32_t n=ptr(program_objects[i])+0x2f4;put(n,MODEL_METER_VPTR);seed_fixture(i,0,0x3f000000,1);}
  load_fixture();Context c=context();c.r[0]=ptr(queue_object)+4;call(&c,COMMAND_DRAIN);
  require(!atomic_load(&fixture->meters.tokens),"no controller interest creates no meter demand");
  request_meter_bank(0);call(&c,COMMAND_DRAIN);require(atomic_load(&fixture->meters.tokens)==8,"only first visible eight demand meters");
@@ -2676,7 +2796,7 @@ static void registration_overlap_checks(void){
  MirrorState *saved=fixture;CommandState *csaved=command_state;fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"registration overlap state");
  for(unsigned closing=0;closing<2;closing++){
   memset(command_state,0,sizeof(*command_state));initial(1);command_initialize();observer_running=1;atomic_store(&command_state->alive,1);
-  uint32_t n=ptr(program_objects[0])+0x2f4;put(n,0x68ac3d4);put(n+0x1c,0x3f000000);put(n+0x20,0x3e800000);put(n+0x34,1);seed_fixture(0,0,0x3f000000,1);load_fixture();
+  uint32_t n=ptr(program_objects[0])+0x2f4;put(n,MODEL_METER_VPTR);put(n+0x1c,0x3f000000);put(n+0x20,0x3e800000);put(n+0x34,1);seed_fixture(0,0,0x3f000000,1);load_fixture();
   request_meter_bank(0);Context c=context();c.r[0]=ptr(queue_object)+4;call(&c,COMMAND_DRAIN);MeterCell *m=meter_find(n);require(m&&atomic_load(&fixture->meters.tokens)==1,"actual meter admission before simultaneous source enrollment");
   atomic_store(&pause_at,20);atomic_store(&pause_reached,0);atomic_store(&pause_resume,0);pthread_t first,second;
   require(!pthread_create(&first,NULL,registration_meter_source,NULL),"first native meter source thread");
@@ -2783,14 +2903,14 @@ static void processor_lifecycle_checks(void){
 /* Substituted setter/queue scheduling, actual rooted resolution, production
  * service, event publication, callback accounting and input consumer. */
 static unsigned mode_test_case;
-static uint32_t mode_test_cells[2][4];
+static uint32_t mode_test_cells[2][5];
 static void mode_setter_fixture(void *object,const int *selected){
  uint32_t k=ptr(object);unsigned mask=qlink_mode_jobs(word(k+0x5c),(unsigned)*selected);
  for(unsigned p=0;p<2;p++)if(mask&(1u<<p)){
-  struct {Context c;uint32_t stack[16];} f={0};f.c=context();f.c.r[4]=k;f.c.r[7]=k+8;f.c.r[11]=source_sp(&f.c)+0x10;
+  struct {Context c;uint32_t stack[16];} f={0};f.c=context();f.c.r[4]=k;f.c.r[7]=k+8;f.c.r[MODEL_QLINK_MODE_CALLABLE_REGISTER]=source_sp(&f.c)+MODEL_QLINK_MODE_CALLABLE_STACK;
   mode_job_point(&f.c,p?QM_PREPARE1:QM_PREPARE0);
-  mode_test_cells[p][0]=p?0x11bcc70:0x11c2104;mode_test_cells[p][1]=p?0x11b8ea0:0x11b8e70;mode_test_cells[p][2]=k+8;mode_test_cells[p][3]=k;
-  Context publish=context();publish.r[8]=source_sp(&f.c)+0x10;publish.r[7]=command_queues+0xfc;publish.r[9]=(k+8)|1u;publish.r[10]=ptr(mode_test_cells[p]);mode_job_point(&publish,JG_PUBLISH);
+  mode_test_cells[p][0]=p?MODEL_QLINK_MODE_INVOKER1:MODEL_QLINK_MODE_INVOKER0;mode_test_cells[p][1]=p?MODEL_QLINK_MODE_MANAGER1:MODEL_QLINK_MODE_MANAGER0;mode_test_cells[p][2]=k+8;mode_test_cells[p][3]=k;mode_test_cells[p][4]=(unsigned)(*selected-1)>5;
+  Context publish=context();publish.r[8]=source_sp(&f.c)+MODEL_QLINK_MODE_CALLABLE_STACK;publish.r[7]=command_queues+MODEL_QUEUE_AUDIO;publish.r[9]=(k+8)|1u;publish.r[10]=ptr(mode_test_cells[p]);mode_job_point(&publish,JG_PUBLISH);
   f.c.r[0]=1;mode_job_point(&f.c,p?QM_RESULT1:QM_RESULT0);
  }
  put(k+0x5c,mode_test_case==0?8:mode_test_case==1?15:(unsigned)*selected);
@@ -2798,9 +2918,9 @@ static void mode_setter_fixture(void *object,const int *selected){
 static void mode_callbacks_fixture(unsigned mask){
  for(unsigned p=0;p<2;p++)if(mask&(1u<<p)){
   union {uint64_t align;unsigned char bytes[sizeof(Context)+32];} frame;
-  Context *enter=(Context*)(frame.bytes+(p?16:32)),*done=(Context*)frame.bytes;
+  Context *enter=(Context*)(frame.bytes+(p?MODEL_QLINK_MODE_FRAME1:32)),*done=(Context*)frame.bytes;
   *enter=context();enter->r[0]=ptr(mode_test_cells[p])+8;call(enter,p?QM_ENTER1:QM_ENTER0);
-  *done=context();done->r[p?5:4]=ptr(mode_test_cells[p])+8;call(done,p?QM_DONE1:QM_DONE0);
+  *done=context();done->r[p?MODEL_QLINK_MODE_DONE_REGISTER1:4]=ptr(mode_test_cells[p])+8;call(done,p?QM_DONE1:QM_DONE0);
  }
 }
 static void mode_acceptance_checks(void){
@@ -2808,12 +2928,12 @@ static void mode_acceptance_checks(void){
  fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"mode fixture state");
  unsigned char *objects=calloc(1,0x3000);require(objects!=NULL,"rooted Q-Link mode fixture objects");
  uint32_t controls=ptr(objects),wrapper=controls+0x100,provider=controls+0x200,labels=controls+0x300,t=controls+0x400,parent=controls+0x600,k=controls+0x800,cap=controls+0xe00;
- uint32_t *entry=(uint32_t*)0x11bcd54;jump(&entry,ptr(mode_setter_fixture));__builtin___clear_cache((char*)0x11bcd54,(char*)entry);
+ uint32_t *entry=(uint32_t*)MODEL_QLINK_MODE_SET;jump(&entry,ptr(mode_setter_fixture));__builtin___clear_cache((char*)MODEL_QLINK_MODE_SET,(char*)entry);
  for(mode_test_case=0;mode_test_case<5;mode_test_case++){
   memset(command_state,0,sizeof(*command_state));initial(1);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);seed_fixture(0,0,0x3f000000,1);load_fixture();
-  put(root+0x388,controls);put(root+0x540,wrapper);put(controls+0x30,provider);put(controls+0x38,labels);put(controls+0x2c,t);put(t,0x68962d8);put(wrapper,command_queues);put(wrapper+8,provider);put(provider+0x28,16);
+  put(root+MODEL_ROOT_CONTROLS,controls);put(root+MODEL_ROOT_QLINK_WRAPPER,wrapper);put(controls+0x30,provider);put(controls+0x38,labels);put(controls+0x2c,t);put(t,MODEL_QLINK_TOUCH_VPTR);put(wrapper,command_queues);put(wrapper+8,provider);put(provider+0x28,16);
   put(provider+0x2c,controls+0x1000);put(provider+0x30,controls+0x1900);put(provider+0x34,controls+0x2100);put(labels+0x10,16);put(labels+0x18,16);put(labels+0x1c,16);put(labels+0x14,controls+0x2200);
-  put(root+0x750,parent);put(parent+0xa8,k);put(k,0x6897870);put(k+8,command_queues);put(k+0x524,cap);put(cap+0x28,13);put(k+0x5c,8);
+  put(root+MODEL_ROOT_QLINK_OWNER,parent);put(parent+MODEL_QLINK_OWNER_CONTROLLER,k);put(k,MODEL_QLINK_CONTROLLER_VPTR);put(k+8,command_queues);put(k+0x524,cap);put(cap+0x28,13);put(k+0x5c,8);
   Context drain=context();drain.r[0]=command_queues+4;require(qlink_mode_sample(&drain,0)&&qlink_current.mode_valid,"actual rooted mode admission and eligible count");
   CommandRequest r={.epoch=epoch,.bits=mode_test_case==4?6:1,.expires=120000,.reserved=QLINK_MODE,.field_incarnation=qlink_mode_generation,.project_owner=channel_owner_id(project),.global_owner=k,.qlink_root=root};
   unsigned at=submit_fixture(r);CommandSlot *slot=command_state->slots+at;r=accepted[at].request;
@@ -2851,11 +2971,29 @@ static void io_audio_monitor_fixture(void *connector,void *unused,unsigned value
 /* Reproduce the lost outer bind with nested native-hook contexts. Objects and
  * callback scheduling are substituted; the production lifecycle owner runs. */
 static void io_program_bind_checks(uint32_t key,uint32_t p,unsigned audio){
- unsigned char *object=calloc(1,0x700);require(object!=NULL,"nested connector fixture");uint32_t inner=ptr(object);
+ unsigned char *object=calloc(1,MODEL_IO_AUDIO_CONNECTOR_SIZE);require(object!=NULL,"nested connector fixture");uint32_t inner=ptr(object);
  unsigned birth=audio?IO_AC_BIRTH:IO_PC_BIRTH,bindsite=audio?IO_AC_BIND:IO_PC_BIND,boundsite=audio?IO_AC_BOUND:IO_PC_BOUND,death=audio?IO_AC_DEATH:IO_PC_DEATH,bytes=audio?232:64;
- put(key,audio?0x68a241c:0x68d87e4);put(key+0x30,p);put(inner,audio?0x68a241c:0x68d87e4);put(inner+0x30,p);
+ put(key,audio?MODEL_IO_AUDIO_CONNECTOR_VPTR:MODEL_IO_PROGRAM_CONNECTOR_VPTR);put(key+0x30,p);put(inner,audio?MODEL_IO_AUDIO_CONNECTOR_VPTR:MODEL_IO_PROGRAM_CONNECTOR_VPTR);put(inner+0x30,p);
  Context c=context();c.r[0]=key;call(&c,birth);c.r[0]=inner;call(&c,birth);
  union {uint64_t align;unsigned char bytes[sizeof(Context)+232];} frames[IO_BIND_FRAMES+1];
+ /* Native null PC/AC routes skip BOUND. No synthetic return is emitted.
+  * EMPTY and retirement do not own the invocation stack. */
+ c=context();c.r[0]=key;c.r[2]=0;call(&c,bindsite);
+ require(!io_program_copy(key)->ready&&!io_program_copy(key)->binding,"null bind invalidates readiness and binding");
+ c=context();c.r[4]=key;call(&c,audio?IO_AC_EMPTY:IO_PC_EMPTY);
+ c.r[0]=key;call(&c,death);call(&c,birth);
+ Context *null_follow_entry=(Context*)(frames[0].bytes+bytes),*null_follow_return=(Context*)frames[0].bytes;
+ *null_follow_entry=context();null_follow_entry->r[0]=key;null_follow_entry->r[2]=p;call(null_follow_entry,bindsite);
+ *null_follow_return=context();null_follow_return->r[audio?4:5]=key;call(null_follow_return,boundsite);
+ require(io_program_copy(key)->ready&&!io_program_binds[audio].depth,"null bind then EMPTY/retire/rebirth/valid return leaves no unmatched frame");
+ /* An inner null bind invalidates the enclosing non-null qualification without
+  * taking its frame or pretending that the null native tail has completed. */
+ *null_follow_entry=context();null_follow_entry->r[0]=key;null_follow_entry->r[2]=p;call(null_follow_entry,bindsite);
+ unsigned outer_generation=io_program_binds[audio].frames[0].generation;
+ c=context();c.r[0]=key;c.r[2]=0;call(&c,bindsite);
+ require(io_program_binds[audio].depth==1&&io_program_binds[audio].frames[0].generation==outer_generation&&io_program_copy(key)->generation!=outer_generation,"nested null preserves outer return ownership and invalidates its generation");
+ *null_follow_return=context();null_follow_return->r[audio?4:5]=key;call(null_follow_return,boundsite);
+ require(!io_program_copy(key)->ready&&!io_program_binds[audio].depth,"outer return cannot admit a stale non-null binding after nested null");
  for(unsigned i=0;i<2;i++){Context *e=(Context*)(frames[i].bytes+bytes);*e=context();e->r[0]=i?inner:key;e->r[2]=p;call(e,bindsite);}
  c=context();c.r[audio?4:5]=key;call(&c,boundsite);require(!io_program_copy(key)->ready,"unmatched return cannot certify outer bind");
  for(unsigned i=2;i-->0;){Context *r=(Context*)frames[i].bytes;*r=context();r->r[audio?4:5]=i?inner:key;call(r,boundsite);}
@@ -2886,28 +3024,28 @@ static void io_program_bind_checks(uint32_t key,uint32_t p,unsigned audio){
 static float io_audio_output_seed_fixture(void *p,unsigned kind,unsigned parameter){(void)p;require(kind==0x101&&parameter==325,"Audio Out source getter ABI");return 1.0f;}
 static unsigned io_audio_output_base_fixture(void *p){(void)p;return 1;}
 static void io_audio_checks(void){
- require(mmap((void*)0x692f000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)==(void*)0x692f000,"AudioProgram method fixture page at exact address");put(0x692ff3c,0x1375c68);
+ require(mmap((void*)(MODEL_AUDIOPROGRAM_VPTR&~4095u),4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)==(void*)(MODEL_AUDIOPROGRAM_VPTR&~4095u),"AudioProgram method fixture page at exact address");put((MODEL_AUDIOPROGRAM_VPTR+0x78),MODEL_MIXABLE_PREDICATE);
  MirrorState *saved=fixture;CommandState *saved_command=command_state;fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"Audio I/O fixture state");
  unsigned char *objects=calloc(1,0x2400);require(objects!=NULL,"Audio I/O rooted connector fixtures");
- uint32_t outer=ptr(objects),pc=outer+0x100,ac=pc+0x12ec,mapper=outer+0x2000;
- uint32_t *entry=(uint32_t*)0x269741c;jump(&entry,ptr(io_audio_mapper_fixture));__builtin___clear_cache((char*)0x269741c,(char*)entry);
- entry=(uint32_t*)0x1e5d8b8;jump(&entry,ptr(io_audio_monitor_fixture));__builtin___clear_cache((char*)0x1e5d8b8,(char*)entry);
+ uint32_t outer=ptr(objects),pc=outer+0x100,ac=pc+MODEL_IO_COLLECTION_AUDIO,mapper=outer+0x2000;
+ uint32_t *entry=(uint32_t*)MODEL_IO_AUDIO_INPUT_CHOICE_MAPPER;jump(&entry,ptr(io_audio_mapper_fixture));__builtin___clear_cache((char*)MODEL_IO_AUDIO_INPUT_CHOICE_MAPPER,(char*)entry);
+ entry=(uint32_t*)MODEL_IO_AUDIOMONITOR_FACADE;jump(&entry,ptr(io_audio_monitor_fixture));__builtin___clear_cache((char*)MODEL_IO_AUDIOMONITOR_FACADE,(char*)entry);
  initial(1);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);seed_fixture(0,0,0x3f000000,1);
- uint32_t p=ptr(program_objects[0]);put(p,0x692fec4);put(ptr(track_objects[0])+0x64c,6);load_fixture();
+ uint32_t p=ptr(program_objects[0]);put(p,MODEL_AUDIOPROGRAM_VPTR);put(ptr(track_objects[0])+0x64c,6);load_fixture();
  Context c=context();
  ChannelCell *selection=channel_cell(project+0x78);require(selection!=NULL,"selected Track source");channel_write(selection,tracks[0].track,NULL,0,0);
- put(root+0x75c,outer);put(outer+8,pc);io_program_bind_checks(pc+0xd4c,p,0);io_program_bind_checks(ac,p,1);put(ac,0x68a241c);put(ac+0x30,p);put(ac+0x6fc,mapper);
+ put(root+MODEL_ROOT_IO,outer);put(outer+8,pc);io_program_bind_checks(pc+MODEL_IO_COLLECTION_PROGRAM,p,0);io_program_bind_checks(ac,p,1);put(ac,MODEL_IO_AUDIO_CONNECTOR_VPTR);put(ac+0x30,p);put(ac+MODEL_IO_AUDIO_MAPPER,mapper);
  c=context();c.r[4]=p;c.d[16]=0;call(&c,IO_AUDIO_MONITOR_BIRTH);c.r[3]=0;call(&c,IO_AUDIO_IN_BIRTH);call(&c,IO_AUDIO_APPLY_BIRTH);
  c=context();c.r[0]=ac;call(&c,IO_AC_BIRTH);c.r[4]=ac;call(&c,IO_AC_EMPTY);require(io_program_copy(ac)!=NULL,"independent AudioProgramConnector birth enrolled");
  union {uint64_t alignment;unsigned char bytes[sizeof(Context)+232];} frame;
  Context *bind=(Context*)(frame.bytes+232),*bound=(Context*)frame.bytes;*bind=context();bind->r[0]=ac;bind->r[2]=p;call(bind,IO_AC_BIND);
- uint32_t labels[]={ptr("Input 1,2"),ptr("Input 3,4"),ptr("Input 5,6")};put(ac+0x61c,ptr(labels));put(ac+0x620,ptr(labels)+sizeof(labels));put(ac+0x624,ptr(labels)+sizeof(labels));
- c=context();c.r[5]=ac+0x60c;call(&c,IO_STRING_CATALOGUE);*bound=context();bound->r[4]=ac;call(bound,IO_AC_BOUND);require(io_program_copy(ac)->ready,"Audio constructor-empty-bind-catalogue-bound path ready");
- uint32_t output_labels[]={ptr("Out 1/2"),ptr("Out 3/4")},common=pc+0xd4c;put(common+0x544,ptr(output_labels));put(common+0x548,ptr(output_labels)+sizeof(output_labels));put(common+0x54c,ptr(output_labels)+sizeof(output_labels));
- c=context();c.r[5]=common+0x534;call(&c,IO_STRING_CATALOGUE);
+ uint32_t labels[]={ptr("Input 1,2"),ptr("Input 3,4"),ptr("Input 5,6")};put(ac+MODEL_IO_AUDIO_CATALOGUE+0x10,ptr(labels));put(ac+MODEL_IO_AUDIO_CATALOGUE+0x14,ptr(labels)+sizeof(labels));put(ac+MODEL_IO_AUDIO_CATALOGUE+0x18,ptr(labels)+sizeof(labels));
+ c=context();c.r[5]=ac+MODEL_IO_AUDIO_CATALOGUE;call(&c,IO_STRING_CATALOGUE);*bound=context();bound->r[4]=ac;call(bound,IO_AC_BOUND);require(io_program_copy(ac)->ready,"Audio constructor-empty-bind-catalogue-bound path ready");
+ uint32_t output_labels[]={ptr("Out 1/2"),ptr("Out 3/4")},common=pc+MODEL_IO_COLLECTION_PROGRAM;put(common+MODEL_IO_PROGRAM_CATALOGUE+0x10,ptr(output_labels));put(common+MODEL_IO_PROGRAM_CATALOGUE+0x14,ptr(output_labels)+sizeof(output_labels));put(common+MODEL_IO_PROGRAM_CATALOGUE+0x18,ptr(output_labels)+sizeof(output_labels));
+ c=context();c.r[5]=common+MODEL_IO_PROGRAM_CATALOGUE;call(&c,IO_STRING_CATALOGUE);
  uint32_t description[6]={2,0,3,0,1,0x3f800000};channel_birth(p,p+0x348,CI_AUDIO_OUT,0,(const char*)description,24,1);
- entry=(uint32_t*)0x250b754;jump(&entry,ptr(io_audio_output_seed_fixture));__builtin___clear_cache((char*)0x250b754,(char*)entry);
- entry=(uint32_t*)0x26991b0;jump(&entry,ptr(io_audio_output_base_fixture));__builtin___clear_cache((char*)0x26991b0,(char*)entry);
+ entry=(uint32_t*)MODEL_EFFECT_ENABLE_READ;jump(&entry,ptr(io_audio_output_seed_fixture));__builtin___clear_cache((char*)MODEL_EFFECT_ENABLE_READ,(char*)entry);
+ entry=(uint32_t*)MODEL_IO_AUDIO_OUTPUT_BASE_GETTER;jump(&entry,ptr(io_audio_output_base_fixture));__builtin___clear_cache((char*)MODEL_IO_AUDIO_OUTPUT_BASE_GETTER,(char*)entry);
  IOInterest *interest=&command_state->io_interest;atomic_store(&interest->revision,2);atomic_store(&interest->enabled,1);atomic_store(&interest->epoch,epoch);atomic_store(&interest->serial,tracks[0].serial);atomic_store(&interest->until,120000);
  Context drain=context();drain.r[0]=command_queues+4;io_service(&drain);
  require(io_current.fields[IO_MONITOR].status==IO_READY&&io_current.fields[IO_MONITOR].choice_count==4&&!strcmp(io_current.fields[IO_MONITOR].text,"Off")&&io_current.fields[IO_AUDIO_IN].status==IO_READY&&io_current.fields[IO_AUDIO_IN].choice_count==3&&!strcmp(io_current.fields[IO_AUDIO_IN].text,"Input 1,2"),"Audio Monitor and dynamic Audio In READY through actual service");
@@ -2933,14 +3071,14 @@ static void *io_monitor_commit_stub;
 static unsigned io_monitor_publication_fault;
 static void io_monitor_setter_fixture(void *property,unsigned value){
  require(ptr(property)==io_monitor_expected&&value==3,"real Monitor callback forwards exact property and dereferenced Merge enum");
- Context c=context(),captured;c.r[0]=ptr(property);c.r[7]=value;c.r[3]=0;exercise(&c,(void*)0x1351008,&captured);
+ Context c=context(),captured;c.r[0]=ptr(property);c.r[7]=value;c.r[3]=0;exercise(&c,(void*)INPUT_IMAGE(0x1351008,0x1528818u),&captured);
  require(word(ptr(property)+0x10)==value&&atomic_load(&channel_cell(ptr(property))->bits)==value,"actual native Monitor commit pair and generated gate publish retained source");
  c=context();call(&c,JG_PUBLISH); /* Other listener before our prepare. */
- c=context();c.r[4]=ptr(property)-4;c.r[5]=io_monitor_helper;c.r[9]=value;c.r[3]=0x245e634;call(&c,IO_MONITOR_PREPARE);uint32_t source=source_sp(&c);
+ c=context();c.r[4]=ptr(property)-4;c.r[5]=io_monitor_helper;c.r[9]=value;c.r[3]=MODEL_IO_MONITOR_INVOKER;call(&c,IO_MONITOR_PREPARE);uint32_t source=source_sp(&c);
  c.r[8]=source+64;call(&c,JG_PUBLISH); /* Unrelated while F is live. */
- io_monitor_queued[0]=0x245e634;io_monitor_queued[1]=0x245e5e8;io_monitor_queued[2]=io_monitor_helper;io_monitor_queued[3]=value;io_monitor_queued[4]=ptr(property)-4;
+ io_monitor_queued[0]=MODEL_IO_MONITOR_INVOKER;io_monitor_queued[1]=MODEL_IO_MONITOR_MANAGER;io_monitor_queued[2]=io_monitor_helper;io_monitor_queued[3]=value;io_monitor_queued[4]=ptr(property)-4;
  if(io_monitor_publication_fault==1)io_monitor_queued[3]=value+1;
- c.r[7]=command_queues+0xfc;c.r[8]=source;c.r[9]=io_monitor_helper|1;c.r[10]=ptr(io_monitor_queued);call(&c,JG_PUBLISH);
+ c.r[7]=command_queues+MODEL_QUEUE_AUDIO;c.r[8]=source;c.r[9]=io_monitor_helper|1;c.r[10]=ptr(io_monitor_queued);call(&c,JG_PUBLISH);
  if(io_monitor_publication_fault==2)call(&c,JG_PUBLISH); /* Duplicate exact F. */
  c.r[8]=source+64;call(&c,JG_PUBLISH);
  c.r[0]=1;call(&c,IO_MONITOR_RESULT);
@@ -2953,14 +3091,14 @@ static void io_monitor_dispatch_checks(void){
  for(io_monitor_publication_fault=0;io_monitor_publication_fault<3;io_monitor_publication_fault++){
  fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"Monitor dispatch fixture state");
  unsigned char *objects=calloc(1,0x1600);require(objects!=NULL,"Monitor connector fixture");uint32_t outer=ptr(objects),pc=outer+0x100,connector=pc+0x2f4;io_monitor_helper=outer+0x1500;
- const unsigned char *callback=NULL;for(unsigned i=0;i<sizeof(guards)/sizeof(*guards);i++)if(guards[i].address<=0x1e93ba0&&guards[i].address+guards[i].length>=0x1e93bac){callback=guards[i].bytes+0x1e93ba0-guards[i].address;break;}
- const uint32_t expected[]={0xe1a00001,0xe5921000,0xead2f4fe};require(callback&&!memcmp(callback,expected,sizeof(expected)),"pinned native Monitor MOV r0,r1; LDR r1,[r2]; tailbranch setter");memcpy((void*)0x1e93ba0,callback,12);__builtin___clear_cache((char*)0x1e93ba0,(char*)0x1e93bac);
- unsigned commit=0;while(commit<PATCH_COUNT&&hook_ids[commit]!=IO_MONITOR_COMMIT)commit++;require(commit<PATCH_COUNT&&anchor[commit]==0x1351008&&capture_after_pair[commit],"native Monitor store anchor and post-pair gate");
- io_monitor_commit_stub=mmap(NULL,4096,PROT_READ|PROT_WRITE|PROT_EXEC,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);require(io_monitor_commit_stub!=MAP_FAILED,"Monitor generated commit stub");build_stub(io_monitor_commit_stub,commit,0);uint32_t *commit_entry=(uint32_t*)0x1351008;jump(&commit_entry,ptr(io_monitor_commit_stub));jump(&commit_entry,ptr(capture_a));__builtin___clear_cache(io_monitor_commit_stub,(char*)io_monitor_commit_stub+4096);__builtin___clear_cache((char*)0x1351008,(char*)commit_entry);
- uint32_t *entry=(uint32_t*)0x1350fa8;jump(&entry,ptr(io_monitor_setter_fixture));__builtin___clear_cache((char*)0x1350fa8,(char*)entry);
+ const unsigned char *callback=NULL;for(unsigned i=0;i<sizeof(guards)/sizeof(*guards);i++)if(guards[i].address<=MODEL_IO_MONITOR_FACADE&&guards[i].address+guards[i].length>=MODEL_IO_MONITOR_FACADE+12){callback=guards[i].bytes+MODEL_IO_MONITOR_FACADE-guards[i].address;break;}
+ const uint32_t expected[]={0xe1a00001,0xe5921000,INPUT_IMAGE(0xead2f4fe,0xeacd3824u)};require(callback&&!memcmp(callback,expected,sizeof(expected)),"pinned native Monitor MOV r0,r1; LDR r1,[r2]; tailbranch setter");require(fixture_branch_target(MODEL_IO_MONITOR_FACADE+8,expected[2])==MODEL_IO_MIDIMONITOR_UI_SETTER,"native Monitor tail resolves selected UI setter");memcpy((void*)MODEL_IO_MONITOR_FACADE,callback,12);__builtin___clear_cache((char*)MODEL_IO_MONITOR_FACADE,(char*)(MODEL_IO_MONITOR_FACADE+12));
+ unsigned commit=0;while(commit<PATCH_COUNT&&hook_ids[commit]!=IO_MONITOR_COMMIT)commit++;require(commit<PATCH_COUNT&&anchor[commit]==INPUT_IMAGE(0x1351008,0x1528818u)&&capture_after_pair[commit],"native Monitor store anchor and post-pair gate");
+ io_monitor_commit_stub=mmap(NULL,4096,PROT_READ|PROT_WRITE|PROT_EXEC,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);require(io_monitor_commit_stub!=MAP_FAILED,"Monitor generated commit stub");build_stub(io_monitor_commit_stub,commit,0);uint32_t *commit_entry=(uint32_t*)INPUT_IMAGE(0x1351008,0x1528818u);jump(&commit_entry,ptr(io_monitor_commit_stub));jump(&commit_entry,ptr(capture_a));__builtin___clear_cache(io_monitor_commit_stub,(char*)io_monitor_commit_stub+4096);__builtin___clear_cache((char*)INPUT_IMAGE(0x1351008,0x1528818u),(char*)commit_entry);
+ uint32_t *entry=(uint32_t*)MODEL_IO_MIDIMONITOR_UI_SETTER;jump(&entry,ptr(io_monitor_setter_fixture));__builtin___clear_cache((char*)MODEL_IO_MIDIMONITOR_UI_SETTER,(char*)entry);
  initial(1);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);seed_fixture(0,0,0x3f000000,1);load_fixture();Track *t=tracks;io_monitor_expected=t->track+0x400;
  channel_birth(t->track,io_monitor_expected,CI_MIDI_MONITOR,2,NULL,0,1);channel_birth(t->track,t->track+0x414,CI_MIDI_MONITOR_AUDIO,2,NULL,0,1);put(io_monitor_expected+0x10,2);put(t->track+0x418,io_monitor_helper);put(io_monitor_helper,command_queues);
- ChannelCell *selection=channel_cell(project+0x78);channel_write(selection,t->track,NULL,0,0);put(root+0x75c,outer);put(outer+8,pc);put(connector,0x68a2710);put(connector+0x30,t->track);put(connector+0xa34,pool);
+ ChannelCell *selection=channel_cell(project+0x78);channel_write(selection,t->track,NULL,0,0);put(root+MODEL_ROOT_IO,outer);put(outer+8,pc);put(connector,MODEL_IO_TRACK_CONNECTOR_VPTR);put(connector+0x30,t->track);put(connector+MODEL_IO_TRACK_POOL,pool);
  Context c=context();c.r[0]=connector;call(&c,IO_CONNECTOR_BIRTH);c.r[4]=connector;call(&c,IO_CONNECTOR_READY);
  union {uint64_t alignment;unsigned char bytes[sizeof(Context)+64];} frame;Context *bind=(Context*)(frame.bytes+64),*bound=(Context*)frame.bytes;*bind=context();bind->r[0]=connector;bind->r[2]=t->track;call(bind,IO_BIND_ENTER);*bound=context();bound->r[4]=connector;call(bound,IO_BIND_DONE);
  IOInterest *interest=&command_state->io_interest;atomic_store(&interest->revision,2);atomic_store(&interest->enabled,1);atomic_store(&interest->epoch,epoch);atomic_store(&interest->serial,t->serial);atomic_store(&interest->until,120000);
@@ -2978,11 +3116,11 @@ release_monitor:
 static unsigned io_sync_test,io_sync_field,io_sync_commit;
 static void io_sync_gui_fixture(void *connector,void *property,unsigned value){
  unsigned site=io_sync_field==IO_MIDI_IN_PORT?IO_INPUT_SET:io_sync_field==IO_MIDI_OUT_PORT?IO_OUTPUT_SET:IO_FILTER_SET;
- unsigned lr=site==IO_INPUT_SET?0x1e93c8c:site==IO_OUTPUT_SET?0x1e93d6c:0x1e93cfc;
+ unsigned lr=site==IO_INPUT_SET?MODEL_IO_INPUT_SET_LR:site==IO_OUTPUT_SET?MODEL_IO_OUTPUT_SET_LR:MODEL_IO_FILTER_SET_LR;
  require(ptr(property)==accepted[0].property&&word(ptr(connector)+0x30)==accepted[0].track&&value==accepted[0].native_bits,"typed MIDI callback original connector/property/scalar");
  Context c=context(),post;call(&c,JG_PUBLISH); /* Native GUI listener, no I/O job. */
  c=context();c.r[0]=ptr(property);c.r[1]=site==IO_FILTER_SET?ptr(&value):value;c.lr=lr;call(&c,site);
- Context commit=context();commit.r[0]=commit.r[5]=ptr(property);commit.r[1]=commit.r[3]=commit.r[7]=value;
+ Context commit=context();commit.r[0]=commit.r[5]=ptr(property);commit.r[1]=commit.r[3]=commit.r[7]=0xdeadbeefu;commit.r[site==IO_INPUT_SET?MODEL_IO_INPUT_COMMIT_REGISTER:site==IO_OUTPUT_SET?7:3]=value;
  exercise(&commit,(void*)(uintptr_t)anchor[io_sync_commit],&post);
  call(&c,JG_PUBLISH);call(&c,site+3);
  /* A native listener can invalidate choices, bind another selection and leave
@@ -2999,13 +3137,13 @@ static void io_sync_dispatch_checks(void){
  MirrorState *saved=fixture;CommandState *saved_command=command_state;
  const unsigned fields[]={IO_MIDI_IN_PORT,IO_MIDI_IN_CHANNEL,IO_MIDI_OUT_PORT,IO_MIDI_OUT_CHANNEL};
  const unsigned offsets[]={0x364,0x378,0x3a4,0x3d0},tags[]={CI_MIDI_IN_PORT,CI_MIDI_IN_CHANNEL,CI_MIDI_OUT_PORT,CI_MIDI_OUT_CHANNEL};
- const uint32_t functions[]={0x1e897c0,0x1e8943c,0x1e890b4,0x1e88d30};
+ const uint32_t functions[]={MODEL_IO_MIDI_INPUT_PORT_FACADE,MODEL_IO_MIDI_INPUT_CHANNEL_FACADE,MODEL_IO_MIDI_OUTPUT_PORT_FACADE,MODEL_IO_MIDI_OUTPUT_CHANNEL_FACADE};
  for(io_sync_test=0;io_sync_test<7;io_sync_test++){
   unsigned f=io_sync_test<4?io_sync_test:io_sync_test-4;io_sync_field=fields[f];unsigned port=!(f&1),initial_value=port?0x7ffffffd:1;
   fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));unsigned char *objects=calloc(1,0x1600);require(fixture&&command_state&&objects,"synchronous MIDI fixture");
   initial(2);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);seed_fixture(0,0,0x3f000000,1);seed_fixture(1,1,0x3f000000,1);put(ptr(track_objects[0])+0x64c,4);load_fixture();Track *t=tracks;
   uint32_t property=t->track+offsets[f],outer=ptr(objects),pc=outer+0x100,connector=pc+0x2f4;channel_birth(t->track,property,tags[f],initial_value,NULL,0,1);
-  ChannelCell *selection=channel_cell(project+0x78);channel_write(selection,t->track,NULL,0,0);put(root+0x75c,outer);put(outer+8,pc);put(connector,0x68a2710);put(connector+0x30,t->track);put(connector+0xa34,pool);
+  ChannelCell *selection=channel_cell(project+0x78);channel_write(selection,t->track,NULL,0,0);put(root+MODEL_ROOT_IO,outer);put(outer+8,pc);put(connector,MODEL_IO_TRACK_CONNECTOR_VPTR);put(connector+0x30,t->track);put(connector+MODEL_IO_TRACK_POOL,pool);
   Context c=context();c.r[0]=connector;call(&c,IO_CONNECTOR_BIRTH);c.r[4]=connector;call(&c,IO_CONNECTOR_READY);
   union {uint64_t alignment;unsigned char bytes[sizeof(Context)+64];} frame;Context *bind=(Context*)(frame.bytes+64),*bound=(Context*)frame.bytes;*bind=context();bind->r[0]=connector;bind->r[2]=t->track;call(bind,IO_BIND_ENTER);*bound=context();bound->r[4]=connector;call(bound,IO_BIND_DONE);
   if(port){IOPortCatalogue *cat=io_connector_copy(connector)->ports+(f==2);atomic_store(&cat->revision,2);atomic_store(&cat->valid,1);atomic_store(&cat->count,2);atomic_store(&cat->rows[0].id,initial_value);atomic_store(&cat->rows[1].id,2072254911);atomic_store(&cat->rows[0].selectable,1);atomic_store(&cat->rows[1].selectable,1);}
@@ -3025,14 +3163,23 @@ static void io_sync_dispatch_checks(void){
  * completion resolver, queued callback hooks, source owner and input consumer
  * must survive selection/interest changes and reject a retired incarnation. */
 static float io_output_getter_fixture(void *p,unsigned kind,unsigned parameter){(void)p;require(kind==0x101&&parameter==325,"Audio Out completion getter ABI");return 2.0f;}
+typedef struct {uint32_t payload;unsigned field;_Atomic unsigned entered,release;} IOCancelFixture;
+static void *io_late_done_fixture(void *opaque){
+ IOCancelFixture *f=opaque;Context c=context();c.r[0]=f->payload;
+ call(&c,f->field==IO_SEND_TO?IO_SEND_ENTER:IO_MONITOR_ENTER);
+ /* Native helper decrement is substituted; suspend in its observed window
+  * after decrement and before the successful-STREX DONE capture. */
+ atomic_store(&f->entered,1);while(!atomic_load(&f->release))sched_yield();
+ c.r[2]=0;call(&c,f->field==IO_SEND_TO?IO_SEND_DONE:IO_MONITOR_DONE);return NULL;
+}
 static void io_completion_checks(void){
  MirrorState *saved=fixture;CommandState *saved_command=command_state;
- const unsigned fields[]={IO_MONITOR,IO_SEND_TO,IO_AUDIO_IN,IO_AUDIO_OUT,IO_MONITOR,IO_SEND_TO,IO_MONITOR,IO_SEND_TO};
- uint32_t *entry=(uint32_t*)0x250b754;jump(&entry,ptr(io_output_getter_fixture));__builtin___clear_cache((char*)0x250b754,(char*)entry);
- for(unsigned test=0;test<8;test++){
+ const unsigned fields[]={IO_MONITOR,IO_SEND_TO,IO_AUDIO_IN,IO_AUDIO_OUT,IO_MONITOR,IO_SEND_TO,IO_MONITOR,IO_SEND_TO,IO_MONITOR,IO_SEND_TO,IO_MONITOR,IO_SEND_TO,IO_MONITOR,IO_SEND_TO,IO_MONITOR,IO_SEND_TO};
+ uint32_t *entry=(uint32_t*)MODEL_EFFECT_ENABLE_READ;jump(&entry,ptr(io_output_getter_fixture));__builtin___clear_cache((char*)MODEL_EFFECT_ENABLE_READ,(char*)entry);
+ for(unsigned test=0;test<16;test++){
   fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"I/O completion fixture state");initial(2);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);
   seed_fixture(0,0,0x3f000000,1);seed_fixture(1,1,0x3f000000,1);unsigned f=fields[test],program=f==IO_AUDIO_IN||f==IO_AUDIO_OUT;
-  if(f==IO_AUDIO_IN){put(ptr(program_objects[0]),0x692fec4);put(ptr(track_objects[0])+0x64c,6);}load_fixture();
+  if(f==IO_AUDIO_IN){put(ptr(program_objects[0]),MODEL_AUDIOPROGRAM_VPTR);put(ptr(track_objects[0])+0x64c,6);}load_fixture();
   Track *t=tracks;uint32_t property=program?t->program+(f==IO_AUDIO_IN?0x2784:0x348):t->track+(f==IO_SEND_TO?0x420:0x400),apply=program?t->program+(f==IO_AUDIO_IN?0x2798:0x370):t->track+(f==IO_SEND_TO?0x434:0x414);
   unsigned tag=f==IO_MONITOR?CI_MIDI_MONITOR:f==IO_SEND_TO?CI_SEND_TO:f==IO_AUDIO_IN?CI_AUDIO_IN:CI_AUDIO_OUT;uint32_t description[6]={2,0,0,0,0,0};
   channel_birth(program?t->program:t->track,property,tag,0,f==IO_AUDIO_OUT?(const char*)description:NULL,f==IO_AUDIO_OUT?24:0,1);channel_birth(program?t->program:t->track,apply,tag+1,0,f==IO_AUDIO_OUT?(const char*)description:NULL,f==IO_AUDIO_OUT?24:0,1);
@@ -3042,25 +3189,43 @@ static void io_completion_checks(void){
   for(unsigned lane=0;lane<COMMAND_LANES;lane++)atomic_store(&command_state->slots[0].lanes[lane].sequence,1);
   Context c=context();io_event(&c,CE_DISPATCH,0,wanted,1);uint32_t payload[3]={0,0,0};
   if(program){uint32_t capture=ptr(payload);event(&c,CE_QUEUE,1,capture,t->program+0x40,t->program,0x101,accepted[0].controller,accepted[0].native_bits,0,epoch);event(&c,CE_BODY,1,capture,t->program+0x40,t->program,0x101,accepted[0].controller,accepted[0].native_bits,0,epoch);event(&c,CE_DONE,1,capture,t->program+0x40,t->program,0x101,accepted[0].controller,accepted[0].native_bits,0,epoch);atomic_store(&command_state->slots[0].done,1);atomic_store(active_request,0);}
-  else{io_event(&c,CE_IO_SET,0,0,before);io_helper[0]=ptr(queue_object);payload[0]=io_helper[0];payload[1]=wanted;payload[2]=t->track+(f==IO_SEND_TO?0x41c:0x3fc);atomic_store(io_payload,ptr(payload));io_job_event(&c,CE_IO_QUEUE,0,wanted);io_job_event(&c,CE_IO_RESULT,0,1);}
+  else{io_event(&c,CE_IO_SET,0,0,before);io_helper[0]=ptr(queue_object);payload[0]=io_helper[0];payload[1]=wanted;payload[2]=t->track+(f==IO_SEND_TO?0x41c:0x3fc);atomic_store(io_payload,ptr(payload));atomic_store(io_tracks,t->track);atomic_store(io_live,1);io_job_event(&c,CE_IO_QUEUE,0,wanted);io_job_event(&c,CE_IO_RESULT,0,1);}
   io_event(&c,CE_RETURN,0,wanted,1);atomic_store(&command_state->slots[0].dispatched,1);atomic_store(&command_state->slots[0].returned,1);atomic_store(&command_state->slots[0].processed,1);atomic_store(&command_state->consumed,1);
   /* The old selected connector is gone, page is off, but original source lives. */
   ChannelCell *selection=channel_cell(project+0x78);channel_write(selection,tracks[1].track,NULL,0,0);memset(&io_current,0,sizeof(io_current));io_current.status=IO_OFF;atomic_store(&command_state->io_interest.enabled,0);
   if(test==4||test==5){channel_owner_death(t->track);if(test==5)channel_owner_birth(t->track,CO_TRACK);}
   channel_write(audio,wanted,f==IO_AUDIO_OUT?(const char*)description:NULL,f==IO_AUDIO_OUT?24:0,0);
-  if(!program){c=context();c.r[0]=ptr(payload);call(&c,f==IO_SEND_TO?IO_SEND_ENTER:IO_MONITOR_ENTER);c.r[2]=0;call(&c,f==IO_SEND_TO?IO_SEND_DONE:IO_MONITOR_DONE);}
+  if(!program&&test<8){c=context();c.r[0]=ptr(payload);call(&c,f==IO_SEND_TO?IO_SEND_ENTER:IO_MONITOR_ENTER);c.r[2]=0;call(&c,f==IO_SEND_TO?IO_SEND_DONE:IO_MONITOR_DONE);}
+  if(test>=8){
+   IOCancelFixture flight={.payload=ptr(payload),.field=f};pthread_t audio_thread;
+   if(test==10||test==11){require(!pthread_create(&audio_thread,NULL,io_late_done_fixture,&flight),"claimed native callback fixture thread");while(!atomic_load(&flight.entered))sched_yield();require(atomic_load(io_entered)==1&&!atomic_load(io_finished),"real ENTER precedes late DONE window");}
+   if(test>=12){if(test<14)observer_running=0;else atomic_store(&command_state->trace_error,C_TRACE_LOSS);}
+   channel_owner_death(t->track);Context retired=context();retired.r[5]=t->track+4;call(&retired,IO_TRACK_RETIRED);require(atomic_load(active_request)==1&&!atomic_load(io_retired),"unrelated retired Track cannot release native I/O flight");
+   retired.r[5]=t->track;call(&retired,IO_TRACK_RETIRED);call(&retired,IO_TRACK_RETIRED);
+   if(test<10||test>=12)require(!atomic_load(active_request)&&!atomic_load(io_finished)&&atomic_load(io_retired)==1,"native post-drain unclaimed cancellation releases flight without fabricating callback DONE");
+   else{Context pending=context();pending.r[0]=command_queues+4;io_complete(&pending);command_retire();require(atomic_load(active_request)==1&&!atomic_load(io_retired)&&!atomic_load(&command_state->slots[0].sealed)&&!io_receipted(0),"entered callback with native zero count stays active until actual late DONE");atomic_store(&flight.release,1);require(!pthread_join(audio_thread,NULL),"late DONE thread joins");require(atomic_load(io_finished)==1&&!atomic_load(io_live)&&!atomic_load(io_retired),"claimed completion keeps real DONE and no cancellation receipt");}
+  }
   Context drain=context();drain.r[0]=command_queues+4;
+  if(test>=12){io_complete(&drain);command_retire();require(!io_receipted(0)&&!atomic_load(&command_state->slots[0].done)&&!atomic_load(&command_state->slots[0].sealed)&&!command_idle(command_state)&&!atomic_load(io_finished),"observer/trace-failed canceled flight releases native borrow but remains incomplete, without healthy retirement receipt");free(fixture);free(command_state);continue;}
   if(test<2){unsigned revision=atomic_load(&audio->revision);atomic_store(&audio->revision,revision+1);io_complete(&drain);command_retire();require(atomic_load(io_finished)==1&&!io_receipted(0)&&!atomic_load(&command_state->slots[0].done)&&!atomic_load(&command_state->slots[0].sealed)&&!atomic_load(&command_state->error)&&observer_running,"post-DONE secondary source publication leaves healthy pending obligation");atomic_store(&audio->revision,revision+2);}
   if(test>=6){atomic_store(&audio->live,0);if(test==7)channel_birth(t->track,apply,tag+1,wanted,NULL,0,1);}
   io_complete(&drain);command_retire();require(io_receipted(0)&&!atomic_load(&command_state->error)&&observer_running&&atomic_load(&command_state->slots[0].sealed)==1,"admitted I/O closes after selection/interest change without current connector");
   MirrorInput in={.commands=command_state};in.flights[0]=(InputFlight){.flight=1,.field=IO_PARAMETER,.expires=120000,.io_request=r};MIRROR_COPY(out);require(copy_mirror(fixture,&out),"I/O completion copied reader");out.heartbeat=100;MirrorBank bank;bank_init(&bank);input_drain(&in,&bank,&out,100);command_retire();require(!in.error&&in.settled==1&&command_idle(command_state),"actual I/O receipt consumer reclaims original queued obligation");require(test<4?in.flights[0].io_events[5].revision>0:in.flights[0].io_events[5].revision==0,"retired/reused original source never positively settles");
+  if(test>=8)require(test<10?(in.flights[0].io_seen&1024u)&&!(in.flights[0].io_seen&(256u|512u)):!(in.flights[0].io_seen&1024u)&&(in.flights[0].io_seen&(256u|512u))==(256u|512u),"real consumer distinguishes post-drain retirement from claimed callback ENTER/DONE");
+  if(test==8){
+   atomic_store(io_live,2);atomic_store(io_tracks,t->track+4);atomic_store(io_entered,0);atomic_store(io_retired,0);atomic_store(io_finished,0);atomic_store(active_request,2);
+   require(!io_native_finished(0,1)&&atomic_load(io_live)==2&&!atomic_load(io_finished)&&atomic_load(active_request)==2,"old DONE sequence cannot clear or publish completion for reused flight");
+   io_track_retired(t->track);require(atomic_load(io_live)==2&&atomic_load(active_request)==2,"old Track retirement cannot clear new slot owner");
+   require(io_native_finished(0,2)&&!atomic_load(io_live)&&atomic_load(io_finished)==2&&atomic_load(active_request)==2,"new flight's exact DONE alone publishes native completion");
+  }
   free(fixture);free(command_state);
  }
  fixture=saved;mirror_state=saved;command_state=saved_command;
+ puts("PASS I/O unclaimed Monitor/Send cancellation closes unavailable via distinct post-D1 evidence; claimed late-DONE on another ARM thread keeps flight until real completion; unrelated/repeated retirement and old-DONE/new-slot reuse refuse false release; observer/trace failure stays incomplete (native queue/destructor bodies substituted)");
  puts("PASS I/O admitted Monitor/Send/Audio In/Out completion survives selection/rebind/interest off; post-DONE odd audio cell stays pending then stable retry settles; retired/reused owner or audio cell returns unavailable; native enqueue/history and getter bodies substituted, actual callback/completion/consumer exercised");
 }
 static void *foreign_create_fixture(void *unused){
- (void)unused;Context c=context();c.r[0]=ptr(root_object);c.r[1]=0;c.lr=0x2570bc4;
+ (void)unused;Context c=context();c.r[0]=ptr(root_object);c.r[1]=0;c.lr=MODEL_CREATE_LR2;
  call(&c,M_CREATE_ENTER);call(&c,M_CREATE_READY);return NULL;
 }
 static void create_source_checks(void){
@@ -3071,10 +3236,10 @@ static void create_source_checks(void){
  for(unsigned failure=0;failure<5;failure++){
   initial(1);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);
   channel_fixture(1);seed_fixture(0,0,0x3f000000,1);
-  creator[2]=ptr(root_object);put(ptr(root_object)+0x240,ptr(creator));
+  creator[2]=ptr(root_object);put(ptr(root_object)+MODEL_ROOT_CREATOR,ptr(creator));
   *entry=context();entry->r[0]=ptr(root_object);entry->r[4]=ptr(creator);entry->lr=0x103ac80;
   call(entry,M_CREATE_ENTER);require(active()&&!root&&!ready&&!command_queues,"startup direct create does not enroll root or global queues");
-  entry->lr=0x2570bc4;entry->r[1]=0;call(entry,M_CREATE_ENTER);require(active()&&!root&&!ready&&!command_queues,"automatic Engine callback with argument0 remains unavailable");
+  entry->lr=MODEL_CREATE_LR2;entry->r[1]=0;call(entry,M_CREATE_ENTER);require(active()&&!root&&!ready&&!command_queues,"automatic Engine callback with argument0 remains unavailable");
   entry->r[1]=1;call(entry,M_CREATE_ENTER);
   require(active()&&!ready&&creating.token&&root==ptr(root_object)&&command_queues==ptr(queue_object),"blank entry enrolls existing root owners without readiness");
   if(!failure){
@@ -3089,11 +3254,11 @@ static void create_source_checks(void){
   *add=context();add->r[0]=pool;add->r[2]=members[0];call(add,M_ADD_ENTER);
   *commit=context();commit->r[4]=pool;commit->r[5]=members[0];call(commit,M_ADD_COMMIT);call(commit,M_ADD_EXIT);
   require(active()&&!count&&!ready,"native construction add cannot publish early inventory");
-  *close=context();close->r[4]=ptr(root_object);put(source_sp(close)+0x11c,0x2570bc4);
-  if(failure==1)put(source_sp(close)+0x11c,0x2570b7c);
+  *close=context();close->r[4]=ptr(root_object);put(source_sp(close)+0x11c,MODEL_CREATE_LR2);
+  if(failure==1)put(source_sp(close)+0x11c,MODEL_CREATE_LR1);
   if(failure==2)channel_owner_birth(project,CO_PROJECT);
-  if(failure==3)put(root+0x24c,0);
-  if(failure==4)put(pool+0x38,word(pool+0x34)+3);
+  if(failure==3)put(root+MODEL_ROOT_PROJECT,0);
+  if(failure==4)put(pool+MODEL_POOL_END,word(pool+MODEL_POOL_BEGIN)+3);
   call(close,M_CREATE_READY);
   if(failure)require(!active()&&!ready&&!creating.token,"malformed close, reused Project, changed root or malformed inventory fails closed");
   else{MIRROR_COPY(out);require(active()&&ready&&!creating.token&&copy_mirror(fixture,&out)&&out.ready&&out.count==1&&out.tracks[0].bits==0x3f000000,"blank completion publishes actual copied consumer inventory and constructor value");}
@@ -3105,30 +3270,30 @@ static void type_source_checks(void){
  fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"Type source fixture");
  initial(2);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);seed_fixture(0,0,0x3f000000,1);seed_fixture(1,0,0x3f000000,1);load_fixture();
  uint32_t cmd[24]={0},old=tracks[0].program,next=tracks[1].program,t=tracks[0].track,before=tracks[0].binding;
- cmd[0]=0x68f0940;cmd[0x2c/4]=project;cmd[0x34/4]=0;cmd[0x38/4]=3;cmd[0x44/4]=old;
+ cmd[0]=MODEL_TYPE_COMMAND_VPTR;cmd[0x2c/4]=project;cmd[0x34/4]=0;cmd[0x38/4]=3;cmd[0x44/4]=old;
  union {uint64_t align;unsigned char bytes[sizeof(Context)+0x70];} frame;
  Context *entry=(Context*)(frame.bytes+0x70),*close=(Context*)frame.bytes;
- *entry=context();entry->r[0]=ptr(cmd);entry->lr=0x146fcdc;call(entry,292);require(type_do.phase==1,"actual Type Do hook admits native history frame");
+ *entry=context();entry->r[0]=ptr(cmd);entry->lr=MODEL_TYPE_DO_CALLER_LR;call(entry,292);require(type_do.phase==1,"actual Type Do hook admits native history frame");
  struct {Context c;uint32_t stack[8];} replace={0};replace.c=context();replace.c.r[4]=t;replace.c.r[5]=next;replace.c.r[9]=old;call(&replace.c,M_REPLACE_FULL_PRE);
- put(t+0x648,next);put(t+0x64c,3);replace.c.r[3]=3;call(&replace.c,M_REPLACE_FULL_STORE);replace.stack[3]=old;call(&replace.c,M_REPLACE_NOTIFY);require(tracks[0].transition==3,"real replacement hook chain retains pending binding");
- *close=context();close->r[4]=ptr(cmd);close->r[0]=0;put(source_sp(close)+0x6c,0x146fcdc);call(close,293);
+ put(t+0x648,next);put(t+0x64c,3);replace.c.r[3]=3;call(&replace.c,M_REPLACE_FULL_STORE);replace.stack[MODEL_REPLACE_OLD_STACK/4]=old;call(&replace.c,M_REPLACE_NOTIFY);require(tracks[0].transition==3,"real replacement hook chain retains pending binding");
+ *close=context();close->r[4]=ptr(cmd);close->r[0]=0;put(source_sp(close)+0x6c,MODEL_TYPE_DO_CALLER_LR);call(close,293);
  require(active()&&!tracks[0].transition&&tracks[0].program==next&&tracks[0].binding>before&&tracks[0].kind==3,"Type Do completion refreshes real inventory without optional M_PROGRAM triplet");
- before=tracks[0].binding;cmd[0x44/4]=next;cmd[0x38/4]=4;*entry=context();entry->r[0]=ptr(cmd);entry->lr=0x146fcdc;call(entry,292);*close=context();close->r[4]=ptr(cmd);close->r[0]=3;put(source_sp(close)+0x6c,0x146fcdc);call(close,293);require(!type_do.phase&&tracks[0].binding==before,"native Type rejection does not invent binding");
- *entry=context();entry->r[0]=ptr(cmd);entry->lr=0x146fcdc;cmd[0x44/4]=old;call(entry,292);require(!type_do.phase,"old Program mismatch refuses source frame");
+ before=tracks[0].binding;cmd[0x44/4]=next;cmd[0x38/4]=4;*entry=context();entry->r[0]=ptr(cmd);entry->lr=MODEL_TYPE_DO_CALLER_LR;call(entry,292);*close=context();close->r[4]=ptr(cmd);close->r[0]=3;put(source_sp(close)+0x6c,MODEL_TYPE_DO_CALLER_LR);call(close,293);require(!type_do.phase&&tracks[0].binding==before,"native Type rejection does not invent binding");
+ *entry=context();entry->r[0]=ptr(cmd);entry->lr=MODEL_TYPE_DO_CALLER_LR;cmd[0x44/4]=old;call(entry,292);require(!type_do.phase,"old Program mismatch refuses source frame");
  /* Actual handler faults must close the source and clear TLS, including when
   * another valid frame arrives in the same epoch. Reset below substitutes a
   * new healthy observer between independent fault scenarios, never production recovery. */
  for(unsigned failure=0;failure<5;failure++){
   unsigned saved_serial=tracks[0].serial,saved_owner=tracks[0].track_owner;uint32_t saved_native=word(t+0x648);
   atomic_store(&fixture->alive,1);atomic_store(&fixture->error,0);cmd[0x44/4]=next;cmd[0x38/4]=3;
-  *entry=context();entry->r[0]=ptr(cmd);entry->lr=0x146fcdc;call(entry,292);require(type_do.phase==1,"fault fixture admitted Type frame");
+  *entry=context();entry->r[0]=ptr(cmd);entry->lr=MODEL_TYPE_DO_CALLER_LR;call(entry,292);require(type_do.phase==1,"fault fixture admitted Type frame");
   if(failure==1)tracks[0].serial++;
   if(failure==2)tracks[0].track_owner++;
   if(failure==3)put(t+0x648,old);
-  *close=context();close->r[4]=ptr(cmd)+(failure==0?4:0);close->r[0]=failure==4?2:0;put(source_sp(close)+0x6c,0x146fcdc);call(close,293);
+  *close=context();close->r[4]=ptr(cmd)+(failure==0?4:0);close->r[0]=failure==4?2:0;put(source_sp(close)+0x6c,MODEL_TYPE_DO_CALLER_LR);call(close,293);
   require(!type_do.phase&&!active()&&atomic_load(&fixture->error)==MV_LIFETIME,"malformed close or unproved success closes mirror and clears TLS");
   tracks[0].serial=saved_serial;tracks[0].track_owner=saved_owner;put(t+0x648,saved_native);
-  *entry=context();entry->r[0]=ptr(cmd);entry->lr=0x146fcdc;call(entry,292);require(!type_do.phase&&!active(),"next valid same-epoch frame cannot silently revive failed source");
+  *entry=context();entry->r[0]=ptr(cmd);entry->lr=MODEL_TYPE_DO_CALLER_LR;call(entry,292);require(!type_do.phase&&!active(),"next valid same-epoch frame cannot silently revive failed source");
  }
  free(fixture);free(command_state);fixture=NULL;command_state=NULL;puts("PASS Type source hooks and inventory; native history/object bodies substituted, no native popup acceptance claim");
 }
@@ -3149,7 +3314,7 @@ int main(int argc,char **argv){
  if(argc!=3)return 2;
  component_recording_dispatch=recording_fallback_fixture;
  alarm(30);retired_key_checks();manual_checks();exercise_adjust=4096;replay_checks();
- void *v=mmap((void*)0x6930000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);require(v==(void*)0x6930000,"fixture Drum vtable page at exact address");put(0x6930c28,0x250ba74);put(0x6930c78,0x1375c68);
+ void *v=mmap((void*)(MODEL_DRUMPROGRAM_VPTR&~4095u),4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);require(v==(void*)(MODEL_DRUMPROGRAM_VPTR&~4095u),"fixture Drum vtable page at exact address");put((MODEL_DRUMPROGRAM_VPTR+0x28),MODEL_PROGRAM_CONTROL);put((MODEL_DRUMPROGRAM_VPTR+0x78),MODEL_MIXABLE_PREDICATE);
  key_statics_reserve();
  fixture=command_file(argv[1],sizeof(MirrorState));command_state=command_file(argv[2],sizeof(CommandState));require(fixture!=MAP_FAILED&&command_state!=MAP_FAILED,"exclusive actual shared output files");
  pointer_device_checks();wheel_data_checks();note_selection_checks();
@@ -3186,7 +3351,7 @@ int main(int argc,char **argv){
   atomic_store_explicit(&command_state->slots[0].settled,seq,memory_order_release);call(&drain,COMMAND_DRAIN);command_retire();require(atomic_load(&command_state->reclaimed)==seq,"settlement releases exact sequence");
  }
  require(dispatched_calls==32&&active(),"one physical slot supports32 real component source transactions");
- CommandRequest stale=request(0x3f400000);Context c=context();c.r[0]=pool;c.r[1]=members[0];call(&c,M_REMOVE_ENTER);mutation.sp=source_sp(&c)+0x30;put(pool+0x38,ptr(members));c.r[5]=pool;c.r[4]=members[0];call(&c,M_REMOVE_COMMIT);call(&c,M_REMOVE_EXIT);
+ CommandRequest stale=request(0x3f400000);Context c=context();c.r[0]=pool;c.r[1]=members[0];call(&c,M_REMOVE_ENTER);mutation.sp=source_sp(&c)+0x30;put(pool+MODEL_POOL_END,ptr(members));c.r[5]=pool;c.r[4]=members[0];call(&c,M_REMOVE_COMMIT);call(&c,M_REMOVE_EXIT);
  submit_fixture(stale);require(atomic_load(&command_state->slots[0].processed)==33&&atomic_load(&command_state->slots[0].rejected)==C_IDENTITY&&dispatched_calls==32,"stale removed identity rejects without dispatch after reuse");
  atomic_store(lane_in_hook+1,1);command_retire();require(atomic_load(&command_state->reclaimed)==32,"rejected request cannot reclaim across admitted source flight");
  atomic_store(lane_in_hook+1,0);native_started[0]=33;command_retire();require(atomic_load(&command_state->reclaimed)==32,"post-native rejection cannot take refused-only reclamation");

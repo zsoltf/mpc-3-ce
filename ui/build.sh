@@ -3,6 +3,11 @@ set -eu
 cd "$(dirname "$0")"
 mkdir -p package
 flags='--target=arm-linux-gnueabihf -march=armv7-a -marm -mfloat-abi=hard -mfpu=neon -std=c++14 -O2 -Wall -Wextra -Werror -fPIC -fvisibility=hidden -fexceptions -funwind-tables -Iinclude -Iprivate -Iexamples -Iscreens'
+case "${MPCLEARN_FIRMWARE:-3.9.1}" in
+ 3.9.1) ;;
+ 3.10) flags="$flags -DMODEL_FIRMWARE_310=1";;
+ *) echo 'Unsupported explicit firmware profile' >&2;exit 2;;
+esac
 clang++ $flags -c mpclearn-ui.cc -o package/mpclearn-ui.o
 clang++ $flags -c examples/third-screen.cc -o package/third-screen.o
 clang++ $flags -c examples/slider-screen.cc -o package/slider-screen.o
@@ -10,13 +15,14 @@ clang++ $flags -c examples/toolkit-example.cc -o package/toolkit-example.o
 clang++ $flags -c examples/image-diagnostic/toolkit-example.cc -o package/image-diagnostic.o
 clang++ $flags -c screens/global-midi-learn-groups.cc -o package/global-midi-learn-groups.o
 clang++ $flags -c screens/global-midi-learn-screen.cc -o package/global-midi-learn-screen.o
+clang++ $flags -c screens/plugin-controls-screen.cc -o package/plugin-controls-screen.o
 clang++ $flags -c tests/component.cc -o package/component.o
 docker run --rm --network none -v "$PWD/package:/out" mpclearn-controls-build sh -ec '
   arm-linux-gnueabihf-ar rcs /out/libmpclearn-ui.a /out/mpclearn-ui.o
   arm-linux-gnueabihf-gcc /out/component.o /out/third-screen.o \
     /out/slider-screen.o /out/toolkit-example.o \
     /out/global-midi-learn-groups.o \
-    /out/global-midi-learn-screen.o /out/libmpclearn-ui.a \
+    /out/global-midi-learn-screen.o /out/plugin-controls-screen.o /out/libmpclearn-ui.a \
     /usr/arm-linux-gnueabihf/lib/libstdc++.so.6 -o /out/ui-component -Wl,-z,now
   file /out/libmpclearn-ui.a /out/ui-component
   arm-linux-gnueabihf-readelf -d /out/ui-component > /out/ui-component-dynamic.txt

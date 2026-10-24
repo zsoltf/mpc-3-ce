@@ -9,16 +9,21 @@ out=$(CDPATH= cd -- "$out" && pwd -P)
 base=$release_root/rootfs.no-ssh.ext
 original=$release_root/rootfs.original.ext
 collector=$out/usb-diagnostics
-sh "$repo/firmware/build-diagnostics.sh" "$out"
+if [ "${MPCLEARN_FIRMWARE:-3.9.1}" = 3.10 ]; then
+ sh "$repo/firmware/build-diagnostics.sh" "$out" "$base"
+else
+ sh "$repo/firmware/build-diagnostics.sh" "$out"
+fi
 test ! -e "$out/rootfs.diagnostics.ext"
 cp "$base" "$out/rootfs.diagnostics.ext"
 base_sha=$(sha256sum "$base" | awk '{print $1}')
 rel=${release_root#"$repo"/}
 docker run --rm --network none -v "$repo:/work" -w /work mpclearn-build:local sh -ec '
 release_root=$1
+gcc -O2 scripts/fs_inventory.c -lext2fs -lcom_err -lcrypto -o "$release_root/diagnostics/fs_inventory"
 python3 firmware/diagnostics-patch.py "$release_root/diagnostics/rootfs.diagnostics.ext" "$release_root/diagnostics/usb-diagnostics" "$release_root/diagnostics/diagnostic-files.json" "$2"
-build/fs_inventory "$release_root/rootfs.no-ssh.ext" > "$release_root/diagnostics/base.inventory"
-build/fs_inventory "$release_root/diagnostics/rootfs.diagnostics.ext" > "$release_root/diagnostics/diagnostic.inventory"
+"$release_root/diagnostics/fs_inventory" "$release_root/rootfs.no-ssh.ext" > "$release_root/diagnostics/base.inventory"
+"$release_root/diagnostics/fs_inventory" "$release_root/diagnostics/rootfs.diagnostics.ext" > "$release_root/diagnostics/diagnostic.inventory"
 python3 firmware/diagnostics-verify.py "$release_root/diagnostics/base.inventory" "$release_root/diagnostics/diagnostic.inventory" "$release_root/diagnostics/diagnostic-files.json" "$release_root/diagnostics/rootfs.diagnostics.ext" firmware/mpclearn-diagnostics.service
 e2fsck -fn "$release_root/diagnostics/rootfs.diagnostics.ext"
 ' sh "$rel" "$base_sha"

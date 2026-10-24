@@ -1,0 +1,68 @@
+#ifndef MPCLEARN_TRACK_HOST_PROFILE_H
+#define MPCLEARN_TRACK_HOST_PROFILE_H
+/* Native owners the Pd/Cardinal track editors borrow. The admitted build
+ * selects one MPC profile before compilation; there is no runtime fallback.
+ * 3.10 values: /tmp/mpclearn-m25-editor-trace report.md and
+ * qlink-fx-followup.md, cross-checked against an independent whole-binary
+ * function map (exact fragment and call-site matches). Vptrs are first
+ * callable slots. Offsets not listed here are unchanged in both builds. */
+#ifdef MODEL_FIRMWARE_310
+#define TH_FX_PAGE_VPTR 0x06ddac38u
+#define TH_FX_PAGE_COMPONENT_VPTR 0x06ddacacu
+#define TH_FX_CONTENT_COMPONENT_VPTR 0x06ddba84u
+#define TH_FX_CLOSE_REQUEST 0x038d2488u
+#define TH_EDIT_EFFECT_SESSION_VPTR 0x06ca95a0u
+#define TH_INSERTS_VPTR 0x06cb6aa8u
+#define TH_INSERT_EFFECT_VPTR 0x06d4b5f8u
+#define TH_INSTRUMENT_PAGE_VPTR 0x06dffe40u
+#define TH_INSTRUMENT_PAGE_COMPONENT_VPTR 0x06dffe90u
+#define TH_PLUGIN_PROGRAM_VPTR 0x06d4f1e4u
+#define TH_PROGRAM_UI_PROCESSOR 0x1becu
+#define TH_PROGRAM_AUDIO_PROCESSOR 0x1c1cu
+#define TH_VST_INSTANCE_VPTR 0x06c90c90u
+#define TH_QLINK_FX_MODE_VPTR 0x06d12924u
+#define TH_QLINK_FX_RECEIVER_VPTR 0x06d12978u
+#define TH_QLINK_PROGRAM_MODE_VPTR 0x06d13160u
+#define TH_QLINK_PROGRAM_RECEIVER_VPTR 0x06d131d4u
+#define TH_QLINK_FX_INPUT 0x018f3314u
+#define TH_QLINK_FX_ACTIVITY 0x018f341cu
+#define TH_QLINK_PROGRAM_INPUT 0x0192510cu
+#define TH_QLINK_PROGRAM_ACTIVITY 0x01924e3cu
+#define TH_QLINK_LABEL_SET 0x01638364u
+#define TH_QLINK_DESCRIPTOR_SET 0x01631f48u
+#define TH_QLINK_VALUE_SET 0x01631d20u
+#define TH_QLINK_DESCRIPTOR_ASSIGN 0x0162eca8u
+#define TH_STRING_CTOR 0x00983ea0u
+#define TH_STRING_COPY 0x00948a38u
+#define TH_STRING_DTOR 0x00934bc8u
+#else
+#define TH_FX_PAGE_VPTR 0x069c9f24u
+#define TH_FX_PAGE_COMPONENT_VPTR 0x069c9f98u
+#define TH_FX_CONTENT_COMPONENT_VPTR 0x069cad70u
+#define TH_FX_CLOSE_REQUEST 0x0364bde8u
+#define TH_EDIT_EFFECT_SESSION_VPTR 0x0689e674u
+#define TH_INSERTS_VPTR 0x068ac370u
+#define TH_INSERT_EFFECT_VPTR 0x0692e180u
+#define TH_INSTRUMENT_PAGE_VPTR 0x069eeae4u
+#define TH_INSTRUMENT_PAGE_COMPONENT_VPTR 0x069eeb34u
+#define TH_PLUGIN_PROGRAM_VPTR 0x06932a48u
+#define TH_PROGRAM_UI_PROCESSOR 0x1b68u
+#define TH_PROGRAM_AUDIO_PROCESSOR 0x1b98u
+#define TH_VST_INSTANCE_VPTR 0x06889888u
+#define TH_QLINK_FX_MODE_VPTR 0x068e6cacu
+#define TH_QLINK_FX_RECEIVER_VPTR 0x068e6d00u
+#define TH_QLINK_PROGRAM_MODE_VPTR 0x068e764cu
+#define TH_QLINK_PROGRAM_RECEIVER_VPTR 0x068e76c0u
+#define TH_QLINK_FX_INPUT 0x011cdb14u
+#define TH_QLINK_FX_ACTIVITY 0x011cdc1cu
+#define TH_QLINK_PROGRAM_INPUT 0x011fc4a0u
+#define TH_QLINK_PROGRAM_ACTIVITY 0x011fc29cu
+#define TH_QLINK_LABEL_SET 0x014e6768u
+#define TH_QLINK_DESCRIPTOR_SET 0x014e0634u
+#define TH_QLINK_VALUE_SET 0x014e040cu
+#define TH_QLINK_DESCRIPTOR_ASSIGN 0x014dd398u
+#define TH_STRING_CTOR 0x00961120u
+#define TH_STRING_COPY 0x00925c88u
+#define TH_STRING_DTOR 0x00911f58u
+#endif
+#endif

@@ -1,38 +1,61 @@
 # MPC 3 CE
 
-**The Controller Edition of MPC 3 for the MPC Live II.**
+MPC 3 CE for **MPC Live II**. Add USB controller
+integration, Global MIDI Learn, mouse editing, and touchscreen Pd and Cardinal.
+Build your image in your browser from Akai's official update. Nothing is uploaded.
 
-Motorized faders, clip launching, a step sequencer and hands-on mixing for your
-MPC. Built in your browser from Akai's official update.
-
-**[Website](https://mpc3ce.com/)** ·
 **[Build your image](https://mpc3ce.com/builder.html)** ·
-**[Controller guide](docs/controller-programs.md)**
+[Website](https://mpc3ce.com/) ·
+[Controller guide](docs/controller-programs.md) ·
+[Release notes](docs/releases/v0.4.0.md)
 
-## Features
+## What it adds
 
-- **One-press setup:** Detect finds and sets up your controllers.
-- **Motorized faders:** levels, track names and meters that follow the MPC
-  (Behringer X-Touch, [guide](https://mpc3ce.com/guide.html)).
-- **Clip launching:** clips and scenes in your track colours (Launchpad X or Pro Mk3).
-- **Step sequencer:** program drum steps while you play (Launchpad X or Pro Mk3).
-- **Hands-on mixing:** tracks and drum pads on faders and knobs (Launch Control XL3).
-- **MIDI Learn:** map any MIDI controller to the MPC.
+- **X-Touch:** motorized faders, track names and meters that follow the MPC;
+  mixer, transport, effects and Q-Link controls. [X-Touch guide](https://mpc3ce.com/guide.html).
+- **Launchpad X and Pro Mk3:** launch clips and scenes, copy clips or whole rows,
+  delete, double events, capture playing clips into a row and use Undo/Redo.
+  Pro Mk3 also has a direct Quantise shortcut.
+  Drum step sequencing works alongside clip control. [Visual guide](https://mpc3ce.com/launchpad-guide.html).
+- **Launch Control XL3:** faders and knobs for tracks and drum pads.
+- **Global MIDI Learn:** map MIDI buttons, knobs and faders to MPC functions.
+- **Mouse and wheel editing:** click and drag with a USB mouse; use Shift +
+  data wheel in Grid to select the next or previous note.
+- **Pd and Cardinal:** play and edit synths and effects on the touchscreen
+  with the optional SD plugin bundle.
+
+**Two Launchpads can do different jobs.** Use a Launchpad X and Pro Mk3
+together: launch clips on one while programming drum steps on the other.
+Each keeps its own view, and the drum editor stays on its chosen clip while
+the other Launchpad launches clips.
 
 ## Install
 
-Needs Akai's **MPC 3.9.1 Gen1** update. MPC 3.10 is not supported yet.
+CE **v0.4.0 uses MPC 3.10 Gen1**. The same builder makes CE **v0.3.0 from
+MPC 3.9.1 Gen1**. Tested on MPC Live II; other Gen1 models are untested.
+Gen2 and Force are not supported.
 
-1. Back up your projects and keep Akai's update file.
-2. Build your image with the [image builder](https://mpc3ce.com/builder.html).
-3. Copy it to a USB drive and run Preferences > Info > Update.
+1. Back up your projects and keep Akai's official update for recovery.
+2. Open the [image builder](https://mpc3ce.com/builder.html) and choose
+   `MPC-3.10.0-Gen1-update.img` (or the 3.9.1 update).
+3. Copy the generated image to a USB drive with the exact filename shown.
+   Connect power and use **Preferences > Info > Update > USB Drive Update**.
 
-## Controllers
+After installing v0.4.0, Preferences > Info shows `MPC 3 CE 0.4.0`.
+Don't use Online Update: it replaces CE with stock firmware.
 
-Plug in, then press **Detect** in Preferences > CONTROLLERS. In
-Preferences > MIDI/Sync, turn Track, Global and Control off for each input:
+For **Pd and Cardinal**, download and unzip
+[`mpc-ce-v0.4.0-sd-plugins.zip`](https://github.com/zsoltf/mpc-3-ce/releases/tag/v0.4.0).
+With the MPC off, copy its `MPCLEARN` folder to the SD card root and keep the
+card inserted while using plugins. [Plugin installation guide](firmware/plugin-setup/README.md).
 
-| Controller | Mode | Input |
+## Connect controllers
+
+Set the mode below, then connect by USB. In **Preferences > MIDI/Sync**,
+turn **Track, Global and Control** off for the listed input. Open
+**Preferences > CONTROLLERS** and press **Detect**.
+
+| Controller | Mode | MPC input |
 | --- | --- | --- |
 | X-Touch | MC over USB | `X-TOUCH_INT` |
 | X-Touch Mini | Hold MC while connecting | `X-TOUCH MINI MIDI 1` |
@@ -40,22 +63,23 @@ Preferences > MIDI/Sync, turn Track, Global and Control off for each input:
 | Launchpad Pro Mk3 | Automatic | `LPProMK3 MIDI` |
 | Launch Control XL3 | Automatic | `LCXL3 1 DAW In` |
 
-## Also included
+Use multiple controllers together. See the [controller guide](docs/controller-programs.md)
+for other profiles, routing and controls. Mouse editing and note selection
+work without a controller.
 
-- **Pd and Cardinal:** run synths and effects on the touchscreen. To install,
-  unzip [`mpc-ce-v0.3.0-sd-plugins.zip`](https://github.com/zsoltf/mpc-3-ce/releases/tag/v0.3.0)
-  and copy its `MPCLEARN` folder to your SD card.
-- **Mouse editing** and note stepping with Shift + data wheel.
+## Known limits
 
-## Limits
-
-- Not compatible with MPC 3.10. Don't use Online Update: it replaces CE
-  with stock MPC. Back up first; Akai hasn't said if 3.10 projects open in 3.9.1.
-- Cardinal: four voices; heavy patches can overload audio.
-- Track colour changes show after a project reload.
-- Up to 12 MIDI ports on the Controllers page.
-- Preferences > Info shows `v0.2.6`.
-- More in the [release notes](docs/releases/v0.3.0.md).
+- Back up before changing firmware versions; compatibility of 3.10 projects
+  with 3.9.1 is unconfirmed.
+- Cardinal supports four voices. Heavy patches can overload audio; avoid
+  the Waves example.
+- Track colour changes appear after a project reload. Launchpad drum steps
+  use a fixed palette.
+- Reassign legacy User Level Velocity mappings in Global MIDI Learn after
+  moving to 3.10.
+- Note selection adds native Undo history and clears Redo.
+- X-Touch Shift+jog does not extend the Arrange loop; use MPC Shift+wheel.
+- Further controller and plugin limits are in the [release notes](docs/releases/v0.4.0.md).
 
 ## More
 
@@ -65,5 +89,5 @@ Preferences > MIDI/Sync, turn Track, Global and Control off for each input:
 [Licence notes](NOTICE.md)
 
 MIT licence. Built on [MPC-LiveXplore](https://github.com/TheKikGen/MPC-LiveXplore).
-Unofficial; not affiliated with Akai, inMusic, Behringer or Novation. Don't
-share the images you build.
+Unofficial; not affiliated with Akai, inMusic, Behringer or Novation.
+Don't share the firmware images you build.

@@ -1,3 +1,4 @@
+#include "model-layout.h"
 #define _GNU_SOURCE
 #include "mirror-state.h"
 #include <fcntl.h>
@@ -46,10 +47,10 @@ static void copy_meter(const MeterState *s,unsigned id,const CopiedMirror *snaps
  }
  out->available=chosen&&!ambiguous&&out->enabled&&atomic_load(&m->live)&&sub==atomic_load_explicit(&m->subscription,memory_order_acquire);
 }
-static inline int playable(uint32_t vptr){return vptr==0x6930c00||vptr==0x692fec4||vptr==0x6932338||vptr==0x6932a48||vptr==0x6930a14||vptr==0x693147c;}
-static inline int midi_volume(uint32_t vptr){return vptr==0x6932338;}
+static inline int playable(uint32_t vptr){return vptr==MODEL_DRUMPROGRAM_VPTR||vptr==MODEL_AUDIOPROGRAM_VPTR||vptr==MODEL_MIDIPROGRAM_VPTR||vptr==MODEL_PLUGINPROGRAM_VPTR||vptr==MODEL_CVPROGRAM_VPTR||vptr==MODEL_KEYGROUPPROGRAM_VPTR;}
+static inline int midi_volume(uint32_t vptr){return vptr==MODEL_MIDIPROGRAM_VPTR;}
 static inline int volume_capable(uint32_t vptr);
-static inline int mixable(uint32_t vptr){return vptr&&vptr!=0x6932338&&vptr!=0x6930a14;}
+static inline int mixable(uint32_t vptr){return vptr&&vptr!=MODEL_MIDIPROGRAM_VPTR&&vptr!=MODEL_CVPROGRAM_VPTR;}
 static inline int volume_capable(uint32_t vptr){return mixable(vptr)||midi_volume(vptr);}
 /* Component-only deterministic seam: a fixture reclaims the matched cell here,
  * between the probe match and the in-window re-validation below. */
@@ -145,7 +146,7 @@ static void copy_general(const MirrorState *s,CopiedMirror *out){
 /* A pad view is a consumer projection, not a fabricated TrackPool member.
  * Retained pad requests can read their old parent after selection changes. */
 static int copy_pad(const CopiedMirror *s,const CopiedTrack *parent,unsigned index,CopiedTrack *out){
- memset(out,0,sizeof(*out));if(!s->ready||!s->pad_source||index>=PAD_SLOTS||parent->vptr!=0x6930c00)return 0;
+ memset(out,0,sizeof(*out));if(!s->ready||!s->pad_source||index>=PAD_SLOTS||parent->vptr!=MODEL_DRUMPROGRAM_VPTR)return 0;
  const PadState *state=s->pad_source;if(atomic_load_explicit(&state->error,memory_order_acquire))return 0;
  unsigned h=((parent->program>>4)*2654435761u)&(PAD_PARENT_HASH-1);const PadParent *p=NULL;
  for(unsigned i=0;i<PAD_PROBES;i++){unsigned n=atomic_load_explicit(state->parent_directory+((h+i)&(PAD_PARENT_HASH-1)),memory_order_acquire);if(!n||n>PAD_PARENTS)return 0;const PadParent *v=state->parents+n-1;if(atomic_load(&v->address)==parent->program){p=v;break;}}
@@ -256,7 +257,7 @@ static int copy_mirror_view(const MirrorState *s,CopiedMirror *out,int pads){
   copy_meter(&s->meters,atomic_load(&s->meters.master),out,&out->master_meter);
   for(unsigned i=0;i<out->count;i++)copy_meter(&s->meters,out->tracks[i].meter_id,out,&out->tracks[i].meter);
   out->pad_source=&s->pads;out->pad_error=atomic_load(&s->pads.error);
-  if(pads&&out->ready)for(unsigned i=0;i<out->count;i++)if(out->tracks[i].serial==out->selected_serial&&out->tracks[i].vptr==0x6930c00){out->pad_count=PAD_SLOTS;for(unsigned j=0;j<PAD_SLOTS;j++)copy_pad(out,out->tracks+i,j,out->pads+j);break;}
+  if(pads&&out->ready)for(unsigned i=0;i<out->count;i++)if(out->tracks[i].serial==out->selected_serial&&out->tracks[i].vptr==MODEL_DRUMPROGRAM_VPTR){out->pad_count=PAD_SLOTS;for(unsigned j=0;j<PAD_SLOTS;j++)copy_pad(out,out->tracks+i,j,out->pads+j);break;}
   return 1;
  }
  return 0;

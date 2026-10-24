@@ -75,7 +75,10 @@ Session port availability is separate from runtime protocol admission. All
 enabled rows run through one shared bridge; each row combines saved endpoint
 configuration with its current runtime admission.
 
-Shared Preferences state is version 15, fixed at 16384 bytes. The session owns
+Shared Preferences state is version 16, fixed at 16384 bytes, with 64 external
+MIDI endpoint slots. Internal `MPC` and `MPC 3` mirror ports are excluded. The
+observer, bridge and state reader use this shared ABI together; older state
+versions are refused. Saved controller configuration is unchanged. The session owns
 ALSA discovery, collection persistence and stop/start rollback; UI callbacks
 perform none of these operations. MCUCFG1 and MCUCFG2 remain readable, including
 the old compact known-profile endpoints. Empty or all-disabled collections
@@ -311,6 +314,11 @@ public toolkit composition. Its production adapter remains inside
 `native-preferences.cc`, where the exact MPC mapping owner is available. The
 screen holds only transient page and selection state. It neither parses XMM
 files nor owns mappings, MIDI input, saving or Learn capture.
+
+On MPC3.10, Akai moved User Level Velocity from native target119 to120.
+CE uses the current target. A mapping saved by an older MPC version with that
+assignment needs User Level Velocity reassigned once in Global MIDI Learn.
+Other existing assignments retain their target numbers.
 
 The grouped replacement follows the stock MPC split between a selectable list
 and the selected item's editor. The public model in

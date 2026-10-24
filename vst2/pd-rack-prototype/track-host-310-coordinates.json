@@ -1,0 +1,522 @@
+{
+ "stock_sha256": "753f838ca362d42c8cc3f5c9c3fcc604ba076b5919212e0301923a3c11c93494",
+ "provenance": "3.9.1 -> 3.10 trace: /tmp/mpclearn-m25-editor-trace report.md, qlink-fx-followup.md; exact fragment and call-site matches against an independent whole-binary function map",
+ "ranges": [
+  {
+   "address": "0x1936bbc",
+   "length": 108,
+   "sha256": "14c1b3e6c40a4bd26d70b21a83acd3fd7c9d3317980fd290fd494126261c4785",
+   "name": "Program Screen TabIndex listener registration",
+   "old_address": "0x120d6e8"
+  },
+  {
+   "address": "0x1935fb0",
+   "length": 36,
+   "sha256": "ed3c6516d346e12ba410a5e712688503d006de1b0d2a95b340c1f45f5708ae19",
+   "name": "Program Screen properties and selected Program correlation",
+   "old_address": "0x120cb3c"
+  },
+  {
+   "address": "0x1932d20",
+   "length": 232,
+   "sha256": "aac65149773d2aa044717800257e39fe428ee812771e92ae3535b1b874d7e633",
+   "name": "Program Screen TabIndex pair and bank rebuild",
+   "old_address": "0x12098ac"
+  },
+  {
+   "address": "0x3ba61d8",
+   "length": 20,
+   "sha256": "b1b04a0a90084f2f675f782689fd3eb2f1f5d54946cf47d5ae35256ecd9ea776",
+   "name": "Instrument Edit same TabIndex properties",
+   "old_address": "0x3916ae0"
+  },
+  {
+   "address": "0x18f506c",
+   "length": 148,
+   "sha256": "93054ca77bb52813a19b9b07f1f78202cc15daaa4dcb5943a2fb9b040de608ee",
+   "name": "Screen descriptor job pending owner (queue ring +0x100, mutex +0x128)",
+   "old_address": "0x11cf3d8"
+  },
+  {
+   "address": "0x18f7e90",
+   "length": 140,
+   "sha256": "4d12cb968389075f78bdf6b849ea75842bf73d6ae45182b440848ad42d3b9074",
+   "name": "Screen descriptor publication before pending release",
+   "old_address": "0x11d21fc"
+  },
+  {
+   "address": "0x18f5b5c",
+   "length": 168,
+   "sha256": "490a26899b9304095f03ac57b3290d38adb25122999d4f0ade5bb7d22f0ebf2a",
+   "name": "Screen nested label job pending owner",
+   "old_address": "0x11cfec8"
+  },
+  {
+   "address": "0x18f45a4",
+   "length": 244,
+   "sha256": "4e1571af4e8d74e2fb943e8e053f9672fa63c005efa743a894582a5c0151b1b4",
+   "name": "Screen label publication before pending release",
+   "old_address": "0x11ceda4"
+  },
+  {
+   "address": "0x1925114",
+   "length": 264,
+   "sha256": "e546658ac1987b5594f9a243ca75f41afbccad095bdd859dca138c3e42615e5a",
+   "name": "Program Screen common construction and type",
+   "old_address": "0x1207ab8"
+  },
+  {
+   "address": "0x192541c",
+   "length": 4,
+   "sha256": "f1ec47b8924b9b435ec8148f04a16bd63ac8d4edb21b84fd8326fede02686fa9",
+   "name": "Program Screen type literal",
+   "old_address": "0x1207dc4"
+  },
+  {
+   "address": "0x18f49f4",
+   "length": 224,
+   "sha256": "e11b185df4482ea9ea2e4c2adb90a28a8860890780a4c9da8e393830fdf77afe",
+   "name": "Screen common same label owner passed to base and offset 98",
+   "old_address": "0x11d379c"
+  },
+  {
+   "address": "0x18de2b0",
+   "length": 424,
+   "sha256": "8e04ef068d16f0189fb324e0ee9a4e091c080d649ecd2b8a08a318ba1b50436a",
+   "name": "Screen base label owner at offset 48",
+   "old_address": "0x11b7220"
+  },
+  {
+   "address": "0x18f3314",
+   "length": 8,
+   "sha256": "05e801441a81e008c4878084c2c4974a3a3d35ec274869db7cf28791f394a50f",
+   "name": "FX Screen Q-Link input listener thunk",
+   "old_address": "0x11cdb14"
+  },
+  {
+   "address": "0x18f341c",
+   "length": 24,
+   "sha256": "5d5f4a0b0b751682d681123b2b1dd44e3792b3dddd89f71e909bbbe5e303fdcb",
+   "name": "FX Screen Q-Link activity listener",
+   "old_address": "0x11cdc1c"
+  },
+  {
+   "address": "0x192510c",
+   "length": 8,
+   "sha256": "053edba42cc9f9289b9879efbed984d9a6d7e1eaff4b890235937f865e11ba6d",
+   "name": "Program Screen Q-Link input listener thunk",
+   "old_address": "0x11fc4a0"
+  },
+  {
+   "address": "0x1924e3c",
+   "length": 8,
+   "sha256": "533cbf86f738ffc9b4ea6e22390d2a29dbe958f5a2cc5ee1864a9a495e2d3cff",
+   "name": "Program Screen Q-Link activity listener thunk",
+   "old_address": "0x11fc29c"
+  },
+  {
+   "address": "0x1631f48",
+   "length": 80,
+   "sha256": "2d8412beded9386fcc9a7aa7f9c048d193a0b717c0ce4fef53e8c26dee25d8a2",
+   "name": "Q-Link provider descriptor assignment",
+   "old_address": "0x14e0634"
+  },
+  {
+   "address": "0x162eca8",
+   "length": 1476,
+   "sha256": "f4098b99e31260aa01a3d24b4be95866ca734aad35ad3b848d15f5f454000f52",
+   "name": "Q-Link descriptor complete owned callable assignment and release",
+   "old_address": "0x14dd398"
+  },
+  {
+   "address": "0x1631d28",
+   "length": 72,
+   "sha256": "af5933918b62e4511cfd6a1210d41087df613310daeeb0220849a3b9fc9bd578",
+   "name": "Q-Link provider actual value feedback after command hook",
+   "old_address": "0x14e0414"
+  },
+  {
+   "address": "0x1638364",
+   "length": 80,
+   "sha256": "d26a5a8bafd99440de267de69b6024b60644a7a44dd8056d02cf9a01b68f4526",
+   "name": "Q-Link label publication",
+   "old_address": "0x14e6768"
+  },
+  {
+   "address": "0x983ea0",
+   "length": 80,
+   "sha256": "51a31927068d6c9dd27045992fa785447d52ef9ad275e2028128af87102d88ab",
+   "name": "native String construction",
+   "old_address": "0x961120"
+  },
+  {
+   "address": "0x948a38",
+   "length": 64,
+   "sha256": "5eef13e1a2ea9be434c06b4dfd7426b4930256fc074a8032c22addc5b1dd1c19",
+   "name": "native String retained copy",
+   "old_address": "0x925c88"
+  },
+  {
+   "address": "0x934bc8",
+   "length": 64,
+   "sha256": "04db08e532747ce2d626b1b6781a6e3127f8604c0cd17f8ab6db826ecc6e510e",
+   "name": "native String destruction",
+   "old_address": "0x911f58"
+  },
+  {
+   "address": "0xbe56bc",
+   "length": 644,
+   "sha256": "88e290be93d3a46dcce597ec7c1889295b44165bd0b0fc31e40c32fdbc629121",
+   "name": "MouseEvent source construction for image contacts",
+   "old_address": "0xbc2a6c"
+  },
+  {
+   "address": "0xbf2260",
+   "length": 584,
+   "sha256": "c384aa00cee673c9ee9b93ab69b96c2cac006420517477fcab15d14c4a720993",
+   "name": "MouseInputSource index and type for image contacts",
+   "old_address": "0xbcf610"
+  },
+  {
+   "address": "0x1810844",
+   "length": 184,
+   "sha256": "d210c37d293f43182a7341c5fc89aaf62ce15b8230c9cf3691241ba6d6f2afd5",
+   "name": "stock text session constructor",
+   "old_address": "0x1aef8e4"
+  },
+  {
+   "address": "0x1810b8c",
+   "length": 864,
+   "sha256": "cc0d58c30e951bd26d60b5eeec166710f7e4f3bda34c10ca529a9581f9acd831",
+   "name": "stock text session copy and open",
+   "old_address": "0x1aefc2c"
+  },
+  {
+   "address": "0x1810ef4",
+   "length": 496,
+   "sha256": "131ca0553fb559a24304a0acfae7d24b6c9736c6998fec4f2a236ef0955fa6e8",
+   "name": "stock text active-session change and close",
+   "old_address": "0x1aeff94"
+  },
+  {
+   "address": "0x385d980",
+   "length": 168,
+   "sha256": "2c6b94c6baa1a1510d0306d13c28c45509d965e78819a738a8bdeadd2b216ddf",
+   "name": "stock terminal text callbacks",
+   "old_address": "0x35d8078"
+  },
+  {
+   "address": "0x948b08",
+   "length": 176,
+   "sha256": "73724027a7098697d1524e3a71d1b5e71dca504412c4c0a105de08f76d64b6e2",
+   "name": "stock String assignment for keyboard session",
+   "old_address": "0x925d58"
+  },
+  {
+   "address": "0x9562dc",
+   "length": 12,
+   "sha256": "233df71df779d3345a7ab19d42b1cbe9ea7a93fc7a3d39ca6eb67d424cd03382",
+   "name": "stock String UTF-8 borrow for keyboard result",
+   "old_address": "0x93352c"
+  },
+  {
+   "address": "0x3ba6768",
+   "length": 1480,
+   "sha256": "722d26442885cefeec0fd42ae15fe2a2e0093b026419b642c449cd2cc9396ae5",
+   "name": "TouchProgramEditPage activation and selected Program",
+   "old_address": "0x3917070"
+  },
+  {
+   "address": "0x3ba4658",
+   "length": 144,
+   "sha256": "09dd19910c6ca1827f0b80eaf5fbc4cc0b018a9d9bd57c137f619341a0460b45",
+   "name": "TouchProgramEditPage selected Program field",
+   "old_address": "0x3914f68"
+  },
+  {
+   "address": "0x3ba4c38",
+   "length": 484,
+   "sha256": "3a256d197dd5fe7b44013ec571dd43032475177ffdfbb42272f32a593d66e554",
+   "name": "TouchProgramEditPage destruction before children",
+   "old_address": "0x3915548"
+  },
+  {
+   "address": "0x38546f0",
+   "length": 160,
+   "sha256": "29d89469f17831ee6e90ca31781b583a4d11bfbeddcbfaf2f28b7f41b5ad87bf",
+   "name": "Instrument Edit paint surrounds only the native Q-Link outline",
+   "old_address": "0x35cede8"
+  },
+  {
+   "address": "0x3409604",
+   "length": 8,
+   "sha256": "3e63fd86284d4f366713766768bffb3b9de240a29f16077d59fb8833734eb877",
+   "name": "Instrument Edit before/after paint hooks are no-ops",
+   "old_address": "0x31bb884"
+  },
+  {
+   "address": "0x3c34688",
+   "length": 1584,
+   "sha256": "370d722474f76685d2e9585d381383cb253ce5cb2c62443e8f8d1f459e83c211",
+   "name": "Plugin tabset owner transition before retirement",
+   "old_address": "0x39a0e10"
+  },
+  {
+   "address": "0x8ed654",
+   "length": 8,
+   "sha256": "3c45e210f31d85fe4b3fee33786a1bfb974392cfb3ffcdae3ea8f875e62d6287",
+   "name": "VST platform data returns exact AEffect",
+   "old_address": "0x8ca97c"
+  },
+  {
+   "address": "0x38d7f80",
+   "length": 1688,
+   "sha256": "9128cc19b3a5067a4e07c290bc4021f4e146b7dfce57d91d19082abb35df4ce5",
+   "name": "Insert overlay activation and current session",
+   "old_address": "0x36518e0"
+  },
+  {
+   "address": "0x38d8618",
+   "length": 1704,
+   "sha256": "69956f5f655d75848276b1d231fd6d318b759c78643a52d9740c2eb69ec81918",
+   "name": "Insert overlay destruction before children",
+   "old_address": "0x3651f78"
+  },
+  {
+   "address": "0x38d7bbc",
+   "length": 964,
+   "sha256": "ef4bd770bac66dce9d79d9a0677db572b964f91ad24d6edb8220b83eacee9f61",
+   "name": "Insert overlay session transition before retirement",
+   "old_address": "0x365151c"
+  },
+  {
+   "address": "0x38ea440",
+   "length": 908,
+   "sha256": "043cc554a2171a1a5b26796c3f9095e735c239ac2d4b219c8c8fe7dbc06f3d4a",
+   "name": "Insert overlay content parent and header layout",
+   "old_address": "0x3663da0"
+  },
+  {
+   "address": "0x38d2488",
+   "length": 8,
+   "sha256": "62a6f5a0a32f66b1fe307dad66b39be739b72e61729ee1e36ac2cec64101f021",
+   "name": "Insert overlay stock close request",
+   "old_address": "0x364bde8"
+  },
+  {
+   "address": "0x38d273c",
+   "length": 536,
+   "sha256": "6fd4953aa37503a013a68050646a845d25634537a63041dffbda542955abe2c6",
+   "name": "Insert overlay Q-Link paint over children",
+   "old_address": "0x364c09c"
+  },
+  {
+   "address": "0x3bfb9d4",
+   "length": 12,
+   "sha256": "957f9b082387f71a501f39424d6541a6b0eb67bcddef986fd0676d6d9f8e6d88",
+   "name": "Insert overlay close signal veneer",
+   "old_address": "0x37fa614"
+  },
+  {
+   "address": "0xee90e8",
+   "length": 436,
+   "sha256": "5a71e066d74818ba8ee56ac19037fade9752768f3e555f9a8b208e116ee2c56d",
+   "name": "Insert overlay close signal dispatch",
+   "old_address": "0xe977bc"
+  },
+  {
+   "address": "0x1ea2080",
+   "length": 104,
+   "sha256": "e76eb7822d7289125faebda40cfd0bb2c8a1273b8a5baa2fbc3a8f6512cc6868",
+   "name": "EditEffectSession owner and selected insert",
+   "old_address": "0x1a47a70"
+  },
+  {
+   "address": "0x2793fe4",
+   "length": 96,
+   "sha256": "9249abeb81499e72bbf3304582c5fe991cec488be5499250cabc1985fbbc2232",
+   "name": "Insert UI and audio vectors",
+   "old_address": "0x235d10c"
+  }
+ ],
+ "sites": [
+  {
+   "address": "0x3ba6770",
+   "bytes": "f0426de1f860cde1",
+   "name": "Instrument Edit activation",
+   "old_address": "0x3917078"
+  },
+  {
+   "address": "0x3ba4c3c",
+   "bytes": "f0416de1385190e5",
+   "name": "Instrument Edit before destruction",
+   "old_address": "0x391554c"
+  },
+  {
+   "address": "0x3c34688",
+   "bytes": "f4426de1f860cde1",
+   "name": "Plugin tabset before owner transition",
+   "old_address": "0x39a0e10"
+  },
+  {
+   "address": "0x38d7f88",
+   "bytes": "f0426de1f860cde1",
+   "name": "Insert editor activation",
+   "old_address": "0x36518e8"
+  },
+  {
+   "address": "0x38d861c",
+   "bytes": "f4426de10050a0e1",
+   "name": "Insert editor before destruction",
+   "old_address": "0x3651f7c"
+  },
+  {
+   "address": "0x38d7bbc",
+   "bytes": "f4426de1003091e5",
+   "name": "Insert editor before session transition",
+   "old_address": "0x365151c"
+  }
+ ],
+ "pointers": [
+  {
+   "slot": "0x6d12980",
+   "target": "0x18f3314",
+   "name": "FX Screen Q-Link input",
+   "old_slot": "0x68e6d08",
+   "typeinfo": ""
+  },
+  {
+   "slot": "0x6d12988",
+   "target": "0x18f341c",
+   "name": "FX Screen Q-Link activity",
+   "old_slot": "0x68e6d10",
+   "typeinfo": ""
+  },
+  {
+   "slot": "0x6d131dc",
+   "target": "0x192510c",
+   "name": "Program Screen Q-Link input",
+   "old_slot": "0x68e76c8",
+   "typeinfo": ""
+  },
+  {
+   "slot": "0x6d131e4",
+   "target": "0x1924e3c",
+   "name": "Program Screen Q-Link activity",
+   "old_slot": "0x68e76d0",
+   "typeinfo": ""
+  },
+  {
+   "slot": "0x6dffe3c",
+   "target": "0x6dfff68",
+   "name": "Instrument Edit page typeinfo",
+   "old_slot": "0x69eeae0",
+   "typeinfo": "20TouchProgramEditPage"
+  },
+  {
+   "slot": "0x6dffe60",
+   "target": "0x3409604",
+   "name": "Instrument Edit before-paint no-op",
+   "old_slot": "0x69eeb04",
+   "typeinfo": ""
+  },
+  {
+   "slot": "0x6dffe64",
+   "target": "0x3409608",
+   "name": "Instrument Edit after-paint no-op",
+   "old_slot": "0x69eeb08",
+   "typeinfo": ""
+  },
+  {
+   "slot": "0x6dffe8c",
+   "target": "0x6dfff68",
+   "name": "Instrument Edit Component typeinfo",
+   "old_slot": "0x69eeb30",
+   "typeinfo": "20TouchProgramEditPage"
+  },
+  {
+   "slot": "0x6dffef8",
+   "target": "0x38546f0",
+   "name": "Instrument Edit Component paint",
+   "old_slot": "0x69eeb9c",
+   "typeinfo": ""
+  },
+  {
+   "slot": "0x6dfff44",
+   "target": "0x6dfff68",
+   "name": "Instrument Edit Component table end",
+   "old_slot": "0x69eebe8",
+   "typeinfo": "20TouchProgramEditPage"
+  },
+  {
+   "slot": "0x6d4f1e0",
+   "target": "0x6d4f5a4",
+   "name": "PluginProgram typeinfo",
+   "old_slot": "0x6932a44",
+   "typeinfo": "13PluginProgram"
+  },
+  {
+   "slot": "0x6c90db4",
+   "target": "0x8ed654",
+   "name": "VST platform data method",
+   "old_slot": "0x68899ac",
+   "typeinfo": ""
+  },
+  {
+   "slot": "0x6ddac34",
+   "target": "0x6ddae08",
+   "name": "Insert editor overlay typeinfo",
+   "old_slot": "0x69c9f20",
+   "typeinfo": "28TouchInsertEffectEditOverlay"
+  },
+  {
+   "slot": "0x6ddaca8",
+   "target": "0x6ddae08",
+   "name": "Insert overlay Component typeinfo",
+   "old_slot": "0x69c9f94",
+   "typeinfo": "28TouchInsertEffectEditOverlay"
+  },
+  {
+   "slot": "0x6ddad18",
+   "target": "0x38d273c",
+   "name": "Insert overlay paintOverChildren",
+   "old_slot": "0x69ca004",
+   "typeinfo": ""
+  },
+  {
+   "slot": "0x6ddad60",
+   "target": "0x6ddae08",
+   "name": "Insert overlay Component table end",
+   "old_slot": "0x69ca04c",
+   "typeinfo": "28TouchInsertEffectEditOverlay"
+  },
+  {
+   "slot": "0x6ddba80",
+   "target": "0x6ddba34",
+   "name": "Insert editor content typeinfo",
+   "old_slot": "0x69cad6c",
+   "typeinfo": "N12TouchOverlay13ContentHolderE"
+  },
+  {
+   "slot": "0x6ca959c",
+   "target": "0x6d2370c",
+   "name": "EditEffectSession typeinfo",
+   "old_slot": "0x689e670",
+   "typeinfo": "17EditEffectSession"
+  },
+  {
+   "slot": "0x6cb6aa4",
+   "target": "0x6d4b7f8",
+   "name": "Insert owner typeinfo",
+   "old_slot": "0x68ac36c",
+   "typeinfo": "7Inserts"
+  },
+  {
+   "slot": "0x6ddac94",
+   "target": "0x38d2488",
+   "name": "Insert overlay close request method",
+   "old_slot": "0x69c9f80",
+   "typeinfo": ""
+  }
+ ]
+}

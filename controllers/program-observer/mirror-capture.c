@@ -1,4 +1,5 @@
 #include "observer.h"
+#include "model-layout.h"
 #include <string.h>
 /* No hook allocates, blocks, performs I/O, calls MPC or reads a native scalar. */
 MirrorState *mirror_state;
@@ -116,14 +117,14 @@ out:
 static void seed(Context *c,unsigned site){
  uint32_t sp=source_sp(c),program,property;
  if(site==MIRROR_SEED_NORMAL){
-  if(word(sp+0xb4)!=observer_image_bias+0x237034c)return;
-  if(word(sp+0x114)!=observer_image_bias+0x23705f8)return;
-  if(word(sp+0x13c)!=observer_image_bias+0x2514c08)return;
+  if(word(sp+0xb4)!=observer_image_bias+MODEL_SEED_NORMAL_LR1)return;
+  if(word(sp+0x114)!=observer_image_bias+MODEL_SEED_NORMAL_LR2)return;
+  if(word(sp+0x13c)!=observer_image_bias+MODEL_SEED_NORMAL_LR3)return;
   program=word(sp+0x12c);property=c->r[5];
  }else{
-  if(word(sp+0x8c)!=observer_image_bias+0x2370710)return;
-  if(word(sp+0xf4)!=observer_image_bias+0x2370a7c)return;
-  if(word(sp+0x10c)!=observer_image_bias+0x2514334)return;
+  if(word(sp+0x8c)!=observer_image_bias+MODEL_SEED_COPY_LR1)return;
+  if(word(sp+0xf4)!=observer_image_bias+MODEL_SEED_COPY_LR2)return;
+  if(word(sp+0x10c)!=observer_image_bias+MODEL_SEED_COPY_LR3)return;
   program=word(sp+0xf8);property=c->r[7];
  }
  if(!pointer(program)||program+0x3c!=c->r[4]||program+0x5b0!=property){mirror_stop(MV_LIFETIME);return;}
@@ -141,14 +142,18 @@ static Retired retired[MIRROR_CELLS];static _Atomic unsigned retired_count;stati
 static _Atomic uint32_t root,project,pool;
 static uint32_t epoch,serial,binding,generation,owner,ready,reset_pending;
 static uint32_t loading,load_token,load_sp,returned;
+#if MODEL_LOAD_RESULT_INDIRECT
+static uint32_t load_output;
+#endif
 /* Separate from epoch: native Project/pool clears advance it during creation. */
 static struct {_Atomic uint32_t token;uint32_t sp,lr,root,project,pool,project_owner,creator;} creating;
 static int create_source(Context *c,unsigned site){
  if(site==M_CREATE_READY)return atomic_load_explicit(&creating.token,memory_order_acquire)==token();
  uint32_t lr=c->lr-observer_image_bias;
- /* The constructor e35a10 supplies NewProject arg3=0. The selected empty
-  * project path190bb1c supplies1;2570b1c forwards this copied argument inr1. */
- return c->r[1]==1&&(lr==0x2570b7c||lr==0x2570bc4||lr==0x2570c34);
+ /* The startup route supplies selector0; selected empty creation supplies1.
+  * ProjectCreator copies that selector, and its callback forwards it inr1.
+  * Exact caller words qualify the callback; this is not a human-intent test. */
+ return c->r[1]==1&&(lr==MODEL_CREATE_LR1||lr==MODEL_CREATE_LR2||lr==MODEL_CREATE_LR3);
 }
 static struct {uint32_t method,token,sp,track,committed;} mutation;
 static unsigned depth;
@@ -191,8 +196,8 @@ static int unresolved(uint32_t track){for(unsigned i=0;i<retired_count;i++)if(re
  * callbacks. Existing bindings come from our copies. New live Track payloads
  * are copied once; scalar Property memory is never sampled. */
 static void inventory(unsigned site){
- if(!typed(pool,0x068ad2c4)){mirror_stop(MV_ROOT);return;}
- uint32_t begin=word(pool+0x34),end=word(pool+0x38),cap=word(pool+0x3c);
+ if(!typed(pool,MODEL_POOL_VPTR)){mirror_stop(MV_ROOT);return;}
+ uint32_t begin=word(pool+MODEL_POOL_BEGIN),end=word(pool+MODEL_POOL_END),cap=word(pool+MODEL_POOL_CAPACITY);
  if((begin&&!pointer(begin))||end<begin||cap<end||(end-begin)%4||(end-begin)/4>MIRROR_TRACKS){mirror_stop(MV_TOPOLOGY);return;}
  unsigned n=(end-begin)/4;
  for(unsigned i=0;i<n;i++){
@@ -201,7 +206,7 @@ static void inventory(unsigned site){
   for(j=0;j<count;j++)if(tracks[j].track==address)break;
   if(j<count)next_tracks[i]=tracks[j];
   else{
-   if(unresolved(address)||!typed(address,0x06935554)){mirror_stop(MV_LIFETIME);return;}
+   if(unresolved(address)||!typed(address,MODEL_TRACK_VPTR)){mirror_stop(MV_LIFETIME);return;}
    uint32_t p=word(address+0x648),kind=word(address+0x64c);
    next_tracks[i]=(Track){address,bump(&serial),p,kind,incarnation(p),bump(&binding),0,0,0,p&&pointer(p)?word(p)-observer_image_bias:0,0,channel_owner_id(address),channel_owner_id(p),0};
   }
@@ -215,7 +220,7 @@ static void inventory(unsigned site){
    t->transition=0;t->program=t->replacement;t->incarnation=incarnation(t->program);t->binding=bump(&binding);t->program_owner=channel_owner_id(t->program);
   }
  }
- if(begin!=word(pool+0x34)||end!=word(pool+0x38)||cap!=word(pool+0x3c)){mirror_stop(MV_TOPOLOGY);return;}
+ if(begin!=word(pool+MODEL_POOL_BEGIN)||end!=word(pool+MODEL_POOL_END)||cap!=word(pool+MODEL_POOL_CAPACITY)){mirror_stop(MV_TOPOLOGY);return;}
  for(unsigned i=0;i<n;i++)if(word(begin+i*4)!=next_tracks[i].track){mirror_stop(MV_TOPOLOGY);return;}
  for(unsigned i=0;i<count;i++){unsigned j;for(j=0;j<n;j++)if(tracks[i].serial==next_tracks[j].serial)break;if(j==n&&!retire_track(tracks+i))return;}
  memcpy(tracks,next_tracks,n*sizeof(Track));count=n;
@@ -243,41 +248,41 @@ static void topology(Context *c,unsigned site){
  if(site==M_RESET||site==M_CREATE_ENTER){
   if(depth||loading||creating.token){atomic_store(&creating.token,0);mirror_stop(MV_TOPOLOGY);goto out;}
   invalidate();if(!active())goto out;
-  root=c->r[0];if(!typed(root,0x068d7bf8)){mirror_stop(MV_ROOT);goto out;}
-  project=word(root+0x24c);if(!typed(project,0x06933c4c)){mirror_stop(MV_ROOT);goto out;}
-  pool=word(project+0xa94);if(!typed(pool,0x068ad2c4)){mirror_stop(MV_ROOT);goto out;}
+  root=c->r[0];if(!typed(root,MODEL_ROOT_VPTR)){mirror_stop(MV_ROOT);goto out;}
+  project=word(root+MODEL_ROOT_PROJECT);if(!typed(project,MODEL_PROJECT_VPTR)){mirror_stop(MV_ROOT);goto out;}
+  pool=word(project+MODEL_PROJECT_POOL);if(!typed(pool,MODEL_POOL_VPTR)){mirror_stop(MV_ROOT);goto out;}
   owner=tok;reset_pending=1;
   if(site==M_CREATE_ENTER){
    uint32_t creator=c->r[4],id=channel_owner_id(project);
-   if(!id||!pointer(creator)||word(creator+8)!=root||word(root+0x240)!=creator){mirror_stop(MV_ROOT);goto out;}
+   if(!id||!pointer(creator)||word(creator+8)!=root||word(root+MODEL_ROOT_CREATOR)!=creator){mirror_stop(MV_ROOT);goto out;}
    creating.sp=source_sp(c);creating.lr=c->lr;creating.root=root;creating.project=project;creating.pool=pool;creating.project_owner=id;creating.creator=creator;
    atomic_store_explicit(&creating.token,tok,memory_order_release);reset_pending=0;
   }
- atomic_store(&mirror_state->channel.automation_owner,channel_owner_id(word(project+0xaac)));
+ atomic_store(&mirror_state->channel.automation_owner,channel_owner_id(word(project+MODEL_PROJECT_AUTOMATION)));
 #ifdef MIRROR_COMMAND
   /* Resolve only at the existing qualified Engine reset boundary. Native
    * constructors/destructors own the retained field lifetimes. */
-  uint32_t audio=word(root+0x2e4),mixer=0,timeline=0;
-  if(pointer(audio)&&audio<=UINT32_MAX-0x400){mixer=audio+0x260;timeline=word(audio+0x3a4);}
-  atomic_store(&mirror_state->channel.mixer_owner,typed(mixer,0x6898b34)?channel_owner_id(mixer):0);
-  atomic_store(&mirror_state->channel.timeline_owner,typed(timeline,0x69091b0)?channel_owner_id(timeline):0);
-  atomic_store(&mirror_state->channel.loop_owner,typed(timeline,0x69091b0)?channel_owner_id(word(timeline+0x14c)):0);
-  uint32_t sequencer=pointer(audio)&&audio<=UINT32_MAX-0x400?word(audio+0x3bc):0;
+  uint32_t audio=word(root+MODEL_ROOT_AUDIO),mixer=0,timeline=0;
+  if(pointer(audio)&&audio<=UINT32_MAX-0x400){mixer=audio+MODEL_AUDIO_MIXER;timeline=word(audio+MODEL_AUDIO_TIMELINE);}
+  atomic_store(&mirror_state->channel.mixer_owner,typed(mixer,MODEL_MIXER_VPTR)?channel_owner_id(mixer):0);
+  atomic_store(&mirror_state->channel.timeline_owner,typed(timeline,MODEL_TIMELINE_VPTR)?channel_owner_id(timeline):0);
+  atomic_store(&mirror_state->channel.loop_owner,typed(timeline,MODEL_TIMELINE_VPTR)?channel_owner_id(word(timeline+0x14c)):0);
+  uint32_t sequencer=pointer(audio)&&audio<=UINT32_MAX-0x400?word(audio+MODEL_AUDIO_SEQUENCER):0;
   if(!pointer(sequencer)||sequencer>UINT32_MAX-0x404||word(sequencer+0x400)!=timeline)sequencer=0;
   atomic_store(&mirror_state->sequencer,sequencer);
-  uint32_t click=pointer(audio)&&audio<=UINT32_MAX-0x400?word(audio+0x3c0):0;
-  atomic_store(&mirror_state->channel.click_owner,typed(click,0x689fed4)&&word(click+0x64)==sequencer?channel_owner_id(click):0);
+  uint32_t click=pointer(audio)&&audio<=UINT32_MAX-0x400?word(audio+MODEL_AUDIO_CLICK):0;
+  atomic_store(&mirror_state->channel.click_owner,typed(click,MODEL_CLICK_VPTR)&&word(click+0x64)==sequencer?channel_owner_id(click):0);
   uint32_t recorder=sequencer?word(sequencer+0x3ec):0,rp=pointer(recorder)&&recorder<=UINT32_MAX-0x9c?word(recorder+0x98):0;
-  atomic_store(&mirror_state->channel.record_owner,typed(rp,0x68a0340)?channel_owner_id(rp):0);
+  atomic_store(&mirror_state->channel.record_owner,typed(rp,MODEL_RECORD_PROPERTIES_VPTR)?channel_owner_id(rp):0);
 #endif
  }else if(site==M_CREATE_READY){
   int same=creating.token==tok&&creating.sp==source_sp(c)+0x128&&
    c->r[4]==creating.root&&word(source_sp(c)+0x11c)==creating.lr&&
    root==creating.root&&project==creating.project&&pool==creating.pool&&
    !depth&&!loading&&channel_owner_id(project)==creating.project_owner&&
-   typed(root,0x68d7bf8)&&typed(project,0x6933c4c)&&typed(pool,0x68ad2c4)&&
-   word(root+0x24c)==project&&word(project+0xa94)==pool&&
-   word(root+0x240)==creating.creator;
+   typed(root,MODEL_ROOT_VPTR)&&typed(project,MODEL_PROJECT_VPTR)&&typed(pool,MODEL_POOL_VPTR)&&
+   word(root+MODEL_ROOT_PROJECT)==project&&word(project+MODEL_PROJECT_POOL)==pool&&
+   word(root+MODEL_ROOT_CREATOR)==creating.creator;
   atomic_store(&creating.token,0);
   if(!same){mirror_stop(MV_LIFETIME);goto out;}
   inventory(site);if(!active())goto out;ready=1;
@@ -290,14 +295,26 @@ static void topology(Context *c,unsigned site){
   if(site==M_ROOT_DESTROY||site==M_PROJECT_DESTROY||site==M_POOL_DESTROY){root=project=pool=loading=returned=reset_pending=0;atomic_store(&creating.token,0);}
  }else if(site==M_LOAD_ENTER){
   if(!root)goto out;
-  if(tok!=owner||loading||depth||!reset_pending||c->r[2]!=project||c->lr!=observer_image_bias+0x17b7fb8){mirror_stop(MV_LOAD);goto out;}
+  if(tok!=owner||loading||depth||!reset_pending||c->r[MODEL_LOAD_PROJECT_REGISTER]!=project||c->lr!=observer_image_bias+MODEL_LOAD_RETURN){mirror_stop(MV_LOAD);goto out;}
+#if MODEL_LOAD_RESULT_INDIRECT
+  if(!pointer(c->r[0])||c->r[0]>UINT32_MAX-8){mirror_stop(MV_LOAD);goto out;}
+  load_output=c->r[0];
+#endif
   loading=1;returned=0;load_token=tok;load_sp=source_sp(c);reset_pending=0;
  }else if(site==M_LOAD_RETURN||site==M_LOAD_READY){
   if(!root)goto out;
   if(!loading||tok!=load_token||source_sp(c)!=load_sp||depth){mirror_stop(MV_LOAD);goto out;}
-  if(site==M_LOAD_RETURN){returned=c->r[0]==4;if(!returned)loading=0;}
+  if(site==M_LOAD_RETURN){
+#if MODEL_LOAD_RESULT_INDIRECT
+   if(c->r[0]!=load_output){mirror_stop(MV_LOAD);goto out;}
+   returned=word(load_output)==4;
+#else
+   returned=c->r[0]==4;
+#endif
+   if(!returned)loading=0;
+  }
   else{
-   if(!returned||!pointer(c->r[5])||word(c->r[5]+0x68)!=project||word(project+0xa94)!=pool){mirror_stop(MV_LOAD);goto out;}
+   if(!returned||!pointer(c->r[5])||word(c->r[5]+0x68)!=project||word(project+MODEL_PROJECT_POOL)!=pool){mirror_stop(MV_LOAD);goto out;}
    inventory(site);if(!active())goto out;loading=returned=0;ready=1;
   }
  }else if(method){
@@ -326,7 +343,7 @@ static void topology(Context *c,unsigned site){
    if(t->transition){if(t->transition!=1||t->replacement!=c->r[5]||t->family+2!=site){mirror_stop(MV_LIFETIME);goto out;}t->transition=2;}
    t->kind=c->r[site==M_REPLACE_SIMPLE_STORE?6:3];
    t->vptr=c->r[5]&&pointer(c->r[5])?word(c->r[5])-observer_image_bias:0;
-  }else if(t->transition){if(t->transition!=2||c->r[5]!=t->replacement||word(source_sp(c)+0xc)!=t->program){mirror_stop(MV_LIFETIME);goto out;}t->transition=3;}
+  }else if(t->transition){if(t->transition!=2||c->r[5]!=t->replacement||word(source_sp(c)+MODEL_REPLACE_OLD_STACK)!=t->program){mirror_stop(MV_LIFETIME);goto out;}t->transition=3;}
  }
  export_topology();
 out:

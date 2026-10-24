@@ -8,6 +8,36 @@ attachments are in `artifacts/community-release-<version>` alongside it, where
 `<version>` is the `release` field of `release/public-source.json`.
 Never push the private repository's history.
 
+## Prepare the source and artifact identity
+
+`release/public-source.json` is the current release metadata. During preparation,
+its status and hardware qualification remain pending even after an image has been
+flashed. Complete listening and final review before changing the status to
+`release-candidate`, naming the qualified hardware and setting
+`release_artifacts_current_for_source` to true. Debug flash qualification is
+separate; an offline or browser build does not establish it.
+
+The runtime's `BUILD.json` is an immutable build-time record. Its original
+candidate wording does not describe later qualification. Keep its bytes, the
+payload checksum manifest and the browser recipes unchanged when qualifying that
+same artifact. The release metadata identifies the exact runtime source, payload
+manifest and three recipes; it does not claim they were rebuilt from a later
+documentation or metadata commit. The public Git commit/tag identifies the full
+published source snapshot. Preserve the v0.3.0 metadata and checksum files for the
+retained 3.9.1 build.
+
+After committing the reviewed metadata, prepare a plain snapshot with:
+
+```sh
+python3 scripts/export_public.py --archive-directory /absolute/path/to/new-snapshot
+```
+
+The normal export copies the canonical metadata to `SOURCE.json` and
+`release/public-source.json`. `--candidate-310 COMMIT` is for private development
+snapshots and deliberately replaces release qualification with pending candidate
+metadata; do not use it for the final release snapshot. Review the export and
+release archive checksums before performing the publication steps below.
+
 ## 1. Use the public GitHub repository
 
 The public repository is [zsoltf/mpc-3-ce](https://github.com/zsoltf/mpc-3-ce).

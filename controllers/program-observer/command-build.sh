@@ -9,18 +9,23 @@ duration=${3:-360};[ "$duration" != manual ] || duration=0;case "$duration" in *
 if [ "$duration" -eq 0 ];then ./device-location.sh "$2" release;else ./device-location.sh "$2" override;fi
 ./mirror-guard.sh
 mkdir -p package/command
-python3 -B model-prepare.py "$1" package/command/pinned.h --command
+case "${MPCLEARN_FIRMWARE:-3.9.1}" in
+ 3.9.1) prepare_mode=--command;;
+ 3.10) prepare_mode=--command-3.10;;
+ *) echo 'Unsupported explicit firmware profile' >&2;exit 2;;
+esac
+python3 -B model-prepare.py "$1" package/command/pinned.h "$prepare_mode"
 # Live shared state is always in tmpfs; nothing a package writes names its folder.
 state_dir=/run/mpclearn/state
 printf '#define OBSERVER_LOG "%s/volume.state"\n#define COMMAND_PATH "%s/command.state"\n#define OBSERVER_LIBRARY "%s/command-observer.so"\n#define WINDOW_SECONDS %su\n' "$state_dir" "$state_dir" "$2" "$duration" > package/command/config.h
 docker run --rm --network none -v "$PWD:/src:ro" -v "$PWD/package/command:/out" mpclearn-controls-build sh -ec '
-arm-linux-gnueabihf-gcc -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon -DVOLUME_MIRROR -DMIRROR_COMMAND -fPIC -fvisibility=hidden -I/src/package/command /src/observer.c /src/command-capture.c /src/patch.c /src/gate.S /src/transport-queue.c -shared -o /out/command-observer.so -pthread -ldl -Wl,-z,now
-arm-linux-gnueabihf-gcc -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon /src/command-client.c -o /out/command-client
-arm-linux-gnueabihf-gcc -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon /src/project-client-test.c -o /out/project-client-test
-arm-linux-gnueabihf-gcc -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon /src/effects-client-test.c -o /out/effects-client-test
-arm-linux-gnueabihf-gcc -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon -DVOLUME_MIRROR -DMIRROR_COMMAND -DCOMMAND_COMPONENT -no-pie -Wl,-Ttext-segment=0x10000000 -I/src/package/command /src/command-component.c /src/component.S /src/gate.S /src/transport-queue.c -o /out/command-component -pthread -ldl
-arm-linux-gnueabihf-gcc -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon /src/mirror-read.c -o /out/mirror-read
-arm-linux-gnueabihf-gcc -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon -DVOLUME_MIRROR -DMIRROR_COMMAND -I/src/package/command /src/processor-component.c -o /out/processor-component -pthread -lm
+arm-linux-gnueabihf-gcc -include /out/model-build-profile.h -I/out -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon -DVOLUME_MIRROR -DMIRROR_COMMAND -fPIC -fvisibility=hidden -I/src/package/command /src/observer.c /src/command-capture.c /src/patch.c /src/gate.S /src/transport-queue.c -shared -o /out/command-observer.so -pthread -ldl -Wl,-z,now
+arm-linux-gnueabihf-gcc -include /out/model-build-profile.h -I/out -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon /src/command-client.c -o /out/command-client
+arm-linux-gnueabihf-gcc -include /out/model-build-profile.h -I/out -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon /src/project-client-test.c -o /out/project-client-test
+arm-linux-gnueabihf-gcc -include /out/model-build-profile.h -I/out -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon /src/effects-client-test.c -o /out/effects-client-test
+arm-linux-gnueabihf-gcc -include /out/model-build-profile.h -I/out -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon -DVOLUME_MIRROR -DMIRROR_COMMAND -DCOMMAND_COMPONENT -no-pie -Wl,-Ttext-segment=0x10000000 -I/src/package/command /src/command-component.c /src/component.S /src/gate.S /src/transport-queue.c -o /out/command-component -pthread -ldl
+arm-linux-gnueabihf-gcc -include /out/model-build-profile.h -I/out -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon /src/mirror-read.c -o /out/mirror-read
+arm-linux-gnueabihf-gcc -include /out/model-build-profile.h -I/out -std=c11 -O2 -Wall -Wextra -Werror -marm -mfpu=neon -DVOLUME_MIRROR -DMIRROR_COMMAND -I/src/package/command /src/processor-component.c -o /out/processor-component -pthread -lm
 file /out/command-observer.so /out/command-client /out/command-component
 arm-linux-gnueabihf-readelf -l /out/command-observer.so | sed -n "/TLS/p"
 if arm-linux-gnueabihf-nm /out/command-observer.so | grep -q native_wheel_probe;then echo "Passive recorder leaked into product observer" >&2;exit 1;fi

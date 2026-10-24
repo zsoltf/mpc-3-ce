@@ -9,6 +9,10 @@ stage = Path(sys.argv[1])
 host = stage / "controllers/program-observer"
 shutil.copyfile(kit / "track-host.cc", stage / "ui/examples/track-host.cc")
 shutil.copyfile(kit / "screen-qlinks.inc", stage / "ui/examples/screen-qlinks.inc")
+shutil.copyfile(kit / "track-host-profile.h", stage / "ui/examples/track-host-profile.h")
+# MPC 3.10 admission reads the same owners from traced coordinates; the
+# exact 3.10 Preferences preparation merges them with its own.
+shutil.copyfile(kit / "track-host-310-coordinates.json", host / "track-host-310-coordinates.json")
 
 
 def replace(text, before, after):
@@ -107,6 +111,20 @@ text = replace(text, "pointers=[", """pointers=[
 text = replace(text, "'#define NATIVE_PREFERENCES_SITE_COUNT 4u'", "'#define NATIVE_PREFERENCES_SITE_COUNT 10u'")
 path.write_text(text)
 
+path = host / "native-preferences-310.py"
+text = path.read_text()
+text = replace(text, "        raise SystemExit('native Preferences requires its four existing hook owners')\n",
+"""        raise SystemExit('native Preferences requires its four existing hook owners')
+    editors = json.loads((here / 'track-host-310-coordinates.json').read_text())
+    if editors['stock_sha256'] != identity['input_sha256']:
+        raise SystemExit('track editor coordinate source pin differs')
+    # Hook order is the dispatch kind: Instrument active/destroy, tabset,
+    # insert active/destroy/session transition follow the four owners.
+    ranges, sites, pointers = ranges + editors['ranges'], sites + editors['sites'], pointers + editors['pointers']
+""")
+text = replace(text, "             '#define NATIVE_PREFERENCES_SITE_COUNT 4u',", "             f'#define NATIVE_PREFERENCES_SITE_COUNT {len(sites)}u',")
+path.write_text(text)
+
 path = host / "native-preferences.cc"
 text = path.read_text()
 declarations = '''extern "C" void mpclearn_track_editor_configure(uint32_t);
@@ -134,7 +152,11 @@ extern "C" void* mpclearn_track_text_owner() {
  if(!global_ready()||!global_capture.app)return nullptr;
  // Native stock Name qualification matches this application-owned service
  // to TextEditorLauncher::core and to the startup active-session callback.
+ #ifdef MODEL_FIRMWARE_310
+ return *(void**)((unsigned char*)global_capture.app+0x130);
+#else
  return *(void**)((unsigned char*)global_capture.app+0x12c);
+#endif
 }
 '''
 path.write_text(text)
@@ -165,23 +187,36 @@ text = replace(text, ' if(site>=QS_DESCRIPTOR&&site<=QS_LABELS&&site!=QJ_VALUE_F
 # Use the already qualified native page dispatcher on the same UI-drain
 # thread. No second command writer or synthetic controller input is added.
 text += '''
+#ifdef MODEL_FIRMWARE_310
+#define TRACK_QLINK_SCREEN_VPTR 0x6ca4e90u
+#define TRACK_QLINK_FX_MODE 0x54u
+#define TRACK_QLINK_PROGRAM_MODE 0x78u
+#define TRACK_QLINK_FX_VPTR 0x6d12924u
+#define TRACK_QLINK_PROGRAM_VPTR 0x6d13160u
+#else
+#define TRACK_QLINK_SCREEN_VPTR 0x68975b4u
+#define TRACK_QLINK_FX_MODE 0x50u
+#define TRACK_QLINK_PROGRAM_MODE 0x74u
+#define TRACK_QLINK_FX_VPTR 0x68e6cacu
+#define TRACK_QLINK_PROGRAM_VPTR 0x68e764cu
+#endif
 int mpclearn_track_qlink_native(unsigned insert,uint32_t output[8]) {
  if(!output||!active()||!ready||loading||reset_pending||depth||token()!=command_owner||
-    !root||!project||!command_queues||!typed(root,0x68d7bf8)||word(root+0x24c)!=project)return 0;
- uint32_t controls=word(root+0x388),wrapper=word(root+0x540),queue=word(root+0xf8);
+    !root||!project||!command_queues||!typed(root,MODEL_ROOT_VPTR)||word(root+MODEL_ROOT_PROJECT)!=project)return 0;
+ uint32_t controls=word(root+MODEL_ROOT_CONTROLS),wrapper=word(root+MODEL_ROOT_QLINK_WRAPPER),queue=word(root+MODEL_ROOT_QUEUES);
  if(!qlink_span(controls,0x3c)||!qlink_span(wrapper,12)||queue!=command_queues)return 0;
  uint32_t provider=word(controls+0x30),labels=word(controls+0x38),touch=word(controls+0x2c);
- if(!qlink_span(provider,0x38)||!qlink_span(labels,0x20)||!typed(touch,0x68962d8)||
+ if(!qlink_span(provider,0x38)||!qlink_span(labels,0x20)||!typed(touch,MODEL_QLINK_TOUCH_VPTR)||
     word(wrapper)!=queue||word(wrapper+8)!=provider||word(provider+0x28)!=16||
     word(labels+0x10)!=16||word(labels+0x18)!=16||word(labels+0x1c)!=16||
     !qlink_span(word(provider+0x30),16*0x68)||!qlink_span(word(provider+0x34),16*4)||
     !qlink_span(word(labels+0x14),16*12))return 0;
- uint32_t owner=word(root+0x750);if(!qlink_span(owner,0xac))return 0;
- uint32_t controller=word(owner+0xa8);
- if(!typed(controller,0x6897870)||word(controller+8)!=queue||word(controller+0x5c)!=0)return 0;
- uint32_t screen=word(controller+0xfc);if(!typed(screen,0x68975b4))return 0;
- uint32_t mode=word(screen+(insert?0x50:0x74));
- if(!typed(mode,insert?0x68e6cac:0x68e764c)||
+ uint32_t owner=word(root+MODEL_ROOT_QLINK_OWNER);if(!qlink_span(owner,MODEL_QLINK_OWNER_SPAN))return 0;
+ uint32_t controller=word(owner+MODEL_QLINK_OWNER_CONTROLLER);
+ if(!typed(controller,MODEL_QLINK_CONTROLLER_VPTR)||word(controller+8)!=queue||word(controller+0x5c)!=0)return 0;
+ uint32_t screen=word(controller+0xfc);if(!typed(screen,TRACK_QLINK_SCREEN_VPTR))return 0;
+ uint32_t mode=word(screen+(insert?TRACK_QLINK_FX_MODE:TRACK_QLINK_PROGRAM_MODE));
+ if(!typed(mode,insert?TRACK_QLINK_FX_VPTR:TRACK_QLINK_PROGRAM_VPTR)||
     !*(const unsigned char*)(uintptr_t)(mode+0x30)||word(mode+0x40)!=queue||
     word(mode+0x48)!=labels||word(mode+0x50)!=provider||word(mode+0x54)!=touch)return 0;
  output[0]=root;output[1]=queue;output[2]=mode;output[3]=controller;
@@ -193,9 +228,9 @@ int mpclearn_track_editor_main(void) {
  GeneralState *s=&mirror_state->general;
  uint32_t editor=atomic_load(&s->editor),owner=atomic_load(&s->editor_owner);
  if(!owner||atomic_load(&s->editor_root)!=root||channel_owner_id(editor)!=owner||
-    word(root-0xd0+0x904)!=editor||!typed(editor,0x695395c)||
-    !typed(editor+0x230,0x6953b1c)||word(editor+0x37c)!=root)return 0;
- return ((unsigned (*)(void*,unsigned))(uintptr_t)(observer_image_bias+0x2c70f20))((void*)(uintptr_t)editor,0x20ea)==1;
+    word(root-0xd0+MODEL_APP_EDITOR)!=editor||!typed(editor,MODEL_EDITOR_VPTR)||
+    !typed(editor+0x230,MODEL_EDITOR_SECONDARY_VPTR)||word(editor+0x37c)!=root)return 0;
+ return ((unsigned (*)(void*,unsigned))(uintptr_t)(observer_image_bias+MODEL_EDITOR_ACTION))((void*)(uintptr_t)editor,MODEL_PAGE_ACTION_MAIN)==1;
 }
 '''
 path.write_text(text)

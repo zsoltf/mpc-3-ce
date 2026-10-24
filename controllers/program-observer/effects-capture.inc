@@ -107,13 +107,13 @@ typedef struct {Track *track;uint32_t inserts,keys[EFFECT_SLOTS],aps[EFFECT_SLOT
 static int effects_resolve(Context *c,const EffectsDemand *d,EffectNative *out,int require_selected){
  memset(out,0,sizeof(*out));
  if(!d->enabled||d->epoch!=epoch||token()!=command_owner||!ready||loading||reset_pending||depth||!active()||!root||!project||!pool||!command_queues||c->r[0]!=command_queues+4||word(c->r[0]+0xf0)||atomic_load(&command_state->new_project_intent)||atomic_load(&command_state->stop_requested))return 0;
- if(!typed(root,0x68d7bf8)||word(root+0x24c)!=project||!typed(project,0x6933c4c)||word(project+0xa94)!=pool||!typed(pool,0x68ad2c4))return 0;
+ if(!typed(root,MODEL_ROOT_VPTR)||word(root+MODEL_ROOT_PROJECT)!=project||!typed(project,MODEL_PROJECT_VPTR)||word(project+MODEL_PROJECT_POOL)!=pool||!typed(pool,MODEL_POOL_VPTR))return 0;
  ChannelCell *selection=channel_cell(project+channel_offset(CF_SELECTION));if(!selection||!atomic_load(&selection->live))return 0;uint32_t selected=atomic_load(&selection->bits);
  Track *t=NULL;for(unsigned i=0;i<count;i++)if(tracks[i].serial==d->serial){if(t)return 0;t=tracks+i;}
- if(!t||(require_selected&&t->track!=selected)||t->transition||!t->track_owner||!t->program_owner||channel_owner_id(t->track)!=t->track_owner||channel_owner_id(t->program)!=t->program_owner||!vector(pool,0x34,t->track)||!typed(t->track,0x6935554)||word(t->track+0x648)!=t->program||word(t->track+0x64c)!=t->kind||!typed(word(project+0xa90),0x68ad07c)||!program_member(word(project+0xa90),t)||!command_mixable(t->program))return 0;
- uint32_t i=word(t->program+0x5e0);if(!typed(i,0x68ac370)||word(i+0x44)!=command_queues||word(t->program+0x40)!=command_queues)return 0;
+ if(!t||(require_selected&&t->track!=selected)||t->transition||!t->track_owner||!t->program_owner||channel_owner_id(t->track)!=t->track_owner||channel_owner_id(t->program)!=t->program_owner||!vector(pool,MODEL_POOL_BEGIN,t->track)||!typed(t->track,MODEL_TRACK_VPTR)||word(t->track+0x648)!=t->program||word(t->track+0x64c)!=t->kind||!typed(word(project+MODEL_PROJECT_PROGRAM_POOL),MODEL_PROGRAM_POOL_VPTR)||!program_member(word(project+MODEL_PROJECT_PROGRAM_POOL),t)||!command_mixable(t->program))return 0;
+ uint32_t i=word(t->program+0x5e0);if(!typed(i,MODEL_INSERTS_VPTR)||word(i+0x44)!=command_queues||word(t->program+0x40)!=command_queues)return 0;
  uint32_t begin=word(i+0x60),end=word(i+0x64),cap=word(i+0x68);if(end<begin||end-begin!=16||cap<end||cap-begin>16||!pointer(begin)||begin>UINT32_MAX-16)return 0;
- for(unsigned slot=0;slot<EFFECT_SLOTS;slot++){uint32_t e=word(begin+4*slot);if(e){if(!typed(e,0x692e180))return 0;uint32_t tuple=word(e+0x70);if(!pointer(tuple)||tuple>UINT32_MAX-12||word(tuple)!=t->program||word(tuple+4)!=0x101||word(tuple+8)!=slot)return 0;out->aps[slot]=word(e+0x68);}out->keys[slot]=e;}
+ for(unsigned slot=0;slot<EFFECT_SLOTS;slot++){uint32_t e=word(begin+4*slot);if(e){if(!typed(e,MODEL_INSERT_EFFECT_VPTR))return 0;uint32_t tuple=word(e+0x70);if(!pointer(tuple)||tuple>UINT32_MAX-12||word(tuple)!=t->program||word(tuple+4)!=0x101||word(tuple+8)!=slot)return 0;out->aps[slot]=word(e+0x68);}out->keys[slot]=e;}
  out->track=t;out->inserts=i;return 1;
 }
 static int effects_same(Context *c,const EffectsDemand *d,const EffectNative *before){
@@ -145,26 +145,26 @@ static int effects_description(Context *c,const EffectsDemand *d,const EffectNat
 #endif
  /* Model the native InsertEffect descriptor accessor, not generic parameter
   * children. The retained AP owns this call; no E is needed inside it. */
- if(!typed(e,0x692e180)||!pointer(expected_ap)||word(word(e)+0xcc)!=observer_image_bias+0x13f5de4)return 0;
+ if(!typed(e,MODEL_INSERT_EFFECT_VPTR)||!pointer(expected_ap)||word(word(e)+0xcc)!=observer_image_bias+MODEL_EFFECT_DESCRIPTOR_GET)return 0;
  uint32_t pair[2]={0,0};
  ((void (*)(uint32_t*,void*,unsigned))(uintptr_t)word(word(e)+0xcc))(pair,(void*)(uintptr_t)e,0);
  int valid=0;
  if(effects_same(c,d,n)&&pair[0]==expected_ap&&pair[1]&&effects_image_address(word(pair[0]),0x124,4)&&effects_image_address(word(word(pair[0])+0x120)&~1u,2,5)){
   uint32_t description[17]={0};
-  for(unsigned i=0;i<7;i++)((void (*)(uint32_t*))(uintptr_t)(observer_image_bias+0x925c70))(description+i);
+  for(unsigned i=0;i<7;i++)((void (*)(uint32_t*))(uintptr_t)(observer_image_bias+MODEL_STRING_DEFAULT))(description+i);
   effects_current.reads++;
   ((void (*)(void*,uint32_t*))(uintptr_t)word(word(pair[0])+0x120))((void*)(uintptr_t)pair[0],description);
   valid=effects_same(c,d,n)&&effects_description_text(description[0],out->name,1)&&effects_description_text(description[2],out->format,1);
   effects_description_text(description[1],out->descriptive,0);effects_description_text(description[4],out->manufacturer,0);
   out->uid=description[12];out->instrument=((unsigned char*)description)[0x34];
   valid=valid&&out->instrument<=1;
-  for(unsigned i=7;i;i--)((void (*)(uint32_t*))(uintptr_t)(observer_image_bias+0x911f58))(description+i-1);
+  for(unsigned i=7;i;i--)((void (*)(uint32_t*))(uintptr_t)(observer_image_bias+MODEL_STRING_DESTROY))(description+i-1);
  }
- if(pair[1])((void (*)(void*))(uintptr_t)(observer_image_bias+0xc96a68))((void*)(uintptr_t)pair[1]);
+ if(pair[1])((void (*)(void*))(uintptr_t)(observer_image_bias+MODEL_SHARED_RELEASE))((void*)(uintptr_t)pair[1]);
  out->valid=valid;return valid;
 }
 static int effects_string(uint32_t e,unsigned method,unsigned index,char out[EFFECT_TEXT]){
- uint32_t expected=method==0x10?0x234fd38:method==0x74?0x2351c50:0x2351e28;
+ uint32_t expected=method==0x10?MODEL_EFFECT_NAME:method==0x74?MODEL_EFFECT_PARAMETER_NAME:MODEL_EFFECT_PARAMETER_TEXT;
  if(word(word(e)+method)!=observer_image_bias+expected)return 0;
  effects_current.reads++;
 #ifdef COMMAND_COMPONENT
@@ -173,7 +173,7 @@ static int effects_string(uint32_t e,unsigned method,unsigned index,char out[EFF
  uint32_t native_string=0; /* Native JUCE one-word String, hidden return storage. */
  ((void (*)(uint32_t*,void*,unsigned))(uintptr_t)(observer_image_bias+expected))(&native_string,(void*)(uintptr_t)e,index);
  unsigned char bytes[NAME_BYTES]={0};uint32_t length=0,status=0;int valid=copy_name(native_string,bytes,&length,&status);
- ((void (*)(uint32_t*))(uintptr_t)(observer_image_bias+0x911f58))(&native_string);
+ ((void (*)(uint32_t*))(uintptr_t)(observer_image_bias+MODEL_STRING_DESTROY))(&native_string);
  memset(out,0,EFFECT_TEXT);if(!valid)return 0;
  if(length>=EFFECT_TEXT){length=EFFECT_TEXT-1;while(length&&(bytes[length]&0xc0)==0x80)length--;}
  memcpy(out,bytes,length);return 1;
@@ -185,11 +185,11 @@ static int effects_integer(uint32_t e,unsigned method,unsigned index){
 #endif
  return ((int (*)(void*,unsigned))(uintptr_t)word(word(e)+method))((void*)(uintptr_t)e,index);
 }
-static int effects_count(uint32_t e){if(word(word(e)+0x30)!=observer_image_bias+0x234ff08)return -1;effects_current.reads++;
+static int effects_count(uint32_t e){if(word(word(e)+0x30)!=observer_image_bias+MODEL_EFFECT_COUNT)return -1;effects_current.reads++;
 #ifdef COMMAND_COMPONENT
  if(component_effect_count)return component_effect_count(e);
 #endif
- return ((int (*)(void*))(uintptr_t)(observer_image_bias+0x234ff08))((void*)(uintptr_t)e);}
+ return ((int (*)(void*))(uintptr_t)(observer_image_bias+MODEL_EFFECT_COUNT))((void*)(uintptr_t)e);}
 static float effects_scalar(uint32_t e,unsigned method,unsigned index){effects_current.reads++;
 #ifdef COMMAND_COMPONENT
  if(component_effect_scalar)return component_effect_scalar(e,method,index);
@@ -204,7 +204,7 @@ static int effects_enable_read(Context *c,const EffectsDemand *d,const EffectNat
  if(!component_effect_enable)return 0;
  value=component_effect_enable(n->track->program,slot);
 #else
- value=((float (*)(void*,unsigned,unsigned))(uintptr_t)(observer_image_bias+0x250b754))((void*)(uintptr_t)n->track->program,0x101,0x146+slot);
+ value=((float (*)(void*,unsigned,unsigned))(uintptr_t)(observer_image_bias+MODEL_EFFECT_ENABLE_READ))((void*)(uintptr_t)n->track->program,0x101,0x146+slot);
 #endif
  if(!effects_same(c,d,n)||(value!=0.0f&&value!=1.0f))return 0;
  memcpy(bits,&value,4);return 1;
@@ -259,18 +259,18 @@ static void effects_service(Context *c){
  if(index>=native_total){p->index=UINT32_MAX;p->position=position;p->status=EF_EMPTY;}else if(p->status!=EF_UNSUPPORTED){
   uint32_t e=native.keys[d.slot];int n=effects_count(e);
   if(n!=(int)native_total||!effects_same(c,&d,&native)){effects_reading=0;atomic_store(&state->error,EF_INVENTORY);return;}
-  if(word(word(e)+0x40)!=observer_image_bias+0x2350278){effects_reading=0;atomic_store(&state->error,EF_UNSUPPORTED);return;}
+  if(word(word(e)+0x40)!=observer_image_bias+MODEL_EFFECT_VALUE){effects_reading=0;atomic_store(&state->error,EF_UNSUPPORTED);return;}
   if(p->status!=EF_READY){p->index=index;p->position=position;if(!effects_string(e,0x74,index,p->name)||!effects_same(c,&d,&native)){effects_reading=0;atomic_store(&state->invalid,1);return;}
-   const unsigned methods[3]={0x48,0x50,0x58},expected[3]={0x2350670,0x2350a90,0x2350eb8};uint32_t *dest[3]={&p->minimum,&p->maximum,&p->default_bits};
+   const unsigned methods[3]={0x48,0x50,0x58},expected[3]={MODEL_EFFECT_MINIMUM,MODEL_EFFECT_MAXIMUM,MODEL_EFFECT_DEFAULT};uint32_t *dest[3]={&p->minimum,&p->maximum,&p->default_bits};
    for(unsigned k=0;k<3;k++){if(word(word(e)+methods[k])!=observer_image_bias+expected[k]){effects_reading=0;atomic_store(&state->error,EF_UNSUPPORTED);return;}float v=effects_scalar(e,methods[k],index);memcpy(dest[k],&v,4);if(!effects_same(c,&d,&native)){effects_reading=0;return;}}
-   if(word(word(e)+0x90)!=observer_image_bias+0x2352000){effects_reading=0;atomic_store(&state->error,EF_UNSUPPORTED);return;}effects_current.reads++;p->automatable=
+   if(word(word(e)+0x90)!=observer_image_bias+MODEL_EFFECT_AUTOMATABLE){effects_reading=0;atomic_store(&state->error,EF_UNSUPPORTED);return;}effects_current.reads++;p->automatable=
 #ifdef COMMAND_COMPONENT
  component_effect_automatable?component_effect_automatable(e,index):
 #endif
- ((int (*)(void*,unsigned))(uintptr_t)(observer_image_bias+0x2352000))((void*)(uintptr_t)e,index)!=0;if(!effects_same(c,&d,&native)){effects_reading=0;return;}
+ ((int (*)(void*,unsigned))(uintptr_t)(observer_image_bias+MODEL_EFFECT_AUTOMATABLE))((void*)(uintptr_t)e,index)!=0;if(!effects_same(c,&d,&native)){effects_reading=0;return;}
    /* Preserve the native number of states. A concrete two-state override
     * is independent of legacy isDiscrete automation interpolation policy. */
-   if(word(word(e)+0x60)!=observer_image_bias+0x2351690){effects_reading=0;atomic_store(&state->error,EF_UNSUPPORTED);return;}
+   if(word(word(e)+0x60)!=observer_image_bias+MODEL_EFFECT_STEPS){effects_reading=0;atomic_store(&state->error,EF_UNSUPPORTED);return;}
    int steps=effects_integer(e,0x60,index);if(!effects_same(c,&d,&native)){effects_reading=0;return;}
    p->steps=steps>0?(unsigned)steps:0;
    /* Native Reverb has outer parameters but an empty generic AP parameter
@@ -308,11 +308,11 @@ static unsigned effects_request(Context *c,const CommandRequest *r,Track **out,u
   effects_reading=1;int valid=effects_enable_read(c,&d,&n,r->effect_slot,&actual);effects_reading=0;
   if(!valid)return C_NATIVE_MEMBERSHIP;
   if(actual!=r->before_bits)return C_SOURCE_CHANGED;
-  *out=t;*function=observer_image_bias+0x250ba74;return 0;
+  *out=t;*function=observer_image_bias+MODEL_PROGRAM_CONTROL;return 0;
  }
  EffectParameter *p=effects_current.parameters+r->effect_position%EFFECT_PAGE;
  if(p->status!=EF_READY||p->index!=r->effect_index||p->position!=r->effect_position||p->tick>now||now-p->tick>=EFFECT_FRESH_MS||p->bits!=r->before_bits||p->revision!=r->before_revision||p->bits==r->bits)return C_SOURCE_CHANGED;
- *out=t;*function=observer_image_bias+0x250ba74;return 0;
+ *out=t;*function=observer_image_bias+MODEL_PROGRAM_CONTROL;return 0;
 }
 static void effects_execute(Context *c){
  unsigned id=recording_call.id?recording_call.id:invocation.request,at=command_find(command_state,id);
@@ -340,7 +340,7 @@ static void effects_execute(Context *c){
   * Ignoring cannot fabricate a receipt, only leave this command's own call free
   * to arrive. If it never does, effect_executed stays 0, effects_complete skips
   * the slot and this one request stays pending for its own client timeout. */
- if(c->lr!=observer_image_bias+(recording_call.id?0x250b5b4:0x25176d4)||c->r[1]!=r->effect_index||(uint32_t)c->d[0]!=r->bits||!typed(c->r[0],0x692e180)||atomic_load(effect_executed+at))return;
+ if(c->lr!=observer_image_bias+(recording_call.id?MODEL_EFFECT_RECORD_SET_LR:MODEL_EFFECT_SET_LR)||c->r[1]!=r->effect_index||(uint32_t)c->d[0]!=r->bits||!typed(c->r[0],MODEL_INSERT_EFFECT_VPTR)||atomic_load(effect_executed+at))return;
  /* Receiver is alive at its own setter entry. No later call uses this key. */
  uint32_t e=c->r[0],ap=word(e+0x68),tuple=word(e+0x70);
  /* A receiver whose identity tuple cannot be read is indistinguishable from
@@ -468,7 +468,7 @@ static void effects_complete(Context *c){
   }
   else{
    effects_reading=1;int count=effects_count(n.keys[r->effect_slot]);
-   if(count<=0||r->effect_index>=(unsigned)count||!effects_same(c,&d,&n)||word(word(e)+0x40)!=observer_image_bias+0x2350278)outcome=EF_INVALID;
+   if(count<=0||r->effect_index>=(unsigned)count||!effects_same(c,&d,&n)||word(word(e)+0x40)!=observer_image_bias+MODEL_EFFECT_VALUE)outcome=EF_INVALID;
    else {float v=effects_scalar(n.keys[r->effect_slot],0x40,r->effect_index);if(!effects_same(c,&d,&n)||!(v>=0&&v<=1))outcome=EF_INVALID;else{
     memcpy(&bits,&v,4);
     /* Publish this actual priority sample through the same page owner before

@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "mcu-profile.h"
+#include "clip-request.h"
 enum {NOV_MESSAGE_LIMIT=16,NOV_BYTE_LIMIT=128,NOV_WIRE_MAX=64,NOV_LED_COUNT=128};
 enum {NOV_NONE,NOV_ABSOLUTE,NOV_RELATIVE,NOV_TOUCH,NOV_BUTTON,NOV_MODE,NOV_LAYOUT,NOV_PROGRAMMER,NOV_FEATURE};
 enum {NOV_SESSION,NOV_VOLUME,NOV_PAN,NOV_SEND,NOV_DEVICE,NOV_STEP64,NOV_STEP16,NOV_CLIPS,NOV_STEP_ENTER};
@@ -17,6 +18,8 @@ typedef struct {
  unsigned teardown_pending,admission_reported,shift,solo_arm,mute_select,bank;
  unsigned step_pad,step_first,step_epoch,step_program,step_bind_generation;
  unsigned clip_column,clip_row,clip_epoch;
+ ClipEditSource copy_source;
+ unsigned copy_used,copy_held;
  unsigned lc_round,lc_step,lc_received,lc_on,lc_queried,lc_correction,lc_display;
  unsigned char held[128],touch[32],led_valid[128],led_value[128],led_style[128];
  /* Encoder position 255 caches the delivered unavailable marker. */
@@ -151,7 +154,7 @@ static inline int novation_decode(NovationState *s,const unsigned char *b,unsign
  }
  if(channel==0&&(type==0x90||type==0x80||type==0xb0)){
   unsigned grid=index>=11&&index<=88&&index%10>=1&&index%10<=8;
-  unsigned edge=(index>=91&&index<=98)||(index>=19&&index<=89&&index%10==9)||(s->protocol==MCU_PROTOCOL_LPP3&&(index==80||index==70||index==20||index==10||(index>=1&&index<=8)||(index>=101&&index<=108)));
+  unsigned edge=(index>=91&&index<=98)||(index>=19&&index<=89&&index%10==9)||(s->protocol==MCU_PROTOCOL_LPP3&&(index==80||index==70||index==50||index==40||index==60||index==90||index==20||index==10||(index>=1&&index<=8)||(index>=101&&index<=108)));
   if((grid&&(type==0x90||type==0x80))||(edge&&type==0xb0)){event->kind=NOV_BUTTON;event->index=index;event->value=type!=0x80&&value!=0;return 1;}
  }return 0;
 }

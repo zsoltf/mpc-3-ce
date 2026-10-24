@@ -159,7 +159,7 @@ static int captured_output(snd_seq_t *seq,snd_seq_event_t *event){(void)seq;last
 static void need(int ok,const char *why){if(!ok){fprintf(stderr,"FAIL %s\n",why);exit(1);}}
 static void snapshot_fixture(CopiedMirror *s,unsigned n){
  memset(s,0,sizeof(*s));s->count=n;s->ready=s->alive=1;s->epoch=1;s->project_owner=1;s->selection=(CopiedField){.property=0x70078,.incarnation=1,.owner_incarnation=1,.revision=2,.seed=1,.available=1};s->heartbeat=100;s->revision=2;s->playing=(CopiedField){.available=1,.owner_incarnation=900,.incarnation=901,.revision=2};
- for(unsigned i=0;i<n;i++)s->tracks[i]=(CopiedTrack){.serial=i+1,.track=0x10000+i*0x1000,.program=0x90000+i*0x1000,.incarnation=i+1,.binding=i+1,.vptr=0x6930c00,.revision=2,.bits=0x3f000000,.seed=1,.available=1,.track_owner=2+i*2,.program_owner=3+i*2};
+ for(unsigned i=0;i<n;i++)s->tracks[i]=(CopiedTrack){.serial=i+1,.track=0x10000+i*0x1000,.program=0x90000+i*0x1000,.incarnation=i+1,.binding=i+1,.vptr=MODEL_DRUMPROGRAM_VPTR,.revision=2,.bits=0x3f000000,.seed=1,.available=1,.track_owner=2+i*2,.program_owner=3+i*2};
  for(unsigned i=0;i<n;i++)for(unsigned f=CF_PAN;f<CF_COUNT;f++)s->tracks[i].fields[f]=(CopiedField){.property=(channel_kind(f)==CO_TRACK?s->tracks[i].track:s->tracks[i].program)+channel_offset(f),.incarnation=10+i*CF_COUNT+f,.owner_incarnation=channel_kind(f)==CO_TRACK?s->tracks[i].track_owner:s->tracks[i].program_owner,.revision=2,.bits=f==CF_PAN?0x3f000000:0,.available=1,.seed=1};
 }
 static void reset_fixture(CommandState *commands,MirrorInput *in,MirrorBank *bank,CopiedMirror *s,unsigned n){
@@ -231,7 +231,7 @@ static void collection_fixture_source(MirrorState *state){
  atomic_store(state->channel.field_directory+(((0x70078u>>4)*2654435761u)&(CHANNEL_HASH-1)),1);
  for(unsigned i=0;i<16;i++){
   MirrorBinding *t=state->tracks+i;unsigned program=0x90000+i*0x1000,track=0x10000+i*0x1000;
-  atomic_store(&t->serial,i+1);atomic_store(&t->track,track);atomic_store(&t->program,program);atomic_store(&t->incarnation,i+1);atomic_store(&t->binding,i+1);atomic_store(&t->vptr,0x6930c00);atomic_store(&t->track_owner,2+i*2);atomic_store(&t->program_owner,3+i*2);
+  atomic_store(&t->serial,i+1);atomic_store(&t->track,track);atomic_store(&t->program,program);atomic_store(&t->incarnation,i+1);atomic_store(&t->binding,i+1);atomic_store(&t->vptr,MODEL_DRUMPROGRAM_VPTR);atomic_store(&t->track_owner,2+i*2);atomic_store(&t->program_owner,3+i*2);
   MirrorCell *cell=state->cells+i;atomic_store(&cell->revision,2);atomic_store(&cell->live,1);atomic_store(&cell->incarnation,i+1);atomic_store(&cell->program,program);atomic_store(&cell->property,program+0x5b0);atomic_store(&cell->seed,1);atomic_store(&cell->bits,i<8?0x3f000000:0x3e800000);
   ChannelOwner *owner=state->channel.owners+2+i*2;atomic_store(&owner->live,1);atomic_store(&owner->incarnation,3+i*2);atomic_store(&owner->kind,CO_PROGRAM);atomic_store(&owner->address,program);
  }
@@ -325,7 +325,7 @@ static void collection_production_checks(void){
  need(runtime.snapshot_copies==copies&&runtime.settlement_scans==scans&&surfaces.interest_visits==interests&&surfaces.topology_scans==topology,"disabled/disconnected slots add no snapshot, settlement, interest or topology work per parked cycle");
  coordinator_flights[0].flight=999;need(collection_needs_snapshot(&surfaces),"absent collection keeps copying until sole coordinator drains");coordinator_flights[0].flight=0;
  McuControllerCollection capacity={.count=MCU_CONTROLLER_CAPACITY};for(unsigned i=0;i<capacity.count;i++){capacity.records[i]=saved.records[0];capacity.records[i].enabled=0;}
- collection_init(&surfaces,&capacity);need(surfaces.count==16&&command_coordinator.count==1&&!collection_needs_snapshot(&surfaces),"sixteen disabled records remain bounded and parked");
+ collection_init(&surfaces,&capacity);need(surfaces.count==16&&command_coordinator.count==2&&command_coordinator.origins[0]==&input&&command_coordinator.origins[1]==&plugin_input&&!plugin_ui_live(1320)&&!input_pending(&plugin_input)&&!collection_needs_snapshot(&surfaces),"sixteen disabled records plus dormant app origin remain bounded and parked");
  need(!unlink(path)&&!rmdir(directory),"remove exact collection fixture preference");free(state);free(commands);memset(&surfaces,0,sizeof(surfaces));memset(&input,0,sizeof(input));memset(&command_coordinator,0,sizeof(command_coordinator));
  char *defaults[]={(char*)"mirror-input",(char*)"/volume",(char*)"/command"};need(servo_arguments(3,defaults)==3,"restore default after collection fixture");
  puts("PASS production persisted collection -> shared topology -> source router -> independent banks/commands -> origin settlement -> exact split feedback -> one-side absent/reconnect -> bounded teardown; actual source copier/coordinator/codec, substituted ALSA and native receipts");
@@ -384,7 +384,7 @@ static void policy_checks(void){
  reset_fixture(c,&in,&b,&s,12);input_touch(&in,&b,&s,0,1,100);input_pitch(&in,&b,0,8192,100);input_pitch(&in,&b,0,12000,101);bank_navigate(&b,1,102);input_discard(&in);bank_apply(&b,&s,103);input_sync(&in,&b);input_touch(&in,&b,&s,0,1,104);input_pitch(&in,&b,0,13000,104);input_touch(&in,&b,&s,0,0,105);input_pump(&in,&b,&s,106);need(!in.flights[0].flight,"held bank change and duplicate press cannot retarget");
  gesture(&in,&b,&s,0,12000,110);s.epoch=2;s.tracks[8].serial+=100;s.tracks[8].binding+=100;bank_apply(&b,&s,112);input_sync(&in,&b);input_pump(&in,&b,&s,113);need(!in.flights[0].flight,"reload cancels unsent motion with retained Program");
  gesture(&in,&b,&s,0,12000,120);input_discard(&in);bank_disconnect(&b);bank_apply(&b,&s,122);input_pump(&in,&b,&s,123);need(!in.flights[0].flight&&b.faders[0].touch==MT_UNKNOWN,"disconnect cancels motion and resets physical baseline");
- reset_fixture(c,&in,&b,&s,1);s.tracks[0].vptr=0x6932338;s.tracks[0].fields[CF_MIDI_VOLUME].available=0;bank_apply(&b,&s,100);gesture(&in,&b,&s,0,12000,100);input_pump(&in,&b,&s,102);need(!in.flights[0].flight,"MIDI input without captured Track level remains unavailable");
+ reset_fixture(c,&in,&b,&s,1);s.tracks[0].vptr=MODEL_MIDIPROGRAM_VPTR;s.tracks[0].fields[CF_MIDI_VOLUME].available=0;bank_apply(&b,&s,100);gesture(&in,&b,&s,0,12000,100);input_pump(&in,&b,&s,102);need(!in.flights[0].flight,"MIDI input without captured Track level remains unavailable");
  for(unsigned fault=0;fault<5;fault++){
   reset_fixture(c,&in,&b,&s,1);gesture(&in,&b,&s,0,12000,100);input_pump(&in,&b,&s,102);
   if(fault==0){atomic_store(&c->slots[0].done,1);atomic_store(&c->slots[0].sealed,1);evidence(c,1,CE_QUEUE,102,0);evidence(c,1,CE_BODY,102,0);evidence(c,1,CE_DONE,102,0);}
@@ -427,7 +427,7 @@ static void policy_checks(void){
  need(atomic_load(&c->published)==2&&in.flights[0].bits==0&&!in.edge_count,"second Mute executes after actual first settlement");
  reset_fixture(c,&in,&b,&s,2);b.fader_field=CF_PAN;bank_drop(&b,100);bank_apply(&b,&s,101);input_touch(&in,&b,&s,0,1,102);input_pitch(&in,&b,0,12000,103);input_control(&in,&b,&s,0,CF_VOLUME,2,0,103);input_pump(&in,&b,&s,104);
  need(atomic_load(&c->published)==2&&in.gestures[0].held&&in.flights[0].field==CF_VOLUME&&in.flights[1].field==CF_PAN,"Flip keeps independent held pan fader and volume encoder desires");
- reset_fixture(c,&in,&b,&s,2);s.tracks[1].vptr=0x6931f70;bank_view(&b,BV_RETURN,100);bank_apply(&b,&s,101);need(b.playable_count==1&&b.faders[0].identity.serial==2&&b.faders[1].empty,"Return role bank preserves real master membership identity");
+ reset_fixture(c,&in,&b,&s,2);s.tracks[1].vptr=MODEL_SENDPROGRAM_VPTR;bank_view(&b,BV_RETURN,100);bank_apply(&b,&s,101);need(b.playable_count==1&&b.faders[0].identity.serial==2&&b.faders[1].empty,"Return role bank preserves real master membership identity");
  input_control(&in,&b,&s,0,CF_SEND3,10,0,102);input_pump(&in,&b,&s,103);need(in.flights[0].field==CF_SEND3&&in.flights[0].target.serial==2,"send assignment uses channel field identity in role bank");
  unsigned char clock_text[10];s.position_available=1;s.bar=12;s.beat=2;s.clock=480;channel_position(clock_text,&s);need(!memcmp(clock_text,"  13 3  48",10),"native default playhead BBT adds one to bar/beat only");s.position_available=0;channel_position(clock_text,&s);need(!memcmp(clock_text,"----------",10),"expired position visibly unavailable");
  puts("PASS ordered discrete edges, independent Flip controls, real role/send identity and native BBT display formatting (synthetic snapshots)");
@@ -519,10 +519,14 @@ static void profile_policy_checks(void){
  McuEndpoint any={.profile=&mcu_profile_generic,.client="Split Device",.port="From Controller",.physical_only=MCU_ENDPOINT_ANY};
  need(inventory_has_endpoint(&hui_inventory,&any,NATIVE_ENDPOINT_FROM_CONTROLLER)&&!inventory_has_endpoint(&hui_inventory,&any,NATIVE_ENDPOINT_TO_CONTROLLER),"legacy ANY endpoint availability matches its exact logical name and role");
  duplicate_hui.rows[0]=duplicate_hui.rows[1]=hui_inventory.rows[0];need(!inventory_has_endpoint(&duplicate_hui,&any,NATIVE_ENDPOINT_FROM_CONTROLLER),"duplicate logical identities never report available");
- FakeClient crowded[5];memset(crowded,0,sizeof(crowded));for(unsigned i=0;i<5;i++){crowded[i].name="External HUI";crowded[i].type=i&1?SND_SEQ_USER_CLIENT:SND_SEQ_KERNEL_CLIENT;crowded[i].client=40+i;crowded[i].count=3;for(unsigned p=0;p<3;p++)crowded[i].ports[p]=(FakePort){.name=p==0?"DAW A":p==1?"DAW B":"DAW C",.capabilities=caps,.port=p};}
- fake_enumeration(crowded,5);need(!enumerate_external((snd_seq_t*)1,&hui_inventory)&&hui_inventory.count==NATIVE_PREFERENCES_ENDPOINTS&&hui_inventory.overflow,"HUI inventory reports overflow instead of publishing an unbounded endpoint set");
- /* Exact LCXL3/MPK249 native inventory: internal MPC mirrors must not consume
-    the twelve external endpoint slots or reject Apply before persistence. */
+ FakeClient crowded[3];char crowded_names[3][24],crowded_ports[32][24];memset(crowded,0,sizeof(crowded));
+ for(unsigned p=0;p<32;p++)snprintf(crowded_ports[p],sizeof(crowded_ports[p]),"DAW %u",p);
+ for(unsigned i=0;i<3;i++){snprintf(crowded_names[i],sizeof(crowded_names[i]),"External HUI %u",i);crowded[i].name=crowded_names[i];crowded[i].type=i&1?SND_SEQ_USER_CLIENT:SND_SEQ_KERNEL_CLIENT;crowded[i].client=40+i;crowded[i].count=32;for(unsigned p=0;p<32;p++)crowded[i].ports[p]=(FakePort){.name=crowded_ports[p],.capabilities=caps,.port=p};}
+ crowded[0].count=13;fake_enumeration(crowded,1);need(!enumerate_external((snd_seq_t*)1,&hui_inventory)&&hui_inventory.count==13&&!hui_inventory.overflow,"inventory retains thirteen external ports beyond the previous capacity");
+ crowded[0].count=32;fake_enumeration(crowded,2);need(!enumerate_external((snd_seq_t*)1,&hui_inventory)&&hui_inventory.count==NATIVE_PREFERENCES_ENDPOINTS&&!hui_inventory.overflow&&hui_inventory.rows[63].client_number==41&&hui_inventory.rows[63].port_number==31,"all sixty-four external ports retain their exact identity at capacity");
+ crowded[2].count=1;fake_enumeration(crowded,3);need(!enumerate_external((snd_seq_t*)1,&hui_inventory)&&hui_inventory.count==NATIVE_PREFERENCES_ENDPOINTS&&hui_inventory.overflow,"a sixty-fifth external port reports overflow without publishing an unbounded endpoint set");
+ /* Captured LCXL3/MPK249 topology: both firmware client names identify native
+    mirrors, which must not consume external slots or reject Apply. */
  FakeClient lcxl_native[]={
   {"System",SND_SEQ_KERNEL_CLIENT,0,2,{{"Timer",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ|SND_SEQ_PORT_CAP_WRITE,0},{"Announce",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ,1}}},
   {"MPC Live II",SND_SEQ_KERNEL_CLIENT,20,4,{{"MPC Public",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ|SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,0},{"MPC Private",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ|SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,1},{"MPC MIDI Port A",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ|SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,2},{"MPC MIDI Port B",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ|SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,3}}},
@@ -533,8 +537,10 @@ static void profile_policy_checks(void){
   {"mpclearn-controls",SND_SEQ_USER_CLIENT,130,2,{{"private ingress",SND_SEQ_PORT_CAP_WRITE,0},{"mpclearn-controls MIDI",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ,1}}},
   {"mpclearn-mirror-motors",SND_SEQ_USER_CLIENT,131,3,{{"private MCU touch and bank",SND_SEQ_PORT_CAP_WRITE,0},{"MCU eight motor output",SND_SEQ_PORT_CAP_READ,1},{"mpclearn Stop relay v1",SND_SEQ_PORT_CAP_WRITE,2}}}
  };
- fake_enumeration(lcxl_native,sizeof(lcxl_native)/sizeof(lcxl_native[0]));
- need(!enumerate_external((snd_seq_t*)1,&hui_inventory)&&hui_inventory.count==8&&!hui_inventory.overflow,"observed LCXL3 plus MPK249 inventory excludes MPC mirror ports instead of overflowing twelve external slots");
+ for(unsigned firmware=0;firmware<2;firmware++){
+  lcxl_native[5].name=firmware?"MPC 3":"MPC";fake_enumeration(lcxl_native,sizeof(lcxl_native)/sizeof(lcxl_native[0]));
+  need(!enumerate_external((snd_seq_t*)1,&hui_inventory)&&hui_inventory.count==8&&!hui_inventory.overflow,"both MPC and MPC 3 native mirror clients are excluded while physical endpoints remain");
+ }
  char *virtual_endpoint[]={"mirror-input","/volume","/command","--profile=generic","--endpoint-client=Virtual MCU","--endpoint-port=Port 0","--endpoint-type=any"};
  need(servo_arguments(7,virtual_endpoint)==3&&!controller.physical_only&&mcu_endpoint_match(&controller,"Virtual MCU",0,"Port 0",MCU_ENDPOINT_READ|MCU_ENDPOINT_SUBS_READ|MCU_ENDPOINT_WRITE),"explicit virtual emulation selection accepts only its exact named endpoint");
  char *missing[]={"mirror-input","/volume","/command","--profile=generic"};
@@ -563,6 +569,8 @@ static void profile_policy_checks(void){
  char *set_mini[]={"mirror-input","--controller-set",controller_path,"--profile=xtouch-mini"};need(input_bridge_main_not_called(4,set_mini)==0&&servo_arguments(4,saved_default)==3&&controller.profile==&mcu_profile_xtouch_mini,"valid Mini selection atomically recovers a malformed regular preference");
  char *set_xtouch[]={"mirror-input","--controller-set",controller_path,"--profile=xtouch"};need(input_bridge_main_not_called(4,set_xtouch)==0&&servo_arguments(4,saved_default)==3&&controller.profile==&mcu_profile_xtouch,"explicit saved X-Touch restores the default hardware profile");
  char native_path[256];snprintf(native_path,sizeof(native_path),"%s/native-preferences.state",controller_directory);int native_fd=open(native_path,O_RDWR|O_CREAT|O_EXCL,0600);need(native_fd>=0&&!ftruncate(native_fd,NATIVE_PREFERENCES_BYTES),"native request state fixture");NativePreferencesState *native=mmap(NULL,sizeof(*native),PROT_READ|PROT_WRITE,MAP_SHARED,native_fd,0);close(native_fd);need(native!=MAP_FAILED,"native request state mapping");memset(native,0,sizeof(*native));native->magic=NATIVE_PREFERENCES_MAGIC;native->version=NATIVE_PREFERENCES_VERSION;native->bytes=sizeof(*native);native->request_sequence=1;native->request_kind=NATIVE_REQUEST_APPLY;native->request_profile=NATIVE_CONTROLLER_XTOUCH_MINI;native->request_controller_index=0;native->request_enabled=1;native->request_input_endpoint_index=NATIVE_ENDPOINT_UNCHANGED;native->request_output_endpoint_index=NATIVE_ENDPOINT_UNCHANGED;
+ NativePreferencesState *wrong_version=NULL;native->version=NATIVE_PREFERENCES_VERSION-1;
+ need(native_state_open(native_path,&wrong_version)<0&&!wrong_version&&!native->claimed_sequence,"previous Preferences ABI is refused before claiming a request");native->version=NATIVE_PREFERENCES_VERSION;
  need(native_preferences_apply(native_path,controller_path)==0&&native->claimed_sequence==1&&native->saved_profile==NATIVE_CONTROLLER_XTOUCH_MINI&&native->status==NATIVE_PREFERENCES_APPLYING&&!native->completed_sequence,"production owner helper claims one bounded Mini request and persists before restart");need(native_preferences_finish(native_path,1)==0&&native->completed_sequence==1&&native->active_profile==NATIVE_CONTROLLER_XTOUCH_MINI&&native->status==NATIVE_PREFERENCES_ACTIVE,"production owner helper records active restart completion");
  native->request_collection_generation=native->collection_generation;native->request_sequence=2;native->request_profile=99;need(native_preferences_apply(native_path,controller_path)==NATIVE_APPLY_INVALID&&native->claimed_sequence==2&&native->completed_sequence==2&&native->status==NATIVE_PREFERENCES_INVALID,"production owner helper completes an invalid request without replacing selection");need(servo_arguments(4,saved_default)==3&&controller.profile==&mcu_profile_xtouch_mini,"invalid native request retains the saved Mini selection");
  native->request_sequence=3;native->request_profile=NATIVE_CONTROLLER_HUI;native->request_input_inventory_generation=7;native->request_input_endpoint_index=0;native->request_input_endpoint_type=NATIVE_ENDPOINT_USER;native->request_output_inventory_generation=7;native->request_output_endpoint_index=0;native->request_output_endpoint_type=NATIVE_ENDPOINT_USER;native->request_hui_policy=NATIVE_HUI_MOTORIZED;need(native_preferences_apply(native_path,controller_path)==NATIVE_APPLY_STALE&&native->claimed_sequence==3&&native->completed_sequence==3&&native->status==NATIVE_PREFERENCES_STALE,"production owner rejects stale generation-tagged split HUI endpoints without opening discovery or replacing the active selection");need(servo_arguments(4,saved_default)==3&&controller.profile==&mcu_profile_xtouch_mini,"stale HUI request retains the saved Mini selection");
@@ -677,7 +685,7 @@ static void profile_policy_checks(void){
    {"Launchpad X",SND_SEQ_KERNEL_CLIENT,32,2,{{"LPX DAW In",rw,0},{"LPX MIDI In",rw,1}}},
    {"Launchpad Pro MK3",SND_SEQ_KERNEL_CLIENT,36,3,{{"LPProMK3 MIDI",rw,0},{"LPProMK3 DIN",rw,1},{"LPProMK3 DAW",rw,2}}},
    {"JUCE",SND_SEQ_USER_CLIENT,128,1,{{"Virtual MIDI Input 1",SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ,2}}},
-   {"mpclearn-mirror-motors",SND_SEQ_USER_CLIENT,131,1,{{"MCU eight motor output",SND_SEQ_PORT_CAP_READ,1}}}
+   {"MPC 3",SND_SEQ_USER_CLIENT,129,2,{{"LCXL3 1 MIDI In",SND_SEQ_PORT_CAP_WRITE,0},{"LPX MIDI In",rw,1}}}
   };
   fake_inventory_open=1;fake_enumeration(device,sizeof(device)/sizeof(device[0]));
   need(!native_preferences_sync(native_path,controller_path,"saved")&&native->inventory_status==NATIVE_PREFERENCES_ACTIVE&&native->inventory_count==11&&native->collection_count==4,"observed device inventory publishes eleven external endpoints and the four saved rows");
@@ -786,7 +794,7 @@ static void profile_policy_checks(void){
  /* Independent simulator decoder consumes the real bridge's ALSA wire. */
  for(unsigned policy=MCU_HUI_PICKUP;policy<=MCU_HUI_MOTORIZED;policy++){
   controller_hui_policy=policy;reset_fixture(c,&in,&b,&s,16);Surface rings={.source=3,.full={32,0}};mcu_feedback_init(&hui_consumer);
-  s.tracks[0].fields[CF_PAN].bits=0;s.tracks[2].fields[CF_PAN].bits=0x3f800000;s.tracks[3].fields[CF_PAN].available=0;s.tracks[4].vptr=0x6932338;bank_apply(&b,&s,100);
+  s.tracks[0].fields[CF_PAN].bits=0;s.tracks[2].fields[CF_PAN].bits=0x3f800000;s.tracks[3].fields[CF_PAN].available=0;s.tracks[4].vptr=MODEL_MIDIPROGRAM_VPTR;bank_apply(&b,&s,100);
   need(hui_channel_output(&rings,&b,&s,100)&&hui_consumer.counts[MCU_FEEDBACK_RING]==8&&hui_consumer.ring[0]==1&&hui_consumer.ring[1]==6&&hui_consumer.ring[2]==11&&!hui_consumer.ring[3]&&!hui_consumer.ring[4],"HUI consumer receives left/centre/right and unavailable/nonmixable off in either policy");
   unsigned ring_count=hui_consumer.counts[MCU_FEEDBACK_RING];need(hui_channel_output(&rings,&b,&s,101)&&hui_consumer.counts[MCU_FEEDBACK_RING]==ring_count,"unchanged HUI rings do not resend");
   s.tracks[1].fields[CF_PAN].bits=0x3f400000;s.tracks[1].fields[CF_PAN].revision+=2;bank_apply(&b,&s,102);
@@ -827,7 +835,7 @@ static void profile_policy_checks(void){
  * inspect production handlers' request identities and emitted MCU bytes. */
 static void send_returns_fixture(CopiedMirror *s){
  for(unsigned i=0;i<4;i++){
-  CopiedTrack *t=s->tracks+8+i;t->vptr=0x6931f70;
+  CopiedTrack *t=s->tracks+8+i;t->vptr=MODEL_SENDPROGRAM_VPTR;
   snprintf(t->fields[CF_NAME].text,CHANNEL_TEXT,"Return %u",i+1);t->fields[CF_NAME].length=8;
   s->send_programs[i]=t->program;s->send_owners[i]=t->program_owner;
  }
@@ -855,7 +863,7 @@ static void assignment_checks(void){
  surface_assignment(&surface,&in,&b,&s,50,106);bank_apply(&b,&s,107);surface_encoder(&surface,&in,&b,&s,0,10,0,108);input_pump(&in,&b,&s,109);need(!b.flip&&command_request_read(c->slots+1,2,&r)&&r.serial==3&&r.reserved==CF_SEND1,"Flip swaps Sends back to selected-track encoders");
  surface_assignment(&surface,&in,&b,&s,41,110);bank_apply(&b,&s,111);
  const uint32_t levels[]={0,0x3f800000,0x3f000000,0x3e800000};const char *percent[]={"S1  0% ","S2100% ","S3 50% ","S4 25% "};
- for(unsigned i=0;i<4;i++){CopiedTrack *destination=s.tracks+8+i;destination->vptr=0x6931f70;destination->bits=0x3f800000;snprintf(destination->fields[CF_NAME].text,CHANNEL_TEXT,"Return %u",i+1);destination->fields[CF_NAME].length=8;s.send_programs[i]=destination->program;s.send_owners[i]=destination->program_owner;s.tracks[2].fields[CF_SEND1+i].bits=levels[i];}
+ for(unsigned i=0;i<4;i++){CopiedTrack *destination=s.tracks+8+i;destination->vptr=MODEL_SENDPROGRAM_VPTR;destination->bits=0x3f800000;snprintf(destination->fields[CF_NAME].text,CHANNEL_TEXT,"Return %u",i+1);destination->fields[CF_NAME].length=8;s.send_programs[i]=destination->program;s.send_owners[i]=destination->program_owner;s.tracks[2].fields[CF_SEND1+i].bits=levels[i];}
  bank_apply(&b,&s,111);for(unsigned i=0;i<8;i++){channel_output(&surface,&b,&s,s.heartbeat);}
  need(!observed_led[40]&&observed_led[41]==127&&!observed_led[42],"Send clears Track and Pan LEDs");
  for(unsigned i=0;i<4;i++){char label[8];snprintf(label,sizeof(label),"R%u+6.0 ",i+1);need(!memcmp(observed_lcd+7*i,label,7)&&!memcmp(observed_lcd+56+7*i,percent[i],7),"Send LCD shows actual return dB above selected sends percent");}
@@ -935,7 +943,7 @@ static void assignment_checks(void){
  surface_pitch(&surface,&in,&b,&s,0,11000,4214);surface_encoder(&surface,&in,&b,&s,0,8,0,4214);
  need(in.desires[0][CF_VOLUME].pending&&!in.desires[0][CF_SEND1].pending,"missing selected source disables only send while corresponding return remains usable");
  s.ready=0;bank_apply(&b,&s,4214);input_sync(&in,&b);surface_encoder(&surface,&in,&b,&s,0,8,0,4215);need(!in.desires[0][CF_SEND1].pending,"unready source admits no Send edit");
- s.ready=1;s.tracks[0].vptr=0x692fec4;surface_assignment(&surface,&in,&b,&s,64,4216);bank_apply(&b,&s,4217);
+ s.ready=1;s.tracks[0].vptr=MODEL_AUDIOPROGRAM_VPTR;surface_assignment(&surface,&in,&b,&s,64,4216);bank_apply(&b,&s,4217);
  need(b.view==BV_AUDIO&&b.assignment==BA_TRACK&&!b.flip&&b.strips[0].serial==1&&b.faders[0].identity.serial==1&&bank_field(&b,0)==CF_VOLUME,"normal Audio view exits Send pairs and restores actual audio strip binding");
  surface_pitch(&surface,&in,&b,&s,0,12000,4218);need(in.desires[0][CF_VOLUME].pending&&in.desires[0][CF_VOLUME].identity.serial==1,"Audio after Send controls its actual Track volume");
  /* Actual Aux Select -> native selection receipt -> Send recovery. */
@@ -957,7 +965,7 @@ static void assignment_checks(void){
   display_pass(&surface,&b,&s,119);for(unsigned i=0;i<8;i++)need(observed_led[24+i]==(i==target-1?127u:0u),"Send Select LED follows actual Channel source recovery");
   bank_drop(&b,120);need(channel_output(&surface,&b,&s,120),"unready Send clears selected-source feedback");for(unsigned i=0;i<8;i++)need(!observed_led[24+i],"unready Send clears all Select LEDs immediately");
 
-  s.tracks[0].vptr=0x6932150;s.selection.bits=s.tracks[0].track;bank_apply(&b,&s,120);need(b.selected.serial==1&&b.faders[0].available,"supported non-Return Submix send source remains qualified");
+  s.tracks[0].vptr=MODEL_SUBMIXPROGRAM_VPTR;s.selection.bits=s.tracks[0].track;bank_apply(&b,&s,120);need(b.selected.serial==1&&b.faders[0].available,"supported non-Return Submix send source remains qualified");
   s.selection.bits=0;bank_apply(&b,&s,121);input_discard(&in);surface_navigation(&in,&b,&s,direction?3:2,122);need(in.desires[0][CF_SELECTION].pending&&in.desires[0][CF_SELECTION].identity.serial==(direction?2u:8u),"no selected source recovers to first/last current playable Track");
  }
  free(c);puts("PASS production assignment request targets/MCU LEDs/LCD, channel Track/selected Send Flip, real Channel selection settlement and fixed bank paging/cancellation (native snapshot/call and ALSA output substituted)");
@@ -1169,29 +1177,17 @@ static void sequence_duplicate_bridge_checks(void){
  puts("PASS X-Touch Replace classifies as note 85 with its release; the shipped build gates the Duplicate Sequence route, so blocking_gate_checks owns what the press does here");
 #endif
 }
-/* What X_TOUCH_BLOCKING_ENABLED actually does to the surface, checked in both
- * configurations. mirror-input-build.sh compiles the shipped bridge with the
- * gate off and compiled every test binary with it on, so no check in this tree
- * had ever observed the configuration that reaches the device: a note named in
- * the gate's comment and left out of its expression passed everything. Save was
- * exactly that, and on hardware it killed the command source on the first press.
- * mirror-input-check.sh now runs this file a second time built the shipped way,
- * and this is the check that tells the two builds apart.
- *
- * Both halves are needed. The gated notes must publish nothing, and ungated
- * notes must still publish in the SAME session, so the gate-off half cannot
- * pass by breaking the input path wholesale. Note 81 (Undo, Shift+Undo as Redo)
- * is deliberately ungated and is checked here as an ungated route in both
- * builds: it is the nearest neighbour of the gated notes in the same
- * expression, and a mistake there would silently cost a working button. */
+/* Exercise the shipped gate as well as the diagnostic build. Save is now
+ * enabled through its repaired existing owner; centre press and Duplicate
+ * Sequence remain gated, and neighbouring controls must keep publishing. */
 static void blocking_gate_checks(void){
  CommandState *c=calloc(1,sizeof(*c));need(c!=NULL,"blocking gate state");
  MirrorInput in;MirrorBank b;MIRROR_COPY(s);snd_seq_addr_t address={32,0};
  reset_fixture(c,&in,&b,&s,2);s.editor_owner=77;s.zoom_owner=88;in.jog_epoch=s.epoch;
  s.record_mode=(CopiedField){.available=1,.owner_incarnation=100,.incarnation=101};
  Surface surface={.source=3,.full=address};
- /* The three gated routes: Save (80), Replace/Duplicate Sequence (85) and the
-  * data-wheel centre press (100), in both wheel modes and under Shift. */
+ /* Save (80), gated Replace (85) and centre press (100), in both wheel modes
+  * and under Shift. */
  surface_general_press(&surface,&in,&s,80,1,200);surface_general_press(&surface,&in,&s,80,0,201);
  surface_general_press(&surface,&in,&s,85,1,202);surface_general_press(&surface,&in,&s,85,0,203);
  in.jog_shift=1;
@@ -1205,10 +1201,11 @@ static void blocking_gate_checks(void){
 #if X_TOUCH_BLOCKING_ENABLED
  need(in.global_count==6&&in.wheel_press==1,"with the gate compiled in, Save and Duplicate Sequence queue in both wheel modes and under Shift, and the centre press is pending");
  need(in.global_events[0].operation==GLOBAL_SAVE&&in.global_events[1].operation==GLOBAL_SEQ_DUPLICATE&&in.global_events[2].operation==GLOBAL_SAVE&&in.global_events[3].operation==GLOBAL_SEQ_DUPLICATE&&in.global_events[4].operation==GLOBAL_SAVE&&in.global_events[5].operation==GLOBAL_SEQ_DUPLICATE,"and every queued operation is the one its note means");
- input_jog_discard(&in);in.jog_epoch=s.epoch;
 #else
- need(!in.global_count&&!in.wheel_press,"the shipped bridge queues nothing for Save, Duplicate Sequence or the data-wheel centre press, in either wheel mode and under Shift");
+ need(in.global_count==3&&!in.wheel_press,"shipped bridge enables Save in both wheel modes and under Shift but leaves Duplicate and centre press gated");
+ for(unsigned i=0;i<3;i++)need(in.global_events[i].operation==GLOBAL_SAVE,"only native Save is queued by the enabled route");
 #endif
+ input_jog_discard(&in);in.jog_epoch=s.epoch;
  input_pump(&in,&b,&s,214);
  need(!in.error&&!atomic_load(&c->published),"and no gated note has published a request");
  /* Same session, same fixture: the ungated neighbours still work. */
@@ -1223,11 +1220,14 @@ static void blocking_gate_checks(void){
  need(command_request_read(c->slots+command_find(c,1),1,&r)&&r.reserved==GLOBAL_PAGE_MAIN+4&&r.global_owner==77,"the page request names the enrolled Editor");
  need(command_request_read(c->slots+command_find(c,3),3,&r)&&r.reserved==GLOBAL_UNDO&&r.global_owner==77,"and Undo publishes as a history request against the same Editor");
  need(command_request_read(c->slots+command_find(c,4),4,&r)&&r.reserved==GLOBAL_REDO,"and Shift+Undo publishes as Redo");
+ surface_general_press(&surface,&in,&s,80,1,230);surface_general_press(&surface,&in,&s,80,1,231);surface_general_press(&surface,&in,&s,80,0,232);
+ need(in.global_count==1,"held Save publishes one intent, release does not repeat");input_pump(&in,&b,&s,233);
+ need(!in.error&&atomic_load(&c->published)==5&&command_request_read(c->slots+command_find(c,5),5,&r)&&r.reserved==GLOBAL_SAVE&&r.global_owner==77&&r.project_owner==s.project_owner,"dedicated Save reaches existing enrolled Editor/project request owner");
  free(c);
 #if X_TOUCH_BLOCKING_ENABLED
  puts("PASS X-Touch blocking-route gate, compiled in: Save, Duplicate Sequence and the data-wheel centre press all reach the input queue, while a page button, Record, Undo and Shift+Undo publish alongside them (native calls and ALSA hardware substituted)");
 #else
- puts("PASS X-Touch blocking-route gate in the shipped configuration (-DX_TOUCH_BLOCKING_ENABLED=0): notes 80, 85 and the data-wheel centre press 100 queue nothing and publish no request in either wheel mode or under Shift, while a page button, Record, Undo and Shift+Undo still publish in the same session (native calls and ALSA hardware substituted)");
+ puts("PASS X-Touch blocking-route gate in the shipped configuration (-DX_TOUCH_BLOCKING_ENABLED=0): Save publishes through its existing owner once; Replace85 and centre press100 remain gated in both wheel modes and under Shift, while page, Record, Undo and Shift+Undo still publish in the same session (native calls and ALSA hardware substituted)");
 #endif
 }
 static void data_wheel_checks(void){
@@ -1533,8 +1533,8 @@ static void drum_surface_checks(void){
 
  /* Sparse serials and an excluded Return establish the same playable ordinal
   * used by Channel navigation: the ninth playable parent is bank2/slot1. */
- snapshot_fixture(&s,10);s.tracks[0].vptr=0x6931f70;for(unsigned i=0;i<10;i++)s.tracks[i].serial=200+i*3;
- s.selection.bits=s.tracks[9].track;s.selected_serial=s.tracks[9].serial;s.tracks[9].vptr=0x6932a48;s.pad_count=0;s.heartbeat=200;
+ snapshot_fixture(&s,10);s.tracks[0].vptr=MODEL_SENDPROGRAM_VPTR;for(unsigned i=0;i<10;i++)s.tracks[i].serial=200+i*3;
+ s.selection.bits=s.tracks[9].track;s.selected_serial=s.tracks[9].serial;s.tracks[9].vptr=MODEL_PLUGINPROGRAM_VPTR;s.pad_count=0;s.heartbeat=200;
  b.view=BV_DRUM_PADS;bank_apply(&b,&s,200);for(unsigned i=0;i<8;i++)need(channel_output(&surface,&b,&s,200),"parent Select output for non-Drum blank pad view");
  for(unsigned i=0;i<8;i++)need(observed_led[24+i]==(i==0?127u:0u),"ninth playable parent uses fixed-bank slot1 rather than serial or pad index");
  for(unsigned i=0;i<112;i++)need(observed_lcd[i]==' ',"non-Drum parent retains blank pad labels and values");
@@ -1549,7 +1549,7 @@ static void drum_surface_checks(void){
 /* Channel navigation remains Track-owned even when its pad projection is empty. */
 static void drum_channel_checks(void){
  CommandState *c=calloc(1,sizeof(*c));need(c!=NULL,"drum navigation state");MirrorInput in;MirrorBank b;MIRROR_COPY(s);Surface surface={0};CommandRequest r;
- reset_fixture(c,&in,&b,&s,3);s.tracks[1].vptr=0x693147c;s.selection.bits=s.tracks[0].track;s.selected_serial=1;
+ reset_fixture(c,&in,&b,&s,3);s.tracks[1].vptr=MODEL_KEYGROUPPROGRAM_VPTR;s.selection.bits=s.tracks[0].track;s.selected_serial=1;
  s.pad_count=1;s.pads[0]=s.tracks[0];s.pads[0].pad_owner=100;s.pads[0].pad_generation=1;
  surface_assignment(&surface,&in,&b,&s,66,101);bank_apply(&b,&s,102);
  surface_navigation(&in,&b,&s,3,103);input_pump(&in,&b,&s,104);
@@ -1810,7 +1810,7 @@ static void outbound_update_checks(void){
  for(unsigned i=0;i<8;i++)need(bank_strip_track(&s,&b,i)==input_track(&s,b.strips+i),"rows that moved under an unapplied bank still resolve by identity");
  need(bank_strip_track(&s,&b,0)==s.tracks+5&&bank_strip_track(&s,&b,5)==s.tracks+0,"a stale row is rejected and the swapped identities resolve to their new rows");
  reset_fixture(c,&in,&b,&s,12);
- s.tracks[10].vptr=s.tracks[11].vptr=0x6931f70;
+ s.tracks[10].vptr=s.tracks[11].vptr=MODEL_SENDPROGRAM_VPTR;
  for(unsigned i=0;i<2;i++){s.send_programs[i]=s.tracks[10+i].program;s.send_owners[i]=s.tracks[10+i].program_owner;}
  b.assignment=BA_SEND;bank_apply(&b,&s,120);
  for(unsigned i=0;i<2;i++)need(b.strip_row[i]==(int)(10+i)&&bank_strip_track(&s,&b,i)==input_track(&s,b.strips+i),"a Send bank records the return rows it resolved");

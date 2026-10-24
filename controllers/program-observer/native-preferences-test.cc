@@ -55,8 +55,8 @@ static void test_set_colour(void *object,int id,uint32_t colour){
   colour_sets++;return;
  }
  require(id>=0x1000100&&id<=0x1000103,"qualified TextButton colour");
- if(id==0x1000102||id==0x1000103)require(colour==0xffffffffu||colour==0xff73757eu,"active or visibly inactive text");
- else require(colour==0xff24252au||colour==0xff202126u||colour==0xff2f2f34u||
+ if(id==0x1000102||id==0x1000103)require(colour==0xffffffffu||colour==0xff73757eu||colour==0xff17181bu,"active, inactive or blank surface text");
+ else require(colour==0xff17181bu||colour==0xff24252au||colour==0xff202126u||colour==0xff2f2f34u||
               colour==0xff303137u||colour==0xffd31145u,
               "bounded button fill");
  colour_sets++;
@@ -155,7 +155,7 @@ static unsigned global_target_dtors,global_lookups,global_formats,global_labels,
 static unsigned global_file_names,global_imports,global_exports,global_export_writes,global_creates,global_copies,global_file_selects,global_clears,global_modal_reentries;
 static unsigned global_message_ctors,global_message_dtors,global_mapping_ctors,global_mapping_commits;
 static unsigned global_mapping_frees,global_signal_dtors,global_control_sets,global_reverse_sets;
-static unsigned char global_app_storage[0x800],global_vc_storage[0x150],global_owner_storage[0x200],global_file_handler_storage[0xc0],global_chooser_storage[8],global_files[6][0x20],global_mappings[120][0xb0];
+static unsigned char global_app_storage[0x810],global_vc_storage[0x150],global_owner_storage[0x200],global_file_handler_storage[0xc0],global_chooser_storage[8],global_files[6][0x20],global_mappings[121][0xb0];
 static uint32_t global_file_entries[6][2];static uint32_t global_file_count=2;
 static const char *const global_file_names_text[6]={"FACTORY MAP","USER TEST","NEW MAP","USER TEST COPY","IMPORTED MAP","SPARE"};
 static bool global_import_returns_file,global_import_destination_exists,global_export_returns_file;
@@ -164,20 +164,37 @@ static int32_t selected_global_target=-1;static bool requested_global_learn;
 static void *test_global_current(void *property){
  require(property==global_owner_storage+0x19c,"captured owner property");return *(void**)((unsigned char*)property+0x50);
 }
+enum { TARGET_FIXED=1,TARGET_LABEL=2,TARGET_LOOKUP=4,TARGET_SELECT=8,TARGET_CLEAR=16,TARGET_COMMIT=32,TARGET_CONTROL=64,TARGET_REVERSE=128 };
+static unsigned native_target_calls[121];
+static bool fixture_native_target(int32_t id){
+#ifdef MODEL_FIRMWARE_310
+ return id>=0&&id<=120&&id!=118;
+#else
+ return id>=0&&id<120;
+#endif
+}
 static GlobalTarget *test_global_target_fixed(GlobalTarget *out,int32_t id){
- require(out&&id>=0&&id<120,"fixed target range");out->id=id;out->word4=0;out->word8=0;return out;
+ require(out&&fixture_native_target(id),"fixed target range excludes unsupported native IDs");native_target_calls[id]|=TARGET_FIXED;out->id=id;out->word4=0;out->word8=0;return out;
 }
 static GlobalTarget *test_global_target_dtor(GlobalTarget *target){require(target&&target->word4==0&&target->word8==0,"fixed target lifetime");global_target_dtors++;return target;}
 static GlobalLookup *test_global_lookup(GlobalLookup *out,void *property,const GlobalTarget *target){
- require(out&&property==global_owner_storage+0x19c&&target&&target->id>=0&&target->id<120,"live pairing lookup ABI");
- global_lookups++;out->mapping=global_mappings[target->id];out->found=1;return out;
+ require(out&&property==global_owner_storage+0x19c&&target&&fixture_native_target(target->id),"live pairing lookup ABI");
+ native_target_calls[target->id]|=TARGET_LOOKUP;global_lookups++;out->mapping=global_mappings[target->id];out->found=1;return out;
 }
 static HostString *test_global_format(HostString *out,const void *mapping){
  require(out&&mapping,"mapping formatter ABI");unsigned char data1=0;memcpy(&data1,(const unsigned char*)mapping+0xa8,1);
  out->chars=data1==1?"1":data1==13?"13":data1==119?"119":"0";global_formats++;return out;
 }
 static HostString *test_global_label(HostString *out,uint32_t id){
- require(out&&id<120,"target label ABI");out->chars=id==0?"PLAY":id==6?"STOP":id==7?"RECORD":"TARGET";global_labels++;return out;
+ require(out&&fixture_native_target((int32_t)id),"target label ABI excludes unsupported native IDs");native_target_calls[id]|=TARGET_LABEL;
+#ifdef MODEL_FIRMWARE_310
+ if(id==119){out->chars="";global_labels++;return out;}
+ if(id==120){out->chars="User Level Velocity";global_labels++;return out;}
+#else
+ if(id==118){out->chars="";global_labels++;return out;}
+ if(id==119){out->chars="User Level Velocity";global_labels++;return out;}
+#endif
+ out->chars=id==0?"PLAY":id==6?"STOP":id==7?"RECORD":"TARGET";global_labels++;return out;
 }
 static void test_global_string_dtor(HostString *text){require(text&&text->chars,"host String result lifetime");text->chars=nullptr;global_string_dtors++;}
 static HostString *test_global_file_name(HostString *out,const void *file){
@@ -204,8 +221,8 @@ static bool test_global_export_file(void *handler,const void *destination){
 }
 static void test_global_select_file(void *vc,int32_t index){require(vc==global_vc_storage&&index>=0,"native file selection receiver");select_global_fixture_file((unsigned)index);global_file_selects++;}
 static void test_global_clear(void *vc,const GlobalTarget *target){
- require(vc==global_vc_storage&&target&&target->id>=0&&target->id<120&&!global_file_handler_storage[0x9c],"native clear receiver and User-file restriction");
- memset(global_mappings[target->id]+0x9c,0,14);global_clears++;
+ require(vc==global_vc_storage&&target&&fixture_native_target(target->id)&&!global_file_handler_storage[0x9c],"native clear receiver and User-file restriction");
+ native_target_calls[target->id]|=TARGET_CLEAR;memset(global_mappings[target->id]+0x9c,0,14);global_clears++;
 }
 static void test_global_string_ctor(HostString *out,const char *text){require(out&&text,"host String constructor");out->chars=text;}
 static void test_global_chooser_open(HostString *out,void *chooser,const HostString *title,const HostString *initial_path,
@@ -259,23 +276,23 @@ static void *test_mapping_ctor(void *out,const void *message){
  require(*(void**)((unsigned char*)out+0x88)!=nullptr,"fixture Mapping allocation");global_mapping_ctors++;return out;
 }
 static void test_commit_mapping(void *collection,const GlobalTarget *target,const void *mapping){
- require(collection==global_owner_storage+0x19c&&target&&target->id>=0&&target->id<120&&mapping,"native Mapping commit owner");
- memcpy(global_mappings[target->id]+0x9c,(const unsigned char*)mapping+0x9c,4);
+ require(collection==global_owner_storage+0x19c&&target&&fixture_native_target(target->id)&&mapping,"native Mapping commit owner");
+ native_target_calls[target->id]|=TARGET_COMMIT;memcpy(global_mappings[target->id]+0x9c,(const unsigned char*)mapping+0x9c,4);
  memcpy(global_mappings[target->id]+0xa4,(const unsigned char*)mapping+0xa4,4);
  memcpy(global_mappings[target->id]+0xa8,(const unsigned char*)mapping+0xa8,1);global_mapping_commits++;
 }
 static void test_set_control(void *collection,const GlobalTarget *target,int32_t control){
- require(collection==global_owner_storage+0x19c&&target&&target->id>=0&&target->id<120&&control>=1&&control<=7,"native control-mode setter");
- memcpy(global_mappings[target->id]+0xa0,&control,4);global_control_sets++;
+ require(collection==global_owner_storage+0x19c&&target&&fixture_native_target(target->id)&&control>=1&&control<=7,"native control-mode setter");
+ native_target_calls[target->id]|=TARGET_CONTROL;memcpy(global_mappings[target->id]+0xa0,&control,4);global_control_sets++;
 }
 static void test_set_reverse(void *collection,const GlobalTarget *target,bool reverse){
- require(collection==global_owner_storage+0x19c&&target&&target->id>=0&&target->id<120,"native reverse setter");
- unsigned char value=reverse;memcpy(global_mappings[target->id]+0xa9,&value,1);global_reverse_sets++;
+ require(collection==global_owner_storage+0x19c&&target&&fixture_native_target(target->id),"native reverse setter");
+ native_target_calls[target->id]|=TARGET_REVERSE;unsigned char value=reverse;memcpy(global_mappings[target->id]+0xa9,&value,1);global_reverse_sets++;
 }
 static void test_signal_dtor(void *signal){require(signal,"embedded Mapping signal lifetime");global_signal_dtors++;}
 static void test_mapping_free(void *block){require(block,"Mapping-owned allocation");free(block);global_mapping_frees++;}
 static void test_global_select(void *property,const GlobalTarget *target){
- require(property==global_owner_storage+0x38&&target&&target->id>=0&&target->id<120,"stock selected Target property");selected_global_target=target->id;global_selects++;
+ require(property==global_owner_storage+0x38&&target&&fixture_native_target(target->id),"stock selected Target property");native_target_calls[target->id]|=TARGET_SELECT;selected_global_target=target->id;global_selects++;
 }
 static void test_global_set_learn(void *vc,bool enabled){
  require(vc==global_vc_storage,"captured view-controller Learn intent");requested_global_learn=enabled;
@@ -348,7 +365,13 @@ static void capture_controller_layout(NativePreferencesState &fixture){
 struct Frame {Context context;unsigned char stack[0x240];};
 static void setup_preferences_frame(Frame &frame,unsigned char *overlay){
  memset(&frame,0,sizeof(frame));frame.context.r[11]=(uint32_t)(uintptr_t)overlay;
+#ifdef MODEL_FIRMWARE_310
+ /* Native constructor receipt: distinct old slots catch stale frame reads. */
+ *(uint32_t*)(frame.stack+0x68)=(uint32_t)(uintptr_t)(overlay+0x164);*(uint32_t*)(frame.stack+0x50)=0x44440004;*(uint32_t*)(frame.stack+0x5c)=77;
+ *(uint32_t*)(frame.stack+0x64)=(uint32_t)(uintptr_t)(overlay+0x160);*(uint32_t*)(frame.stack+0x4c)=0x44440000;*(uint32_t*)(frame.stack+0x58)=7;
+#else
  *(uint32_t*)(frame.stack+0x68)=(uint32_t)(uintptr_t)(overlay+0x160);*(uint32_t*)(frame.stack+0x50)=0x44440000;*(uint32_t*)(frame.stack+0x5c)=7;
+#endif
  const unsigned offsets[5]={0x198,0x194,0x1a0,0x1a4,0x19c};for(unsigned n=0;n<5;n++){float v=0.25f+n;memcpy(frame.stack+offsets[n],&v,4);}float sixth=5.25f;memcpy(overlay+0x1c8,&sixth,4);
 }
 static void setup_outer_layout(Frame &frame,void *page){
@@ -356,7 +379,10 @@ static void setup_outer_layout(Frame &frame,void *page){
  if(begin==end)frame.context.r[5]=(uint32_t)(uintptr_t)page;else frame.context.r[4]=frame.context.r[5]=end;
 }
 
+#include "native-preferences-resolver-test.inc"
+
 int main(){
+ native_resolver_checks();
  NativePreferencesState fixture={};state=&fixture;
  ((void**)tab_vtable_fixture)[2]=(void*)(uintptr_t)test_tab_dtor;((void**)tab_vtable_fixture)[4]=(void*)(uintptr_t)test_tab_active;
  ((void**)overlay_vtable_fixture)[2]=(void*)(uintptr_t)test_overlay_destructor;((void**)overlay_vtable_fixture)[3]=(void*)(uintptr_t)test_overlay_destructor;
@@ -382,11 +408,21 @@ int main(){
   test_global_child_file,test_global_exists,test_global_exists_as_file,test_global_copy_file,test_global_open_mapping,
   test_global_register_mapping,test_global_select_handler,test_global_release,test_global_chooser_open};
 
+#ifdef MODEL_FIRMWARE_310
+ for(unsigned index=0;index<6;index++)*(void**)global_files[index]=(void*)(uintptr_t)0x06ca3b54u;
+#else
  for(unsigned index=0;index<6;index++)*(void**)global_files[index]=(void*)(uintptr_t)0x0689c878u;
+#endif
  for(unsigned index=0;index<global_file_count;index++){global_file_entries[index][0]=(uint32_t)(uintptr_t)global_files[index];global_file_entries[index][1]=0x70000000u+index;}
  *(uint32_t*)(global_file_handler_storage+0xa4)=(uint32_t)(uintptr_t)global_file_entries;
  *(uint32_t*)(global_file_handler_storage+0xa8)=(uint32_t)(uintptr_t)(global_file_entries+global_file_count);select_global_fixture_file(1);
- *(void**)(global_app_storage+0x3c0)=global_owner_storage;*(void**)(global_vc_storage+0x138)=global_owner_storage;*(void**)(global_vc_storage+0x13c)=global_file_handler_storage;
+#ifdef MODEL_FIRMWARE_310
+ *(void**)(global_app_storage+0x3c0)=global_vc_storage;
+ *(void**)(global_app_storage+0x3e8)=global_owner_storage;
+#else
+ *(void**)(global_app_storage+0x3c0)=global_owner_storage;
+#endif
+ *(void**)(global_vc_storage+0x138)=global_owner_storage;*(void**)(global_vc_storage+0x13c)=global_file_handler_storage;
  *(void**)(global_vc_storage+0x130)=global_chooser_storage;
  *(void**)(global_owner_storage+0x19c+0x50)=global_file_handler_storage;
  int32_t type=2,control=5,channel=1;unsigned char data1=13;memcpy(global_mappings[0]+0x9c,&type,4);memcpy(global_mappings[0]+0xa0,&control,4);memcpy(global_mappings[0]+0xa4,&channel,4);memcpy(global_mappings[0]+0xa8,&data1,1);
@@ -406,9 +442,19 @@ int main(){
  uint32_t *old=(uint32_t*)test_allocate(4);old[0]=0x55550000;*(uint32_t*)(preferences_overlay+0x1b8)=(uint32_t)(uintptr_t)old;*(uint32_t*)(preferences_overlay+0x1bc)=(uint32_t)(uintptr_t)(old+1);*(uint32_t*)(preferences_overlay+0x1c0)=(uint32_t)(uintptr_t)(old+1);
  Frame frame;memset(&frame,0,sizeof(frame));frame.context.r[4]=(uint32_t)(uintptr_t)global_app_storage;frame.context.r[5]=(uint32_t)(uintptr_t)global_vc_storage;
  frame.context.r[6]=(uint32_t)(uintptr_t)global_file_handler_storage;frame.context.r[7]=(uint32_t)(uintptr_t)global_owner_storage;native_preferences_hook(&frame.context,3);
+#ifdef MODEL_FIRMWARE_310
+ *(void**)(global_app_storage+0x7cc)=global_owner_storage;
+ *(void**)(global_app_storage+0x800)=global_vc_storage;
+#else
  *(void**)(global_app_storage+0x7cc)=global_vc_storage;
+#endif
  require(fixture.global_owner_captures==1&&fixture.last_global_owner==(uint32_t)(uintptr_t)global_owner_storage&&fixture.last_global_file==(uint32_t)(uintptr_t)global_file_handler_storage&&!fixture.failures,"startup hook captures qualified Global MIDI Learn owner and file handler");
  expected_selected=preferences_overlay+0x160;setup_preferences_frame(frame,preferences_overlay);native_preferences_hook(&frame.context,0);
+#ifdef MODEL_FIRMWARE_310
+ require(*(uint32_t*)(frame.stack+0x58)==8&&*(uint32_t*)(frame.stack+0x5c)==77,"native 3.10 index advances only traced frame slot");
+#else
+ require(*(uint32_t*)(frame.stack+0x5c)==8,"native 3.9.1 index advances traced frame slot");
+#endif
  require(fixture.tabs_created==1&&fixture.buttons_created==10&&fixture.live_tabs==1&&!fixture.failures&&colour_sets>=38&&preferences_instances[0].endpoint_count==3&&preferences_instances[0].controller_count==1,"Controllers composes collection, split endpoint lists, policy and status through canonical toolkit");
  require(tab_removes==1,"stock placeholder detached once");
  void *tab=(void*)(uintptr_t)fixture.last_tab;void **tab_slots=*(void***)tab;fixture.saved_profile=fixture.active_profile=NATIVE_CONTROLLER_XTOUCH_MINI;fixture.status=NATIVE_PREFERENCES_ACTIVE;
@@ -484,6 +530,9 @@ int main(){
   require(preferences_instances[0].draft_input==NATIVE_ENDPOINT_UNCHANGED&&preferences_instances[0].draft_output==NATIVE_ENDPOINT_UNCHANGED,"known-profile edit starts with its absent ports retained offline");
   select_list(mpc_ui_private_list_host_object(preferences_instances[0].profiles),profile-1);if(profile==NATIVE_CONTROLLER_LPX||profile==NATIVE_CONTROLLER_LPP3)require(strstr(preferences_instances[0].status_text,"Turn off Track, Global and Control for this MIDI port."),"Programmer profile presents selected-port musical-routing prerequisite");if(profile==NATIVE_CONTROLLER_MPK249)require(strstr(preferences_instances[0].status_text,"Turn Receive MMC off in MIDI/Sync"),"MPK249 presents exclusive MMC handler prerequisite");click(mpc_ui_private_control_host_object(preferences_instances[0].apply));
   require(fixture.request_sequence==before&&!fixture.failures&&strstr(preferences_instances[0].status_text,"Choose both"),"known-to-generic edit publishes nothing without explicit port selections");
+  fixture.inventory_status=NATIVE_PREFERENCES_INVALID;refresh_selection(&preferences_instances[0]);
+  require(strstr(preferences_instances[0].status_text,"Too many MIDI ports, or a port name is too long."),"inventory error remains visible above every profile's setup guidance");
+  fixture.inventory_status=NATIVE_PREFERENCES_ACTIVE;refresh_selection(&preferences_instances[0]);
   select_list(mpc_ui_private_list_host_object(preferences_instances[0].inputs),0);click(mpc_ui_private_control_host_object(preferences_instances[0].apply));require(fixture.request_sequence==before,"generic edit still requires its independent To Controller selection");
   select_list(mpc_ui_private_list_host_object(preferences_instances[0].outputs),0);click(mpc_ui_private_control_host_object(preferences_instances[0].apply));
   require(fixture.request_sequence==before+1&&fixture.request_profile==profile&&fixture.request_input_endpoint_index==1&&fixture.request_output_endpoint_index==0,"both explicit role-valid selections admit the generic edit");
@@ -498,6 +547,12 @@ int main(){
  require(!fixture.failures,"profile-transition guidance never counts as an internal failure");
  NativePreferencesEndpoint saved_endpoints[NATIVE_PREFERENCES_ENDPOINTS];memcpy(saved_endpoints,fixture.endpoints,sizeof(saved_endpoints));
  uint32_t saved_endpoint_count=fixture.inventory_count;NativePreferencesController before_refresh_controller=fixture.controllers[0];
+ fixture.inventory_count=NATIVE_PREFERENCES_ENDPOINTS;
+ for(unsigned i=0;i<NATIVE_PREFERENCES_ENDPOINTS;i++){fixture.endpoints[i]=saved_endpoints[0];fixture.endpoints[i].capabilities=NATIVE_ENDPOINT_FROM_CONTROLLER|NATIVE_ENDPOINT_TO_CONTROLLER;fixture.endpoints[i].port_number=i;}
+ fixture.inventory_generation++;native_preferences_refresh();click(mpc_ui_private_control_host_object(preferences_instances[0].add));
+ select_list(mpc_ui_private_list_host_object(preferences_instances[0].inputs),NATIVE_PREFERENCES_ENDPOINTS-1);select_list(mpc_ui_private_list_host_object(preferences_instances[0].outputs),NATIVE_PREFERENCES_ENDPOINTS-1);
+ require(preferences_instances[0].draft_input==63&&preferences_instances[0].draft_output==63&&preferences_instances[0].endpoint_rows[63].port_number==63,"both port lists can select the sixty-fourth exact inventory row");
+ click(mpc_ui_private_control_host_object(preferences_instances[0].cancel));
  memset(fixture.endpoints,0,sizeof(fixture.endpoints));fixture.inventory_count=6;
  for(unsigned i=0;i<6;i++){auto &endpoint=fixture.endpoints[i];endpoint.endpoint_type=NATIVE_ENDPOINT_USER;endpoint.capabilities=NATIVE_ENDPOINT_TO_CONTROLLER;endpoint.client_number=129;endpoint.port_number=i;memcpy(endpoint.client,"MPC",4);memcpy(endpoint.port,"MPC MIDI Port",14);}
  auto &simulator=fixture.endpoints[5];simulator.capabilities|=NATIVE_ENDPOINT_FROM_CONTROLLER;simulator.client_number=132;simulator.port_number=0;memcpy(simulator.client,"MPClearn MCU Simulator",23);memcpy(simulator.port,"MCU Simulator",14);
@@ -779,6 +834,27 @@ int main(){
   fixture.global_assigned_rows==4&&!strcmp(li.assignment_text,"ASSIGNMENT: CH2 CC1 REL CC OFFSET REV")&&
   !strcmp(li.file_status_text,"ASSIGNMENT APPLIED"),
   "Apply constructs a native MIDI message and Mapping, commits through the existing collection, then applies mode/reverse and balances temporaries");
+ /* Existing CE row IDs stay stable while Akai's native enum adds Browser Help. */
+ select_list(groups,13);
+ require(li.selected_target==MPCLEARN_GLOBAL_LEARN_NO_SELECTION&&li.row_count==3&&strstr(li.row_text[2],"User Level Velocity"),"Additional preserves User Level Velocity in the existing 120-row list");
+#ifdef MODEL_FIRMWARE_310
+ const int32_t expected_native_ids[2]={119,120};
+#else
+ const int32_t expected_native_ids[2]={118,119};
+#endif
+ for(unsigned row=1;row<=2;row++){
+  select_list(targets,row);
+  require(li.selected_target==117u+row&&selected_global_target==expected_native_ids[row-1],"selected CE row reaches the exact native Target enum");
+  li.draft_mapping={};li.draft_mapping.type=2;li.draft_mapping.channel=3;li.draft_mapping.control=5;li.draft_mapping.data1=73;li.draft_mapping.reverse=1;li.draft_dirty=1;
+  require(apply_global_draft(li),"translated Target manual commit settles through native lookup");
+  require(run_global_file_action(li,FILE_ACTION_CLEAR),"translated Target Clear settles through native lookup");
+  require(native_target_calls[expected_native_ids[row-1]]==255u,"label/fixed/lookup/select/Clear/commit/mode/reverse all use independent native ID");
+ }
+#ifdef MODEL_FIRMWARE_310
+ require(!native_target_calls[118],"new native Browser Help never aliases a CE row");
+#endif
+ select_list(groups,0);select_list(targets,1);
+ printf("PASS fixed CE target rows preserve User Level Velocity across all five native adapter crossings; labels/lookup/select/Clear/manual commit exercised with independent native IDs (native bodies substituted)\n");
  click(learn);settle_global_learn(true);native_preferences_refresh();require(fixture.global_learn_state==NATIVE_GLOBAL_LEARN_ARMED&&fixture.global_learn_settled==3,"second arm settles before armed Back");
  void *back=mpc_ui_private_control_host_object(li.global_screen.back);click(back);
  require(fixture.back_clicks==1&&fixture.global_learn_cancels==2&&fixture.global_learn_state==NATIVE_GLOBAL_LEARN_CANCELING&&fixture.live_shells==1&&li.global_screen.screen&&!strcmp(li.status_text,"CANCELING BEFORE BACK"),"armed Back queues false and retains its binding");

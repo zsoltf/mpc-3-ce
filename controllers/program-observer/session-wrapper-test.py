@@ -153,7 +153,7 @@ COMMAND_CLIENT = f'''cd {session}
 case "$1" in
  session-status) test "$2" = "{state}/command.state" -a "$3" = "{state}/volume.state" || exit 9;test -f "$2" -a -f "$3" || exit 5;test ! -f source-failed || exit 1;test ! -f closed || exit 4;test ! -f native-intent || exit 6;test -f project-ready || exit 3;exit 0;;
  status) test "$2" = "{state}/command.state" || exit 9
-  awk -v n="$(cat status-events 2>/dev/null || echo 2)" 'BEGIN{{printf "{{\\"format\\":\\"CMD31\\",\\"error\\":0,\\"requests\\":[{{\\"slot\\":0,\\"rejected\\":0}}],\\"events\\":[";for(i=0;i<n;i++)printf "%s{{\\"slot\\":0,\\"lane\\":0,\\"index\\":%d,\\"kind\\":1,\\"lr\\":1234567}}",(i?",":""),i;print "],\\"snapshot_atomic\\":false,\\"new_project_intent\\":0,\\"navigation\\":{{\\"watch\\":0}},\\"admission\\":{{\\"category\\":\\"none\\",\\"raw_result\\":0,\\"site\\":77}}}}"}}';;
+  awk -v n="$(cat status-events 2>/dev/null || echo 2)" 'BEGIN{{printf "{{\\"format\\":\\"CMD32\\",\\"error\\":0,\\"requests\\":[{{\\"slot\\":0,\\"rejected\\":0}}],\\"events\\":[";for(i=0;i<n;i++)printf "%s{{\\"slot\\":0,\\"lane\\":0,\\"index\\":%d,\\"kind\\":1,\\"lr\\":1234567}}",(i?",":""),i;print "],\\"snapshot_atomic\\":false,\\"new_project_intent\\":0,\\"navigation\\":{{\\"watch\\":0}},\\"admission\\":{{\\"category\\":\\"none\\",\\"raw_result\\":0,\\"site\\":77}}}}"}}';;
  new-project-intent) test -f native-intent || exit 1;test "$2" = "{state}/command.state" || exit 9;test "$(cat "$2")" = "$3" || exit 1;test "$(cat native-intent)" = "$3" || exit 1;if test "${{5:-}}" = consume;then test ! -e /proc/$3/exe || exit 1;mv native-intent consumed-intent;fi;;
  stop) test "$2" = "{state}/command.state" -a "$3" = "{state}/volume.state" || exit 9;touch closed;;
  *) exit 2;; esac
@@ -214,7 +214,7 @@ def native_lifetime():
     return int(subprocess.check_output([str(dev/'mirror-input'), '--test-lifetime', str(state/'native-preferences.state')], env=env, text=True))
 def native_values():
     data = (state/'native-preferences.state').read_bytes()
-    assert len(data) == 16384 and struct.unpack_from('<III', data) == (0x3355504e, 15, 16384)
+    assert len(data) == 16384 and struct.unpack_from('<III', data) == (0x3355504e, 16, 16384)
     return struct.unpack_from('<'+'I'*60, data)
 def native_request(profile, *, kind=1, generation=0, endpoint_index=0, endpoint_type=0, hui_policy=0, controller_index=0, enabled=1, output_index=None, output_type=None):
     path = state/'native-preferences.state'
@@ -552,7 +552,7 @@ try:
     assert '000001-aaaaaaaa-old' not in entries() and '000002-aaaaaaaa-old' in entries(), entries()
     newest = history/entries()[-1]; assert newest.name.startswith('000003-')
     cut = (newest/'command-status.json').read_text()
-    assert cut.startswith('{"format":"CMD31","error":0,"requests":[{"slot":0,"rejected":0}],"events":[') and '[mpclearn history: ' in cut
+    assert cut.startswith('{"format":"CMD32","error":0,"requests":[{"slot":0,"rejected":0}],"events":[') and '[mpclearn history: ' in cut
     assert cut.endswith('"admission":{"category":"none","raw_result":0,"site":77}}\n') and 'original_bytes=' in (newest/'command-status.json.truncated').read_text()
     assert len(cut) < 8192+2048+200 and (newest/'mpc.log').stat().st_size == 65536
     print(f'PASS [{MODE}] history budget: crash leftover removed, oldest pruned before the write, du <= budget, head-and-tail status summary keeps the closing admission object')

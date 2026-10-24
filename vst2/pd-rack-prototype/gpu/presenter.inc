@@ -51,22 +51,22 @@ static bool functions(){bool okay=true;
  return okay;}
 static bool owner(uintptr_t candidate=0){
  if(pool.ownerLost)return false;
- uintptr_t current=word(uintptr_t(bias)+0x06b220d4u);
+ uintptr_t current=word(uintptr_t(bias)+GPU_MANAGER_SLOT);
  if(manager&&current!=manager){pool.loseOwner();fail();return false;}
  if(!readableShape(current,0x24))return false;
  uint32_t count=word(current,0x20),capacity=word(current,0x1c);uintptr_t list=word(current,0x18);
  if(!count||count>8||count>capacity||!readableShape(list,count*4))return false;
  if(!candidate)candidate=screen;
  bool found=false;for(unsigned i=0;i<count;++i)found|=word(list,i*4)==candidate;
- if(!found||!readableShape(candidate,0x119)||word(candidate)!=bias+0x0688e7a0u)return false;
+ if(!found||!readableShape(candidate,0x119)||word(candidate)!=bias+GPU_SCREEN_VPTR)return false;
  int fd=word(candidate,0xc);uintptr_t flip=word(candidate,0x10);uint32_t controller=word(candidate,0x18);
- if(fd!=int(word(current,4))||!readableShape(flip,4)||word(flip)!=bias+0x0688e7e0u)return false;
+ if(fd!=int(word(current,4))||!readableShape(flip,4)||word(flip)!=bias+GPU_FLIPPER_VPTR)return false;
  if(manager&&(screen!=candidate||nativeFd!=fd||crtc!=controller||flipper!=flip)){pool.loseOwner();fail();return false;}
  manager=current;screen=candidate;nativeFd=fd;crtc=controller;flipper=flip;return true;
 }
-static bool modalClear(){uintptr_t m=word(uintptr_t(bias)+0x06b220e0u);if(!readableShape(m,0x18)||word(m)!=bias+0x0688ea3cu||word(m,8)!=bias+0x0688ea50u)return false;
+static bool modalClear(){uintptr_t m=word(uintptr_t(bias)+GPU_MODAL_SLOT);if(!readableShape(m,0x18)||word(m)!=bias+GPU_MODAL_VPTR||word(m,8)!=bias+GPU_MODAL_SECONDARY_VPTR)return false;
  unsigned count=word(m,0x14),capacity=word(m,0x10);uintptr_t list=word(m,0xc);if(count>8||count>capacity||(count&&!readableShape(list,count*4)))return false;
- for(unsigned i=0;i<count;++i){uintptr_t item=word(list,i*4);if(!readableShape(item,0x44)||word(item)!=bias+0x0688bf0cu||*(const unsigned char*)(item+0x40))return false;}return true;
+ for(unsigned i=0;i<count;++i){uintptr_t item=word(list,i*4);if(!readableShape(item,0x44)||word(item)!=bias+GPU_MODAL_ITEM_VPTR||*(const unsigned char*)(item+0x40))return false;}return true;
 }
 static bool visible(){return enabled&&!failed&&pool.producerLive&&clearVisibility(bias,root,active,text,retired,geometry)&&modalClear();}
 static void requestCpuRefresh(){

@@ -213,7 +213,7 @@ static void queue_point(Context *c,unsigned site){
     * another value is proof the body is not this request's. The frame and the
     * window stay faults and still precede the receipt; if this request's own
     * body never arrives, M_QUEUE_DONE fails on the window instead. */
-   if(c->r[0]!=p||c->lr!=observer_image_bias+0x25178d4||c->r[1]!=command_arg_kind(&accepted[at].request)||c->r[2]!=accepted[at].controller||(uint32_t)c->d[0]!=accepted[at].native_bits)return;
+   if(c->r[0]!=p||c->lr!=observer_image_bias+MODEL_QUEUE_RETURN||c->r[1]!=command_arg_kind(&accepted[at].request)||c->r[2]!=accepted[at].controller||(uint32_t)c->d[0]!=accepted[at].native_bits)return;
    if(invocation.phase!=1||source_sp(c)+8!=invocation.sp){trace_fail(C_TRACE_AMBIGUOUS);return;}
    invocation.phase=2;effects_native_body(at);event(c,CE_BODY,id,invocation.capture,invocation.counter,p,c->r[1],c->r[2],(uint32_t)c->d[0],0,0);
   }else{
@@ -238,19 +238,19 @@ static int vector(uint32_t object,unsigned offset,uint32_t target){
 static int program_member(uint32_t pp,const Track *t){
  unsigned offset=0;uint32_t vptr=0;
  switch(t->kind){
- case 7:offset=0x78;vptr=0x6931f70;break;
- case 8:offset=0x84;vptr=0x6932150;break;
- case 9:offset=0x90;vptr=t->vptr==0x6931d90?0x6931d90:0x6931bb0;break;
+ case 7:offset=0x78;vptr=MODEL_SENDPROGRAM_VPTR;break;
+ case 8:offset=0x84;vptr=MODEL_SUBMIXPROGRAM_VPTR;break;
+ case 9:offset=0x90;vptr=t->vptr==MODEL_MASTEROUTPUTPROGRAM_VPTR?MODEL_MASTEROUTPUTPROGRAM_VPTR:MODEL_OUTPUTPROGRAM_VPTR;break;
  default:return vector(pp,0x1c,t->program);
  }
- uint32_t a=word(root+0x2e4);if(!pointer(a)||a>UINT32_MAX-0x400)return 0;
- uint32_t mixer=a+0x260;unsigned id=atomic_load(&mirror_state->channel.mixer_owner);
- if(t->vptr!=vptr||!id||channel_owner_id(mixer)!=id||!typed(mixer,0x6898b34))return 0;
- return vector(mixer,offset,t->program)&&typed(t->program,vptr)&&word(root+0x2e4)==a&&channel_owner_id(mixer)==id;
+ uint32_t a=word(root+MODEL_ROOT_AUDIO);if(!pointer(a)||a>UINT32_MAX-0x400)return 0;
+ uint32_t mixer=a+MODEL_AUDIO_MIXER;unsigned id=atomic_load(&mirror_state->channel.mixer_owner);
+ if(t->vptr!=vptr||!id||channel_owner_id(mixer)!=id||!typed(mixer,MODEL_MIXER_VPTR))return 0;
+ return vector(mixer,offset,t->program)&&typed(t->program,vptr)&&word(root+MODEL_ROOT_AUDIO)==a&&channel_owner_id(mixer)==id;
 }
 static int command_mixable(uint32_t p){
- static const uint32_t types[]={0x6930c00,0x692fec4,0x6932a48,0x693147c,0x69317a8,0x69319d0,0x6931bb0,0x6931d90,0x6931f70,0x6932150};
- for(unsigned i=0;i<sizeof(types)/sizeof(*types);i++)if(typed(p,types[i]))return word(word(p)+0x78)==observer_image_bias+0x1375c68;
+ static const uint32_t types[]={MODEL_DRUMPROGRAM_VPTR,MODEL_AUDIOPROGRAM_VPTR,MODEL_PLUGINPROGRAM_VPTR,MODEL_KEYGROUPPROGRAM_VPTR,MODEL_MASTERPROGRAM_VPTR,MODEL_INPUTPROGRAM_VPTR,MODEL_OUTPUTPROGRAM_VPTR,MODEL_MASTEROUTPUTPROGRAM_VPTR,MODEL_SENDPROGRAM_VPTR,MODEL_SUBMIXPROGRAM_VPTR};
+ for(unsigned i=0;i<sizeof(types)/sizeof(*types);i++)if(typed(p,types[i]))return word(word(p)+0x78)==observer_image_bias+MODEL_MIXABLE_PREDICATE;
  return 0;
 }
 static ChannelCell *request_cell(const CommandRequest *r,const Track *t){
@@ -266,12 +266,12 @@ static uint32_t (*component_midi_lookup)(uint32_t,uint32_t);
 /* Native history addresses the first Track with this visible name. Resolve it
  * before invoking the factory, while the existing UI-owner admission is held. */
 static int midi_preflight(const Track *t){
- if(!typed(t->program,0x6932338)||!typed(t->track,0x6935554))return 0;
+ if(!typed(t->program,MODEL_MIDIPROGRAM_VPTR)||!typed(t->track,MODEL_TRACK_VPTR))return 0;
  uint32_t resolved;
 #ifdef COMMAND_COMPONENT
  resolved=component_midi_lookup?component_midi_lookup(pool,t->track+0x468):0;
 #else
- resolved=((uint32_t (*)(void*,void*))(uintptr_t)(observer_image_bias+0x257eec4))((void*)(uintptr_t)pool,(void*)(uintptr_t)(t->track+0x468));
+ resolved=((uint32_t (*)(void*,void*))(uintptr_t)(observer_image_bias+MODEL_MIDI_LOOKUP))((void*)(uintptr_t)pool,(void*)(uintptr_t)(t->track+0x468));
 #endif
  return resolved==t->track;
 }
@@ -285,7 +285,7 @@ static PadScalar *request_pad(const CommandRequest *r,const Track *t,int native)
  if(f==PF_COUNT||r->field_incarnation!=r->pad_owner*PF_COUNT+f)return NULL;
  PadScalar *v=o->fields+f;if(!atomic_load(&v->live)||!atomic_load(&v->seed))return NULL;
  if(native){uint32_t child=atomic_load(&o->address),a=word(t->program+0x1fec),b=word(t->program+0x1ff0),cap=word(t->program+0x1ff4);
-  if(!typed(t->program,0x6930c00)||!pointer(a)||b<a||cap<b||(b-a)%4||(cap-a)%4||(cap-a)/4>PAD_SLOTS||r->pad_index>=(b-a)/4||word(a+r->pad_index*4)!=child||!typed(child,0x692f650)||word(child+0x13b0)!=t->program||word(child+0x12dc)!=r->pad_index||*(const volatile unsigned char*)(uintptr_t)(child+0x13d8))return NULL;
+  if(!typed(t->program,MODEL_DRUMPROGRAM_VPTR)||!pointer(a)||b<a||cap<b||(b-a)%4||(cap-a)%4||(cap-a)/4>PAD_SLOTS||r->pad_index>=(b-a)/4||word(a+r->pad_index*4)!=child||!typed(child,MODEL_INSTRUMENT_VPTR)||word(child+MODEL_INSTRUMENT_PARENT)!=t->program||word(child+MODEL_INSTRUMENT_SLOT)!=r->pad_index||*(const volatile unsigned char*)(uintptr_t)(child+MODEL_INSTRUMENT_EXCLUSION_BYTE))return NULL;
  }
  return v;
 }
@@ -308,12 +308,12 @@ static unsigned resolve(Context *c,const CommandRequest *r,Track **out,uint32_t 
  if(!command_queues||c->r[0]!=command_queues+4||word(c->r[0]+0xf0)!=0)return C_NOT_READY;
  Track *t=NULL;for(unsigned i=0;i<count;i++)if(tracks[i].serial==r->serial){if(t)return C_IDENTITY;t=tracks+i;}
  if(!t||t->binding!=r->binding||t->incarnation!=r->incarnation||t->track_owner!=r->track_owner||t->program_owner!=r->program_owner||!r->track_owner||!r->program_owner||channel_owner_id(t->track)!=r->track_owner||channel_owner_id(t->program)!=r->program_owner||channel_owner_id(project)!=r->project_owner)return C_IDENTITY;
- uint32_t e=root;if(!typed(e,0x68d7bf8))return C_NATIVE_MEMBERSHIP;
- uint32_t pr=word(e+0x24c);if(pr!=project||!typed(pr,0x6933c4c))return C_NATIVE_MEMBERSHIP;
- uint32_t tp=word(pr+0xa94),pp=word(pr+0xa90);
- if(tp!=pool||!typed(tp,0x68ad2c4)||!typed(pp,0x68ad07c)||!vector(tp,0x34,t->track))return C_NATIVE_MEMBERSHIP;
- if(!typed(t->track,0x6935554)||word(t->track+0x648)!=t->program||word(t->track+0x64c)!=t->kind||!program_member(pp,t))return C_NATIVE_MEMBERSHIP;
- if(field!=CF_MIDI_VOLUME&&field!=CF_SELECTION&&field!=CF_ARM&&(!command_mixable(t->program)||word(word(t->program)+0x28)!=observer_image_bias+0x250ba74))return C_NOT_DRUM;
+ uint32_t e=root;if(!typed(e,MODEL_ROOT_VPTR))return C_NATIVE_MEMBERSHIP;
+ uint32_t pr=word(e+MODEL_ROOT_PROJECT);if(pr!=project||!typed(pr,MODEL_PROJECT_VPTR))return C_NATIVE_MEMBERSHIP;
+ uint32_t tp=word(pr+MODEL_PROJECT_POOL),pp=word(pr+MODEL_PROJECT_PROGRAM_POOL);
+ if(tp!=pool||!typed(tp,MODEL_POOL_VPTR)||!typed(pp,MODEL_PROGRAM_POOL_VPTR)||!vector(tp,MODEL_POOL_BEGIN,t->track))return C_NATIVE_MEMBERSHIP;
+ if(!typed(t->track,MODEL_TRACK_VPTR)||word(t->track+0x648)!=t->program||word(t->track+0x64c)!=t->kind||!program_member(pp,t))return C_NATIVE_MEMBERSHIP;
+ if(field!=CF_MIDI_VOLUME&&field!=CF_SELECTION&&field!=CF_ARM&&(!command_mixable(t->program)||word(word(t->program)+0x28)!=observer_image_bias+MODEL_PROGRAM_CONTROL))return C_NOT_DRUM;
  if(*(const volatile unsigned char*)(uintptr_t)(t->program+0x1158))return C_PREPARED;
  if(field==CF_MIDI_VOLUME&&!midi_preflight(t))return C_NATIVE_MEMBERSHIP;
  uint32_t rev,bits;
@@ -331,10 +331,10 @@ static unsigned resolve(Context *c,const CommandRequest *r,Track **out,uint32_t 
   if(rev!=atomic_load_explicit(&cell->revision,memory_order_relaxed))return C_SOURCE_CHANGED;
  }
  if((rev&1)||rev!=r->before_revision||bits!=r->before_bits||(field==CF_SELECTION?bits==t->track:bits==r->bits))return C_SOURCE_CHANGED;
- if(pr!=word(e+0x24c)||tp!=word(pr+0xa94)||pp!=word(pr+0xa90)||word(t->track+0x648)!=t->program)return C_NATIVE_MEMBERSHIP;
+ if(pr!=word(e+MODEL_ROOT_PROJECT)||tp!=word(pr+MODEL_PROJECT_POOL)||pp!=word(pr+MODEL_PROJECT_PROGRAM_POOL)||word(t->track+0x648)!=t->program)return C_NATIVE_MEMBERSHIP;
  /* Selection/arm invoke owner operations, never raw Property setters. */
- if(field==CF_ARM&&(!typed(t->track+0x46c,0x69355e0)||word(word(t->track)+0x28)!=observer_image_bias+0x26500f8||!word(t->track+0x48c)))return C_NATIVE_MEMBERSHIP;
- *out=t;*function=observer_image_bias+(field==CF_SELECTION?0x2549c90:field==CF_ARM?0x26500f8:field==CF_MIDI_VOLUME?0x13d5fd0:0x250ba74);return C_OK;
+ if(field==CF_ARM&&(!typed(t->track+0x46c,MODEL_TRACK_ARMABLE_VPTR)||word(word(t->track)+0x28)!=observer_image_bias+MODEL_ARM_TRACK||!word(t->track+0x48c)))return C_NATIVE_MEMBERSHIP;
+ *out=t;*function=observer_image_bias+(field==CF_SELECTION?MODEL_SELECT_TRACK:field==CF_ARM?MODEL_ARM_TRACK:field==CF_MIDI_VOLUME?MODEL_MIDI_FACTORY:MODEL_PROGRAM_CONTROL);return C_OK;
 }
 #ifdef COMMAND_COMPONENT
 static void (*component_dispatch)(uint32_t,uint32_t,uint32_t,float);
@@ -387,6 +387,9 @@ void command_retire(void){
 #include "recording-capture.inc"
 #include "midi-capture.inc"
 #include "effects-capture.inc"
+#ifdef NATIVE_PREFERENCES
+#include "plugin-controls-binding.inc"
+#endif
 #include "effects-chooser.inc"
 #include "qlink-capture.inc"
 #include "qlink-command.inc"
@@ -442,9 +445,9 @@ static void service_one(Context *c,unsigned at){
  COMMAND_PAUSE(5); /* resolved dispatch attempt, before final call validation */
  unsigned stop=atomic_load_explicit(&command_violation,memory_order_seq_cst);
  if(!atomic_load_explicit(&observer_running,memory_order_seq_cst)||stop||atomic_load(&enrollment_fault)||atomic_load(&command_state->error)||atomic_load(&command_state->trace_error)||!active())why=stop?(stop&65535):C_SOURCE_FAILURE;
- else if(!typed(root,0x68d7bf8)||word(root+0x24c)!=project||!typed(project,0x6933c4c)||word(project+0xa94)!=pool||!typed(pool,0x68ad2c4)||!vector(pool,0x34,t->track)||!typed(t->track,0x6935554)||word(t->track+0x648)!=t->program||word(t->track+0x64c)!=t->kind||!typed(word(project+0xa90),0x68ad07c)||!program_member(word(project+0xa90),t))why=C_NATIVE_MEMBERSHIP;
+ else if(!typed(root,MODEL_ROOT_VPTR)||word(root+MODEL_ROOT_PROJECT)!=project||!typed(project,MODEL_PROJECT_VPTR)||word(project+MODEL_PROJECT_POOL)!=pool||!typed(pool,MODEL_POOL_VPTR)||!vector(pool,MODEL_POOL_BEGIN,t->track)||!typed(t->track,MODEL_TRACK_VPTR)||word(t->track+0x648)!=t->program||word(t->track+0x64c)!=t->kind||!typed(word(project+MODEL_PROJECT_PROGRAM_POOL),MODEL_PROGRAM_POOL_VPTR)||!program_member(word(project+MODEL_PROJECT_PROGRAM_POOL),t))why=C_NATIVE_MEMBERSHIP;
  else if(r.reserved!=CF_MIDI_VOLUME&&!accepted[at].synchronous&&(!command_mixable(t->program)||word(word(t->program)+0x28)!=function))why=C_NOT_DRUM;
- else if(r.reserved==CF_ARM&&(!typed(t->track+0x46c,0x69355e0)||word(word(t->track)+0x28)!=function||!word(t->track+0x48c)))why=C_NATIVE_MEMBERSHIP;
+ else if(r.reserved==CF_ARM&&(!typed(t->track+0x46c,MODEL_TRACK_ARMABLE_VPTR)||word(word(t->track)+0x28)!=function||!word(t->track+0x48c)))why=C_NATIVE_MEMBERSHIP;
  else if(channel_owner_id(t->track)!=r.track_owner||channel_owner_id(t->program)!=r.program_owner||channel_owner_id(project)!=r.project_owner||word(t->track+0x648)!=t->program||*(const volatile unsigned char*)(uintptr_t)(t->program+0x1158))why=C_NATIVE_MEMBERSHIP;
  if(!why&&atomic_load_explicit(&command_state->new_project_intent,memory_order_seq_cst))why=C_NOT_READY;
  if(!why&&command_effect(r.reserved))why=effects_request(c,&r,&t,&function);
@@ -492,13 +495,13 @@ unsigned command_meter_closing(void){
  * Only this existing qualified UI queue owner samples native topology. */
 static void send_destinations(Context *c){
  if(!ready||loading||reset_pending||depth||!root||!project||!pool||!command_queues||c->r[0]!=command_queues+4||word(c->r[0]+0xf0))return;
- if(!typed(root,0x68d7bf8)||word(root+0x24c)!=project||!typed(project,0x6933c4c))return;
- uint32_t a=word(root+0x2e4);if(!pointer(a)||a>UINT32_MAX-0x400)return;
- uint32_t mixer=a+0x260,id=channel_owner_id(mixer),programs[4]={0},owners[4]={0};
- if(!id||id!=atomic_load(&mirror_state->channel.mixer_owner)||!typed(mixer,0x6898b34))return;
+ if(!typed(root,MODEL_ROOT_VPTR)||word(root+MODEL_ROOT_PROJECT)!=project||!typed(project,MODEL_PROJECT_VPTR))return;
+ uint32_t a=word(root+MODEL_ROOT_AUDIO);if(!pointer(a)||a>UINT32_MAX-0x400)return;
+ uint32_t mixer=a+MODEL_AUDIO_MIXER,id=channel_owner_id(mixer),programs[4]={0},owners[4]={0};
+ if(!id||id!=atomic_load(&mirror_state->channel.mixer_owner)||!typed(mixer,MODEL_MIXER_VPTR))return;
  uint32_t begin=word(mixer+0x78),end=word(mixer+0x7c),cap=word(mixer+0x80);int valid=pointer(begin)&&begin<=UINT32_MAX-16&&end==begin+16&&cap>=end&&(cap-begin)%4==0&&cap-begin<=MIRROR_TRACKS*4;
- for(unsigned i=0;valid&&i<4;i++){programs[i]=word(begin+4*i);owners[i]=channel_owner_id(programs[i]);if(!owners[i]||!typed(programs[i],0x6931f70))valid=0;for(unsigned j=0;j<i;j++)if(programs[i]==programs[j])valid=0;}
- if(word(root+0x2e4)!=a||channel_owner_id(mixer)!=id||word(mixer+0x78)!=begin||word(mixer+0x7c)!=end||word(mixer+0x80)!=cap)valid=0;
+ for(unsigned i=0;valid&&i<4;i++){programs[i]=word(begin+4*i);owners[i]=channel_owner_id(programs[i]);if(!owners[i]||!typed(programs[i],MODEL_SENDPROGRAM_VPTR))valid=0;for(unsigned j=0;j<i;j++)if(programs[i]==programs[j])valid=0;}
+ if(word(root+MODEL_ROOT_AUDIO)!=a||channel_owner_id(mixer)!=id||word(mixer+0x78)!=begin||word(mixer+0x7c)!=end||word(mixer+0x80)!=cap)valid=0;
  if(!valid){memset(programs,0,sizeof(programs));memset(owners,0,sizeof(owners));}
  GeneralState *g=&mirror_state->general;unsigned changed=atomic_load(&g->sends_epoch)!=epoch||atomic_load(&g->sends_mixer)!=id;
  for(unsigned i=0;i<4;i++)changed|=atomic_load(&g->sends_programs[i])!=programs[i]||atomic_load(&g->sends_owners[i])!=owners[i];
@@ -633,6 +636,11 @@ static void position_point(Context *c,unsigned site,unsigned lane){
 void observer_hook(Context *c,unsigned kind){
  if(!c||kind<MODEL_HOOK_BASE||!command_state)return;
  unsigned site=kind-MODEL_HOOK_BASE;
+ /* A native holder drain must retire CE flights even after observer close.
+  * It touches only retained CE static state and emits no source receipt. */
+ if(site==GL_EDITOR_RETIRED){transport_editor_retired(c->r[5]);return;}
+ if(site==IO_TRACK_RETIRED){io_track_retired(c->r[5]);return;}
+ if(site==IO_MONITOR_ENTER||site==IO_SEND_ENTER)io_native_enter(c->r[0]);
  if(site==STEP_BOUND_PLAYHEAD){step_bound_clock_capture(c);return;}
  if(site==STEP_BOUND_EVENTS_CHANGED){step_bound_changed(c);return;}
  if(site==STEP_EVENTS_CHANGED){step_source_changed(c);return;}
@@ -670,10 +678,10 @@ void observer_hook(Context *c,unsigned kind){
  if(site==158){
   /* Safe entry hook: literal loads are relocated, no native call displaced.
    * Positive intent exists only after the accepted NewProject confirmation. */
-  if(!atomic_load_explicit(&observer_running,memory_order_seq_cst)||c->r[0]!=word(observer_image_bias+0x6b26814)||!pointer(c->r[0]))return;
+  if(!atomic_load_explicit(&observer_running,memory_order_seq_cst)||c->r[0]!=word(observer_image_bias+MODEL_ENVIRONMENT_SLOT)||!pointer(c->r[0]))return;
   unsigned lane=trace_enter(site);if(lane==COMMAND_LANES)return;
   unsigned intent=3;
-  if(c->lr==observer_image_bias+0x25703f4&&!c->r[1]&&token()==command_owner&&!atomic_load(&command_state->new_project_intent)&&!atomic_load(&command_state->error)&&!atomic_load(&command_state->trace_error)&&!atomic_load(&command_state->stop_requested)){
+  if(c->lr==observer_image_bias+MODEL_NEW_PROJECT_RETURN&&!c->r[1]&&token()==command_owner&&!atomic_load(&command_state->new_project_intent)&&!atomic_load(&command_state->error)&&!atomic_load(&command_state->trace_error)&&!atomic_load(&command_state->stop_requested)){
    atomic_store(&command_state->new_project_epoch,atomic_load(&mirror_state->epoch));atomic_store(&command_state->new_project_tick,atomic_load(&mirror_state->heartbeat));intent=1;
   }
   atomic_store_explicit(&command_state->new_project_intent,intent,memory_order_seq_cst);trace_leave(lane);return;
@@ -692,7 +700,7 @@ void observer_hook(Context *c,unsigned kind){
  }
  if((site>=QM_PREPARE0&&site<=QM_DONE1)||(site==JG_PUBLISH&&mode_submission)){
   if(site<=QM_RESULT1||site==JG_PUBLISH){if(!mode_submission)return;}
-  else{unsigned part=0;int found=mode_job_find(c->r[site==QM_ENTER0||site==QM_ENTER1?0:site==QM_DONE0?4:5],&part);if(found==COMMAND_SLOTS)return;if(found<0){trace_fail(C_TRACE_AMBIGUOUS);return;}}
+  else{unsigned part=0;int found=mode_job_find(c->r[site==QM_ENTER0||site==QM_ENTER1?0:site==QM_DONE0?4:MODEL_QLINK_MODE_DONE_REGISTER1],&part);if(found==COMMAND_SLOTS)return;if(found<0){trace_fail(C_TRACE_AMBIGUOUS);return;}}
   unsigned lane=trace_enter(site);if(lane==COMMAND_LANES)return;mode_job_point(c,site);trace_leave(lane);return;
  }
  if((site>=QJ_ACTIVITY_RESULT&&site<=QJ_VALUE_PREPARE)||site==QJ_VALUE_FANOUT||(site==JG_PUBLISH&&qlink_submission)){
@@ -787,7 +795,13 @@ void observer_hook(Context *c,unsigned kind){
   if(site!=COMMAND_DRAIN){atomic_store_explicit(&command_violation,(site<<16)|C_OWNER,memory_order_seq_cst);if(atomic_load_explicit(&observer_running,memory_order_seq_cst))atomic_store_explicit(&observer_running,0,memory_order_seq_cst);}return;
  }
  if(!atomic_load_explicit(&observer_running,memory_order_seq_cst))return;
- if(atomic_load_explicit(&command_in_hook,memory_order_seq_cst)){atomic_store_explicit(&command_violation,(site<<16)|C_REENTRY,memory_order_seq_cst);command_fail(C_REENTRY);return;}
+ if(atomic_load_explicit(&command_in_hook,memory_order_seq_cst)){
+  /* Native Save pumps the owning UI queue before its facade returns. A nested
+   * drain must leave all slots and the outer flight untouched; the outer or
+   * next ordinary drain services them. Other source reentry remains fatal. */
+  if(site==COMMAND_DRAIN)return;
+  atomic_store_explicit(&command_violation,(site<<16)|C_REENTRY,memory_order_seq_cst);command_fail(C_REENTRY);return;
+ }
  atomic_store_explicit(&command_in_hook,1,memory_order_seq_cst);
  if(!atomic_load_explicit(&observer_running,memory_order_seq_cst))goto done;
  if(site==COMMAND_DRAIN)service(c);
@@ -797,7 +811,7 @@ void observer_hook(Context *c,unsigned kind){
   command_mirror_hook(c,kind);
   if(!active()){command_fail(C_SOURCE_FAILURE);goto done;}
   if(site==M_RESET||site==M_CREATE_ENTER)global_root(M_RESET);
-  if(site==M_RESET||site==M_CREATE_ENTER){uint32_t q=word(c->r[0]+0xf8);if(q>UINT32_MAX-4||!typed(q,0x68aeaf0)||!typed(q+4,0x68aeadc)){command_fail(C_NATIVE_MEMBERSHIP);goto done;}command_queues=q;uint32_t a=word(root+0x2e4);if(pointer(a)&&a<UINT32_MAX-0x400){uint32_t x=word(a+0x3d8);if(typed(x,0x689fdac))atomic_store_explicit(&jog_current_x,x,memory_order_release);uint32_t f=word(root+0x318);if(typed(f,0x6899fa0))atomic_store_explicit(&master_factory,f,memory_order_release);}}
+  if(site==M_RESET||site==M_CREATE_ENTER){uint32_t q=word(c->r[0]+MODEL_ROOT_QUEUES);if(q>UINT32_MAX-4||!typed(q,MODEL_THREAD_QUEUES_VPTR)||!typed(q+4,MODEL_PER_THREAD_QUEUES_VPTR)){command_fail(C_NATIVE_MEMBERSHIP);goto done;}command_queues=q;uint32_t a=word(root+MODEL_ROOT_AUDIO);if(pointer(a)&&a<UINT32_MAX-0x400){uint32_t x=word(a+MODEL_AUDIO_NAVIGATOR);if(typed(x,MODEL_ASYNC_SEQUENCER_VPTR))atomic_store_explicit(&jog_current_x,x,memory_order_release);uint32_t f=word(root+MODEL_ROOT_COMMAND_FACTORY);if(typed(f,MODEL_COMMAND_FACTORY_VPTR))atomic_store_explicit(&master_factory,f,memory_order_release);}}
   if(!root)command_queues=0;
  }
 done:atomic_store_explicit(&command_in_hook,0,memory_order_seq_cst);

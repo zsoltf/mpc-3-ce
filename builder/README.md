@@ -1,10 +1,9 @@
 # Browser MCU image creator
 
-This static browser app creates a personal MPC3.9.1 Gen1 CE v0.3.0 image with
-X-Touch control, USB mouse support and built-in Shift+wheel note selection.
-The optional Debug build creates a folder and keeps a current report on one
-writable USB drive. Firmware
-and keys stay in the browser; the app does not connect to or flash an MPC.
+This static browser app creates a personal MPC 3 CE image from Akai's official
+Gen1 update: v0.4.0 from MPC 3.10, or v0.3.0 from MPC 3.9.1. It recognises the
+file by its checksum. Firmware and keys stay in the browser; the app does not
+connect to or flash an MPC.
 
 `web/index.html` is the landing page with interactive feature demos;
 `web/builder.html` is the image builder itself.
@@ -13,11 +12,9 @@ are maintained alongside `docs/xtouch-cheatsheet.md`. The build publishes
 `web/xtouch-cheatsheet.md`; keep the controller mappings in both copies consistent.
 
 SSH is disabled unless the user selects their own Ed25519 OpenSSH `.pub` file.
-Private keys are not needed. The on-device Info label remains MPC CE v0.2.6;
-identify v0.3.0 by its filenames and checksums.
+Private keys are not needed.
 
-The Debug build keeps SSH off. Leave one writable USB drive connected when it
-boots; it creates `MPCLEARN-DIAGNOSTICS/report.txt` automatically.
+The 3.10 recipes in `resources/310` come from `firmware/build-310-recipes.sh`.
 
 ## Build the static site
 

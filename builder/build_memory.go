@@ -28,12 +28,15 @@ func buildImageMemory(input, ownerPublicKey []byte, diagnostics bool, progress f
 			return memoryBuildResult{}, err
 		}
 	}
-	manifest, patch, placeholder, err := loadPatch(recipe)
+	progress(5, "Verifying official MPC image...")
+	layout, err := validateOfficialBytes(input)
 	if err != nil {
 		return memoryBuildResult{}, err
 	}
-	progress(5, "Verifying official MPC image...")
-	layout, err := validateOfficialBytes(input)
+	if diagnostics && !currentFirmware.Diagnostics {
+		return memoryBuildResult{}, errors.New("the Debug build is not available for the selected firmware")
+	}
+	manifest, patch, placeholder, err := loadPatch(recipe)
 	if err != nil {
 		return memoryBuildResult{}, err
 	}
@@ -45,7 +48,7 @@ func buildImageMemory(input, ownerPublicKey []byte, diagnostics bool, progress f
 		return memoryBuildResult{}, err
 	}
 	if originalRootSHA != manifest.OriginalSHA256 {
-		return memoryBuildResult{}, errors.New("official root filesystem does not match this MPC 3.9.1 patch")
+		return memoryBuildResult{}, errors.New("official root filesystem does not match this MPC " + currentFirmware.Name + " patch")
 	}
 	progress(42, "Applying the qualified MCU payload...")
 	if err := applyPatchBytes(root, manifest, patch, placeholder); err != nil {

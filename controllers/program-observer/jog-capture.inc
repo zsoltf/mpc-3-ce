@@ -9,9 +9,9 @@ static void jog_initialize(void){
  atomic_store(&jog_current_x,0);atomic_store(&jog_retired_x,0);jog_submission=jog_depth=0;memset(jog_calls,0,sizeof(jog_calls));
  for(unsigned i=0;i<COMMAND_SLOTS;i++){atomic_store(jog_payload+i,0);jog_enqueue_result[i]=0;}
 }
-static const uint32_t jog_functions[3]={0x1bb9324,0x1bb949c,0x1bb9614};
-static const uint32_t jog_invokers[3]={0x1bb86a0,0x1bb8588,0x1bb8470};
-static const uint32_t jog_managers[3]={0x1bb779c,0x1bb77e8,0x1bb7834};
+static const uint32_t jog_functions[3]={MODEL_JOG_BAR,MODEL_JOG_BEAT,MODEL_JOG_PULSE};
+static const uint32_t jog_invokers[3]={MODEL_JOG_BAR_INVOKER,MODEL_JOG_BEAT_INVOKER,MODEL_JOG_PULSE_INVOKER};
+static const uint32_t jog_managers[3]={MODEL_JOG_BAR_MANAGER,MODEL_JOG_BEAT_MANAGER,MODEL_JOG_PULSE_MANAGER};
 static unsigned jog_resolve(Context *c,const CommandRequest *r,uint32_t *receiver){
  uint32_t now=atomic_load_explicit(&mirror_state->heartbeat,memory_order_acquire);
  if(!command_jog(r->reserved)||!command_jog_delta(r->bits)||r->serial||r->binding||r->incarnation||r->track_owner||r->program_owner||r->field_incarnation||r->before_bits||r->before_revision||r->global_owner)return C_FORMAT;
@@ -23,12 +23,12 @@ static unsigned jog_resolve(Context *c,const CommandRequest *r,uint32_t *receive
  if(r->epoch!=epoch||channel_owner_id(project)!=r->project_owner)return C_IDENTITY;
  for(unsigned i=0;i<count;i++)if(tracks[i].transition)return C_NOT_READY;
  if(c->r[0]!=command_queues+4||word(c->r[0]+0xf0))return C_NOT_READY;
- if(!typed(root,0x68d7bf8)||word(root+0x24c)!=project||!typed(project,0x6933c4c)||word(project+0xa94)!=pool||!typed(pool,0x68ad2c4))return C_NATIVE_MEMBERSHIP;
- uint32_t a=word(root+0x2e4);if(!pointer(a)||a>UINT32_MAX-0x400)return C_NATIVE_MEMBERSHIP;
- uint32_t x=word(a+0x3d8),s=word(a+0x3bc),t=word(a+0x3a4),u=word(a+0x3a0);
- if(!typed(x,0x689fdac)||x!=atomic_load_explicit(&jog_current_x,memory_order_acquire)||x==atomic_load_explicit(&jog_retired_x,memory_order_acquire)||!pointer(s)||s>UINT32_MAX-0x408||!typed(t,0x69091b0)||!pointer(u))return C_NATIVE_MEMBERSHIP;
- if(word(root+0xf8)!=command_queues||word(a+0xa8)!=command_queues||word(x+8)!=command_queues||word(x+0x40)!=s||word(s+0x400)!=t||word(s+0x3fc)!=u)return C_NATIVE_MEMBERSHIP;
- if(word(root+0x2e4)!=a||word(a+0x3d8)!=x||word(a+0x3bc)!=s)return C_NATIVE_MEMBERSHIP;
+ if(!typed(root,MODEL_ROOT_VPTR)||word(root+MODEL_ROOT_PROJECT)!=project||!typed(project,MODEL_PROJECT_VPTR)||word(project+MODEL_PROJECT_POOL)!=pool||!typed(pool,MODEL_POOL_VPTR))return C_NATIVE_MEMBERSHIP;
+ uint32_t a=word(root+MODEL_ROOT_AUDIO);if(!pointer(a)||a>UINT32_MAX-0x400)return C_NATIVE_MEMBERSHIP;
+ uint32_t x=word(a+MODEL_AUDIO_NAVIGATOR),s=word(a+MODEL_AUDIO_SEQUENCER),t=word(a+MODEL_AUDIO_TIMELINE),u=word(a+MODEL_AUDIO_TIME);
+ if(!typed(x,MODEL_ASYNC_SEQUENCER_VPTR)||x!=atomic_load_explicit(&jog_current_x,memory_order_acquire)||x==atomic_load_explicit(&jog_retired_x,memory_order_acquire)||!pointer(s)||s>UINT32_MAX-0x408||!typed(t,MODEL_TIMELINE_VPTR)||!pointer(u))return C_NATIVE_MEMBERSHIP;
+ if(word(root+MODEL_ROOT_QUEUES)!=command_queues||word(a+0xa8)!=command_queues||word(x+8)!=command_queues||word(x+0x40)!=s||word(s+0x400)!=t||word(s+0x3fc)!=u)return C_NATIVE_MEMBERSHIP;
+ if(word(root+MODEL_ROOT_AUDIO)!=a||word(a+MODEL_AUDIO_NAVIGATOR)!=x||word(a+MODEL_AUDIO_SEQUENCER)!=s)return C_NATIVE_MEMBERSHIP;
  *receiver=x;return C_OK;
 }
 #ifdef COMMAND_COMPONENT
@@ -91,7 +91,7 @@ static void jog_point(Context *c,unsigned site){
     * callable's payload as ours. Any partial match still faces the complete
     * proof below, including duplicate rejection. */
    if(c->r[9]!=((x+8)|1u)&&word(slot)!=observer_image_bias+jog_invokers[unit]&&word(slot+4)!=observer_image_bias+jog_managers[unit])return;
-   if(atomic_load(jog_payload+at)||c->r[7]!=command_queues+0xfc||c->r[9]!=((x+8)|1u)||word(slot)!=observer_image_bias+jog_invokers[unit]||word(slot+4)!=observer_image_bias+jog_managers[unit]||word(slot+8)!=x+8||word(slot+12)!=x||word(slot+16)!=r->bits){trace_fail(C_TRACE_AMBIGUOUS);return;}
+   if(atomic_load(jog_payload+at)||c->r[7]!=command_queues+MODEL_QUEUE_AUDIO||c->r[9]!=((x+8)|1u)||word(slot)!=observer_image_bias+jog_invokers[unit]||word(slot+4)!=observer_image_bias+jog_managers[unit]||word(slot+8)!=x+8||word(slot+12)!=x||word(slot+16)!=r->bits){trace_fail(C_TRACE_AMBIGUOUS);return;}
    atomic_store_explicit(jog_payload+at,slot+8,memory_order_release);
    event(c,CE_JOG_ENQUEUE,r->seq,slot+8,x+8,x,0,r->reserved,r->bits,0,r->epoch);
   }else{

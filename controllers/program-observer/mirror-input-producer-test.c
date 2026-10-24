@@ -15,7 +15,7 @@ static uint64_t fixture_start(void){
 int main(int argc,char **argv){
  if(argc!=4)return 2;
  alarm(30);
- require(mmap((void*)0x6930000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED,-1,0)!=MAP_FAILED,"fixture method page");put(0x6930c28,0x250ba74);put(0x6930c78,0x1375c68);
+ require(mmap((void*)(MODEL_DRUMPROGRAM_VPTR&~4095u),4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)==(void*)(MODEL_DRUMPROGRAM_VPTR&~4095u),"fixture method page at exact address");put((MODEL_DRUMPROGRAM_VPTR+0x28),MODEL_PROGRAM_CONTROL);put((MODEL_DRUMPROGRAM_VPTR+0x78),MODEL_MIXABLE_PREDICATE);
  fixture=command_file(argv[1],sizeof(MirrorState));command_state=command_file(argv[2],sizeof(CommandState));require(fixture!=MAP_FAILED&&command_state!=MAP_FAILED,"exclusive shared integration files");
  initial(12);command_state->magic=COMMAND_MAGIC;command_state->version=COMMAND_VERSION;command_state->bytes=sizeof(*command_state);command_state->capacity=COMMAND_SLOTS;command_state->pid=getpid();uint64_t start=fixture_start();
  command_state->start_lo=start;command_state->start_hi=start>>32;command_state->origin_sec=fixture->origin_sec;command_state->origin_nsec=fixture->origin_nsec;command_state->seconds=WINDOW_SECONDS;atomic_store(&command_state->alive,1);

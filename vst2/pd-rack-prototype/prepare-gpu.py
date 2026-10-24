@@ -2,6 +2,7 @@
 """Compose the admitted Cardinal presenter into the existing track host."""
 from pathlib import Path
 import shutil
+import os
 import sys
 
 kit = Path(__file__).resolve().parent
@@ -71,6 +72,17 @@ edit(host + 'native-preferences-prepare.py', 'site_bytes=[]', '''sites += [
 site_bytes=[]''')
 edit(host + 'native-preferences-prepare.py', "'#define NATIVE_PREFERENCES_SITE_COUNT 10u'",
      "'#define NATIVE_PREFERENCES_SITE_COUNT 14u'")
+# 3.10 uses the same preparation/admission owner and hook order. Never
+# remap old RVAs at runtime or silently omit the presenter for this firmware.
+if os.environ.get('MPCLEARN_FIRMWARE', '3.9.1') == '3.10':
+    shutil.copyfile(kit / 'gpu-310-coordinates.json', stage / host / 'gpu-310-coordinates.json')
+    edit(host + 'native-preferences-310.py',
+         "    for item in ranges:",
+         """    gpu = json.loads((here / 'gpu-310-coordinates.json').read_text())
+    if gpu['stock_sha256'] != identity['input_sha256'] or len(sites) != 10:
+        raise SystemExit('GPU coordinate source or composed hook order differs')
+    ranges, sites, pointers = ranges + gpu['ranges'], sites + gpu['sites'], pointers + gpu['pointers']
+    for item in ranges:""", 2)
 path = stage / host / 'native-preferences-build.sh'
 text = path.read_text().replace('-std=c++14 ', '-std=c++14 -DMPCLEARN_CARDINAL_GPU=1 ')
 text = text.replace('-c /ui/examples/${editor}-entry.cc', '-I/ui/private/cardinal-gpu/include -c /ui/examples/${editor}-entry.cc')

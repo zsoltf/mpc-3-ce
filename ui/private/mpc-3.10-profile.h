@@ -1,0 +1,86 @@
+#ifndef MPCLEARN_UI_MPC_3_10_PROFILE_H
+#define MPCLEARN_UI_MPC_3_10_PROFILE_H
+
+/* Exact 3.10 private host ABI. Coordinates and consumed layouts are traced
+ * through RTTI constructors/destructors, actual callback dispatch, and native
+ * branch/literal expressions. See README.md's 3.10 evidence boundary.
+ * Allocator entries are observed veneers to named ELF imports. ListRow is
+ * already a vptr; the other table coordinates name their eight-byte headers.
+ * Sizes and table lengths below are unchanged by measured native evidence.
+ * Private host ABI profile. Consumers admit the exact executable before
+ * passing its load bias to the toolkit. Public screens never include this. */
+#define MPC_UI_PROFILE_MPC_3_10 0x030a00u
+#define MPC_UI_PROFILE_MPC_SHA256 \
+    "753f838ca362d42c8cc3f5c9c3fcc604ba076b5919212e0301923a3c11c93494"
+
+#define MPC_UI_RVA_ALLOCATE 0x03804734u
+#define MPC_UI_RVA_SIZED_DELETE 0x03804764u
+#define MPC_UI_RVA_STRING_CTOR 0x00983ea0u
+#define MPC_UI_RVA_STRING_DTOR 0x00934bc8u
+#define MPC_UI_RVA_SET_COLOUR 0x00b5c3f0u
+#define MPC_UI_RVA_BUTTON_CTOR 0x00bf593cu
+#define MPC_UI_RVA_BUTTON_DTOR 0x00c04630u
+#define MPC_UI_RVA_LABEL_CTOR 0x00c007a8u
+#define MPC_UI_RVA_LABEL_DTOR 0x00c000fcu
+#define MPC_UI_RVA_LABEL_SET_TEXT 0x00c2f624u
+#define MPC_UI_RVA_LABEL_SET_JUSTIFICATION 0x00bb2cdcu
+#define MPC_UI_RVA_COMPONENT_SET_INTERCEPTS_MOUSE 0x00b5bafcu
+#define MPC_UI_RVA_LIST_CTOR 0x00c08570u
+#define MPC_UI_RVA_LIST_DTOR 0x00bf9688u
+#define MPC_UI_RVA_LIST_SET_MODEL 0x00bea6e4u
+#define MPC_UI_RVA_LIST_UPDATE_CONTENT 0x00be9e10u
+#define MPC_UI_RVA_LIST_SET_ROW_HEIGHT 0x00bea35cu
+#define MPC_UI_RVA_LIST_SELECT_ROW 0x00c1da18u
+#define MPC_UI_RVA_LIST_GET_VIEWPORT 0x00b8a0c0u
+#define MPC_UI_RVA_LIST_SELECT_ON_DOWN 0x00b89ffcu
+#define MPC_UI_RVA_COMPONENT_ADD_MOUSE_LISTENER 0x00b5cc60u
+#define MPC_UI_RVA_COMPONENT_REMOVE_MOUSE_LISTENER 0x00b5ce74u
+#define MPC_UI_RVA_MOUSE_EVENT_RELATIVE 0x00bbdea0u
+#define MPC_UI_RVA_LIST_ROW_VTABLE 0x06c948f0u
+#define MPC_UI_RVA_VIEWPORT_SET_DRAG 0x00bac8b4u
+#define MPC_UI_RVA_SLIDER_CTOR 0x00c358e4u
+#define MPC_UI_RVA_SLIDER_DTOR 0x00c24d28u
+#define MPC_UI_RVA_SLIDER_SET_STYLE 0x00c35568u
+#define MPC_UI_RVA_SLIDER_SET_RANGE 0x00c36994u
+#define MPC_UI_RVA_SLIDER_SET_TEXT_BOX 0x00c354b0u
+#define MPC_UI_RVA_SLIDER_ADD_LISTENER 0x00b8a8fcu
+#define MPC_UI_RVA_SLIDER_REMOVE_LISTENER 0x00b8a9f0u
+#define MPC_UI_RVA_SLIDER_GET_VALUE 0x00b8ad98u
+#define MPC_UI_RVA_SLIDER_SET_VALUE 0x00c367b4u
+#define MPC_UI_RVA_ADD_CHILD 0x00be88b4u
+#define MPC_UI_RVA_REMOVE_CHILD 0x00be8850u
+#define MPC_UI_RVA_SET_BOUNDS 0x00bcb2d0u
+#define MPC_UI_RVA_SET_VISIBLE 0x00be1f4cu
+#define MPC_UI_RVA_SET_ALWAYS_ON_TOP 0x00be54b8u
+#define MPC_UI_RVA_SET_TOGGLE 0x00bde664u
+#define MPC_UI_RVA_REPAINT 0x00bb1ea8u
+#define MPC_UI_RVA_GRAPHICS_SET_COLOUR 0x00a6eeb8u
+#define MPC_UI_RVA_GRAPHICS_SET_FONT 0x00a6f730u
+#define MPC_UI_RVA_GRAPHICS_FILL_ALL 0x00a6fcf4u
+#define MPC_UI_RVA_GRAPHICS_DRAW_FITTED_TEXT 0x00acb238u
+#define MPC_UI_RVA_BUTTON_VTABLE 0x06c979a8u
+#define MPC_UI_RVA_LIST_MODEL_VTABLE 0x06cd3d3cu
+#define MPC_UI_RVA_IMAGE_CREATE 0x00a4dd74u
+#define MPC_UI_RVA_IMAGE_BITMAP 0x00ad3d9cu
+#define MPC_UI_RVA_IMAGE_RELEASE 0x00a50c84u
+#define MPC_UI_RVA_GRAPHICS_DRAW_IMAGE 0x00a727e4u
+#define MPC_UI_RVA_IMAGE_TYPE_VTABLE 0x06c93140u
+#define MPC_UI_RVA_SOFTWARE_PIXEL_VTABLE 0x06c92f10u
+#define MPC_UI_RVA_TEXT_SESSION_CTOR 0x01810844u
+#define MPC_UI_RVA_TEXT_OPEN 0x01810b8cu
+#define MPC_UI_RVA_TEXT_CLOSE 0x01810ef4u
+#define MPC_UI_RVA_STRING_ASSIGN 0x00948b08u
+#define MPC_UI_RVA_STRING_UTF8 0x009562dcu
+
+#define MPC_UI_BUTTON_BYTES 0x100u
+#define MPC_UI_LABEL_BYTES 0x100u
+#define MPC_UI_BUTTON_VTABLE_BYTES 212u
+#define MPC_UI_LIST_BYTES 0xacu
+#define MPC_UI_SLIDER_BYTES 0xccu
+#define MPC_UI_LIST_MODEL_VTABLE_BYTES 68u
+#define MPC_UI_LIST_BACKGROUND_COLOUR_ID 0x01002800
+#define MPC_UI_LABEL_BACKGROUND_COLOUR_ID 0x01000280
+#define MPC_UI_LABEL_TEXT_COLOUR_ID 0x01000281
+#define MPC_UI_LIST_DRAG_THRESHOLD 8.0f
+
+#endif

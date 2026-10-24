@@ -110,7 +110,7 @@ static int native_pickup(Surface *surface,const CopiedMirror *snapshot,const Mir
  return p->acquired;
 }
 static void native_layer(Surface *surface,MirrorBank *bank,unsigned layer){
- NovationState *n=&surface->novation;if(n->layer==layer)return;n->layer=layer;n->layout_dirty=0;memset(n->led_valid,0,sizeof(n->led_valid));
+ NovationState *n=&surface->novation;if(n->layer==layer)return;input_clip_feedback_clear(&SURFACE_VALUE(surface,input));n->layer=layer;n->layout_dirty=0;n->copy_source=(ClipEditSource){0};n->copy_used=1;memset(n->led_valid,0,sizeof(n->led_valid));
  memset(n->position_valid,0,sizeof(n->position_valid));memset(n->text_valid,0,sizeof(n->text_valid));memset(surface->native_pickup,0,sizeof(surface->native_pickup));
  memset(n->fader_color_valid,0,sizeof(n->fader_color_valid));
  bank->assignment=layer==NOV_DEVICE?BA_QLINK:BA_TRACK;bank->flip=0;bank->fader_field=CF_VOLUME;
@@ -155,7 +155,7 @@ static void native_shift_select(Surface *surface,MirrorBank *bank,const CopiedMi
  NovationState *n=&surface->novation;const CopiedTrack *t=native_shift_track(n,bank,snapshot,strip);if(!t)return;
  MotorIdentity id={snapshot->epoch,t->serial,t->binding,t->incarnation,t->track,t->program,t->track_owner,t->program_owner,0,0,0};
  if(!snapshot->selection.available||snapshot->selection.bits!=t->track)input_control_bound(&SURFACE_VALUE(surface,input),bank,snapshot,strip,CF_SELECTION,0,1,now,&id,2);
- n->shift_view=t->vptr==0x6930c00?1:2;n->shift_track=t->track;n->shift_tick=now;
+ n->shift_view=t->vptr==MODEL_DRUMPROGRAM_VPTR?1:2;n->shift_track=t->track;n->shift_tick=now;
  native_shift_settle(surface,bank,snapshot,now);
 }
 static void native_control_page(Surface *surface,MirrorBank *bank,int direction){
@@ -180,20 +180,74 @@ static const ClipProjection *native_clip_source(const Surface *surface,const Cop
  const ClipProjection *v=snapshot->clips.views+native_step_slot(surface);
  return v->status==CLIP_SOURCE_READY&&v->tick<=now&&now-v->tick<CLIP_FRESH_MS&&v->first_column==n->clip_column&&v->first_row==n->clip_row?v:NULL;
 }
+static void native_copy_validate(NovationState *n,const CopiedMirror *snapshot){
+ ClipEditSource *source=&n->copy_source;if(!source->kind)return;
+ if(n->layer!=NOV_CLIPS||!snapshot->ready||source->epoch!=snapshot->epoch||source->project!=snapshot->project_owner){*source=(ClipEditSource){0};n->copy_used=1;return;}
+ /* A publication miss cannot invalidate the retained native source identity. */
+ if(!snapshot->clips_available)return;
+ if(source->project!=snapshot->clips.project_owner||source->lanes!=snapshot->clips.lanes||source->columns!=snapshot->clips.columns||source->row>=snapshot->clips.rows){*source=(ClipEditSource){0};n->copy_used=1;return;}
+ /* If the source is still on this page, detect removal/replacement promptly.
+  * Off-page sources are resolved again by the native command consumer. */
+ const ClipProjection *v=NULL;
+ for(unsigned i=0;i<CLIP_VIEWS;i++){const ClipProjection *p=snapshot->clips.views+i;if(p->status!=CLIP_SOURCE_READY||source->row<p->first_row||source->row-p->first_row>=8)continue;
+  if(source->kind==2)return;
+  if(source->column>=p->first_column&&source->column-p->first_column<8){v=p;break;}}
+ if(v&&(v->track_owner[source->column-v->first_column]!=source->track||v->cells[(source->row-v->first_row)*8+source->column-v->first_column].identity!=source->clip)){*source=(ClipEditSource){0};n->copy_used=1;}
+}
+static unsigned native_direct_edit(const NovationState *n){return n->protocol==MCU_PROTOCOL_LPP3?n->held[90]&&n->held[50]:n->held[95]&&n->held[97];}
+static unsigned native_delete_held(const NovationState *n){return n->protocol==MCU_PROTOCOL_LPP3?n->held[60]:n->held[97]&&n->held[98];}
+/* Direct edits consume their modifier chord without changing the clip view. */
+static int native_direct_button(Surface *surface,const NovationEvent *e,unsigned prior){
+ NovationState *n=&surface->novation;unsigned pro=n->protocol==MCU_PROTOCOL_LPP3,index=e->index;
+ if(n->layer!=NOV_CLIPS||native_delete_held(n)||!native_direct_edit(n))return 0;
+ n->copy_source=(ClipEditSource){0};n->copy_used=n->pick_used=1;
+ return e->value&&!prior&&(index==(pro?90u:95u));
+}
+static int native_clip_edit_intent(Surface *surface,const CopiedMirror *snapshot,const NovationClipEvent *e,uint32_t now){
+ NovationState *n=&surface->novation;unsigned pro=n->protocol==MCU_PROTOCOL_LPP3;
+ unsigned deleting=pro?n->held[60]:(n->held[97]&&n->held[98]);
+ unsigned copying=pro?n->held[50]:n->held[97];
+ unsigned direct=native_direct_edit(n),quantize=pro&&n->held[40];
+ if(!deleting&&!copying&&!direct&&!quantize)return 0;
+ n->copy_used=1;if(novation_pick_held(n->protocol,n->held))n->pick_used=1;
+ if(e->kind==NOV_CLIP_COLUMN||e->kind==NOV_CLIP_ROW)return 0; /* always page, including Custom+Capture */
+ unsigned whole=e->kind==NOV_SCENE_TRIGGER||e->kind==NOV_SCENE_STOP;
+ unsigned pad=e->kind==NOV_CLIP_TRIGGER||e->kind==NOV_CLIP_STOP||e->kind==NOV_CLIP_RECORD||e->kind==NOV_CLIP_PICK;
+ if(!whole&&!pad)return 1;
+ if(deleting){n->copy_source=(ClipEditSource){0};if((pad||whole)&&native_clip_source(surface,snapshot,now))input_clip_add(&SURFACE_VALUE(surface,input),snapshot,native_step_slot(surface),whole?CLIP_DELETE_ROW:CLIP_DELETE,e->column,e->row,now);return 1;}
+ if(quantize){n->copy_source=(ClipEditSource){0};if(pad&&native_clip_source(surface,snapshot,now))input_clip_add(&SURFACE_VALUE(surface,input),snapshot,native_step_slot(surface),CLIP_QUANTIZE,e->column,e->row,now);return 1;}
+ if(direct){n->copy_source=(ClipEditSource){0};if(native_clip_source(surface,snapshot,now))input_clip_add(&SURFACE_VALUE(surface,input),snapshot,native_step_slot(surface),whole?CLIP_INSERT_CAPTURE:CLIP_DOUBLE_EVENTS,e->column,e->row,now);return 1;}
+ const ClipProjection *v=native_clip_source(surface,snapshot,now);
+ if(!v){
+  /* A missed destination consumes the press, not a still-held source. */
+  if(n->copy_source.kind!=(whole?2u:1u))n->copy_source=(ClipEditSource){0};
+  return 1;
+ }
+ if(n->copy_source.kind!=(whole?2u:1u)){
+  n->copy_source=(ClipEditSource){0};clip_edit_source(&n->copy_source,&snapshot->clips,native_step_slot(surface),e->column,e->row,whole,now);return 1;
+ }
+ input_clip_copy_add(&SURFACE_VALUE(surface,input),snapshot,native_step_slot(surface),&n->copy_source,e->column,e->row,now);return 1;
+}
 static int native_clip_intent(Surface *surface,MirrorBank *bank,const CopiedMirror *snapshot,const NovationEvent *event,uint32_t now){
  NovationState *n=&surface->novation;unsigned session=n->protocol==MCU_PROTOCOL_LPP3?93:95;
  /* Pro's Stop Clip is a stop modifier too, like Capture MIDI/Projects. */
  unsigned stop=n->held[98]||(n->protocol==MCU_PROTOCOL_LPP3&&n->held[8]);
  NovationClipEvent e;unsigned modifiers=(stop?1u:0u)|(n->held[session]?2u:0u)|(novation_pick_held(n->protocol,n->held)?4u:0u);
  if(!novation_clip_decode(n->protocol,n->layer,event,modifiers,&e))return 0;
+ if(n->layer==NOV_CLIPS&&native_clip_edit_intent(surface,snapshot,&e,now))return 1;
  if(modifiers&4u)n->pick_used=1; /* any pad during the hold: release opens nothing */
  if((modifiers&1u)&&n->row_hold==8)n->row_used=1; /* a Stop Clip chord latches nothing */
  if(e.kind==NOV_CLIP_VIEW){native_layer(surface,bank,e.view);input_discard(&SURFACE_VALUE(surface,input));return 1;}
  if(e.kind==NOV_CLIP_COLUMN||e.kind==NOV_CLIP_ROW){
+  input_clip_feedback_clear(&SURFACE_VALUE(surface,input));
   int64_t next=(int64_t)(e.kind==NOV_CLIP_COLUMN?n->clip_column:n->clip_row)+e.direction*8;
   unsigned limit=e.kind==NOV_CLIP_COLUMN?snapshot->clips.columns:snapshot->clips.rows;
   if(snapshot->clips_available&&next>=0&&next<limit){if(e.kind==NOV_CLIP_COLUMN)n->clip_column=(unsigned)next;else n->clip_row=(unsigned)next;}
-  input_discard(&SURFACE_VALUE(surface,input));return 1;
+  /* Paging cannot cancel a paste already captured at destination press. */
+  MirrorInput *pending_input=&SURFACE_VALUE(surface,input);unsigned editing=0;
+  for(unsigned i=0;i<pending_input->step_count;i++){const CommandRequest *r=&pending_input->step_events[(pending_input->step_head+i)%INPUT_JOG_EVENTS].request;if(command_clip(r->reserved)&&clip_edit_intent(r->bits)){editing=1;break;}}
+  if(!n->copy_held&&!editing)input_discard(pending_input);
+  return 1;
  }
  if(native_clip_source(surface,snapshot,now)){
   if(e.kind==NOV_CLIP_PICK){
@@ -347,6 +401,24 @@ static void native_intent(Surface *surface,MirrorBank *bank,const CopiedMirror *
   unsigned prior=n->held[index];n->held[index]=(unsigned char)event->value;
   if(n->protocol==MCU_PROTOCOL_LCXL3&&index==63){n->shift=(unsigned)event->value;return;}
   if(n->protocol!=MCU_PROTOCOL_LCXL3){
+   unsigned pro=n->protocol==MCU_PROTOCOL_LPP3;
+   native_copy_validate(n,snapshot);
+   if(n->layer==NOV_CLIPS&&pro&&n->held[60]&&(index==1||index==2)){n->copy_source=(ClipEditSource){0};n->copy_used=1;n->row_used=1;return;}
+   if(n->layer==NOV_CLIPS&&event->value&&!prior&&((pro&&n->held[90]&&(index==1||index==2))||(!pro&&n->held[98]&&!n->held[97]&&(index==93||index==94)))){
+    n->copy_source=(ClipEditSource){0};n->copy_used=1;n->row_used=1;
+    input_global_add(in,snapshot,(pro?index==1:index==93)?GLOBAL_UNDO:GLOBAL_REDO,0,now);return;
+   }
+   /* Consume the release of a history chord, even if Shift was released first. */
+   if(pro&&(index==1||index==2)&&!event->value&&n->row_hold!=index)return;
+   if(n->layer==NOV_CLIPS&&((pro&&index==60)||(!pro&&index==98&&n->held[97]))){n->copy_source=(ClipEditSource){0};n->copy_used=1;return;}
+   if(pro&&index==40){if(n->layer==NOV_CLIPS){n->copy_source=(ClipEditSource){0};n->copy_used=n->pick_used=1;}return;}
+   if(native_direct_button(surface,event,prior))return;
+   /* X Custom defers its normal mixer tap only while Session owns the hold. */
+   if((pro&&index==50)||(!pro&&index==97&&(n->layer==NOV_CLIPS||n->copy_held))){
+    if(event->value&&!prior){n->copy_held=1;n->copy_used=native_direct_edit(n)||native_delete_held(n);n->copy_source=(ClipEditSource){0};}
+    if(!event->value&&prior){unsigned mixer=!pro&&n->copy_held&&!n->copy_used&&n->layer==NOV_CLIPS;n->copy_held=0;n->copy_source=(ClipEditSource){0};if(mixer)native_enter_mixer(surface,bank);}
+    return;
+   }
    if(index==98)return; /* Capture MIDI/Projects is the momentary stop modifier. */
    /* Pro Stop Clip never stops MPC. In the clip grid it is the stop modifier
     * (held with a pad or scene); in a step view it stops the bound clip's
@@ -440,6 +512,7 @@ static int native_consume(Surface *surface,MirrorBank *bank,const MirrorState *s
  if(!runtime)return 1; /* The shipped path always owns the shared cycle. */
  int copied=runtime_snapshot(runtime,state,bank->view==BV_DRUM_PADS);if(copied<0)return 0;
  if(!copied||!runtime->snapshot->ready||atomic_load(&SURFACE_VALUE(surface,input).commands->new_project_intent)){
+  surface->novation.copy_source=(ClipEditSource){0};surface->novation.copy_used=1;
   input_discard(&SURFACE_VALUE(surface,input));input_jog_discard(&SURFACE_VALUE(surface,input));memset(surface->native_pickup,0,sizeof(surface->native_pickup));memset(surface->native_touch_identity,0,sizeof(surface->native_touch_identity));if(decoded.kind==NOV_BUTTON){surface->novation.held[decoded.index]=(unsigned char)decoded.value;if(surface->novation.protocol==MCU_PROTOCOL_LCXL3&&decoded.index==63)surface->novation.shift=(unsigned)decoded.value;}if(decoded.kind==NOV_TOUCH)surface->novation.touch[decoded.index]=(unsigned char)decoded.value;return 1;
  }
  bank_apply(bank,runtime->snapshot,runtime->now);input_sync(&SURFACE_VALUE(surface,input),bank);
@@ -464,7 +537,7 @@ static void native_buttons(const NovationState *n,const CopiedMirror *snapshot,u
  values[pro?96:97]=mixer?21:3;
  if(pro){values[97]=step?21:3;if(step)values[79]=layer==NOV_STEP16?21:3;}
  else values[96]=layer==NOV_STEP64?21:layer==NOV_STEP16?13:3;
- if(clips)values[98]=n->held[98]?5:3;
+ if(clips){values[98]=n->held[98]?5:3;if(pro){values[40]=n->held[40]?13:3;values[50]=n->held[50]?13:3;values[60]=n->held[60]?5:3;values[90]=3;}}
  values[pro?91:93]=values[pro?92:94]=3;
  if(clips||step||layer==NOV_DEVICE)values[pro?80:91]=values[pro?70:92]=3;
  if(!pro&&mixer){static const unsigned char side[]={89,79,69,59,49},pages[]={NOV_VOLUME,NOV_PAN,NOV_SEND,NOV_DEVICE,NOV_SESSION};for(unsigned i=0;i<sizeof(side);i++)values[side[i]]=layer==pages[i]?21:3;}
@@ -498,6 +571,7 @@ static void native_row_lights(Surface *surface,const MirrorBank *bank,const Copi
 static int native_output(Surface *surface,MirrorBank *bank,const CopiedMirror *snapshot,uint32_t now){
  NovationState *n=&surface->novation;n->bank=bank->offset;novation_budget(n);if(!native_initialise(surface,now))return 0;if(!novation_admitted(n))return 1;
  if(n->protocol==MCU_PROTOCOL_LCXL3&&n->observed_mode!=1&&n->observed_mode!=2)return 1;
+ native_copy_validate(n,snapshot);
  native_pick_settle(surface,bank,now);native_shift_settle(surface,bank,snapshot,now);
 
  unsigned char values[128]={0},styles[128]={0},used[128]={0};
@@ -543,6 +617,23 @@ static int native_output(Surface *surface,MirrorBank *bank,const CopiedMirror *s
   unsigned colours[8]={0};if(v)for(unsigned column=0;column<8;column++)colours[column]=native_column_colour(n,snapshot,v,column);
   for(unsigned i=0;i<64;i++){unsigned pad=(8-i/8)*10+i%8+1;used[pad]=1;native_clip_color(v?v->cells[i].state:CLIP_NO_SLOT,colours[i%8],1,values+pad,styles+pad);}
   for(unsigned row=0;row<8;row++){unsigned button=89-row*10;used[button]=1;native_clip_color(v?v->scene_state[row]:CLIP_NO_SLOT,0,0,values+button,styles+button);}
+  const ClipEditSource *source=&n->copy_source;
+  if(v&&source->kind&&source->row>=v->first_row&&source->row-v->first_row<8){unsigned row=source->row-v->first_row;
+   if(source->kind==2){unsigned button=89-row*10;values[button]=13;styles[button]=1;}
+   else if(source->column>=v->first_column&&source->column-v->first_column<8){unsigned pad=(8-row)*10+source->column-v->first_column+1;values[pad]=13;styles[pad]=1;}
+  }
+ }
+ /* A settled accepted edit briefly acknowledges its initiating target. This
+  * overlays only LEDs, never the authoritative clip/playback projection. */
+ MirrorInput *feedback=&SURFACE_VALUE(surface,input);
+ if(feedback->clip_feedback_request){const CommandRequest *r=&feedback->clip_feedback;
+  if(n->layer!=NOV_CLIPS||!snapshot->ready||!snapshot->clips_available||r->epoch!=snapshot->epoch||r->project_owner!=snapshot->clips.project_owner||r->qlink_root!=snapshot->clips.lanes||(feedback->clip_feedback_started&&(now<feedback->clip_feedback_tick||now-feedback->clip_feedback_tick>=500)))feedback->clip_feedback_request=0;
+  else if(native_clip_source(surface,snapshot,now)&&r->effect_index>=n->clip_row&&r->effect_index-n->clip_row<8){
+   unsigned row=r->effect_index-n->clip_row,index=0;
+   if(clip_scene_intent(r->bits))index=89-row*10;
+   else if(r->pad_index>=n->clip_column&&r->pad_index-n->clip_column<8)index=(8-row)*10+r->pad_index-n->clip_column+1;
+   if(index){if(!feedback->clip_feedback_started){feedback->clip_feedback_started=1;feedback->clip_feedback_tick=now;}unsigned value=now-feedback->clip_feedback_tick<80?0:3;used[index]=1;values[index]=value;styles[index]=0;if(!n->led_valid[index]||n->led_value[index]!=value||n->led_style[index])n->led_cursor=index;}
+  }
  }
  /* Reserve up to eight messages for changing control positions/text. */
  for(unsigned step=0;step<128&&n->cycle_messages<8;step++){unsigned i=n->led_cursor;n->led_cursor=(i+1)%128;if(!used[i]||(n->led_valid[i]&&n->led_value[i]==values[i]&&n->led_style[i]==styles[i]))continue;NovationWire w=novation_led(n->protocol,i,styles[i],values[i]);int sent=native_wire(surface,&w,0);if(sent!=1)return sent==2?1:0;n->led_valid[i]=1;n->led_value[i]=values[i];n->led_style[i]=styles[i];}

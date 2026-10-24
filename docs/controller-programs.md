@@ -11,7 +11,7 @@
 
 To switch, select a row: **Edit** changes its profile or ports, **Disable**
 pauses it, **Remove** deletes it. A new install starts with the full X-Touch.
-The page lists up to 12 external MIDI ports; each input or output port of every
+The page lists up to 64 external MIDI ports; each input or output port of every
 connected MIDI device counts. With more connected, unplug a device to add or
 edit controllers.
 
@@ -53,7 +53,9 @@ leaves the row inactive without mode changes. Disable the row before unplugging
 to restore the captured mode/layout, including a previous Programmer layout.
 The separate DAW-enable flag is never changed. Unplugging can prevent restoration.
 On Pro, Note, Chord and standalone sequencer controls are unavailable while
-Programmer is active. LPX Legacy mode is not covered by the documented readback.
+Programmer is active. Pro's Fixed Length button is unmapped; recording uses
+MPC's configured fixed length. LPX Legacy mode is not covered by the documented
+readback.
 
 Both Launchpads have the same three views. **Session** shows MPC's clips, the
 step-view button (**Note** on X, **Sequencer** on Pro) shows the drum step
@@ -81,6 +83,53 @@ slot. Hold Session and press the recording slot again to finish. MPC retains
 its quantization, fixed-length and Record To settings; finishing may continue
 playing or overdubbing according to those settings. A pending recording action
 is not a request to toggle it again. Arrangement is not a recordable clip slot.
+
+On MPC 3.10, hold **Duplicate** on Pro or **Custom** on X, press a source
+clip, then an empty destination. The source flashes; keep holding for repeated
+pastes and use arrows to page. Use right-side scene buttons for whole rows:
+press the source row, then the destination row. Row paste uses MPC's own Copy
+Row action and can replace an existing row, including tracks offscreen.
+Release ends the source selection. Copying does not launch clips or change
+views; an unused X Custom tap opens the mixer on release. Arrangement is
+outside these editing gestures.
+
+Delete a clip with **Clear + pad** on Pro or **Custom + Capture MIDI + pad**
+on X. Use the same modifier with a scene button to delete that whole row;
+following rows move up. Undo/Redo are **Shift + Record Arm/Mute** on Pro and
+**Capture MIDI + Left/Right** on X. With X Custom held, arrows always page, even with Capture
+held. MPC owns clip contents, history and recording eligibility.
+
+
+### Direct editing
+
+In the Session clip grid, hold **Shift + Duplicate** on Pro or **Session +
+Custom** on X. Press a clip to **double its active length with its events**,
+or a right-side scene button to **Insert & Capture** before that row.
+Insert & Capture copies MPC's currently playing clips into the new row; it
+does not start the new row. MPC owns each action's limits and Undo/Redo.
+
+On Pro, hold **Quantise** and press a clip to apply MPC's current Timing
+Correct Type, Events scope (All/Selected/Range), timing and groove settings.
+Timing Correct must be on; when it is off, events stay unchanged. For audio
+clips, use Start; End, Length and Legato apply to MIDI notes only. Launchpad X
+has no direct Quantize shortcut.
+
+Copy makes another clip or row. Double with events repeats notes or audio
+regions into twice the active length; with looping enabled, MPC extends the
+loop window rather than necessarily moving the stored End marker.
+
+**Example:** Copy a clip to an empty slot. Hold Shift + Duplicate (Pro) or
+Session + Custom (X), then press the new clip. Its events repeat into the
+longer active region; the original is unchanged.
+
+The [illustrated Launchpad guide](https://mpc3ce.com/launchpad-guide.html)
+includes button maps and a printable reference. The X-Touch's dedicated
+**Save** key saves the project; an unnamed project opens MPC's normal save
+dialog.
+
+A short white flash on the target acknowledges that MPC accepted an edit.
+Normal clip lights return after about half a second. MPC settings can leave
+contents unchanged even when an action is accepted.
 
 Clip lights, including the Arrangement row, follow the MPC clip launcher: empty
 slots are off, a clip with content shows its MPC track colour, and the playing

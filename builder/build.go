@@ -32,12 +32,15 @@ func buildImage(inputPath, outputPath string, ownerPublicKey []byte, diagnostics
 			return buildResult{}, err
 		}
 	}
-	manifest, patch, placeholder, err := loadPatch(recipe)
+	progress(5, "Verifying official MPC image...")
+	layout, err := validateOfficial(inputPath)
 	if err != nil {
 		return buildResult{}, err
 	}
-	progress(5, "Verifying official MPC image...")
-	layout, err := validateOfficial(inputPath)
+	if diagnostics && !currentFirmware.Diagnostics {
+		return buildResult{}, errors.New("the Debug build is not available for the selected firmware")
+	}
+	manifest, patch, placeholder, err := loadPatch(recipe)
 	if err != nil {
 		return buildResult{}, err
 	}
@@ -65,7 +68,7 @@ func buildImage(inputPath, outputPath string, ownerPublicKey []byte, diagnostics
 		return buildResult{}, err
 	}
 	if originalRootSHA != manifest.OriginalSHA256 {
-		return buildResult{}, errors.New("official root filesystem does not match this MPC 3.9.1 patch")
+		return buildResult{}, errors.New("official root filesystem does not match this MPC " + currentFirmware.Name + " patch")
 	}
 	progress(42, "Applying the qualified MCU payload...")
 	if err := applyPatch(rootPath, manifest, patch, placeholder); err != nil {

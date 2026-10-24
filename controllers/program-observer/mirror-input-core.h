@@ -1,4 +1,4 @@
-/* Continuous coalesced input over bounded CMD31; MMV17 remains the musical-state owner. */
+/* Continuous coalesced input over bounded CMD32; MMV17 remains the musical-state owner. */
 #ifndef MPC_MIRROR_INPUT_CORE_H
 #define MPC_MIRROR_INPUT_CORE_H
 #include "command-state.h"
@@ -32,8 +32,8 @@ typedef struct {
  CommandEvent midi_events[5];unsigned midi_seen;
  uint32_t global_owner,global_epoch;
  CommandRequest qlink_request;CommandEvent qlink_events[3][4],qlink_value,mode_accept;unsigned qlink_seen[3],qlink_value_seen,mode_accept_seen,qlink_barriers[COMMAND_LANES],qlink_barriers_seen;
- CommandRequest step_request;CommandEvent step_events[3];unsigned step_seen;
- CommandRequest io_request;CommandEvent io_events[10];unsigned io_seen;
+ CommandRequest step_request;CommandEvent step_events[3];unsigned step_seen;uint32_t clip_feedback_generation;
+ CommandRequest io_request;CommandEvent io_events[11];unsigned io_seen;
  CommandRequest effect_request;CommandEvent effect_execution,effect_value;unsigned effect_seen;
 } InputFlight;
 typedef struct {MotorIdentity identity;CommandRequest request;unsigned pending,relative;float shift,lower,upper;} InputEffect;
@@ -41,7 +41,7 @@ typedef struct {CommandRequest request;unsigned pending,relative,wait_tick,barri
 typedef struct {uint32_t epoch,owner,incarnation,bits,expires;unsigned held,valid,reported,pending;int physical;} InputMaster;
 #define INPUT_JOG_EVENTS 64u
 typedef struct {uint32_t operation,bits,epoch,owner,field,expires;uint64_t order;} InputGlobalEvent;
-typedef struct {CommandRequest request;uint64_t order;} InputStepEvent;
+typedef struct {CommandRequest request;uint64_t order;uint32_t clip_feedback_generation;} InputStepEvent;
 typedef struct {int32_t delta;uint32_t operation,epoch,expires,origin;uint64_t order;} InputJogEvent;
 struct InputCoordinator;
 typedef struct MirrorInput {
@@ -80,15 +80,18 @@ typedef struct MirrorInput {
  uint64_t wheel_order,press_order;
  InputGlobalEvent global_events[INPUT_JOG_EVENTS];unsigned global_head,global_count;
  InputStepEvent step_events[INPUT_JOG_EVENTS];unsigned step_head,step_count;
+ /* Local acknowledgement only: never sent to MPC or used to cancel intent. */
+ uint32_t clip_feedback_generation,clip_feedback_tick,clip_feedback_request,clip_feedback_started;CommandRequest clip_feedback;
  unsigned error,submitted,settled,refused,next_strip;
 } MirrorInput;
 typedef struct InputCoordinator {
  InputFlight flights[COMMAND_SLOTS];
- MirrorInput *origins[17]; /* sixteen surfaces plus the existing Stop relay */
+ MirrorInput *origins[18]; /* sixteen surfaces, Stop relay, app intent origin */
  unsigned count;
  uint64_t order;
  uint32_t jog_wait,jog_wait_owner,jog_wait_epoch,jog_wait_count;
 } InputCoordinator;
+static inline void input_clip_feedback_clear(MirrorInput *in){in->clip_feedback_generation++;in->clip_feedback_request=0;}
 static inline uint64_t input_order(MirrorInput *in){return in->coordinator?++in->coordinator->order:0;}
 static inline unsigned input_same_target(const MotorIdentity *a,const MotorIdentity *b,unsigned field){
  if(a->epoch!=b->epoch)return 0;
@@ -756,7 +759,7 @@ static inline int input_jog_proof(MirrorInput *in,InputFlight *tx){
 static inline int input_master_proof(MirrorInput *in,InputFlight *tx){
  if((tx->master_seen&63)!=63||tx->master_seen>127){in->error=C_TRACE_AMBIGUOUS;return 0;}
  const CommandEvent *create=tx->master_events,*queue=create+1,*enter=create+2,*set=create+3,*value=create+4,*done=create+5;
- if(create->capture!=create->counter+0x10||queue->counter!=create->capture+0x34||!queue->capture||create->program!=queue->program||queue->program+0xa8!=tx->property||create->token!=in->commands->owner_token||queue->token!=create->token||create->revision!=tx->global_epoch||queue->revision!=tx->global_epoch||!enter->token||enter->token!=set->token||enter->token!=value->token||enter->token!=done->token||enter->sp!=done->sp+8||set->sp!=value->sp||value->revision<tx->before_revision||(value->revision&1)||done->bits!=value->bits){in->error=C_TRACE_AMBIGUOUS;return 0;}
+ if(create->capture!=create->counter+0x10||queue->counter!=create->capture+0x34||!queue->capture||create->program!=queue->program||queue->program+MODEL_MIXER_MASTER!=tx->property||create->token!=in->commands->owner_token||queue->token!=create->token||create->revision!=tx->global_epoch||queue->revision!=tx->global_epoch||!enter->token||enter->token!=set->token||enter->token!=value->token||enter->token!=done->token||enter->sp!=done->sp+8||set->sp!=value->sp||value->revision<tx->before_revision||(value->revision&1)||done->bits!=value->bits){in->error=C_TRACE_AMBIGUOUS;return 0;}
  for(unsigned i=2;i<6;i++)if(create[i].capture!=queue->capture||create[i].counter!=queue->counter||create[i].program!=queue->program){in->error=C_TRACE_AMBIGUOUS;return 0;}
  if(tx->master_seen&64){const CommandEvent *commit=create+6;if(commit->capture!=queue->capture||commit->counter!=queue->counter||commit->program!=queue->program||commit->token!=enter->token||commit->revision<=tx->before_revision||commit->revision>value->revision){in->error=C_TRACE_AMBIGUOUS;return 0;}}
  tx->commit_revision=value->revision;tx->done_tick=done->tick;return 1;
@@ -822,10 +825,10 @@ static inline void input_events(MirrorInput *in,InputFlight *tx,unsigned at){
      if(lane!=tx->lane||e->token!=tx->token||e->capture!=tx->capture||e->counter!=tx->counter||e->program!=tx->global_events[0].program||e->bits!=tx->global_events[0].bits){in->error=C_TRACE_AMBIGUOUS;return;}
      if(e->kind==CE_BODY&&tx->phase==1)tx->phase=2;else if(e->kind==CE_DONE&&tx->phase==2){tx->phase=4;tx->done_tick=e->tick;}else{in->error=C_TRACE_AMBIGUOUS;return;}continue;
     }
-    unsigned queued=e->kind==CE_IO_QUEUE||e->kind==CE_IO_RESULT||e->kind==CE_IO_ENTER||e->kind==CE_IO_AUDIO_DONE;
+    unsigned queued=e->kind==CE_IO_QUEUE||e->kind==CE_IO_RESULT||e->kind==CE_IO_ENTER||e->kind==CE_IO_AUDIO_DONE||e->kind==CE_IO_RETIRED;
     if(e->reserved!=IO_PARAMETER||(!queued&&(e->capture!=r->io_connector||e->counter!=r->track_owner))||e->arg_kind!=r->io_field||e->property!=r->global_owner||e->incarnation!=r->field_incarnation||(!queued&&e->token!=in->commands->owner_token)||e->tick>command_tick_limit(in->commands->seconds)){in->error=C_TRACE_AMBIGUOUS;return;}
-    unsigned part=e->kind==CE_DISPATCH?0:e->kind==CE_IO_SET?1:e->kind==CE_IO_COMMIT?2:e->kind==CE_IO_DONE?3:e->kind==CE_RETURN?4:e->kind==CE_IO_VALUE?5:e->kind==CE_IO_QUEUE?6:e->kind==CE_IO_RESULT?7:e->kind==CE_IO_ENTER?8:e->kind==CE_IO_AUDIO_DONE?9:10;
-    if(part>=10||(tx->io_seen&(1u<<part))){in->error=C_TRACE_AMBIGUOUS;return;}
+    unsigned part=e->kind==CE_DISPATCH?0:e->kind==CE_IO_SET?1:e->kind==CE_IO_COMMIT?2:e->kind==CE_IO_DONE?3:e->kind==CE_RETURN?4:e->kind==CE_IO_VALUE?5:e->kind==CE_IO_QUEUE?6:e->kind==CE_IO_RESULT?7:e->kind==CE_IO_ENTER?8:e->kind==CE_IO_AUDIO_DONE?9:e->kind==CE_IO_RETIRED?10:11;
+    if(part>=11||(tx->io_seen&(1u<<part))){in->error=C_TRACE_AMBIGUOUS;return;}
     tx->io_events[part]=*e;tx->io_seen|=1u<<part;continue;
    }
    if(command_qlink_mode(tx->field)){
@@ -994,6 +997,13 @@ static inline void input_settle(MirrorInput *in,MirrorBank *bank,const CopiedMir
     if(tx->recording_seen){if(tx->phase||!(tx->recording_seen&4)){in->error=C_TRACE_AMBIGUOUS;return;}if(!input_recording_proof(in,tx))return;for(unsigned i=0;i<10;i++)if(tx->recording_seen&(1u<<i))if(tx->recording_events[i].program!=e[0].program||tx->recording_events[i].bits!=bits){in->error=C_TRACE_AMBIGUOUS;return;}}
     else if(tx->phase!=4||tx->global_events[0].program!=e[0].program||tx->global_events[0].bits!=bits){in->error=C_TRACE_AMBIGUOUS;return;}
     if(e[5].tick<tx->done_tick||e[5].tick<e[4].tick||e[4].tick<e[0].tick){in->error=C_TRACE_AMBIGUOUS;return;}
+   }else if(tx->io_seen&1024u){
+    /* Canceled before claim: exact post-Track-D1 evidence replaces only the
+     * absent callback pair. It cannot certify a value or an applied command. */
+    if(!asynchronous||!unavailable||tx->io_seen!=(3u|16u|32u|64u|128u|1024u)||e[0].revision!=r->io_generation||e[4].revision!=r->io_generation||!e[1].revision||(e[1].revision&1)||e[1].bits==e[0].controller||e[7].bits!=1){in->error=C_TRACE_AMBIGUOUS;return;}
+    for(unsigned i=0;i<11;i++)if(tx->io_seen&(1u<<i))if(e[i].controller!=e[0].controller||e[i].program!=e[0].program||((i==0||i==4||i==6||i==10)&&e[i].bits!=e[0].controller)){in->error=C_TRACE_AMBIGUOUS;return;}
+    const unsigned parts[]={6,7,10};for(unsigned k=0;k<3;k++){unsigned i=parts[k];if(!e[i].capture||!e[i].counter||e[i].capture!=e[6].capture||e[i].counter!=e[6].counter||e[i].revision!=r->io_generation||e[i].token!=in->commands->owner_token){in->error=C_TRACE_AMBIGUOUS;return;}}
+    if(e[6].tick<e[0].tick||e[7].tick<e[6].tick||e[4].tick<e[7].tick||e[10].tick<e[4].tick||e[5].tick<e[10].tick){in->error=C_TRACE_AMBIGUOUS;return;}
    }else if(asynchronous){
     if(tx->io_seen!=(3u|16u|32u|64u|128u|256u|512u)||e[0].revision!=r->io_generation||e[4].revision!=r->io_generation||!e[1].revision||(e[1].revision&1)||(!unavailable&&e[5].revision<=e[1].revision)||(e[5].revision&1)||(!unavailable&&e[5].bits!=e[0].controller)||e[1].bits==e[0].controller||e[7].bits!=1){in->error=C_TRACE_AMBIGUOUS;return;}
     for(unsigned i=0;i<10;i++)if(tx->io_seen&(1u<<i))if(e[i].controller!=e[0].controller||e[i].program!=e[0].program||((i==0||i==4||(i==5&&!unavailable)||i==6||i==8||i==9)&&e[i].bits!=e[0].controller)){in->error=C_TRACE_AMBIGUOUS;return;}
@@ -1017,7 +1027,7 @@ static inline void input_settle(MirrorInput *in,MirrorBank *bank,const CopiedMir
    if(!tx->mode_accept_seen||a->revision!=C_OK||a->capture!=tx->qlink_request.global_owner||a->bits!=target||a->controller!=target||a->arg_kind!=mask||a->tick<tx->global_events[0].tick||a->tick>tx->global_events[1].tick){in->error=C_TRACE_AMBIGUOUS;return;}
    for(unsigned p=0;p<2;p++){
     if(!(mask&(1u<<p))){if(tx->qlink_seen[p]){in->error=C_TRACE_AMBIGUOUS;return;}continue;}
-    const CommandEvent *e=tx->qlink_events[p];if(tx->qlink_seen[p]!=15||!e[0].capture||e[0].token!=in->commands->owner_token||e[1].token!=e[0].token||!e[2].token||e[2].token!=e[3].token||e[2].sp!=e[3].sp+(p?16:32)||e[0].capture!=e[1].capture||e[0].capture!=e[2].capture||e[0].capture!=e[3].capture){in->error=C_TRACE_AMBIGUOUS;return;}
+    const CommandEvent *e=tx->qlink_events[p];if(tx->qlink_seen[p]!=15||!e[0].capture||e[0].token!=in->commands->owner_token||e[1].token!=e[0].token||!e[2].token||e[2].token!=e[3].token||e[2].sp!=e[3].sp+(p?MODEL_QLINK_MODE_FRAME1:32)||e[0].capture!=e[1].capture||e[0].capture!=e[2].capture||e[0].capture!=e[3].capture){in->error=C_TRACE_AMBIGUOUS;return;}
     for(unsigned j=0;j<4;j++)if(e[j].controller!=target){in->error=C_TRACE_AMBIGUOUS;return;}
     if(e[3].tick>tx->done_tick)tx->done_tick=e[3].tick;
    }
@@ -1074,10 +1084,19 @@ static inline void input_settle(MirrorInput *in,MirrorBank *bank,const CopiedMir
     const CommandEvent *e=tx->step_events;const CommandRequest *r=&tx->step_request;
     if(tx->step_seen!=7||e[0].token!=in->commands->owner_token||e[0].token!=e[1].token||e[1].token!=e[2].token||e[0].tick<r->created||e[0].tick>e[1].tick||e[1].tick>e[2].tick){in->error=C_TRACE_AMBIGUOUS;return;}
     if(e[2].tick>r->expires){in->error=C_EXPIRED;return;}
+    /* A native editing facade may legitimately refuse (for example MPC's
+     * recording guard). Retire the delivered intent without replaying it or
+     * shutting down every controller. This is not edit completion. */
+    if(clip_edit_intent(r->bits)&&(e[2].revision==C_BUSY||e[2].revision==C_NOT_READY)){
+     if(e[2].bits){in->error=C_TRACE_AMBIGUOUS;return;}
+     if(!command_publish_settlement(in->commands,tx->flight)){in->error=C_CLOSED;return;}
+     tx->acknowledged=1;in->refused++;INPUT_LOG("CLIP_REFUSED request=%u intent=%u native_reason=%s; delivered once, not completed or retried\n",tx->flight,r->bits,command_error_name(e[2].revision));continue;
+    }
     if(e[2].revision){in->error=e[2].revision;return;}
     if(e[2].bits!=1){in->error=C_SOURCE_FAILURE;return;}
     if(s->heartbeat<=e[2].tick)continue;
     if(!command_publish_settlement(in->commands,tx->flight)){in->error=C_CLOSED;return;}
+    if(clip_edit_intent(r->bits)&&tx->clip_feedback_generation==in->clip_feedback_generation){in->clip_feedback=*r;in->clip_feedback_tick=now;in->clip_feedback_request=tx->flight;in->clip_feedback_started=0;}
     tx->acknowledged=1;in->settled++;INPUT_LOG("CLIP_ACCEPT request=%u intent=%u column=%u row=%u; native facade receipt, actual quantized state remains in clips snapshot\n",tx->flight,r->bits,r->pad_index,r->effect_index);
    }continue;
   }
@@ -1200,17 +1219,22 @@ static inline void input_step_add(MirrorInput *in,const CopiedMirror *s,unsigned
  for(unsigned i=0;i<COMMAND_SLOTS;i++){const InputFlight *tx=in->flights+i;if(tx->flight&&command_step(tx->field)&&input_step_same(&r,&tx->step_request))before=tx->bits;}
  unsigned count=in->coordinator?in->coordinator->count:1;
  for(unsigned i=0;i<count;i++){MirrorInput *peer=in->coordinator?in->coordinator->origins[i]:in;for(unsigned j=0;j<peer->step_count;j++){InputStepEvent *e=peer->step_events+(peer->step_head+j)%INPUT_JOG_EVENTS;if(e->order>=latest&&input_step_same(&r,&e->request)){latest=e->order;before=e->request.bits;}}}
- r.before_bits=before;r.bits=!before;in->step_events[(in->step_head+in->step_count++)%INPUT_JOG_EVENTS]=(InputStepEvent){r,input_order(in)};
+ r.before_bits=before;r.bits=!before;in->step_events[(in->step_head+in->step_count++)%INPUT_JOG_EVENTS]=(InputStepEvent){r,input_order(in),in->clip_feedback_generation};
 }
 static inline void input_clip_stop_add(MirrorInput *in,const CopiedMirror *s,unsigned view,uint32_t now){
  CommandRequest r;if(!s->steps_available||!step_request_stop_view(&r,&s->steps,view,now))return;
  if(in->step_count==INPUT_JOG_EVENTS){in->refused++;return;}
- in->step_events[(in->step_head+in->step_count++)%INPUT_JOG_EVENTS]=(InputStepEvent){r,input_order(in)};
+ in->step_events[(in->step_head+in->step_count++)%INPUT_JOG_EVENTS]=(InputStepEvent){r,input_order(in),in->clip_feedback_generation};
 }
 static inline void input_clip_add(MirrorInput *in,const CopiedMirror *s,unsigned view,unsigned intent,unsigned column,unsigned row,uint32_t now){
  CommandRequest r;if(!s->clips_available||!clip_request_bind(&r,&s->clips,view,intent,column,row,now))return;
  if(in->step_count==INPUT_JOG_EVENTS){in->refused++;return;}
- in->step_events[(in->step_head+in->step_count++)%INPUT_JOG_EVENTS]=(InputStepEvent){r,input_order(in)};
+ in->step_events[(in->step_head+in->step_count++)%INPUT_JOG_EVENTS]=(InputStepEvent){r,input_order(in),in->clip_feedback_generation};
+}
+static inline void input_clip_copy_add(MirrorInput *in,const CopiedMirror *s,unsigned view,const ClipEditSource *source,unsigned column,unsigned row,uint32_t now){
+ CommandRequest r;if(!s->clips_available||!clip_copy_request(&r,&s->clips,view,source,column,row,now))return;
+ if(in->step_count==INPUT_JOG_EVENTS){in->refused++;return;}
+ in->step_events[(in->step_head+in->step_count++)%INPUT_JOG_EVENTS]=(InputStepEvent){r,input_order(in),in->clip_feedback_generation};
 }
 static inline int input_step_source_matches(const CommandRequest *r,const CopiedMirror *s){
  if(!s->steps_available)return 0;
@@ -1224,7 +1248,7 @@ static inline void input_step_submit(MirrorInput *in,const CopiedMirror *s,uint3
   CommandState *c=in->commands;unsigned at=command_free(c);if(at==COMMAND_SLOTS)return;
   for(unsigned i=0;i<COMMAND_SLOTS;i++)if(in->flights[i].flight&&(command_step(in->flights[i].field)||command_clip(in->flights[i].field)))return;
   r.seq=atomic_load(&c->published)+1;r.pid=c->pid;r.start_lo=c->start_lo;r.start_hi=c->start_hi;r.origin_sec=c->origin_sec;r.origin_nsec=c->origin_nsec;
-  InputFlight *tx=in->flights+at;input_flight_init(in,tx);tx->flight=r.seq;tx->field=r.reserved;tx->bits=r.bits;tx->expires=r.expires;tx->step_request=r;
+  InputFlight *tx=in->flights+at;input_flight_init(in,tx);tx->flight=r.seq;tx->field=r.reserved;tx->bits=r.bits;tx->expires=r.expires;tx->step_request=r;tx->clip_feedback_generation=e->clip_feedback_generation;
   if(!command_publish_request_at(c,&r,at)){memset(tx,0,sizeof(*tx));if(!atomic_load(&c->new_project_intent))in->error=C_CLOSED;return;}
   in->step_head=(in->step_head+1)%INPUT_JOG_EVENTS;in->step_count--;in->submitted++;return;
  }

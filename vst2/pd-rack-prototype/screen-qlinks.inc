@@ -1,6 +1,7 @@
 /* Selected-control presentation on MPC's existing Screen Q-Link provider.
  * Native input stays on its audio queue. Only bounded normalized intents cross
  * to the existing UI drain; Pd/Rack retain values, smoothing and history. */
+#include "track-host-profile.h"
 extern "C" unsigned transport_queue_submit(uint32_t,uint32_t,void*,void(*)(void*));
 extern "C" int mpclearn_track_qlink_native(unsigned,uint32_t[8]);
 struct ScreenNative {
@@ -21,8 +22,8 @@ uint32_t screenNativePending(const ScreenNative& native){
 }
 bool screenTabMatches(const ScreenNative& native,const ScreenTab& tab){
     void* mode=reinterpret_cast<void*>(uintptr_t(native.mode));
-    if(!tab.properties)return word(mode,0)==imageBias+0x068e6cacu;
-    if(word(mode,0)!=imageBias+0x068e764cu||word(mode,0x29c)!=tab.properties||word(mode,0x2a8)!=tab.program||
+    if(!tab.properties)return word(mode,0)==imageBias+TH_QLINK_FX_MODE_VPTR;
+    if(word(mode,0)!=imageBias+TH_QLINK_PROGRAM_MODE_VPTR||word(mode,0x29c)!=tab.properties||word(mode,0x2a8)!=tab.program||
        word(mode,0x48)!=native.labels||word(mode,0x98)!=native.labels)return false;
     void* properties=reinterpret_cast<void*>(uintptr_t(tab.properties));
     return word(properties,0x28)==tab.first&&word(properties,0x2c)==tab.second;
@@ -30,7 +31,7 @@ bool screenTabMatches(const ScreenNative& native,const ScreenTab& tab){
 bool screenReadTab(const ScreenNative& native,const Slot& slot,ScreenTab& tab){
     tab={};if(slot.insert)return screenTabMatches(native,tab);
     void* mode=reinterpret_cast<void*>(uintptr_t(native.mode));
-    if(word(mode,0)!=imageBias+0x068e764cu||word(mode,0x48)!=native.labels||word(mode,0x98)!=native.labels)return false;
+    if(word(mode,0)!=imageBias+TH_QLINK_PROGRAM_MODE_VPTR||word(mode,0x48)!=native.labels||word(mode,0x98)!=native.labels)return false;
     tab.properties=word(mode,0x29c);tab.program=word(mode,0x2a8);
     if(!tab.properties||!tab.program||tab.properties%4||tab.properties>UINT32_MAX-0x30||
        tab.properties!=word(slot.editor,0xe4)||tab.program!=word(slot.editor,0xe0))return false;
@@ -109,18 +110,18 @@ struct ScreenTraceWrite {
 uint64_t screenNow(){timespec t{};clock_gettime(CLOCK_MONOTONIC,&t);return uint64_t(t.tv_sec)*1000+t.tv_nsec/1000000;}
 template<class Function> Function screenFunction(uint32_t address){return reinterpret_cast<Function>(uintptr_t(imageBias+address));}
 void screenLabel(unsigned index,uint32_t kind,const uint32_t* name,const uint32_t* display){
-    screenNativePublication(2,screenQLinks.native.labels,index,kind,uint32_t(uintptr_t(name)),uint32_t(uintptr_t(display)),imageBias+0x014e6768);
+    screenNativePublication(2,screenQLinks.native.labels,index,kind,uint32_t(uintptr_t(name)),uint32_t(uintptr_t(display)),imageBias+TH_QLINK_LABEL_SET);
 }
 void screenText(unsigned index,const char* name,const char* value){
     uint32_t a=0,b=0;
-    auto construct=screenFunction<void(*)(uint32_t*,const char*)>(0x00961120);
-    auto destroy=screenFunction<void(*)(uint32_t*)>(0x00911f58);
+    auto construct=screenFunction<void(*)(uint32_t*,const char*)>(TH_STRING_CTOR);
+    auto destroy=screenFunction<void(*)(uint32_t*)>(TH_STRING_DTOR);
     construct(&a,name);construct(&b,value);screenLabel(index,1,&a,&b);destroy(&b);destroy(&a);
 }
 void screenSaveLabels(uint32_t mask=0xffff){
     auto& q=screenQLinks;void* strings=pointer(reinterpret_cast<void*>(uintptr_t(q.native.labels)),0x14);
-    auto copy=screenFunction<void(*)(uint32_t*,const uint32_t*)>(0x00925c88);
-    auto destroy=screenFunction<void(*)(uint32_t*)>(0x00911f58);
+    auto copy=screenFunction<void(*)(uint32_t*,const uint32_t*)>(TH_STRING_COPY);
+    auto destroy=screenFunction<void(*)(uint32_t*)>(TH_STRING_DTOR);
     for(unsigned i=0;i<16;++i)if(mask&(1u<<i)){auto* source=static_cast<uint32_t*>(strings)+3*i;
         if(q.labelsSaved){destroy(&q.labelName[i]);destroy(&q.labelValue[i]);}
         q.labelKind[i]=source[0];copy(&q.labelName[i],source+1);copy(&q.labelValue[i],source+2);
@@ -129,7 +130,7 @@ void screenSaveLabels(uint32_t mask=0xffff){
 }
 void screenFreeLabels(){
     auto& q=screenQLinks;if(!q.labelsSaved)return;
-    auto destroy=screenFunction<void(*)(uint32_t*)>(0x00911f58);
+    auto destroy=screenFunction<void(*)(uint32_t*)>(TH_STRING_DTOR);
     for(unsigned i=0;i<16;++i){destroy(&q.labelName[i]);destroy(&q.labelValue[i]);}
     q.labelsSaved=false;
 }
@@ -157,15 +158,15 @@ void screenActivity(void* receiver,unsigned index,bool active,uint32_t original)
     }
     if(index<16)screenQLinks.lanes[index].activity.store(active?3:1,std::memory_order_release);
 }
-void screenFxInput(void* receiver,unsigned index,float value){screenInput(receiver,index,value,0x011cdb14);}
-void screenSynthInput(void* receiver,unsigned index,float value){screenInput(receiver,index,value,0x011fc4a0);}
-void screenFxActivity(void* receiver,unsigned index,bool active){screenActivity(receiver,index,active,0x011cdc1c);}
-void screenSynthActivity(void* receiver,unsigned index,bool active){screenActivity(receiver,index,active,0x011fc29c);}
+void screenFxInput(void* receiver,unsigned index,float value){screenInput(receiver,index,value,TH_QLINK_FX_INPUT);}
+void screenSynthInput(void* receiver,unsigned index,float value){screenInput(receiver,index,value,TH_QLINK_PROGRAM_INPUT);}
+void screenFxActivity(void* receiver,unsigned index,bool active){screenActivity(receiver,index,active,TH_QLINK_FX_ACTIVITY);}
+void screenSynthActivity(void* receiver,unsigned index,bool active){screenActivity(receiver,index,active,TH_QLINK_PROGRAM_ACTIVITY);}
 void screenDescriptor(void* provider,unsigned index,const void* config){
-    screenNativePublication(1,uint32_t(uintptr_t(provider)),index,uint32_t(uintptr_t(config)),0,0,imageBias+0x014e0634);
+    screenNativePublication(1,uint32_t(uintptr_t(provider)),index,uint32_t(uintptr_t(config)),0,0,imageBias+TH_QLINK_DESCRIPTOR_SET);
 }
 void screenValue(void* provider,unsigned index,float value){
-    screenFunction<void(*)(void*,unsigned,float)>(0x014e040c)(provider,index,value);
+    screenFunction<void(*)(void*,unsigned,float)>(TH_QLINK_VALUE_SET)(provider,index,value);
 }
 void screenAudio(void* argument){
     auto& q=screenQLinks;auto& job=*static_cast<ScreenJob*>(argument);
@@ -178,12 +179,12 @@ void screenAudio(void* argument){
             *(static_cast<unsigned char*>(mode)+0x30);
         if(job.operation==1&&job.epoch==q.desired.load(std::memory_order_acquire)&&current&&screenTabMatches(q.native,job.tab)&&job.publication==q.publication.load(std::memory_order_acquire)&&screenNativePending(q.native)==1){
             if(!q.installed.load(std::memory_order_acquire)){
-                const bool fx=word(mode,0)==imageBias+0x068e6cac;
-                if(word(receiver,0)!=imageBias+(fx?0x068e6d00:0x068e76c0)){
+                const bool fx=word(mode,0)==imageBias+TH_QLINK_FX_MODE_VPTR;
+                if(word(receiver,0)!=imageBias+(fx?TH_QLINK_FX_RECEIVER_VPTR:TH_QLINK_PROGRAM_RECEIVER_VPTR)){
                     q.desired.store(0,std::memory_order_release);q.pending.store(0,std::memory_order_release);return;
                 }
                 void* descriptors=pointer(provider,0x30);
-                auto clone=screenFunction<void(*)(void*,const void*)>(0x014dd398);
+                auto clone=screenFunction<void(*)(void*,const void*)>(TH_QLINK_DESCRIPTOR_ASSIGN);
                 for(unsigned i=0;i<16;++i){std::memset(q.savedDescriptors[i],0,sizeof(q.savedDescriptors[i]));
                     clone(q.savedDescriptors[i],static_cast<char*>(descriptors)+i*0x68+4);
                     q.savedDescriptors[i][0]=word(pointer(provider,0x34),i*4);q.savedDescriptorRevision[i]=job.descriptorRevision[i];q.savedValueLabelRevision[i]=job.labelRevision[i];}
@@ -198,7 +199,7 @@ void screenAudio(void* argument){
                 // Reassign the owned snapshot; native assignment releases any
                 // previous erased conversion before retaining the new bank.
                 void* descriptors=pointer(provider,0x30);
-                auto clone=screenFunction<void(*)(void*,const void*)>(0x014dd398);
+                auto clone=screenFunction<void(*)(void*,const void*)>(TH_QLINK_DESCRIPTOR_ASSIGN);
                 for(unsigned i=0;i<16;++i){
                     const bool descriptor=job.captureNative||job.descriptorRevision[i]!=q.savedDescriptorRevision[i];
                     if(descriptor){clone(q.savedDescriptors[i],static_cast<char*>(descriptors)+i*0x68+4);q.savedDescriptorRevision[i]=job.descriptorRevision[i];}
@@ -279,7 +280,7 @@ void screenFreeDescriptors(){
     auto& q=screenQLinks;
     // The native descriptor assignment releases its own erased conversions.
     alignas(8) unsigned char empty[0x60]{};
-    auto assign=screenFunction<void(*)(void*,const void*)>(0x014dd398);
+    auto assign=screenFunction<void(*)(void*,const void*)>(TH_QLINK_DESCRIPTOR_ASSIGN);
     for(auto& descriptor:q.savedDescriptors){assign(descriptor,empty);std::memset(descriptor,0,sizeof(descriptor));}
 }
 void screenRetiring(){

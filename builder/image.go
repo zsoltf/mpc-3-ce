@@ -15,11 +15,36 @@ import (
 	"github.com/ulikunitz/xz"
 )
 
-const (
-	officialImageSHA256 = "4c0f7797a006313fad206f9513eca8b3823e834c9e0941a6b5f088386cb835d6"
-	rootSize            = int64(441279488)
-	payloadOffset       = int64(340)
-)
+const payloadOffset = int64(340)
+
+// One official Akai Gen1 USB image per supported MPC firmware, recognised by
+// its exact checksum. Each has its own embedded CE recipes.
+type firmwareProfile struct {
+	Name        string
+	ImageSHA256 string
+	RootSize    int64
+	Recipes     string
+	Diagnostics bool
+}
+
+var firmwareProfiles = []firmwareProfile{
+	{Name: "3.9.1", ImageSHA256: "4c0f7797a006313fad206f9513eca8b3823e834c9e0941a6b5f088386cb835d6", RootSize: 441279488, Recipes: "resources/", Diagnostics: true},
+	{Name: "3.10", ImageSHA256: "d09b1e4c1c765d6bea0f0b93bb7ba661200fc14bd893422dcbf0e86e406a2a20", RootSize: 451468288, Recipes: "resources/310/", Diagnostics: true},
+}
+
+// A build handles one image, so the selected firmware is process state.
+var currentFirmware = firmwareProfiles[0]
+var rootSize = currentFirmware.RootSize
+
+func selectFirmware(digest string) error {
+	for _, profile := range firmwareProfiles {
+		if digest == profile.ImageSHA256 {
+			currentFirmware, rootSize = profile, profile.RootSize
+			return nil
+		}
+	}
+	return errors.New("the selected file is not the exact official MPC 3.9.1 or 3.10 Gen1 USB image")
+}
 
 var partitionDescriptor = []byte{
 	0x06, 0x00, 0x00, 0x00, 0x72, 0x6f, 0x6f, 0x74,
@@ -43,8 +68,8 @@ func validateOfficial(path string) (imageLayout, error) {
 	if err != nil {
 		return imageLayout{}, fmt.Errorf("read selected image: %w", err)
 	}
-	if hex.EncodeToString(digest) != officialImageSHA256 {
-		return imageLayout{}, errors.New("the selected file is not the exact official MPC 3.9.1 Gen1 USB image")
+	if err := selectFirmware(hex.EncodeToString(digest)); err != nil {
+		return imageLayout{}, err
 	}
 	return inspectImage(path)
 }
@@ -68,7 +93,7 @@ func inspectImage(path string) (imageLayout, error) {
 	}
 	pos := 40
 	if binary.LittleEndian.Uint32(header[pos:pos+4]) != 8 {
-		return imageLayout{}, errors.New("image compatibility table is not MPC 3.9.1 Gen1")
+		return imageLayout{}, errors.New("image compatibility table is not MPC Gen1")
 	}
 	pos += 4
 	foundACVB := false
@@ -127,7 +152,7 @@ func inspectImageBytes(image []byte) (imageLayout, error) {
 	}
 	pos := 40
 	if binary.LittleEndian.Uint32(header[pos:pos+4]) != 8 {
-		return imageLayout{}, errors.New("image compatibility table is not MPC 3.9.1 Gen1")
+		return imageLayout{}, errors.New("image compatibility table is not MPC Gen1")
 	}
 	pos += 4
 	foundACVB := false
@@ -173,8 +198,8 @@ func inspectImageBytes(image []byte) (imageLayout, error) {
 
 func validateOfficialBytes(image []byte) (imageLayout, error) {
 	digest := sha256.Sum256(image)
-	if hex.EncodeToString(digest[:]) != officialImageSHA256 {
-		return imageLayout{}, errors.New("the selected file is not the exact official MPC 3.9.1 Gen1 USB image")
+	if err := selectFirmware(hex.EncodeToString(digest[:])); err != nil {
+		return imageLayout{}, err
 	}
 	return inspectImageBytes(image)
 }

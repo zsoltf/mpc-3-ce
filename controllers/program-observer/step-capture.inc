@@ -36,7 +36,7 @@ static void step_clock_capture(Context *c){
  if(word(sp+0x34)!=atomic_load(&step_clock_admission.key0)||word(sp+0x38)!=atomic_load(&step_clock_admission.key1)||(*(const unsigned char*)(uintptr_t)(sp+0x3c)!=0)!=atomic_load(&step_clock_admission.key_present))return;
  if(rev!=atomic_load_explicit(&step_clock_admission.revision,memory_order_acquire))return;
  unsigned write=atomic_load(&step_clock_sample.revision);if((write&1)||write>UINT32_MAX-2||!atomic_compare_exchange_strong(&step_clock_sample.revision,&write,write+1))return;
- atomic_store(&step_clock_sample.admission,rev);atomic_store(&step_clock_sample.tick,now);atomic_store(&step_clock_sample.lo,c->r[0]);atomic_store(&step_clock_sample.hi,c->r[1]);atomic_store(&step_clock_sample.found,c->r[3]!=player+0x98);
+ atomic_store(&step_clock_sample.admission,rev);atomic_store(&step_clock_sample.tick,now);atomic_store(&step_clock_sample.lo,c->r[0]);atomic_store(&step_clock_sample.hi,c->r[1]);atomic_store(&step_clock_sample.found,c->r[3]!=player+MODEL_STEP_CLOCK_MISSING);
  atomic_store_explicit(&step_clock_sample.revision,write+2,memory_order_release);
 }
 static void step_clock_read(StepCopy *s){
@@ -55,13 +55,13 @@ static void step_clock_read(StepCopy *s){
 }
 static unsigned step_native_read(StepCopy *s){
  memset(s,0,sizeof(*s));s->status=STEP_UNAVAILABLE;s->epoch=epoch;s->tick=atomic_load(&mirror_state->heartbeat);
- if(!active()||!ready||loading||reset_pending||depth||!typed(root,0x68d7bf8)||word(root+0x24c)!=project||!typed(project,0x6933c4c)||atomic_load(&mirror_state->meters.closing)||atomic_load(&command_state->stop_requested)||atomic_load(&command_state->new_project_intent))return C_NOT_READY;
- uint32_t control=word(root+0x398),context=word(root+0x39c),track=word(project+0xa0);
- if(!typed(control,0x690a8d0)||!step_span(control,0xaa38))return C_NATIVE_MEMBERSHIP;
+ if(!active()||!ready||loading||reset_pending||depth||!typed(root,MODEL_ROOT_VPTR)||word(root+MODEL_ROOT_PROJECT)!=project||!typed(project,MODEL_PROJECT_VPTR)||atomic_load(&mirror_state->meters.closing)||atomic_load(&command_state->stop_requested)||atomic_load(&command_state->new_project_intent))return C_NOT_READY;
+ uint32_t control=word(root+MODEL_ROOT_STEP_CONTROL),context=word(root+MODEL_ROOT_STEP_CONTEXT),track=word(project+0xa0);
+ if(!typed(control,MODEL_STEP_CONTROL_VPTR)||!step_span(control,0xaa38))return C_NATIVE_MEMBERSHIP;
  Track *t=NULL;for(unsigned i=0;i<count;i++)if(tracks[i].track==track){t=tracks+i;break;}
- if(!t||t->transition||!t->track_owner||!t->program_owner||!typed(track,0x6935554)||channel_owner_id(track)!=t->track_owner||channel_owner_id(t->program)!=t->program_owner||word(track+0x648)!=t->program||!typed(t->program,0x6930c00)||word(t->program+0x1140)!=0)return C_NOT_DRUM;
+ if(!t||t->transition||!t->track_owner||!t->program_owner||!typed(track,MODEL_TRACK_VPTR)||channel_owner_id(track)!=t->track_owner||channel_owner_id(t->program)!=t->program_owner||word(track+0x648)!=t->program||!typed(t->program,MODEL_DRUMPROGRAM_VPTR)||word(t->program+0x1140)!=0)return C_NOT_DRUM;
  uint32_t clip=word(project+0x1e8);
- if(!typed(clip,0x692f010)||word(control+0xa938)!=project+0x1c0||word(control+0x68)!=clip+0x388)return C_NATIVE_MEMBERSHIP;
+ if(!typed(clip,MODEL_CLIP_VPTR)||word(control+0xa938)!=project+0x1c0||word(control+0x68)!=clip+MODEL_CLIP_EVENT_OWNER)return C_NATIVE_MEMBERSHIP;
  uint32_t pad=word(control+0x90),quantiser=word(control+0xa940),sequence=word(project+0xe4);
  if(pad>=128||!step_span(quantiser,0x74)||!step_span(sequence,0x239)||!step_span(word(control+0x68),0x48))return C_NATIVE_MEMBERSHIP;
  uint32_t bits=word(quantiser+0x70);float division;memcpy(&division,&bits,4);

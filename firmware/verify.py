@@ -2,6 +2,8 @@
 """Verify added bytes and metadata, permitting only necessary directory link changes."""
 import hashlib, json, pathlib, subprocess, sys, tempfile
 
+mpc_310 = '--mpc-3.10' in sys.argv
+if mpc_310: sys.argv.remove('--mpc-3.10')
 prerelease = '--prerelease' in sys.argv
 if prerelease: sys.argv.remove('--prerelease')
 
@@ -19,8 +21,10 @@ old, new = map(inventory, sys.argv[1:3])
 expected = json.loads(pathlib.Path(sys.argv[3]).read_text())
 rootfs = sys.argv[4]
 mpc = json.loads(pathlib.Path(sys.argv[5]).read_text()) if len(sys.argv) == 6 else None
+if mpc_310 and not mpc:
+    raise SystemExit('3.10 composition requires its exact CE executable delta')
 if mpc:
-    admitted = json.loads(pathlib.Path(__file__).with_name('mpc-ce.json').read_text())
+    admitted = json.loads(pathlib.Path(__file__).with_name('mpc-ce-3.10.json' if mpc_310 else 'mpc-ce.json').read_text())
     assert mpc['version'] == admitted['version'] == 2 and mpc['path'] == '/usr/bin/MPC'
     for key in ['size', 'input_sha256', 'output_sha256', 'slots']:
         assert mpc[key] == admitted[key], ('unadmitted MPC expectation', key)

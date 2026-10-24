@@ -4,22 +4,22 @@ Adds Pd Sketch Synth and Cardinal Synth as instruments, and Pd Sketch FX and
 Cardinal FX as insert effects. Cardinal supports GPU panning. Existing
 controller support and Global MIDI Learn remain available.
 
-Download the matching SD plugin ZIP from the
-[v0.3.0 release](https://github.com/zsoltf/mpc-3-ce/releases/tag/v0.3.0)
-and unzip it. Use its `MPCLEARN` folder with the matching firmware image.
-Do not mix the image with a plugin bundle from another release.
+Use `mpc-ce-v0.4.0-sd-plugins.zip` from the
+[v0.4.0 release](https://github.com/zsoltf/mpc-3-ce/releases/tag/v0.4.0)
+with CE v0.4.0 on MPC 3.10. For the CE v0.3.0 image on MPC 3.9.1,
+use its [matching release](https://github.com/zsoltf/mpc-3-ce/releases/tag/v0.3.0).
 
-1. With the MPC turned off, copy the `MPCLEARN` folder to the root of your SD
-   card. It contains `plugins.squashfs`.
-2. Install the bundled `*-update.img` through the MPC's normal firmware update
-   screen. Use the exact filename supplied in the archive.
+1. With the MPC turned off, copy the ZIP's `MPCLEARN` folder to the root of your
+   SD card. It contains `plugins.squashfs`.
+2. Build your image from your official Akai update with the
+   [image builder](https://mpc3ce.com/builder.html), then install it through
+   Preferences > Info > Update. The plugin ZIP contains no firmware image.
 3. Insert the SD card before starting the MPC and leave it inserted while using
    Pd or Cardinal. Turn the MPC off before replacing the plugin bundle.
 
 No SSH is needed. If the SD bundle is missing or does not match the firmware,
 the base MPC and controller session still starts, but Pd and Cardinal are
-unavailable. The firmware may show its CE base label; use the bundled update
-filename to identify the release.
+unavailable. After installing v0.4.0, Preferences > Info shows `MPC 3 CE 0.4.0`.
 
 Cardinal MIDI and Terrorform support up to four voices. Heavy patches and
 concurrent editing can still overload playback; reduce polyphony or simplify

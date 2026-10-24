@@ -43,9 +43,10 @@ int native_preferences_install(uint32_t bias,void **mapping){
   uint32_t *out=(uint32_t*)cursor;jump(&out,bias+native_preferences_sites[i].address+8);cursor=(unsigned char*)out;
  }
  __builtin___clear_cache((char*)code,(char*)cursor);if(mprotect(code,bytes,PROT_READ|PROT_EXEC)){munmap(code,bytes);return 0;}
- uint32_t pages[NATIVE_PREFERENCES_SITE_COUNT]={};unsigned page_count=0;
- for(unsigned i=0;i<NATIVE_PREFERENCES_SITE_COUNT;i++){
-  uint32_t page=(bias+native_preferences_sites[i].address)&~4095u;unsigned known=0;for(unsigned n=0;n<page_count;n++)known|=pages[n]==page;
+ /* Every page an 8-byte site touches, in case it straddles a boundary. */
+ uint32_t pages[2*NATIVE_PREFERENCES_SITE_COUNT]={};unsigned page_count=0;
+ for(unsigned i=0;i<NATIVE_PREFERENCES_SITE_COUNT;i++)for(unsigned k=0;k<2;k++){
+  uint32_t page=(bias+native_preferences_sites[i].address+7u*k)&~4095u;unsigned known=0;for(unsigned n=0;n<page_count;n++)known|=pages[n]==page;
   if(!known)pages[page_count++]=page;
  }
  unsigned writable=0;for(;writable<page_count;writable++)if(mprotect((void*)(uintptr_t)pages[writable],4096,PROT_READ|PROT_WRITE|PROT_EXEC))break;

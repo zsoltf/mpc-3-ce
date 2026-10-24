@@ -20,8 +20,12 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#ifndef MPCLEARN_DIAGNOSTIC_PROFILE
 #include "../controllers/program-observer/mpc-identity.h"
 #include "runtime-identity.h"
+#define CURSOR_SLOT_RVA 0x06b220d4u
+#define EXPECTED_PAYLOAD_FILES 14u
+#endif
 
 #ifndef SCAN_INTERVAL_MS
 #define SCAN_INTERVAL_MS 1000
@@ -104,7 +108,6 @@
 #ifndef DRM_DEBUG_ROOT
 #define DRM_DEBUG_ROOT "/sys/kernel/debug/dri"
 #endif
-#define CURSOR_SLOT_RVA 0x06b220d4u
 static volatile sig_atomic_t stopping;
 static void stop_signal(int sig){(void)sig;stopping=1;}
 
@@ -173,7 +176,7 @@ static const char *verify_release_payload(void){
  FILE *f=fopen(manifest,"re");if(!f)return "unavailable";char line[512];unsigned count=0;bool ok=true;
  while(fgets(line,sizeof(line),f)){char expected[65],name[256],extra;if(sscanf(line,"%64[0-9a-f]  %255s %c",expected,name,&extra)!=2||strlen(expected)!=64||strchr(name,'/')||strstr(name,"..")){ok=false;break;}char path[768],actual[65];snprintf(path,sizeof(path),"%s/%s",PAYLOAD_DIR,name);if(!hash_file(path,actual)||strcmp(actual,expected)){ok=false;break;}count++;}
  if(ferror(f))ok=false;
- fclose(f);return ok&&count==14?"verified":"file_mismatch";
+ fclose(f);return ok&&count==EXPECTED_PAYLOAD_FILES?"verified":"file_mismatch";
 }
 static bool write_all(int fd,const void *data,size_t size){const unsigned char *p=data;while(size){ssize_t n=write(fd,p,size);if(n<0&&errno==EINTR)continue;if(n<=0)return false;p+=n;size-=(size_t)n;}return true;}
 static bool internal_write(const void *data,size_t size){

@@ -23,11 +23,11 @@ static unsigned master_resolve(Context *c,const CommandRequest *r,uint32_t *fact
  if(r->epoch!=epoch||channel_owner_id(project)!=r->project_owner)return C_IDENTITY;
  for(unsigned i=0;i<count;i++)if(tracks[i].transition)return C_NOT_READY;
  if(c->r[0]!=command_queues+4||word(c->r[0]+0xf0))return C_NOT_READY;
- if(!typed(root,0x68d7bf8)||word(root+0x24c)!=project||!typed(project,0x6933c4c)||word(project+0xa94)!=pool||!typed(pool,0x68ad2c4))return C_IDENTITY;
- uint32_t a=word(root+0x2e4),f=word(root+0x318);if(!pointer(a)||a>UINT32_MAX-0x400)return C_NATIVE_MEMBERSHIP;uint32_t m=a+0x260;
- if(!typed(m,0x6898b34)||!typed(f,0x6899fa0)||f!=atomic_load(&master_factory)||f==atomic_load(&master_dead_factory)||word(f+4)!=command_queues||word(f+0x10)!=command_queues||word(f+0x14)!=project||word(f+0x30)!=word(project+0xab0)||word(f+0x40)!=m||word(root+0xf8)!=command_queues||word(a+0xa8)!=command_queues)return C_NATIVE_MEMBERSHIP;
- ChannelCell *cell=channel_cell(m+0xa8);if(channel_owner_id(m)!=r->global_owner||atomic_load(&mirror_state->channel.mixer_owner)!=r->global_owner||!cell||!atomic_load(&cell->live)||atomic_load(&cell->incarnation)!=r->field_incarnation||atomic_load(&cell->owner_incarnation)!=r->global_owner||channel_fault(atomic_load(&mirror_state->channel.errors[CF_MASTER])))return C_IDENTITY;
- if(word(root+0x318)!=f||word(root+0x2e4)!=a)return C_NATIVE_MEMBERSHIP;
+ if(!typed(root,MODEL_ROOT_VPTR)||word(root+MODEL_ROOT_PROJECT)!=project||!typed(project,MODEL_PROJECT_VPTR)||word(project+MODEL_PROJECT_POOL)!=pool||!typed(pool,MODEL_POOL_VPTR))return C_IDENTITY;
+ uint32_t a=word(root+MODEL_ROOT_AUDIO),f=word(root+MODEL_ROOT_COMMAND_FACTORY);if(!pointer(a)||a>UINT32_MAX-0x400)return C_NATIVE_MEMBERSHIP;uint32_t m=a+MODEL_AUDIO_MIXER;
+ if(!typed(m,MODEL_MIXER_VPTR)||!typed(f,MODEL_COMMAND_FACTORY_VPTR)||f!=atomic_load(&master_factory)||f==atomic_load(&master_dead_factory)||word(f+4)!=command_queues||word(f+0x10)!=command_queues||word(f+0x14)!=project||word(f+0x30)!=word(project+MODEL_PROJECT_HISTORY)||word(f+0x40)!=m||word(root+MODEL_ROOT_QUEUES)!=command_queues||word(a+0xa8)!=command_queues)return C_NATIVE_MEMBERSHIP;
+ ChannelCell *cell=channel_cell(m+MODEL_MIXER_MASTER);if(channel_owner_id(m)!=r->global_owner||atomic_load(&mirror_state->channel.mixer_owner)!=r->global_owner||!cell||!atomic_load(&cell->live)||atomic_load(&cell->incarnation)!=r->field_incarnation||atomic_load(&cell->owner_incarnation)!=r->global_owner||channel_fault(atomic_load(&mirror_state->channel.errors[CF_MASTER])))return C_IDENTITY;
+ if(word(root+MODEL_ROOT_COMMAND_FACTORY)!=f||word(root+MODEL_ROOT_AUDIO)!=a)return C_NATIVE_MEMBERSHIP;
  *factory=f;*mixer=m;return 0;
 }
 #ifdef COMMAND_COMPONENT
@@ -36,7 +36,7 @@ static void (*component_master_dispatch)(uint32_t,unsigned,float);
 static void master_service(Context *c,unsigned at,const CommandRequest *r){
  uint32_t f=0,m=0;unsigned why=master_resolve(c,r,&f,&m);if(why==COMMAND_WAIT_HEARTBEAT)return;
  for(unsigned i=0;i<COMMAND_SLOTS;i++)if(i!=at){CommandSlot *q=command_state->slots+i;CommandRequest old;unsigned seq=atomic_load(&q->published);if(seq&&seq<r->seq&&seq!=atomic_load(&q->reclaimed)&&command_request_read(q,seq,&old)&&old.reserved==CF_MASTER)return;}
- CommandSlot *slot=command_state->slots+at;accepted[at].request=*r;native_started[at]=0;atomic_store(&slot->rejected,0);accepted[at].program=m;accepted[at].property=m?m+0xa8:0;accepted[at].track=0;accepted[at].controller=CF_MASTER;accepted[at].native_bits=r->bits;accepted[at].synchronous=0;
+ CommandSlot *slot=command_state->slots+at;accepted[at].request=*r;native_started[at]=0;atomic_store(&slot->rejected,0);accepted[at].program=m;accepted[at].property=m?m+MODEL_MIXER_MASTER:0;accepted[at].track=0;accepted[at].controller=CF_MASTER;accepted[at].native_bits=r->bits;accepted[at].synchronous=0;
  atomic_store(master_payload+at,0);master_c[at]=master_b[at]=master_enqueue[at]=0;
  for(unsigned i=0;i<COMMAND_LANES;i++){CommandLane *l=slot->lanes+i;atomic_store(&l->sequence,0);atomic_thread_fence(memory_order_release);atomic_store(&l->published,0);atomic_store_explicit(&l->sequence,r->seq,memory_order_release);}atomic_store(&slot->rejected,0);
  if(why)goto rejected;
@@ -47,7 +47,7 @@ static void master_service(Context *c,unsigned at,const CommandRequest *r){
 #ifdef COMMAND_COMPONENT
  component_master_dispatch(f,0,value);
 #else
- ((void (*)(void*,unsigned,float))(uintptr_t)(observer_image_bias+0x13d63a8))((void*)(uintptr_t)f,0,value);
+ ((void (*)(void*,unsigned,float))(uintptr_t)(observer_image_bias+MODEL_MASTER_FACTORY))((void*)(uintptr_t)f,0,value);
 #endif
  master_submission=0;
  if(master_enqueue[at]!=2||!atomic_load(master_payload+at)){why=master_enqueue[at]==1?C_NOT_READY:C_TRACE_AMBIGUOUS;goto rejected;}
@@ -74,13 +74,13 @@ static void master_point(Context *c,unsigned site){
     * below, including duplicate rejection. UI flight survives early DONE. */
    uint32_t slot=c->r[10],cmd=master_c[at];
    if(!pointer(slot)||slot>UINT32_MAX-8){trace_fail(C_TRACE_AMBIGUOUS);return;}
-   if((!cmd||c->r[9]!=((cmd+0x34)|1u))&&word(slot)!=observer_image_bias+0x13bfd1c&&word(slot+4)!=observer_image_bias+0x13bfdf0)return;
+   if((!cmd||c->r[9]!=((cmd+0x34)|1u))&&word(slot)!=observer_image_bias+MODEL_MASTER_INVOKER&&word(slot+4)!=observer_image_bias+MODEL_MASTER_MANAGER)return;
   }
   if(site!=MS_RESULT&&source_requests[at]!=master_submission){trace_fail(C_TRACE_AMBIGUOUS);return;}
   const CommandRequest *r=&accepted[at].request;uint32_t m=accepted[at].program;
-  if(site==MS_CREATE){uint32_t b=c->r[4],cmd=c->r[6];if(master_c[at]||c->r[5]!=atomic_load(&master_factory)||!pointer(b)||b>UINT32_MAX-0x60||cmd!=b+0x10||!typed(cmd,0x68eeaa8)||word(cmd+0x34)!=command_queues||word(cmd+0x3c)!=m||word(cmd+0x40)||word(cmd+0x44)!=r->bits){trace_fail(C_TRACE_AMBIGUOUS);return;}master_c[at]=cmd;master_b[at]=b;event(c,CE_MASTER_CREATE,r->seq,cmd,b,m,0,CF_MASTER,r->bits,0,r->epoch);}
+  if(site==MS_CREATE){uint32_t b=c->r[4],cmd=c->r[6];if(master_c[at]||c->r[5]!=atomic_load(&master_factory)||!pointer(b)||b>UINT32_MAX-0x60||cmd!=b+0x10||!typed(cmd,MODEL_SETMIXER_VPTR)||word(cmd+0x34)!=command_queues||word(cmd+0x3c)!=m||word(cmd+0x40)||word(cmd+0x44)!=r->bits){trace_fail(C_TRACE_AMBIGUOUS);return;}master_c[at]=cmd;master_b[at]=b;event(c,CE_MASTER_CREATE,r->seq,cmd,b,m,0,CF_MASTER,r->bits,0,r->epoch);}
   else if(site==MS_RESULT){if(master_enqueue[at]||c->r[0]>1){trace_fail(C_TRACE_AMBIGUOUS);return;}master_enqueue[at]=c->r[0]+1;}
-  else{uint32_t cmd=master_c[at],b=master_b[at],slot=c->r[10];if(!cmd||atomic_load(master_payload+at)||!pointer(slot)||slot>UINT32_MAX-20||c->r[7]!=command_queues+0xfc||c->r[9]!=((cmd+0x34)|1u)||word(slot)!=observer_image_bias+0x13bfd1c||word(slot+4)!=observer_image_bias+0x13bfdf0||word(slot+8)!=cmd+0x34||word(slot+12)!=cmd||word(slot+16)!=b||word(cmd+0x2c)!=cmd||word(cmd+0x30)!=b){trace_fail(C_TRACE_AMBIGUOUS);return;}atomic_store_explicit(master_payload+at,slot+8,memory_order_release);event(c,CE_MASTER_QUEUE,r->seq,slot+8,cmd+0x34,m,0,CF_MASTER,r->bits,0,r->epoch);}
+  else{uint32_t cmd=master_c[at],b=master_b[at],slot=c->r[10];if(!cmd||atomic_load(master_payload+at)||!pointer(slot)||slot>UINT32_MAX-20||c->r[7]!=command_queues+MODEL_QUEUE_AUDIO||c->r[9]!=((cmd+0x34)|1u)||word(slot)!=observer_image_bias+MODEL_MASTER_INVOKER||word(slot+4)!=observer_image_bias+MODEL_MASTER_MANAGER||word(slot+8)!=cmd+0x34||word(slot+12)!=cmd||word(slot+16)!=b||word(cmd+0x2c)!=cmd||word(cmd+0x30)!=b){trace_fail(C_TRACE_AMBIGUOUS);return;}atomic_store_explicit(master_payload+at,slot+8,memory_order_release);event(c,CE_MASTER_QUEUE,r->seq,slot+8,cmd+0x34,m,0,CF_MASTER,r->bits,0,r->epoch);}
   return;
  }
  unsigned at=COMMAND_SLOTS;if(site==MS_ENTER||site==MS_DONE){uint32_t key=c->r[site==MS_ENTER?0:4];for(unsigned i=0;i<COMMAND_SLOTS;i++)if(source_requests[i]&&accepted[i].request.reserved==CF_MASTER&&atomic_load_explicit(master_payload+i,memory_order_acquire)==key){if(at!=COMMAND_SLOTS){trace_fail(C_TRACE_AMBIGUOUS);return;}at=i;}}
@@ -95,8 +95,8 @@ static void master_point(Context *c,unsigned site){
   * command's own, so it is ignored, relevance before correctness. The index
   * argument stays a fault: its meaning for a foreign writer is not established
   * here, so a call this lane cannot attribute must still fail. */
- else if(site==MS_SET_ENTER){if(c->r[0]!=m)return;if(master_call.phase!=1||c->r[1]){trace_fail(C_TRACE_AMBIGUOUS);return;}master_call.phase=2;master_call.set_sp=source_sp(c);event(c,CE_MASTER_SET,r->seq,payload,cmd+0x34,m,0,CF_MASTER,(uint32_t)c->d[0],m+0xa8,0);}
- else if(site==MS_SET_DONE){if(c->r[4]!=m)return;if(master_call.phase!=2||source_sp(c)!=master_call.set_sp||!master_copy(at,&master_call.value,&master_call.revision)){trace_fail(C_TRACE_AMBIGUOUS);return;}master_call.phase=3;event(c,CE_MASTER_VALUE,r->seq,payload,cmd+0x34,m,0,CF_MASTER,master_call.value,m+0xa8,master_call.revision);}
+ else if(site==MS_SET_ENTER){if(c->r[0]!=m)return;if(master_call.phase!=1||c->r[1]){trace_fail(C_TRACE_AMBIGUOUS);return;}master_call.phase=2;master_call.set_sp=source_sp(c);event(c,CE_MASTER_SET,r->seq,payload,cmd+0x34,m,0,CF_MASTER,(uint32_t)c->d[0],m+MODEL_MIXER_MASTER,0);}
+ else if(site==MS_SET_DONE){if(c->r[4]!=m)return;if(master_call.phase!=2||source_sp(c)!=master_call.set_sp||!master_copy(at,&master_call.value,&master_call.revision)){trace_fail(C_TRACE_AMBIGUOUS);return;}master_call.phase=3;event(c,CE_MASTER_VALUE,r->seq,payload,cmd+0x34,m,0,CF_MASTER,master_call.value,m+MODEL_MIXER_MASTER,master_call.revision);}
  else if(site==MS_DONE){if(master_call.phase!=3||master_call.payload!=payload||source_sp(c)+8!=master_call.sp){trace_fail(C_TRACE_AMBIGUOUS);return;}event(c,CE_MASTER_DONE,r->seq,payload,cmd+0x34,m,0,CF_MASTER,master_call.value,0,atomic_load(&mirror_state->epoch));memset(&master_call,0,sizeof(master_call));atomic_store_explicit(active_request+at,0,memory_order_seq_cst);atomic_store_explicit(&command_state->slots[at].done,r->seq,memory_order_release);}
 }
 static void master_commit(Context *c,unsigned at){

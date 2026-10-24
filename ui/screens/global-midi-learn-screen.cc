@@ -3,8 +3,8 @@
 
 namespace {
 
-constexpr MpcUiLabelStyle kSurface = {
-    0xff17181bu, 0xff17181bu, 36};
+constexpr MpcUiButtonStyle kSurface = {
+    0xff17181bu, 0xff17181bu, 0xff17181bu};
 constexpr MpcUiLabelStyle kHeader = {
     0xff202126u, 0xff202126u, 36};
 constexpr MpcUiLabelStyle kChromeText = {
@@ -118,7 +118,7 @@ static int place(MpclearnGlobalLearnScreen *screen, MpcUiRect bounds) {
 }
 
 static int style(MpclearnGlobalLearnScreen *screen) {
-    return mpc_ui_label_style(screen->background, kSurface) &&
+    return mpc_ui_button_style(screen->background, kSurface) &&
            mpc_ui_label_style(screen->header, kHeader) &&
            mpc_ui_label_style(screen->detail_background, kCard) &&
            mpc_ui_label_style(screen->groups_heading, kSection) &&
@@ -170,7 +170,10 @@ extern "C" int mpclearn_global_learn_screen_open(
     view->callback_owner = callback_owner;
     view->screen = mpc_ui_screen_create(context, parent, bounds);
     if (!view->screen) return 0;
-    view->background = mpc_ui_label_create(view->screen, " ");
+    // Labels pass contacts through. Keep blank space, including hidden action
+    // slots, inside the native overlay with an inert button placed first.
+    view->background = mpc_ui_button_create(
+        view->screen, " ", 0, nullptr, nullptr);
     view->header = mpc_ui_label_create(view->screen, " ");
     view->detail_background = mpc_ui_label_create(view->screen, " ");
     view->groups_heading = mpc_ui_label_create(view->screen, "FUNCTION GROUPS");

@@ -16,20 +16,10 @@
 #include "hui-codec.h"
 #include "novation-codec.h"
 #include "control-program-codec.h"
-/* The centre-button focus-press (Enter), Replace Duplicate Sequence and Save
- * call blocking application entry points from the input drain, which can stall
- * the bridge on items that open a modal or run a threaded rendezvous. They stay
- * built and fully exercised by the regressions (this defaults on), but the
- * shipped bridge is compiled with -DX_TOUCH_BLOCKING_ENABLED=0 so those three
- * routes never publish, until they are redesigned to run asynchronously.
- * Save was missed when this gate was introduced. On hardware it is worse than a
- * stall: the application's save path re-enters a patched hook while the drain
- * still holds command_in_hook, so the re-entry test in command-capture.c latches
- * C_REENTRY and the source dies. Nothing recovers it without restarting MPC.
- * It was missed because nothing ever built the shipped configuration: a route
- * named here and left out of the expression below passed every check. That is
- * observed now, by mirror-input-check.sh running mirror-input-test twice, the
- * second time compiled the way mirror-input-build.sh builds this bridge. */
+/* The centre-button focus-press and Replace Duplicate Sequence retain their
+ * shipped blocking-route gate. Save uses the existing GLOBAL_SAVE owner:
+ * command-capture.c defers nested owning-thread drains while native Save pumps
+ * messages, preserving the outer request. MPC owns file names and dialogs. */
 #ifndef X_TOUCH_BLOCKING_ENABLED
 #define X_TOUCH_BLOCKING_ENABLED 1
 #endif
@@ -201,10 +191,10 @@ static uint64_t start_time(unsigned pid){
 static int same_stat(const struct stat *a,const struct stat *b){return a->st_dev==b->st_dev&&a->st_ino==b->st_ino;}
 static int process_file(unsigned pid,struct stat *identity,int hash){
  char proc[64],path[128];snprintf(proc,sizeof(proc),"/proc/%u/exe",pid);ssize_t n=readlink(proc,path,sizeof(path)-1);if(n<0)return 0;path[n]=0;if(strcmp(path,"/usr/bin/MPC"))return 0;
- int fd=open(proc,O_RDONLY|O_CLOEXEC);if(fd<0)return 0;struct stat st;int ok=!fstat(fd,&st)&&S_ISREG(st.st_mode)&&st.st_size==112222004;
+ int fd=open(proc,O_RDONLY|O_CLOEXEC);if(fd<0)return 0;struct stat st;int ok=!fstat(fd,&st)&&S_ISREG(st.st_mode)&&st.st_size==MPC_EXECUTABLE_SIZE;
  if(hash&&ok){Sha sha;sha_init(&sha);unsigned char bytes[65536],sum[32];size_t total=0;
-  while(ok){ssize_t got=read(fd,bytes,sizeof(bytes));if(got<0){ok=0;break;}if(!got)break;total+=(size_t)got;if(total>112222004){ok=0;break;}sha_add(&sha,bytes,(size_t)got);}
-  sha_end(&sha,sum);char hex[65];for(unsigned i=0;i<32;i++)snprintf(hex+2*i,3,"%02x",sum[i]);ok=ok&&total==112222004&&!strcmp(hex,expected_sha);
+  while(ok){ssize_t got=read(fd,bytes,sizeof(bytes));if(got<0){ok=0;break;}if(!got)break;total+=(size_t)got;if(total>MPC_EXECUTABLE_SIZE){ok=0;break;}sha_add(&sha,bytes,(size_t)got);}
+  sha_end(&sha,sum);char hex[65];for(unsigned i=0;i<32;i++)snprintf(hex+2*i,3,"%02x",sum[i]);ok=ok&&total==MPC_EXECUTABLE_SIZE&&!strcmp(hex,expected_sha);
   struct stat after;if(fstat(fd,&after)||!same_stat(&after,&st)||after.st_size!=st.st_size)ok=0;if(ok)*identity=st;
  }else if(ok)ok=same_stat(identity,&st);
  close(fd);return ok;
@@ -301,7 +291,7 @@ static void native_state_status(NativePreferencesState *s,unsigned status,unsign
  * input/output roles. Generic profiles always use explicitly selected names. */
 static unsigned external_capabilities(const char *client,int kernel,const char *port,unsigned caps){
  (void)kernel;
- if(!client||!port||!*client||!*port||!strcmp(client,"System")||!strcmp(client,"MPC")||!strcmp(client,"MPC Live II")||!strcmp(client,"JUCE")||
+ if(!client||!port||!*client||!*port||!strcmp(client,"System")||!strcmp(client,"MPC")||!strcmp(client,"MPC 3")||!strcmp(client,"MPC Live II")||!strcmp(client,"JUCE")||
     !strncmp(client,"mpclearn-",9)||!strncmp(port,"mpclearn-",9))return 0;
  unsigned roles=0,from=SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ;
  if((caps&from)==from)roles|=NATIVE_ENDPOINT_FROM_CONTROLLER;
@@ -791,7 +781,7 @@ static void surface_general(Surface *surface,MirrorInput *in,const CopiedMirror 
   * the current sequence into the first unused slot under the application's own
   * default name, as one undoable Copy Sequence command. Shift is not consumed
   * here, so the button keeps one meaning in both modes. */
- unsigned op=note==95?GLOBAL_RECORD_TOGGLE:note==89?GLOBAL_CLICK_TOGGLE:note==86?GLOBAL_LOOP_TOGGLE:note==74||note==75||note==79?CF_AUTOMATION:(note==80&&X_TOUCH_BLOCKING_ENABLED)?GLOBAL_SAVE:note==81?(in->jog_shift?GLOBAL_REDO:GLOBAL_UNDO):note==82?GLOBAL_KEY_CANCEL:note==83?GLOBAL_KEY_ENTER:(note==85&&X_TOUCH_BLOCKING_ENABLED)?GLOBAL_SEQ_DUPLICATE:0;
+ unsigned op=note==95?GLOBAL_RECORD_TOGGLE:note==89?GLOBAL_CLICK_TOGGLE:note==86?GLOBAL_LOOP_TOGGLE:note==74||note==75||note==79?CF_AUTOMATION:note==80?GLOBAL_SAVE:note==81?(in->jog_shift?GLOBAL_REDO:GLOBAL_UNDO):note==82?GLOBAL_KEY_CANCEL:note==83?GLOBAL_KEY_ENTER:(note==85&&X_TOUCH_BLOCKING_ENABLED)?GLOBAL_SEQ_DUPLICATE:0;
  if(note>=96&&note<=99){
   static const unsigned ordinary[]={GLOBAL_KEY_UP,GLOBAL_KEY_DOWN,GLOBAL_KEY_LEFT,GLOBAL_KEY_RIGHT};
   static const unsigned zoom[]={GLOBAL_ZOOM_UP,GLOBAL_ZOOM_DOWN,GLOBAL_ZOOM_OUT,GLOBAL_ZOOM_IN};
@@ -819,7 +809,7 @@ static void surface_close(Surface *s,MirrorBank *bank){
  if(s->seq&&!mcu_profile_native(SURFACE_VALUE(s,controller).profile)&&!mcu_profile_program(SURFACE_VALUE(s,controller).profile)&&(bank->view==BV_DRUM_PADS||bank->assignment==BA_SEND)&&!stopping)(void)parent_led_clear(s);
 #endif
 #ifdef MIRROR_INPUT
- input_discard(&SURFACE_VALUE(s,input));input_jog_discard(&SURFACE_VALUE(s,input));input_master_discard(&SURFACE_VALUE(s,input));
+ input_clip_feedback_clear(&SURFACE_VALUE(s,input));input_discard(&SURFACE_VALUE(s,input));input_jog_discard(&SURFACE_VALUE(s,input));input_master_discard(&SURFACE_VALUE(s,input));
 #endif
 #ifdef MIRROR_INPUT
  motor_follow_reset(&SURFACE_VALUE(s,following));
@@ -1377,6 +1367,7 @@ static void collection_disconnect(SurfaceCollection *all,unsigned i){
  surface_close(all->surfaces+i,all->banks+i);all->connected--;all->disconnections++;
  collection_admission_publish(all);
 }
+#include "plugin-controls-bridge.inc"
 static void collection_init(SurfaceCollection *all,const McuControllerCollection *saved){
  memset(all,0,sizeof(*all));all->count=saved->count;all->sink=all->source=all->stop_sink=-1;
  command_coordinator.count=1;command_coordinator.origins[0]=&input;input.coordinator=&command_coordinator;
@@ -1389,6 +1380,7 @@ static void collection_init(SurfaceCollection *all,const McuControllerCollection
   bank_init(all->banks+i);all->surfaces[i].context=context;all->surfaces[i].stop_sink=-1;
   if(record->enabled){if(command_coordinator.count==1){context->inherited_holds=inherited_holds;inherited_holds=0;}command_coordinator.origins[command_coordinator.count++]=&context->input;}
  }
+ plugin_bridge_init();
 }
 /* One inventory traversal resolves all configured roles. Names/types remain
  * exact; duplicate logical identities or overlapping routes do not pair. */
@@ -1436,6 +1428,7 @@ static unsigned collection_pads(const SurfaceCollection *all){unsigned pads=0;fo
 static int collection_needs_snapshot(const SurfaceCollection *all){return all->connected||!input_drained(&input);}
 static int collection_health(SurfaceCollection *all){
  if(!input_health(&input))return 0;
+ if(plugin_input.error){input.error=plugin_input.error;return 0;}
  for(unsigned i=0;i<all->count;i++)if(all->enabled[i]&&all->contexts[i].input.error){input.error=all->contexts[i].input.error;return 0;}
  return 1;
 }
@@ -1522,6 +1515,7 @@ static void collection_interests(SurfaceCollection *all,const CopiedMirror *snap
   * among competing pages, but a peer's ordinary mixer use must not revoke an
   * otherwise visible effects/Q-Link/I/O view. */
  MirrorBank *io=collection_interest_view(all,BA_IO),*effects=collection_interest_view(all,BA_EFFECT),*qlinks=collection_interest_view(all,BA_QLINK);
+ effects=plugin_bridge_interest(snapshot,now,effects);
  input_io_interest(&input,io?io:&empty,snapshot,now,io!=NULL);input_effects_interest(&input,effects?effects:&empty,snapshot,now,effects!=NULL);input_qlink_interest(&input,qlinks?qlinks:&empty,snapshot,now,qlinks!=NULL);
 }
 /* Shared source is already copied. There is one settlement scan and one
@@ -1537,6 +1531,7 @@ static int collection_cycle(SurfaceCollection *all,const MirrorState *state,Cont
  runtime_settle(runtime,&input,all->count?all->banks:NULL);
  if(!collection_health(all))return 0;
  collection_interests(all,snapshot,now);
+ input_effect_submit(&plugin_input,&plugin_bank,snapshot,now);
  for(unsigned step=0;step<all->count;step++){unsigned i=(all->submit_cursor+step)%all->count;if(all->surfaces[i].seq&&(all->banks[i].view!=BV_DRUM_PADS||runtime->snapshot_pads)){runtime->submission_visits++;input_submit(&all->contexts[i].input,all->banks+i,snapshot,now);}}
  /* When the shared mailbox fills, rotate first admission next cycle so a
   * continuously busy lower-index origin cannot starve its peers. */
@@ -1679,6 +1674,11 @@ int main(int argc,char **argv){
   if(wall-last_identity>=100){last_identity=wall;if(!source_identity(argv[1],fd,&file,state,pid,start,&exe)||!input_file_current(argv[2],state,start)){reason="source/mailbox identity changed";break;}}
   uint32_t heartbeat=atomic_load_explicit(&state->heartbeat,memory_order_acquire);now=source_now(state);
   if(now==UINT32_MAX||!atomic_load(&state->alive)||atomic_load(&state->error)||now<heartbeat||now-heartbeat>=1000||!collection_health(&surfaces)){reason="source failure while parked or active";break;}
+  /* App-only demand uses the same snapshot/settlement owner with a narrow
+   * projection. Any surviving controller flight retains the ordinary copy. */
+  if(!surfaces.connected&&plugin_only_flights()&&(plugin_ui_live(now)||!input_drained(&input))){
+   runtime.snapshot_attempted=1;runtime.now=now;runtime.snapshot_result=plugin_copy(state,&snapshot,now);
+  }
   /* Drain exits before rediscovery, so reused numeric addresses never inherit
    * a previous connection's gesture/cache state. */
   if(collection_needs_snapshot(&surfaces)){
@@ -1687,7 +1687,7 @@ int main(int argc,char **argv){
   }
   if(!collection_drain(&surfaces,state,&runtime)){reason="shared MIDI continuity lost";break;}
   if(wall-last_discovery>=(surfaces.connected?100u:250u)){last_discovery=wall;if(!collection_topology(&surfaces,state)){reason="shared MIDI topology unavailable";break;}collection_admission_publish(&surfaces);}
-  if(!collection_needs_snapshot(&surfaces)){if(surfaces.interest_active)collection_interests(&surfaces,&snapshot,now);poll(NULL,0,10);continue;}
+  if(!collection_needs_snapshot(&surfaces)&&!plugin_ui_live(now)){if(surfaces.interest_active||plugin_reply.slot!=EFFECT_LIST)collection_interests(&surfaces,&snapshot,now);poll(NULL,0,10);continue;}
   int copied=runtime.snapshot_attempted?runtime.snapshot_result:runtime_snapshot(&runtime,state,collection_pads(&surfaces));now=runtime.now;
   if(copied<0){reason="source unavailable before shared feedback";break;}
   if(!copied){for(unsigned i=0;i<surfaces.count;i++)if(surfaces.surfaces[i].seq){bank_drop(surfaces.banks+i,now);input_discard(&surfaces.contexts[i].input);}poll(NULL,0,10);continue;}

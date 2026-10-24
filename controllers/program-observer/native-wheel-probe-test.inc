@@ -12,7 +12,7 @@ static void native_wheel_probe_checks(void){
  native_wheel_probe_initialize();
  /* Native BLX continuation retained. Only the callee and following return are
   * substituted; original and patched executions receive identical fixtures. */
- unsigned site=0;while(site<PATCH_COUNT&&anchor[site]!=0x331ea38)site++;
+ unsigned site=0;while(site<PATCH_COUNT&&hook_ids[site]!=M_NATIVE_WHEEL)site++;
  require(site<PATCH_COUNT&&capture_after_pair[site],"exact counted panel site after its pair");
  static uint32_t table[9],controller[60];table[8]=ptr(probe_test_callee);
  Context in=context(),before,after;in.r[3]=ptr(table);in.r[5]=ptr(controller);in.r[1]=(uint32_t)-3;in.r[2]=1;

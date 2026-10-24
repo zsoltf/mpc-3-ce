@@ -1,16 +1,22 @@
 # MCU image and release
 
-The current candidate is `v0.3.0`, CMD31/MMV21, with provision revision
-`v0_3_0`. It runs from `/usr/share/mpclearn/mcu` and uses the matching
-[SD-card Pd/Cardinal bundle](plugin-setup/README.md). See the
-[release notes](../docs/releases/v0.3.0.md) for features and limits.
-The native Info screen retains the `MPC CE v0.2.6` base label; the update filename
-and payload `BUILD.json` identify this candidate.
+The current release preparation is **v0.4.0 for MPC 3.10**, CMD32/MMV21,
+with provision revision `v0_4_0`. See the
+[3.10 build instructions](../docs/BUILDING.md#mpc-310-candidate-runtime)
+and [release notes](../docs/releases/v0.4.0.md). The runtime runs from
+`/usr/share/mpclearn/mcu` and uses the matching
+[SD-card Pd/Cardinal bundle](plugin-setup/README.md).
 
-The current `mpc-ce.json`, prerelease runtime pins and browser recipes describe
-this candidate. The default `package.py` mode, `runtime.sha256` and older
-`build-v0.2.6.sh` workflow retain the historical v0.2.6 release identity; use
-that workflow only from its matching frozen source.
+`release/public-source.json` owns subsequent release qualification and names the
+exact runtime/payload checksums and three 3.10 browser recipes. The payload's
+`BUILD.json` remains its original build-time candidate record; promotion does not
+rewrite installed bytes. See [Publishing](../docs/PUBLISHING.md) for finalization.
+
+The retained 3.9.1 path uses `mpc-ce.json`, `prerelease-runtime.sha256`,
+`release/public-source-v0.3.0.json` and the original browser recipes. Its historical
+Info label is `MPC CE v0.2.6`. The default `package.py` mode, `runtime.sha256` and
+`build-v0.2.6.sh` retain the older v0.2.6 identity; use that workflow only from its
+matching frozen source.
 
 ## Deliverables
 
@@ -125,8 +131,9 @@ and checking an image does not prove it flashed or booted.
 
 ### Browser patch variants
 
-The checked-in recipes match v0.3.0. Rebuilding the browser does not require
-regenerating them. The following describes their root and patch inputs; keep
+The checked-in `resources/310` recipes match v0.4.0; the original recipe
+directories retain v0.3.0 for 3.9.1. Rebuilding the browser does not require
+regenerating either set. The following describes their root and patch inputs; keep
 all variants matched when preparing another qualified candidate.
 
 Maintainers prepare the SSH-enabled reference root with the canonical 81-byte
@@ -197,3 +204,98 @@ other MIDI ports configured as usual. The image preserves user settings.
 Global MIDI Learn and the optional Mini/Launch Control mappings remain a
 separate feature; the MCU image does not install a learned profile.
 See the [release notes](../docs/releases/v0.2.6.md) for known limits.
+
+## Offline 3.10 port discovery
+
+`mpc-3.10.json` records the official Gen1 image, decoded root filesystem and
+`/usr/bin/MPC` identity. Existing production defaults and runtime admission still
+use 3.9.1; the explicit offline preparation paths below use these stock pins. With the local stock executables available:
+
+```sh
+python3 scripts/firmware_reanchor.py \
+  --old build/MPC --new build/mpc310/MPC \
+  --image inputs/MPC-3.10.0-Gen1-update.img \
+  --out /tmp/mpc310-worklist.json
+python3 scripts/firmware_reanchor_test.py
+sh controllers/program-observer/plugin-host-probe-component-check.sh \
+  build/mpc310/MPC build/mpc310/MPC /tmp/mpc310-guard --offline-3.10
+```
+
+The worklist includes source/line locators and source hashes for model hooks,
+native Preferences, the private UI profile and VST preparation scripts. Counts
+separate source occurrences from distinct coordinates, detours, ranges and other
+addresses. A script with zero numeric ELF coordinates remains in the coverage
+list. Computed addresses and runtime object fields outside these inputs are not
+exhaustively inventoried; profile size/constant definitions are listed unresolved.
+
+The matcher uses ELF virtual addresses, PREL31 `.ARM.exidx` ranges and Itanium
+RTTI names, primary/secondary vtables and slots. The existing model preparation
+script's unwind decoding and the ignored `build/mpc310-survey/tools` were starting
+references; the worklist is recomputed from pinned binaries, not survey output.
+Only a unique full unwind-body match of at least 16 bytes gives an `auto`
+address suggestion. Normalization masks direct ARM branch displacements and
+file-backed pointer literals, so a normalized match still requires branch/ABI
+review. Conflicting RTTI evidence, duplicate or short bodies, changed functions,
+data tables and ranges crossing unwind boundaries remain `needs-trace`. A
+changed function's RTTI owner candidate does not imply a valid interior offset.
+No suggestion validates object layouts or updates any runtime profile.
+
+The small proof is the finite plugin-host diagnostic guard, prepared through
+its existing script with explicit `--offline-3.10`. The 3.10 coordinates follow
+the LinuxFb type's native-handle slot, the unchanged getWindowHandle/getPeer
+bodies, and openPluginWindow's two calls to getWindowHandle. Its first call at
+`0x008fd364` is followed by `CMP r0,#0`; the admitted body is
+`[0x008fd2e8,0x008fd624)`. The native-handle leaf calls `abort@plt`. The generator
+pins all seven ranges, checks relocated vtable targets and rejects a direct
+branch into the displaced comparison. Its 3.10 header refuses compilation
+outside the component fixture.
+
+The focused check compiles and runs the existing ARM component with that header:
+real admission, pointer mismatch rejection, patch rollback and preserved ARM
+context. The fixture uses a nonzero image bias, exact-address mappings and a
+separate executable address range. Component objects, getPeer, peer and the MPC
+gesture are substitutes. This does not run the full
+`plugin-host-probe-check.sh` observer composition/reader/dependency checks, native
+MPC code, controller workflows or audio, and it does not establish 3.10 support.
+The ordinary 3.9.1 component can be checked through the same focused script by
+providing the CE and stock 3.9.1 files and omitting `--offline-3.10`.
+
+### Explicit 3.10 CE data patch
+
+The offline port also has an explicit CE v0.4.0 data patch. Existing release
+commands keep their 3.9.1 defaults; this option does not admit a 3.10 runtime:
+
+```sh
+python3 firmware/mpc-310-slot-check.py build/MPC build/mpc310/MPC
+python3 firmware/patch-mpc-ce.py build/mpc310/MPC /tmp/mpc310-CE --mpc-3.10
+```
+
+`mpc-ce-3.10.json` pins the complete stock/output identities and both file
+intervals. The nine-character InfoTab append uses ` CE 0.4.0`; its native
+constructor copies exactly nine bytes. The Az01 EHCI CPU word is at virtual
+address `0x06cae110`, file offset `0x06cad110`. The slot check replays the
+RTTI, constructor, table and IRQ-writer instruction evidence from the exact
+stock executables. Native display and IRQ behavior still require qualification.
+
+For a disposable copy of the decoded stock root, the same explicit option on
+`patch-mpc-root.py ROOT CE_MPC DELTA_JSON --mpc-3.10` applies the two slots while
+preserving the executable inode. The existing image-build container can run
+`patch-mpc-test.py STOCK_MPC NEW_WORKDIR --mpc-3.10` to exercise exact bytes,
+refusals and rollback against a synthetic ext filesystem. Omit the option to
+check the established 3.9.1 contract. Neither check produces a release image or
+qualifies the controller, editor, plugin or audio runtime.
+
+The canonical decoder accepts `--mpc-3.10`: without a reference it requires the
+exact official 3.10 image and stock root hash; with a reference it requires that
+exact official reference, matching container metadata and the 3.10 root size.
+`image_format_310_check.py NEW_OFFICIAL OLD_OFFICIAL NEW_WORKDIR` checks both
+versions and wrong-image/root refusals. Its malformed-root image and expected
+root-digest fault are test substitutions.
+
+`firmware/build.sh` selects that path only with `MPC_FIRMWARE_VERSION=3.10`, an
+explicit `MPC_CE_EXECUTABLE` and an explicit `MPC_IMAGE_OUTPUT`. It forwards the
+same selection to the CE root patcher and payload verifier. The explicit
+`build-310-candidate.sh` and `build-310-recipes.sh` wrappers own the 3.10 payload,
+image and three recipes. The original prerelease wrapper keeps
+its frozen 3.9.1 metadata and checksum contract. Building does not establish
+release qualification; consult `release/public-source.json` for that status.

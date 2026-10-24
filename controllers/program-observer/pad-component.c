@@ -4,21 +4,21 @@
 #include "command-component.c"
 #undef main
 #include "channel-wire.h"
-static unsigned char instruments[PAD_SLOTS+4][0x1490] __attribute__((aligned(8)));
+static unsigned char instruments[PAD_SLOTS+4][MODEL_INSTRUMENT_SIZE] __attribute__((aligned(8)));
 static uint32_t pad_vector[PAD_SLOTS];
 static uint32_t pad_payload[32],pad_desired,pad_code,pad_slot;
-static unsigned swap_on_submit,ordinary_pad;
+static unsigned swap_on_submit,ordinary_pad,redirect_on_submit;
 static void instrument_seed(uint32_t i,int copy){
  struct {Context c;uint32_t stack[128];} f={0};
  Context c=context();c.r[0]=i;c.r[1]=copy?ptr(instruments[0]):ptr(program_objects[0]);c.r[2]=ptr(program_objects[0]);call(&c,copy?PD_COPY:PD_BIRTH);
  f.c=context();f.c.r[4]=i;
- if(copy){f.stack[0x8c/4]=0x2370710;f.stack[0xf4/4]=0x2370a7c;f.stack[0x10c/4]=0x2435c28;f.stack[0xf8/4]=i;f.c.r[7]=i+0x574;f.c.r[3]=0x3f000000;call(&f.c,MIRROR_SEED_COPY);f.c.r[7]=0x3f000000;call(&f.c,CH_PAN_COPY);}
- else{f.stack[0xb4/4]=0x237034c;f.stack[0x114/4]=0x23705f8;f.stack[0x13c/4]=0x243727c;f.stack[0x12c/4]=i;f.c.r[5]=i+0x574;f.c.d[8]=0x3f000000;call(&f.c,MIRROR_SEED_NORMAL);f.c.d[16]=0x3f000000;call(&f.c,CH_PAN_BIRTH);}
+ if(copy){f.stack[0x8c/4]=MODEL_SEED_COPY_LR1;f.stack[0xf4/4]=MODEL_SEED_COPY_LR2;f.stack[0x10c/4]=MODEL_PAD_COPY_SEED_LR3;f.stack[0xf8/4]=i;f.c.r[7]=i+0x574;f.c.r[3]=0x3f000000;call(&f.c,MIRROR_SEED_COPY);f.c.r[7]=0x3f000000;call(&f.c,CH_PAN_COPY);}
+ else{f.stack[0xb4/4]=MODEL_SEED_NORMAL_LR1;f.stack[0x114/4]=MODEL_SEED_NORMAL_LR2;f.stack[0x13c/4]=MODEL_PAD_NORMAL_SEED_LR3;f.stack[0x12c/4]=i;f.c.r[5]=i+0x574;f.c.d[8]=0x3f000000;call(&f.c,MIRROR_SEED_NORMAL);f.c.d[16]=0x3f000000;call(&f.c,CH_PAN_BIRTH);}
  memset(f.stack,0,sizeof(f.stack));f.c.r[4]=i+0xc;f.c.r[2]=f.c.r[3]=f.c.r[6]=0;
- if(copy){f.stack[0x8c/4]=0x236faf4;f.stack[0x11c/4]=0x2370710;f.stack[0x184/4]=0x2370a7c;f.stack[0x19c/4]=0x2435c28;f.stack[0x188/4]=i;}
- else{f.stack[0x8c/4]=0x236f090;f.stack[0x144/4]=0x237034c;f.stack[0x1a4/4]=0x23705f8;f.stack[0x1cc/4]=0x243727c;f.stack[0x1bc/4]=i;}
+ if(copy){f.stack[0x8c/4]=MODEL_MUTE_COPY_LR;f.stack[0x11c/4]=MODEL_SEED_COPY_LR1;f.stack[0x184/4]=MODEL_SEED_COPY_LR2;f.stack[0x19c/4]=MODEL_PAD_COPY_SEED_LR3;f.stack[0x188/4]=i;}
+ else{f.stack[0x8c/4]=MODEL_MUTE_NORMAL_LR;f.stack[0x144/4]=MODEL_SEED_NORMAL_LR1;f.stack[0x1a4/4]=MODEL_SEED_NORMAL_LR2;f.stack[0x1cc/4]=MODEL_PAD_NORMAL_SEED_LR3;f.stack[0x1bc/4]=i;}
  call(&f.c,copy?CH_MUTE_COPY:CH_MUTE_BIRTH);call(&f.c,copy?CH_SOLO_COPY:CH_SOLO_BIRTH);call(&f.c,copy?CH_SOLO_AUDIO_COPY:CH_SOLO_AUDIO_BIRTH);
- put(i,0x692f650);put(i+0x13b0,ptr(program_objects[0]));put(i+0x13d8,0);
+ put(i,MODEL_INSTRUMENT_VPTR);put(i+MODEL_INSTRUMENT_PARENT,ptr(program_objects[0]));put(i+MODEL_INSTRUMENT_EXCLUSION_BYTE,0);
  /* Poison native scalar storage: only captured register seeds may be exposed. */
  put(i+0x59c,0x7fc01234);put(i+0x3bc,0x7fc01234);
  c=context();c.r[4]=i;call(&c,copy?PD_COPY_COMPLETE:PD_COMPLETE);
@@ -28,7 +28,7 @@ static void instrument_bind(unsigned slot,uint32_t instrument){
  union {uint64_t align;unsigned char bytes[sizeof(Context)+0x58];} frames;
  Context *entry=(Context*)(frames.bytes+0x58),*end=(Context*)frames.bytes;
  *entry=context();entry->r[0]=ptr(program_objects[0]);entry->r[1]=slot;entry->r[2]=instrument;call(entry,PD_BIND);
- pad_vector[slot]=instrument;if(instrument)put(instrument+0x12dc,slot);
+ pad_vector[slot]=instrument;if(instrument)put(instrument+MODEL_INSTRUMENT_SLOT,slot);
  *end=context();call(end,PD_BOUND);require(!atomic_load(&fixture->pads.error),"binding closes exact entry/return and copied child generation");
 }
 static void instrument_swap(unsigned a,unsigned b){
@@ -66,7 +66,10 @@ static void *pad_apply(void *unused){
  Context *entry=(Context*)(frames.bytes+0x18),*end=(Context*)frames.bytes;
  uint32_t n=ptr(pad_payload+2),d=ptr(program_objects[0]);
  *entry=context();entry->r[0]=n;call(entry,RC_ENTER);
- Context c=context();c.r[0]=d;c.r[2]=n+0x18;c.lr=0x1c04b94;call(&c,RC_APPLY);
+ Context c=context();c.r[0]=d;c.r[2]=n+0x18;c.lr=MODEL_RECORD_APPLY_LR;call(&c,RC_APPLY);
+ unsigned note=word(n+0x28);require(note<PAD_SLOTS,"native mapped pad note is bounded");
+ pad_slot=word(d+0x1370+note*4);
+ require(pad_slot==(word(n+0xc)+(redirect_on_submit?1u:0u))%PAD_SLOTS,"native inverse mapping selects the execution-time receiver");
  pad_set();
  *end=context();end->r[4]=n;call(end,RC_DONE);return NULL;
 }
@@ -77,7 +80,7 @@ static void *pad_ordinary_apply(void *unused){
   * publishes [D+40,D,index,controller,s0] for25178b8 ->25175cc.
   * History/queue scheduling is substituted; these are their exact hook ABI. */
  *entry=context();entry->r[0]=ptr(pad_payload);call(entry,M_QUEUE_ENTER);
- *body=context();body->lr=0x25178d4;body->r[0]=pad_payload[1];body->r[1]=pad_payload[2];body->r[2]=pad_payload[3];body->d[0]=pad_payload[4];call(body,M_COMMAND_BODY);
+ *body=context();body->lr=MODEL_QUEUE_RETURN;body->r[0]=pad_payload[1];body->r[1]=pad_payload[2];body->r[2]=pad_payload[3];body->d[0]=pad_payload[4];call(body,M_COMMAND_BODY);
  pad_set();
  *body=context();body->r[4]=ptr(pad_payload);body->r[3]=pad_payload[0];call(body,M_QUEUE_DONE);return NULL;
 }
@@ -89,11 +92,14 @@ static void pad_dispatch(uint32_t f,uint32_t d,unsigned index,unsigned controlle
   pad_payload[0]=d+0x40;pad_payload[1]=d;pad_payload[2]=index;pad_payload[3]=controller;pad_payload[4]=pad_desired;
  }else{
   uint32_t n=ptr(pad_payload+2);
-  pad_payload[0]=0x13cf830;pad_payload[1]=0x13d18b0;put(n,f+4);put(n+8,f);put(n+0xc,index);put(n+0x10,controller);put(n+0x14,d);put(n+0x20,2);put(n+0x28,index);put(n+0x2c,pad_desired);put(n+0x30,controller);put(n+0x50,ptr(track_objects[0]));
-  Context c=context();c.r[7]=ptr(queue_object)+0xfc;c.r[9]=(f+4)|1u;c.r[10]=ptr(pad_payload);call(&c,JG_PUBLISH);
+  pad_payload[0]=MODEL_RECORD_INVOKER;pad_payload[1]=MODEL_RECORD_MANAGER;put(n,f+4);put(n+8,f);put(n+0xc,index);put(n+0x10,controller);put(n+0x14,d);put(n+0x20,2);put(n+0x28,word(d+MODEL_PROGRAM_PAD_NOTES+index*4));put(n+0x2c,pad_desired);put(n+0x30,controller);put(n+0x50,ptr(track_objects[0]));
+  Context c=context();c.r[7]=ptr(queue_object)+MODEL_QUEUE_AUDIO;c.r[9]=(f+4)|1u;c.r[10]=ptr(pad_payload);call(&c,JG_PUBLISH);
  }
  if(swap_on_submit)instrument_swap(0,1);
+ unsigned note=word(d+MODEL_PROGRAM_PAD_NOTES+index*4);
+ if(redirect_on_submit)put(d+0x1370+note*4,(index+1)%PAD_SLOTS);
  pthread_t thread;require(!pthread_create(&thread,NULL,ordinary_pad?pad_ordinary_apply:pad_apply,NULL)&&!pthread_join(thread,NULL),"native queued pad body runs on separate source thread (body substituted)");
+ if(redirect_on_submit)put(d+0x1370+note*4,index);
  /* UI Solo is owner-thread feedback, separate from the audio setter.
   * Emulated here so repeated path tests can toggle both ways. */
  if(controller==0x20f){Context c=context();c.r[5]=pad_vector[index]+pad_offset(PF_SOLO);c.r[7]=pad_desired?1:0;call(&c,M_BOOL);}
@@ -101,6 +107,9 @@ static void pad_dispatch(uint32_t f,uint32_t d,unsigned index,unsigned controlle
 static void pad_setup(void){
  fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"bounded mirror and command state");initial(1);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);
  seed_fixture(0,0,0x3f000000,1);load_fixture();
+ /* Native producer maps slot to note; native Drum apply maps it back.
+  * Every fixture slot deliberately differs from its event note. */
+ for(unsigned i=0;i<PAD_SLOTS;i++){unsigned note=(i+36)%PAD_SLOTS;put(ptr(program_objects[0])+MODEL_PROGRAM_PAD_NOTES+i*4,note);put(ptr(program_objects[0])+0x1370+note*4,i);}
  put(ptr(program_objects[0])+0x1fec,ptr(pad_vector));put(ptr(program_objects[0])+0x1ff0,ptr(pad_vector)+sizeof(pad_vector));put(ptr(program_objects[0])+0x1ff4,ptr(pad_vector)+sizeof(pad_vector));
  for(unsigned i=0;i<PAD_SLOTS;i++){instrument_seed(ptr(instruments[i]),i%2);instrument_bind(i,ptr(instruments[i]));}
  Context c=context();c.r[5]=ptr(project_object)+0x78;c.r[7]=ptr(track_objects[0]);call(&c,CH_SELECTION_COMMIT);atomic_store(&fixture->heartbeat,10);component_recording_dispatch=pad_dispatch;
@@ -111,11 +120,11 @@ static void pad_command(unsigned field,int replacement){
  if(field==CF_VOLUME)input_pitch(&in,&bank,0,12000,now);else input_control(&in,&bank,&s,0,field,12,field==CF_MUTE||field==CF_SOLO,now);
  input_pump(&in,&bank,&s,now);unsigned seq=atomic_load(&command_state->published),at=command_find(command_state,seq);require(at<COMMAND_SLOTS&&!in.error,"production pad input publishes pointer-free command");
  CommandRequest r;require(command_request_read(command_state->slots+at,seq,&r)&&r.pad_owner&&r.pad_index==0&&r.reserved==field,"request separates parent binding, slot and submitted Instrument");
- swap_on_submit=replacement==1;Context c=context();c.r[0]=ptr(queue_object)+4;call(&c,COMMAND_DRAIN);swap_on_submit=0;
+ swap_on_submit=replacement==1;redirect_on_submit=replacement==4;Context c=context();c.r[0]=ptr(queue_object)+4;call(&c,COMMAND_DRAIN);swap_on_submit=redirect_on_submit=0;
  require(!atomic_load(&command_state->error)&&!atomic_load(&command_state->trace_error)&&atomic_load(&command_state->slots[at].done)==seq,"exact GUI queue/actual child setter/source commit completes");
  command_retire();
  unsigned executed_owner=atomic_load(&recording_pad_owner[at]);
- if(replacement>=2){instrument_swap(0,1);if(replacement==3){uint32_t executed=atomic_load(&fixture->pads.owners[executed_owner-1].address);c=context();c.r[0]=executed;call(&c,PD_DEATH);}}
+ if(replacement==2||replacement==3){instrument_swap(0,1);if(replacement==3){uint32_t executed=atomic_load(&fixture->pads.owners[executed_owner-1].address);c=context();c.r[0]=executed;call(&c,PD_DEATH);}}
  atomic_store(&fixture->heartbeat,now+1);require(copy_mirror(fixture,&s),"new source feedback");bank_apply(&bank,&s,now+1);
  if(ordinary_pad&&field==CF_PAN&&!replacement){
   /* Exact consumer over this emitted receipt, with only the source commit
@@ -135,6 +144,11 @@ static void pad_command(unsigned field,int replacement){
  input_drain(&in,&bank,&s,now+1);
  if(in.error)fprintf(stderr,"pad field=%u error=%u recordseen=%x padseen=%u\n",field,in.error,in.flights[at].recording_seen,in.flights[at].pad_seen);
  require(!in.error&&in.settled==1,"real consumer settles from exact execution receiver");
+ if(replacement==4){
+  require(!executed_owner&&!in.flights[at].pad_seen&&!in.flights[at].commit_revision,"inverse remap cannot certify the original slot or redirected Instrument; existing native-no-set outcome retained");
+  command_retire();require(command_idle(command_state),"redirected native body drains without false Instrument settlement");
+  puts("PASS queued pad inverse remap: original mapped event retained, redirected receiver cannot earn original Instrument execution/commit; real consumer preserves native-no-set outcome");return;
+ }
  require(ordinary_pad?in.flights[at].phase==4&&!in.flights[at].recording_seen:!in.flights[at].phase&&in.flights[at].recording_seen,"ordinary history and recording receipts stay distinct");
  require(in.flights[at].pad_execution.bits==executed_owner&&(replacement!=1||r.pad_owner!=executed_owner)&&(replacement<2||s.pads[0].pad_owner!=executed_owner),"slot swap records actual Instrument instead of certifying old Instrument");
  command_retire();require(command_idle(command_state),"pad transaction reclaimed only after all source hooks and settlement");
@@ -150,7 +164,7 @@ static void pad_mixed_controls(void){
  CommandRequest a={.reserved=CF_VOLUME,.program_owner=1,.pad_owner=1,.pad_index=3,.pad_generation=1},d=a;d.pad_owner=2;d.pad_generation=2;require(command_conflict(&a,&d),"replacement cannot overtake old request in same pad slot");d.pad_index=4;require(!command_conflict(&a,&d),"different pad slots are independent");d.pad_owner=d.pad_index=d.pad_generation=0;require(!command_conflict(&a,&d),"pad and parent track volume do not conflict");
 }
 int main(void){
- alarm(30);void *v=mmap((void*)0x6930000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED,-1,0);require(v!=MAP_FAILED,"fixture native type page");put(0x6930c28,0x250ba74);put(0x6930c78,0x1375c68);pad_setup();
+ alarm(30);void *v=mmap((void*)(MODEL_DRUMPROGRAM_VPTR&~4095u),4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);require(v==(void*)(MODEL_DRUMPROGRAM_VPTR&~4095u),"fixture native type page at exact address");put((MODEL_DRUMPROGRAM_VPTR+0x28),MODEL_PROGRAM_CONTROL);put((MODEL_DRUMPROGRAM_VPTR+0x78),MODEL_MIXABLE_PREDICATE);pad_setup();
  /* Only the pad rows are poisoned. A copy destination must be zero at first
   * use (MIRROR_COPY), but the pad region is exempt from that rule because
   * copy_pad memsets a whole CopiedTrack before writing it, so no byte of a pad
@@ -161,6 +175,7 @@ int main(void){
  MirrorBank bank;bank_init(&bank);bank_view(&bank,BV_DRUM_PADS,0);bank_apply(&bank,&s,1);bank.offset=120;bank_apply(&bank,&s,1);ChannelWire w=channel_wire(&s,s.pads+127,CF_VOLUME);require(!memcmp(w.name,"H16",3)&&!s.pads[127].fields[CF_NAME].available&&!s.pads[127].fields[CF_COLOR].available&&!w.led[3],"native pad labels, unsupported metadata/selection absent");
  require(bank.strips[7].pad_index==127&&bank_due(&bank,7,10)==8192,"last bank selects offscreen H16 motor feedback");
  pad_command(CF_VOLUME,1);pad_command(CF_PAN,0);pad_command(CF_MUTE,0);pad_command(CF_SOLO,0);pad_mixed_controls();pad_command(CF_PAN,2);
+ pad_command(CF_PAN,4);
  /* The application executing other pads while this pad command is in flight. */
  pad_foreign=1;pad_command(CF_MUTE,0);pad_command(CF_SOLO,0);pad_foreign=0;
  ordinary_pad=1;
@@ -176,5 +191,5 @@ int main(void){
  /* Dead historical overlapping addresses must not mask a new live field. */
  uint32_t old=ptr(instruments[128]),fresh=old+0x1e0;instrument_seed(old,0);Context c=context();c.r[0]=old;call(&c,PD_DEATH);instrument_seed(fresh,0);c=context();c.r[5]=fresh+0x394;c.d[8]=0x3e800000;call(&c,M_FLOAT);PadOwner *p=pad_owner(fresh);require(atomic_load(&p->fields[PF_PAN].bits)==0x3e800000,"dead volume-key overlap cannot mask new live pan commit");
  unsigned used=atomic_load(&fixture->pads.used);atomic_store(&fixture->pads.used,PAD_OWNERS);c=context();c.r[0]=ptr(instruments[130]);c.r[1]=ptr(program_objects[0]);call(&c,PD_BIRTH);require(atomic_load(&fixture->pads.error)==PD_CAPACITY,"retained incarnation exhaustion explicit");copy_mirror(fixture,&s);require(!s.pads[0].available&&s.tracks[0].available,"pad capacity failure cannot expose stale pad state or destroy existing Track source");atomic_store(&fixture->pads.used,used);
- puts("PASS compact pad capture/copy/128-slot view, parent generations, ordinary history and recording GUI volume/pan/mute/solo receipts, execution-time slot replacement, source motor values and bounded failure; native bodies, scheduling, objects and physical MCU substituted");free(fixture);free(command_state);return 0;
+ puts("PASS non-identity native slot/note recording map; compact pad capture/copy/128-slot view, parent generations, ordinary history and recording GUI volume/pan/mute/solo receipts, execution-time slot replacement, source motor values and bounded failure; native bodies, scheduling, objects and physical MCU substituted");free(fixture);free(command_state);return 0;
 }

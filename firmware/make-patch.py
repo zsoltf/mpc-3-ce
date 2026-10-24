@@ -10,7 +10,7 @@ if not no_ssh:
  assert len(key)==81 and key.startswith(b'ssh-ed25519 ') and key.endswith(b'\n')
 with original.open('rb') as f, patched.open('rb') as g:
  with mmap.mmap(f.fileno(),0,access=mmap.ACCESS_READ) as a, mmap.mmap(g.fileno(),0,access=mmap.ACCESS_READ) as b:
-  assert len(a)==len(b)==441279488
+  assert len(a)==len(b) and len(a) in (441279488,451468288)
   offset=-1 if no_ssh else b.find(key)
   if not no_ssh: assert offset>=0 and b.find(key,offset+1)<0
   spans=[];data=bytearray()
@@ -31,4 +31,4 @@ with original.open('rb') as f, patched.open('rb') as g:
   reconstructed=bytearray(a)
   for s in spans: reconstructed[s['offset']:s['offset']+s['length']]=data[s['patch_offset']:s['patch_offset']+s['length']]
   assert hashlib.sha256(reconstructed).hexdigest()==result['patched_sha256']
-  print(f'PASS: {len(spans)} spans, {len(data)} replacement bytes; exact441279488-byte rootfs reconstruction; key offset{offset}')
+  print(f'PASS: {len(spans)} spans, {len(data)} replacement bytes; exact {len(a)}-byte rootfs reconstruction; key offset{offset}')

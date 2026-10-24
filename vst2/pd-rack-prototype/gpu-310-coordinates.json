@@ -1,0 +1,229 @@
+{
+  "stock_sha256": "753f838ca362d42c8cc3f5c9c3fcc604ba076b5919212e0301923a3c11c93494",
+  "provenance": "Paired stock 3.9.1/3.10 ELF trace; see docs/mpc-3.10-port-inventory.md Cardinal GPU admission.",
+  "ranges": [
+    {
+      "address": "0x35b0624",
+      "length": 25164,
+      "sha256": "de83486b4811358cbf7152f722d4c592e764ee799feed2f4ac30cd433afa1783",
+      "name": "TMI constructor member ownership",
+      "old_address": "0x332b5b4"
+    },
+    {
+      "address": "0x35b6870",
+      "length": 2836,
+      "sha256": "6219a73050206edc699baf60cf5469f3bd9e6663e1f0cbc9a3ecab2a02df9e37",
+      "name": "TMI child destruction and destructor thunks",
+      "old_address": "0x33316f8"
+    },
+    {
+      "address": "0x383a7d0",
+      "length": 228,
+      "sha256": "f1788c563253ffc81c90f7bcc9a8bf924158f0a6232a27154901acce090e6cac",
+      "name": "Akai overlay container constructor",
+      "old_address": "0x35b4e28"
+    },
+    {
+      "address": "0x2d66fc0",
+      "length": 2076,
+      "sha256": "bcaf5e95d3c78e23648d73cbb58413922bb88ebbc9c1f8c4027f074b70181f24",
+      "name": "Akai overlay stack show hide",
+      "old_address": "0x35d88a0"
+    },
+    {
+      "address": "0x38fede4",
+      "length": 3492,
+      "sha256": "dbb1a463d73ac6a0328d6b7c9abb3e9bd96c3d4098d61ab321ae3fcd5619f3ab",
+      "name": "Function panel bounds and animation",
+      "old_address": "0x3678414"
+    },
+    {
+      "address": "0x38fd954",
+      "length": 5264,
+      "sha256": "a1051b849b9f4f40dee7319191103fba222bf89413747b13017ec6d5e72e1327",
+      "name": "Function panel drag",
+      "old_address": "0x3676f84"
+    },
+    {
+      "address": "0x385da28",
+      "length": 932,
+      "sha256": "266a910a9be2c9cb63b755f9d86a2baaa7b13e5e2350d58c1d04c43380c78761",
+      "name": "Akai keyboard provider",
+      "old_address": "0x35d8120"
+    },
+    {
+      "address": "0xc58338",
+      "length": 1580,
+      "sha256": "73de24cd0fa530fd2c1ef0b7b12ce3c44876695e47523cb5fa0a9315367ac1f6",
+      "name": "DRM atomic submit enclosing function",
+      "old_address": "0xc356e8"
+    },
+    {
+      "address": "0xc49100",
+      "length": 248,
+      "sha256": "8e04c4bac1cd7f40243eaa3956747fe7fcb9a7f6d780908dd973b6b89553d350",
+      "name": "true DRM flip callback",
+      "old_address": "0xc264b0"
+    },
+    {
+      "address": "0xc860a8",
+      "length": 960,
+      "sha256": "db2de4fffacaeacf17d452265add54a933fe0e8ea45b5274ccc77fcc5a42c8c5",
+      "name": "DrmScreen association constructor",
+      "old_address": "0xc63458"
+    },
+    {
+      "address": "0xb5bf48",
+      "length": 224,
+      "sha256": "0b4bb98f3a4ef69fe2be113e4a150c4137900ee5d322d25b2eb01ed9239bc03f",
+      "name": "Modal active count and singleton",
+      "old_address": "0xb392f8"
+    },
+    {
+      "address": "0xbe5ecc",
+      "length": 304,
+      "sha256": "4acd4ae51f16dda32d3de6ad4027cf89b03d8193c752090ad63c53ea4ac6bcd5",
+      "name": "Modal item publication",
+      "old_address": "0xbc327c"
+    },
+    {
+      "address": "0xc53bf0",
+      "length": 344,
+      "sha256": "6f4404f02ad2923e892cd1661f21ce66c216fe5ccbf5bb311bf6f125d17eb925",
+      "name": "Modal deleted-component cancellation",
+      "old_address": "0xc30fa0"
+    },
+    {
+      "address": "0x3900a80",
+      "length": 508,
+      "sha256": "718ebf1283e57cc578b2da4b27db580d5e403e5ed7bd3e39e98794bbc0a37f33",
+      "name": "Shortcut panel constructor",
+      "old_address": "0x3679fe0"
+    },
+    {
+      "address": "0x38ff9d8",
+      "length": 296,
+      "sha256": "6a7bf26f4c6c8fcab48d205f728280c85fb617e99686889a4121578b2fee5517",
+      "name": "Shared panel constructor",
+      "old_address": "0x3678f3c"
+    },
+    {
+      "address": "0x35b43fc",
+      "length": 80,
+      "sha256": "41fc43d8fe81908b58d5af44d48843a2fc1612f9567beb68ee75d66bf8d43c72",
+      "name": "TMI shortcut ownership",
+      "old_address": "0x332f2b4"
+    },
+    {
+      "address": "0x35b476c",
+      "length": 32,
+      "sha256": "252a51408b7a34aed1b9cf0594e9898d4c7d1872e154deb51db2e88f8f1c3d8c",
+      "name": "TMI shortcut parent",
+      "old_address": "0x332f628"
+    },
+    {
+      "address": "0x35b77ec",
+      "length": 48,
+      "sha256": "9916f6a1d61993dc51b5100d66162d27205dedc59500916cccc0948be3041a42",
+      "name": "TMI shortcut layout ordering",
+      "old_address": "0x3332680"
+    },
+    {
+      "address": "0x38fc0b8",
+      "length": 600,
+      "sha256": "e6c72db1114a33df016089d81bf51ce3f51beb3f647f72b51fd3ec164dbbda1e",
+      "name": "Shared panel collapsed callbacks",
+      "old_address": "0x36759c0"
+    }
+  ],
+  "pointers": [
+    {
+      "slot": "0x6ce5650",
+      "target": "0xffccac",
+      "name": "Engine root",
+      "old_slot": "0x68d7bf8"
+    },
+    {
+      "slot": "0x6dafdd0",
+      "target": "0x35b6870",
+      "name": "TMI",
+      "old_slot": "0x699efd0"
+    },
+    {
+      "slot": "0x6dd3d3c",
+      "target": "0x3839ed0",
+      "name": "Overlay container",
+      "old_slot": "0x69c3090"
+    },
+    {
+      "slot": "0x6dd3de4",
+      "target": "0x383a008",
+      "name": "Overlay container secondary",
+      "old_slot": "0x69c3138"
+    },
+    {
+      "slot": "0x6db1130",
+      "target": "0x35d2da0",
+      "name": "Function panel",
+      "old_slot": "0x69a03c4"
+    },
+    {
+      "slot": "0x6c95ba8",
+      "target": "0xc4f008",
+      "name": "DrmScreen complete destructor",
+      "old_slot": "0x688e7a0"
+    },
+    {
+      "slot": "0x6e99d4c",
+      "target": "0xc49100",
+      "name": "true page flip callback GOT",
+      "old_slot": "0x6a8a990"
+    },
+    {
+      "slot": "0x6c95e44",
+      "target": "0xb51994",
+      "name": "Modal manager primary vptr",
+      "old_slot": "0x688ea3c"
+    },
+    {
+      "slot": "0x6c95e58",
+      "target": "0xb51af4",
+      "name": "Modal manager second vptr",
+      "old_slot": "0x688ea50"
+    },
+    {
+      "slot": "0x6c93314",
+      "target": "0xc53d48",
+      "name": "Modal item destructor",
+      "old_slot": "0x688bf0c"
+    },
+    {
+      "slot": "0x6ddcd50",
+      "target": "0x38ffbd4",
+      "name": "Shortcut panel vptr",
+      "old_slot": "0x69cc03c"
+    }
+  ],
+  "sites": [
+    {
+      "address": "0xc58608",
+      "bytes": "0430a0e10a20a0e1",
+      "name": "DRM precommit"
+    },
+    {
+      "address": "0xc58618",
+      "bytes": "104f6fe1a442a0e1",
+      "name": "DRM postcommit"
+    },
+    {
+      "address": "0xc49118",
+      "bytes": "28409de50020a0e3",
+      "name": "DRM true event"
+    },
+    {
+      "address": "0x35b6878",
+      "bytes": "0040a0e1035a80e2",
+      "name": "TMI before child retirement"
+    }
+  ]
+}

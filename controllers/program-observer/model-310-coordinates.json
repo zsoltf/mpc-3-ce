@@ -1,0 +1,708 @@
+{
+  "scope": "Finite offline MODEL_CAPTURE only. Mirror, command, blank-create and runtime admission remain unresolved.",
+  "sites": [
+    {
+      "name": "reset",
+      "old": "0xe36604",
+      "address": "0xfec1f0",
+      "bytes": "f0416de10040a0e1",
+      "unwind": [
+        "0xfec1f0",
+        "0xfec258"
+      ]
+    },
+    {
+      "name": "load_enter",
+      "old": "0x25f0c9c",
+      "address": "0x29771e0",
+      "bytes": "f4426de1f860cde1",
+      "unwind": [
+        "0x29771e0",
+        "0x2977ba0"
+      ]
+    },
+    {
+      "name": "load_return",
+      "old": "0x17b7fb8",
+      "address": "0x1d9d0d4",
+      "bytes": "30319de5000053e3",
+      "unwind": [
+        "0x1d9caac",
+        "0x1d9d4ac"
+      ]
+    },
+    {
+      "name": "load_ready",
+      "old": "0x17b8100",
+      "address": "0x1d9d12c",
+      "bytes": "1000c0f2000bc6ed",
+      "unwind": [
+        "0x1d9caac",
+        "0x1d9d4ac"
+      ]
+    },
+    {
+      "name": "project_clear",
+      "old": "0x255f900",
+      "address": "0x291295c",
+      "bytes": "00269fe500369fe5",
+      "unwind": [
+        "0x291295c",
+        "0x2912f8c"
+      ]
+    },
+    {
+      "name": "pool_destroy",
+      "old": "0x2564788",
+      "address": "0x2917c74",
+      "bytes": "1c0b95e5000050e3",
+      "unwind": [
+        "0x2917658",
+        "0x2918004"
+      ]
+    },
+    {
+      "name": "indexed_add_enter",
+      "old": "0x25831fc",
+      "address": "0x293677c",
+      "bytes": "fc416de1005052e2",
+      "unwind": [
+        "0x293677c",
+        "0x2936874"
+      ]
+    },
+    {
+      "name": "indexed_add_commit",
+      "old": "0x258329c",
+      "address": "0x293681c",
+      "bytes": "0830a0e318208de2",
+      "unwind": [
+        "0x293677c",
+        "0x2936874"
+      ]
+    },
+    {
+      "name": "indexed_add_exit",
+      "old": "0x25832bc",
+      "address": "0x293683c",
+      "bytes": "1cd08de2d040cde1",
+      "unwind": [
+        "0x293677c",
+        "0x2936874"
+      ]
+    },
+    {
+      "name": "append_enter",
+      "old": "0x25823d4",
+      "address": "0x2935954",
+      "bytes": "f8416de1004051e2",
+      "unwind": [
+        "0x2935954",
+        "0x29359f8"
+      ]
+    },
+    {
+      "name": "append_commit",
+      "old": "0x2582440",
+      "address": "0x29359c0",
+      "bytes": "0830a0e318208de2",
+      "unwind": [
+        "0x2935954",
+        "0x29359f8"
+      ]
+    },
+    {
+      "name": "append_exit",
+      "old": "0x2582460",
+      "address": "0x29359e0",
+      "bytes": "18d08de2d040cde1",
+      "unwind": [
+        "0x2935954",
+        "0x29359f8"
+      ]
+    },
+    {
+      "name": "remove_enter",
+      "old": "0x25816c4",
+      "address": "0x2934c3c",
+      "bytes": "f4416de1603090e5",
+      "unwind": [
+        "0x2934c3c",
+        "0x2934dc8"
+      ]
+    },
+    {
+      "name": "remove_commit",
+      "old": "0x2581798",
+      "address": "0x2934d10",
+      "bytes": "1020a0e30130a0e3",
+      "unwind": [
+        "0x2934c3c",
+        "0x2934dc8"
+      ]
+    },
+    {
+      "name": "remove_exit",
+      "old": "0x25817b8",
+      "address": "0x2934d30",
+      "bytes": "1cd08de2d040cde1",
+      "unwind": [
+        "0x2934c3c",
+        "0x2934dc8"
+      ]
+    },
+    {
+      "name": "reorder_enter",
+      "old": "0x25832f4",
+      "address": "0x2936874",
+      "bytes": "f0416de108608de5",
+      "unwind": [
+        "0x2936874",
+        "0x2936c34"
+      ]
+    },
+    {
+      "name": "reorder_commit",
+      "old": "0x258342c",
+      "address": "0x29369ac",
+      "bytes": "1820a0e30130a0e3",
+      "unwind": [
+        "0x2936874",
+        "0x2936c34"
+      ]
+    },
+    {
+      "name": "reorder_exit",
+      "old": "0x2583480",
+      "address": "0x2936a00",
+      "bytes": "20d08de2d040cde1",
+      "unwind": [
+        "0x2936874",
+        "0x2936c34"
+      ]
+    },
+    {
+      "name": "reclassify_enter",
+      "old": "0x25836b4",
+      "address": "0x2936c34",
+      "bytes": "f0416de1004051e2",
+      "unwind": [
+        "0x2936c34",
+        "0x2936dc0"
+      ]
+    },
+    {
+      "name": "reclassify_commit",
+      "old": "0x2583774",
+      "address": "0x2936cf4",
+      "bytes": "2420a0e30130a0e3",
+      "unwind": [
+        "0x2936c34",
+        "0x2936dc0"
+      ]
+    },
+    {
+      "name": "reclassify_exit",
+      "old": "0x258379c",
+      "address": "0x2936d1c",
+      "bytes": "18d08de2d040cde1",
+      "unwind": [
+        "0x2936c34",
+        "0x2936dc0"
+      ]
+    },
+    {
+      "name": "pool_clear",
+      "old": "0x2581890",
+      "address": "0x2934e08",
+      "bytes": "603090e5642090e5",
+      "unwind": [
+        "0x2934e08",
+        "0x2934e4c"
+      ]
+    },
+    {
+      "name": "float_commit",
+      "old": "0xe5afc8",
+      "address": "0xe8a01c",
+      "bytes": "012083e2040056e1",
+      "unwind": [
+        "0xe89f9c",
+        "0xe8a190"
+      ]
+    },
+    {
+      "name": "color_commit",
+      "old": "0xe29938",
+      "address": "0xe4d9c4",
+      "bytes": "012083e2040056e1",
+      "unwind": [
+        "0xe4d948",
+        "0xe4db38"
+      ]
+    },
+    {
+      "name": "mute_commit",
+      "old": "0xe4af4c",
+      "address": "0xe5e638",
+      "bytes": "012083e2060054e1",
+      "unwind": [
+        "0xe5e5d4",
+        "0xe5e768"
+      ]
+    },
+    {
+      "name": "bool_commit",
+      "old": "0xe524b8",
+      "address": "0xe8a210",
+      "bytes": "046085e2287085e5",
+      "unwind": [
+        "0xe8a194",
+        "0xe8a3c8"
+      ]
+    },
+    {
+      "name": "name_commit",
+      "old": "0xe5fc70",
+      "address": "0x1011f0c",
+      "bytes": "fc30d5e1084095e5",
+      "unwind": [
+        "0x1011e80",
+        "0x10120c8"
+      ]
+    },
+    {
+      "name": "engine_destroy",
+      "old": "0xe46700",
+      "address": "0xffccac",
+      "bytes": "8c1f9fe58c2f9fe5",
+      "unwind": [
+        "0xffccac",
+        "0x100096c"
+      ]
+    },
+    {
+      "name": "project_destroy",
+      "old": "0x25641c8",
+      "address": "0x2917658",
+      "bytes": "78199fe578299fe5",
+      "unwind": [
+        "0x2917658",
+        "0x2918004"
+      ]
+    },
+    {
+      "name": "track_destroy",
+      "old": "0x264eb8c",
+      "address": "0x29cd4a4",
+      "bytes": "80ce9fe5f4426de1",
+      "unwind": [
+        "0x29cd4a4",
+        "0x29ce364"
+      ]
+    },
+    {
+      "name": "release_enter",
+      "old": "0x264fc58",
+      "address": "0x29ce570",
+      "bytes": "f4209fe5f4309fe5",
+      "unwind": [
+        "0x29ce570",
+        "0x29ce72c"
+      ]
+    },
+    {
+      "name": "release_retire",
+      "old": "0x264fccc",
+      "address": "0x29ce5e4",
+      "bytes": "0231d2e35bf07ff5",
+      "unwind": [
+        "0x29ce570",
+        "0x29ce72c"
+      ]
+    },
+    {
+      "name": "retain_increment",
+      "old": "0x1bda804",
+      "address": "0x1fbb440",
+      "bytes": "003095e55bf07ff5",
+      "unwind": [
+        "0x1fbb3e4",
+        "0x1fbb564"
+      ]
+    },
+    {
+      "name": "retain_decrement",
+      "old": "0x1bda9f4",
+      "address": "0x1fbb214",
+      "bytes": "020152e35bf07ff5",
+      "unwind": [
+        "0x1fbb148",
+        "0x1fbb3e4"
+      ]
+    },
+    {
+      "name": "replace_simple_pre",
+      "old": "0x2651cec",
+      "address": "0x29d0708",
+      "bytes": "08708de50c508de5",
+      "unwind": [
+        "0x29d0684",
+        "0x29d08dc"
+      ]
+    },
+    {
+      "name": "replace_full_pre",
+      "old": "0x2651f3c",
+      "address": "0x29d0958",
+      "bytes": "14908de518508de5",
+      "unwind": [
+        "0x29d08dc",
+        "0x29d0c40"
+      ]
+    },
+    {
+      "name": "replace_simple_store",
+      "old": "0x2651d04",
+      "address": "0x29d0720",
+      "bytes": "485684e54c6684e5",
+      "unwind": [
+        "0x29d0684",
+        "0x29d08dc"
+      ]
+    },
+    {
+      "name": "replace_full_store",
+      "old": "0x2652160",
+      "address": "0x29d0b7c",
+      "bytes": "485684e54c3684e5",
+      "unwind": [
+        "0x29d08dc",
+        "0x29d0c40"
+      ]
+    },
+    {
+      "name": "replace_notify",
+      "old": "0x2651b7c",
+      "address": "0x29d0594",
+      "bytes": "1c20a0e30130a0e3",
+      "unwind": [
+        "0x29d03fc",
+        "0x29d0684"
+      ]
+    },
+    {
+      "name": "queue_enter",
+      "old": "0x25178b8",
+      "address": "0x28d77a8",
+      "bytes": "08402de50040a0e1",
+      "unwind": [
+        "0x28d77a8",
+        "0x28d77f0"
+      ]
+    },
+    {
+      "name": "command_body",
+      "old": "0x25175cc",
+      "address": "0x28d74bc",
+      "bytes": "f4416de10040a0e1",
+      "unwind": [
+        "0x28d74bc",
+        "0x28d77a8"
+      ]
+    },
+    {
+      "name": "queue_complete",
+      "old": "0x25178d4",
+      "address": "0x28d77c4",
+      "bytes": "003094e55bf07ff5",
+      "unwind": [
+        "0x28d77a8",
+        "0x28d77f0"
+      ]
+    },
+    {
+      "name": "direct_enter",
+      "old": "0x2517900",
+      "address": "0x28d77f0",
+      "bytes": "253400e3f0426de1",
+      "unwind": [
+        "0x28d77f0",
+        "0x28d7a60"
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "start": "0xe4d948",
+      "length": 496,
+      "sha256": "69535f79636fa1aa546bd0156eb3e11006879b98dc991faac481d640475ab8f4"
+    },
+    {
+      "start": "0xe5e5d4",
+      "length": 404,
+      "sha256": "47fb789d9610c90439fc25ead0f4c224de7062c257ceea30dfbd82e389682122"
+    },
+    {
+      "start": "0xe89f9c",
+      "length": 500,
+      "sha256": "536868df94adb6b1d0454eaa3b963b8f60c26b063ff9a3d8f10f1ff8f2140191"
+    },
+    {
+      "start": "0xe8a194",
+      "length": 564,
+      "sha256": "2f71103834d6feec4ad97c04029866b327576662b6cdf2415adf49398c5e7ea6"
+    },
+    {
+      "start": "0xfec1f0",
+      "length": 104,
+      "sha256": "05fb733350c598653e129229fae08588a7a8c1eb3e3fd80ccc50e503c6ffda5d"
+    },
+    {
+      "start": "0xffccac",
+      "length": 15552,
+      "sha256": "cf55b73699dd43a5cb0f2f376e15b7f678e5d8ac61405d3fc38506838a22d034"
+    },
+    {
+      "start": "0x1011e80",
+      "length": 584,
+      "sha256": "ef086e67bfc9a5c0872c34e07e15bd41cfcecfe05e7d95608230a6408c857663"
+    },
+    {
+      "start": "0x11e9fe0",
+      "length": 5100,
+      "sha256": "8f0a17c3ece1a80dd76646169486f9f5d8aa45745a65d6df7c5b0ba332424a83"
+    },
+    {
+      "start": "0x1d9caac",
+      "length": 2560,
+      "sha256": "f41a6d7fa7f6abb692a0f73b47ca1949cde97867823f45031d76faa6db3c48c5"
+    },
+    {
+      "start": "0x1fbb148",
+      "length": 668,
+      "sha256": "2cd1a9570e6fb448496a616d497c5ef29ed782711725978b9789c1d49d461094"
+    },
+    {
+      "start": "0x1fbb3e4",
+      "length": 384,
+      "sha256": "e5e9b3bc21b4cfb05f108592c2126b325e136ec0e01bbaea9604e787e679d9b9"
+    },
+    {
+      "start": "0x268d4f8",
+      "length": 1644,
+      "sha256": "515f9f3113c02139ee73d40afb31f248bd042c9b8d13e2d7f91dd65ad64a279c"
+    },
+    {
+      "start": "0x268db64",
+      "length": 1640,
+      "sha256": "a73ac53d9c2b484b7069087ec5538ed75cbc24ebc696d3e3c7ceaf04d67ed4a4"
+    },
+    {
+      "start": "0x27a5ecc",
+      "length": 2700,
+      "sha256": "11aea303f2a296bfa0ee7aa991e03d6623ee6355b03ec13c3e9bd1bac4e61f00"
+    },
+    {
+      "start": "0x27a6958",
+      "length": 2160,
+      "sha256": "b5b2cb93e90fefa483af9728a76702a08239c9d6cf317f06712251dda1ec3c76"
+    },
+    {
+      "start": "0x27a71c8",
+      "length": 716,
+      "sha256": "c8aa0daf0153f091a6bee1d2d3bbed69d2a58782cd28a6d43e4eaa3dda7cda5b"
+    },
+    {
+      "start": "0x27a7494",
+      "length": 280,
+      "sha256": "6e5aaefa9ce94421caef079358e4ffbf61cccb2799a7e1f3a6cd88c0db0570c7"
+    },
+    {
+      "start": "0x27a75ac",
+      "length": 916,
+      "sha256": "5d753b1a7367e6619952b45c34e671a7ced3529bd6287771d7a22c1a9804f561"
+    },
+    {
+      "start": "0x27a7940",
+      "length": 252,
+      "sha256": "5b02d1bed07fcdb732f2eecaddbe2e58a0aef9cd2d9ee60dc82ae9b1fb0284ca"
+    },
+    {
+      "start": "0x28d415c",
+      "length": 2120,
+      "sha256": "a9ac70454f5c7fb5da17926012a0b2ed6061f6ff4425bd59027904e75b9f0cbf"
+    },
+    {
+      "start": "0x28d49a4",
+      "length": 2776,
+      "sha256": "468cc5c40a6d7bd836a7fc271ac973f6c5d097083235e067a186cebbbb1cc820"
+    },
+    {
+      "start": "0x28d74bc",
+      "length": 748,
+      "sha256": "d02a7ed02a19b26b88f2afd4213ee8631216e4c3839bc193a0c1e70c487993d2"
+    },
+    {
+      "start": "0x28d77a8",
+      "length": 72,
+      "sha256": "6bbe52dfba4a2cb0d8119059a75549c437e8a2bd0e3d27760de7af98a01bfc74"
+    },
+    {
+      "start": "0x28d77f0",
+      "length": 624,
+      "sha256": "4ed69c9aa0c189d66300072dcfaf3cb493fdb4d15928d598b48966ee81c84966"
+    },
+    {
+      "start": "0x291295c",
+      "length": 1584,
+      "sha256": "81df9f61f406e0a63e72b0739f8eae11f5b9674814172ebb408e586bcccf69f9"
+    },
+    {
+      "start": "0x2915e6c",
+      "length": 6124,
+      "sha256": "3c96d0f49260adb6672e6b94b665190747b630ac98dfd55451ad272cdfd980a2"
+    },
+    {
+      "start": "0x2917658",
+      "length": 2476,
+      "sha256": "359316207221ae01019bac6e521abb8a5561264f966c43c33e577a906dcc9c31"
+    },
+    {
+      "start": "0x2934c3c",
+      "length": 396,
+      "sha256": "757985c13a907bfd81d15120217e9e99fb0264c93c80997e37e1bf17fff11f40"
+    },
+    {
+      "start": "0x2934e08",
+      "length": 68,
+      "sha256": "9ad70d3c5c4e4417bc72ad2345d0bc7095d97288f3598e8ccd1a9e19ad2c0f49"
+    },
+    {
+      "start": "0x2935954",
+      "length": 164,
+      "sha256": "d533fdccc16663eacf8803d68ae64f39333a01b355ebe9d06734f3cc1032a163"
+    },
+    {
+      "start": "0x293677c",
+      "length": 248,
+      "sha256": "721279d5922d25a0817e947b4980cfa4e3e19940512573df43f873c0a76665c8"
+    },
+    {
+      "start": "0x2936874",
+      "length": 960,
+      "sha256": "e94cc3374836fed17af177972739e151e52c81627a3be900ae72679e7a4ad86f"
+    },
+    {
+      "start": "0x2936c34",
+      "length": 396,
+      "sha256": "0efdb50e70468d59674b6388261faff8356394550c9c12dfd49cffe49c4ee8fc"
+    },
+    {
+      "start": "0x2937070",
+      "length": 1096,
+      "sha256": "b9737605e38fd1d46963b5b09a3fddf25314f06fe0feceefc758e71dd54338d3"
+    },
+    {
+      "start": "0x29771e0",
+      "length": 2496,
+      "sha256": "ca9e6cc55955a25d80a35dd988edee2bccb9e05dccdeca2b1a2603a9a1eb8c23"
+    },
+    {
+      "start": "0x29c9644",
+      "length": 100,
+      "sha256": "170f461ff1495518b6185f59d43c5a9af20eadb660a7c5299083c8a3adbab886"
+    },
+    {
+      "start": "0x29cd4a4",
+      "length": 3776,
+      "sha256": "b2bd74573bc87d5dbc48254ffe2a00899cada1d9bd5860f689dc84ba735a4918"
+    },
+    {
+      "start": "0x29ce570",
+      "length": 444,
+      "sha256": "d277a48376b24860c9128f91bde4ba404a780cdaa275daf98ef1f259ffb45ddc"
+    },
+    {
+      "start": "0x29cea64",
+      "length": 292,
+      "sha256": "d6a7fd051460cf6910f9d1a8a111fb7377e2c502762d7eb8fad76d063e1ef64b"
+    },
+    {
+      "start": "0x29cf228",
+      "length": 24,
+      "sha256": "aa365dbecac06744a674dfd656fe1b8edabbe8cd8554b8d9112c567c7df89a89"
+    },
+    {
+      "start": "0x29d03fc",
+      "length": 648,
+      "sha256": "50e7642974eb05091843c9f788b31e088b33f100227643863ca316b43a4265f3"
+    },
+    {
+      "start": "0x29d0684",
+      "length": 600,
+      "sha256": "9084a672834b518a8618f8bc0b8c2516f341ef6739a31662da40b2ba76d10fc9"
+    },
+    {
+      "start": "0x29d08dc",
+      "length": 868,
+      "sha256": "eb9035cd8b087ce89e1fe5fbffef0153dc5d07066922b85e93eb615ae7137b31"
+    }
+  ],
+  "constants": {
+    "ROOT_VPTR": 114185808,
+    "ROOT_PROJECT": 612,
+    "ROOT_EXTENT": 616,
+    "PROJECT_VPTR": 114622916,
+    "PROJECT_POOL": 2844,
+    "PROJECT_EXTENT": 2848,
+    "POOL_VPTR": 113997096,
+    "POOL_EXTENT": 348,
+    "POOL_BEGIN": 96,
+    "POOL_END": 100,
+    "POOL_CAPACITY": 104,
+    "TRACK_VPTR": 114628132,
+    "LOAD_RETURN": 31051988,
+    "LOAD_PROJECT_REGISTER": 3,
+    "LOAD_RESULT_INDIRECT": 1,
+    "REPLACE_OLD_STACK": 20,
+    "QUEUE_RETURN": 42825668
+  },
+  "programs": {
+    "0x6d4d3a4": "DrumProgram",
+    "0x6d4c640": "AudioProgram",
+    "0x6d4eacc": "MIDIProgram",
+    "0x6d4f1e4": "PluginProgram",
+    "0x6d4d1b8": "CVProgram",
+    "0x6d4dbfc": "KeygroupProgram",
+    "0x6d4df3c": "MasterProgram",
+    "0x6d4e164": "InputProgram",
+    "0x6d4e344": "OutputProgram",
+    "0x6d4e524": "MasterOutputProgram",
+    "0x6d4e8e4": "SubmixProgram",
+    "0x6d4e704": "SendProgram"
+  },
+  "build_id": "bc141062ea5ea5be619d98366f423c8102574365",
+  "loads": [
+    [
+      0,
+      113755952,
+      5
+    ],
+    [
+      113763248,
+      116500140,
+      6
+    ]
+  ],
+  "provenance": [
+    "Root reset fec1f0 is called at 1d9cea8 by FileHandler RTTI slot 4 (1d9caac); fec21c reads MpcEngine+264. Root destructor is RTTI MpcEngine slot 0 ffccac.",
+    "Project constructor 2915e6c allocates 15c at 29163f8, calls TrackPool constructor 2937070 at 2916410 and stores Project+b1c at 291641c. Project destructor RTTI slot 0 2917658 reads b1c at 2917c74.",
+    "TrackPool constructor 2937070 forms primary vptr 6cb7528 from literal 2937498 and add-PC 29370c4 plus 8. Initializes master vector 60/64/68 at 293714c/154/158; RTTI destructor 11eab68 frees begin 60 with capacity 68 at 11ead98..11eadb4. Removal and RTTI slot 7 reclassification consume 60/64. Allocation size is 15c.",
+    "FileHandler passes Project r3 (1d9cf8c), result object r0 (1d9cf78), importer 29771e0 called at 1d9d0d0. Importer preserves output r0 in r4 at 29771fc, stores success 4 through r4 at 297784c/850 and returns r4 in r0 at 29778b4. Non-success stores include 1 at 2977884/88c and cancellation status at 29778d8. Success publication hook 1d9d12c follows result word comparison with 4 at 1d9d120..128, after Project post-load call 1d9d0f4. FileHandler Project remains +68.",
+    "Track replacement simple 29d0684 and full 29d08dc retain all nonliteral/nonbranch instructions from 2651c68/2651ec0, including Track+648/+64c stores. Both tail-call changed notifier 29d03fc; notifier saves old Program r1 at SP+14 (29d0418), new r2 at SP+10 (29d040c), reloads new in r5 (29d04d8) and commits notification at 29d0594.",
+    "Primary Program RTTI zero-offset base chains end at typeinfo 6d4f968 (7Program). Existing Program constructors 2514ab4/251426c map to 28d49a4/28d415c; actual BL chain 28d4af4->27a7494, 27a74d4->27a71c8, 27a7228->27a5ecc, 27a5f6c->268d4f8; copy chain 28d4220->27a7940,27a7958->27a75ac,27a75ec->27a6958,27a69d0->268db64. Nonliteral/nonbranch instruction bodies retain field offsets and initialization stores for all sampled core properties; matching alone does not qualify arbitrary derived fields.",
+    "Program command direct entry 28d77f0 is shared primary RTTI slot 11. Queue 28d77a8 calls body 28d74bc at 28d77c0; completion 28d77c4 retains LDR+DMB. Repeated-body candidate 28cbbe0 is excluded by the actual body target.",
+    "Generic setter bodies have repeated templates: chosen float e89f9c, color e4d948, mute e5e5d4, bool e8a194 and name 1011e80 are caller-linked. Their property register/value and saved LR layout are unchanged; mutex/listener execution itself is not run by the component."
+  ]
+}

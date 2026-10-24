@@ -38,9 +38,9 @@
  */
 /* UIFocusController vtable slot 5, the controller-side press entry: one
  * complete .ARM.exidx range [35c2648,35c26e8). */
-#define PRESS_ENTRY_RVA 0x35c2648u
+#define PRESS_ENTRY_RVA MODEL_INPUT_FOCUS_PRESS
 #define PRESS_ENTRY_LENGTH 0xa0u
-_Static_assert(PRESS_ENTRY_RVA+PRESS_ENTRY_LENGTH<=0x6875d04u,"controller press entry inside the executable segment");
+_Static_assert(PRESS_ENTRY_RVA+PRESS_ENTRY_LENGTH<=MODEL_EXECUTABLE_END,"controller press entry inside the executable segment");
 #ifdef COMMAND_COMPONENT
 static void (*component_press_call)(uint32_t function,uint32_t receiver,int button);
 #endif

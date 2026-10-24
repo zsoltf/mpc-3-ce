@@ -1,8 +1,9 @@
 diff --git a/controllers/program-observer/native-preferences-build.sh b/controllers/program-observer/native-preferences-build.sh
 --- a/controllers/program-observer/native-preferences-build.sh
 +++ b/controllers/program-observer/native-preferences-build.sh
-@@ -30,1 +30,3 @@
--clang++ --target=arm-linux-gnueabihf -march=armv7-a -marm -mfloat-abi=hard -mfpu=neon -std=c++14 -O2 -Wall -Wextra -Werror -fPIC -fvisibility=hidden -fexceptions -funwind-tables -c ../../ui/examples/toolkit-example.cc -o "$out/toolkit-example.o"
-+docker run --rm --network none -v "$(cd ../../ui && pwd):/ui:ro" -v "$PWD/$out:/out" mpclearn-editor-build \
-+ arm-linux-gnueabihf-g++ -march=armv7-a -marm -mfloat-abi=hard -mfpu=neon -std=c++14 -O2 -Wall -Wextra -Werror \
-+ -fPIC -fvisibility=hidden -fexceptions -funwind-tables -c /ui/examples/toolkit-example.cc -o /out/toolkit-example.o
+@@ -30,1 +30,4 @@
+-clang++ -I"$out" -Ipackage/mirror-input -include package/mirror-input/model-build-profile.h --target=arm-linux-gnueabihf -march=armv7-a -marm -mfloat-abi=hard -mfpu=neon -std=c++14 -O2 -Wall -Wextra -Werror -fPIC -fvisibility=hidden -fexceptions -funwind-tables -c ../../ui/examples/toolkit-example.cc -o "$out/toolkit-example.o"
++docker run --rm --network none -v "$(cd ../../ui && pwd):/ui:ro" -v "$PWD/package/mirror-input:/model:ro" -v "$PWD/$out:/out" mpclearn-editor-build \
++ arm-linux-gnueabihf-g++ -include /model/model-build-profile.h -I/model -march=armv7-a -marm -mfloat-abi=hard -mfpu=neon -std=c++14 -O2 \
++ -Wall -Wextra -Werror -fPIC -fvisibility=hidden -fexceptions -funwind-tables \
++ -c /ui/examples/toolkit-example.cc -o /out/toolkit-example.o

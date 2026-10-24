@@ -17,9 +17,9 @@ static void meter_release(unsigned i){
  atomic_store_explicit(&mirror_state->meters.cells[i].subscription,0,memory_order_release);
  if(!k)return;
 #ifndef COMMAND_COMPONENT
- ((void (*)(void*))(uintptr_t)(observer_image_bias+0xe977bc))((void*)(uintptr_t)k);
- ((void (*)(void*))(uintptr_t)(observer_image_bias+0x1efc91c))((void*)(uintptr_t)k);
- ((void (*)(void*,unsigned))(uintptr_t)(observer_image_bias+0x4a66cc))((void*)(uintptr_t)k,0x10);
+ ((void (*)(void*))(uintptr_t)(observer_image_bias+MODEL_METER_TOKEN_SIGNAL))((void*)(uintptr_t)k);
+ ((void (*)(void*))(uintptr_t)(observer_image_bias+MODEL_PROPERTY_DESTROY))((void*)(uintptr_t)k);
+ ((void (*)(void*,unsigned))(uintptr_t)(observer_image_bias+MODEL_SIZED_DELETE))((void*)(uintptr_t)k,0x10);
 #endif
  atomic_store_explicit(&mirror_state->meters.tokens,atomic_load(&mirror_state->meters.tokens)-1,memory_order_release);
 }
@@ -49,7 +49,7 @@ static void meter_source(Context *c,unsigned site,unsigned lane,MeterCell *m){
  atomic_store_explicit(&s->revision,rev+2,memory_order_release);(void)c;
 }
 static unsigned meter_bind(uint32_t n,unsigned owner_id,unsigned owner_kind,int demand){
- if(!owner_id||!typed(n,0x68ac3d4))return 0;
+ if(!owner_id||!typed(n,MODEL_METER_VPTR))return 0;
  MeterState *s=&mirror_state->meters;MeterCell *m=meter_find(n);unsigned id=0;
  if(m&&atomic_load(&m->live)&&atomic_load(&m->owner)==owner_id&&atomic_load(&m->owner_kind)==owner_kind)id=(unsigned)(m-s->cells)+1;
  else{
@@ -67,7 +67,7 @@ static unsigned meter_bind(uint32_t n,unsigned owner_id,unsigned owner_kind,int 
  if(demand){
   uint32_t k=0;
 #ifndef COMMAND_COMPONENT
-  ((void (*)(uint32_t*,void*))(uintptr_t)(observer_image_bias+0x1efc4e4))(&k,(void*)(uintptr_t)n);
+  ((void (*)(uint32_t*,void*))(uintptr_t)(observer_image_bias+MODEL_METER_DEMAND))(&k,(void*)(uintptr_t)n);
 #else
   k=id; /* component substitutes native allocation/demand only */
 #endif
@@ -96,9 +96,9 @@ static void meter_service(Context *c){
  unsigned deaths=atomic_load_explicit(&meter_deaths,memory_order_acquire);
  unsigned topology=atomic_load_explicit(&mirror_state->revision,memory_order_acquire);
  if(meter_interest_valid&&meter_interest_revision==demand.revision&&meter_topology_revision==topology&&meter_interest_epoch==epoch&&meter_seen_deaths==deaths)return;
- if(word(root+0x24c)!=project||word(project+0xa94)!=pool||!typed(pool,0x68ad2c4)){meter_error(ME_IDENTITY);return;}
- uint32_t pp=word(project+0xa90);if(!typed(pp,0x68ad07c)){meter_error(ME_IDENTITY);return;}
- uint32_t begin=word(pp+0x1c),end=word(pp+0x20),cap=word(pp+0x24),tb=word(pool+0x34),te=word(pool+0x38);
+ if(word(root+MODEL_ROOT_PROJECT)!=project||word(project+MODEL_PROJECT_POOL)!=pool||!typed(pool,MODEL_POOL_VPTR)){meter_error(ME_IDENTITY);return;}
+ uint32_t pp=word(project+MODEL_PROJECT_PROGRAM_POOL);if(!typed(pp,MODEL_PROGRAM_POOL_VPTR)){meter_error(ME_IDENTITY);return;}
+ uint32_t begin=word(pp+0x1c),end=word(pp+0x20),cap=word(pp+0x24),tb=word(pool+MODEL_POOL_BEGIN),te=word(pool+MODEL_POOL_END);
  if((begin&&!pointer(begin))||end<begin||cap<end||(end-begin)%4||(end-begin)/4>MIRROR_CELLS||te<tb||(te-tb)/4!=count||(count&&!pointer(tb))){meter_error(ME_IDENTITY);return;}
  /* Retire the previous bank before requesting the next. Each service pass
   * ends with at most eight channel demands; a departing cell whose owner is
@@ -110,12 +110,12 @@ static void meter_service(Context *c){
   if(!keep||!atomic_load_explicit(&cell->live,memory_order_acquire))meter_release(i);
  }
  unsigned wanted[MIRROR_TRACKS+1],nw=0,changed=0;
- uint32_t a=word(root+0x2e4);unsigned master=0;
- if(pointer(a)&&a<UINT32_MAX-0x400&&typed(a+0x120,0x68ac3bc)&&typed(a+0x260,0x6898b34))master=meter_bind(a+0x128,channel_owner_id(a+0x260),CO_MIXER,0);
+ uint32_t a=word(root+MODEL_ROOT_AUDIO);unsigned master=0;
+ if(pointer(a)&&a<UINT32_MAX-0x400&&typed(a+MODEL_AUDIO_MASTER_METERABLE_OFFSET,MODEL_SIMPLE_METERABLE_VPTR)&&typed(a+MODEL_AUDIO_MIXER,MODEL_MIXER_VPTR))master=meter_bind(a+MODEL_AUDIO_MASTER_METER_OFFSET,channel_owner_id(a+MODEL_AUDIO_MIXER),CO_MIXER,0);
  atomic_store_explicit(&s->master,master,memory_order_release);if(master)wanted[nw++]=master;
  for(unsigned i=0;i<count;i++){
   Track *t=tracks+i;unsigned id=0;
-  if(word(tb+i*4)!=t->track||!typed(t->track,0x6935554)||word(t->track+0x648)!=t->program||word(t->track+0x64c)!=t->kind){meter_error(ME_IDENTITY);return;}
+  if(word(tb+i*4)!=t->track||!typed(t->track,MODEL_TRACK_VPTR)||word(t->track+0x648)!=t->program||word(t->track+0x64c)!=t->kind){meter_error(ME_IDENTITY);return;}
   unsigned interested=0;
   for(unsigned j=0;j<demand.count;j++)if(demand.serial[j]==t->serial&&demand.track_owner[j]==t->track_owner&&demand.program_owner[j]==t->program_owner)interested=1;
   if(interested&&t->program&&t->program_owner&&channel_owner_id(t->program)==t->program_owner){

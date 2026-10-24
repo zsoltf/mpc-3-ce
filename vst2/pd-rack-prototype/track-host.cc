@@ -1,8 +1,9 @@
-/* MPC 3.9.1 standalone Instrument Edit attachment. The existing native UI
+/* Standalone Instrument Edit attachment for the selected MPC profile. The existing native UI
  * admission owns the hooks and thread. The native Instrument Edit page or
  * insert overlay owns the view; its selected processor retains the VST. */
 #include "../private/mpclearn-ui-private.h"
-#include "../private/mpc-3.9.1-profile.h"
+#include "../private/mpc-profile.h"
+#include "track-host-profile.h"
 #include "entry-api.h"
 #ifdef MPCLEARN_CARDINAL_GPU
 #define CARDINAL_PRESENTER_IMPLEMENTATION
@@ -68,19 +69,19 @@ void* resolve(Slot& slot,void*& component,void*& inserts){
     void* page=slot.editor;void* program=nullptr;void* processor=nullptr;void* audioProcessor=nullptr;
     if(!page)return nullptr;
     if(slot.insert){
-        if(word(page,0)!=imageBias+0x069c9f24u||!*(static_cast<unsigned char*>(page)+0xc4))return nullptr;
+        if(word(page,0)!=imageBias+TH_FX_PAGE_VPTR||!*(static_cast<unsigned char*>(page)+0xc4))return nullptr;
         void* service=pointer(page,0x1ac);if(!service)return nullptr;
         void* session=pointer(service,0x5c);
-        if(!session||word(session,0)!=imageBias+0x0689e674u)return nullptr;
+        if(!session||word(session,0)!=imageBias+TH_EDIT_EFFECT_SESSION_VPTR)return nullptr;
         void* owner=pointer(session,0x34);unsigned index=word(session,0x38);
         if(!owner||index>=4)return nullptr;
         inserts=pointer(owner,0x5a4);
-        if(!inserts||word(inserts,0)!=imageBias+0x068ac370u)return nullptr;
+        if(!inserts||word(inserts,0)!=imageBias+TH_INSERTS_VPTR)return nullptr;
         void* ui=pointer(inserts,0x60);void* audio=pointer(inserts,0x94);
         if(!ui||!audio||word(inserts,0x64)-word(inserts,0x60)!=16||
            word(inserts,0x98)-word(inserts,0x94)!=16)return nullptr;
         void* selected=pointer(ui,index*4);void* playing=pointer(audio,index*4);
-        if(!selected||selected!=playing||word(selected,0)!=imageBias+0x0692e180u)return nullptr;
+        if(!selected||selected!=playing||word(selected,0)!=imageBias+TH_INSERT_EFFECT_VPTR)return nullptr;
         void* tuple=pointer(selected,0x70);
         if(!tuple||pointer(tuple,0)!=static_cast<char*>(owner)-0x3c||
            word(tuple,4)!=0x101||word(tuple,8)!=index)return nullptr;
@@ -88,15 +89,15 @@ void* resolve(Slot& slot,void*& component,void*& inserts){
         processor=pointer(selected,0x68);audioProcessor=pointer(playing,0x68);
         void* content=pointer(page,0x134);if(!content)return nullptr;
         component=static_cast<char*>(content)+8;
-        if(word(component,0)!=imageBias+0x069cad70u||
+        if(word(component,0)!=imageBias+TH_FX_CONTENT_COMPONENT_VPTR||
            pointer(component,0x0c)!=static_cast<char*>(page)+8)return nullptr;
     }else{
-        if(word(page,0)!=imageBias+0x069eeae4u)return nullptr;
+        if(word(page,0)!=imageBias+TH_INSTRUMENT_PAGE_VPTR)return nullptr;
         component=static_cast<char*>(page)+8;
         void* mode=pointer(page,0xe0);if(!mode)return nullptr;
         program=pointer(mode,0x5c);
-        if(!program||word(program,0)!=imageBias+0x06932a48u)return nullptr;
-        processor=pointer(program,0x1b68);audioProcessor=pointer(program,0x1b98);
+        if(!program||word(program,0)!=imageBias+TH_PLUGIN_PROGRAM_VPTR)return nullptr;
+        processor=pointer(program,TH_PROGRAM_UI_PROCESSOR);audioProcessor=pointer(program,TH_PROGRAM_AUDIO_PROCESSOR);
     }
     if(trace){trace->editor=uint32_t(uintptr_t(page));trace->parent=word(component,0x0c);
         trace->program=uint32_t(uintptr_t(program));std::memcpy(trace->bounds,static_cast<char*>(component)+0x10,16);}
@@ -105,7 +106,7 @@ void* resolve(Slot& slot,void*& component,void*& inserts){
     }
     // UI/audio shared pointers may temporarily disagree during replacement.
     // Wait for the host's own handoff; never bind to a retired processor.
-    if(!processor||processor!=audioProcessor||word(processor,0)!=imageBias+0x06889888u)return nullptr;
+    if(!processor||processor!=audioProcessor||word(processor,0)!=imageBias+TH_VST_INSTANCE_VPTR)return nullptr;
     void* effect=pointer(processor,0xcc);if(!effect||word(effect,0)!=0x56737450)return nullptr;
     uint32_t uid=word(effect,0x48); // ARM32 AEffect uid, abi.h static_assert.
     if(trace){trace->effect=uint32_t(uintptr_t(effect));trace->uid=uid;}
@@ -135,14 +136,14 @@ void attach(Slot& slot){
     int width=int(word(component,0x18)),height=int(word(component,0x1c));
     if(width<920||height<580||width>1280||height>800)return;
     slot.attempted=true;
-    if(word(slot.editor,8)!=imageBias+(slot.insert?0x069c9f98u:0x069eeb34u)){failure(10);return;}
+    if(word(slot.editor,8)!=imageBias+(slot.insert?TH_FX_PAGE_COMPONENT_VPTR:TH_INSTRUMENT_PAGE_COMPONENT_VPTR)){failure(10);return;}
     Dl_info library{};
     if(!dladdr(pointer(slot.effect,4),&library)||!library.dli_fname){failure(2);return;}
     uint32_t uid=word(slot.effect,0x48);
     slot.api=(uid==0x4d705053u||uid==0x4d705046u)?mpclearn_pd_editor_entry():mpclearn_cardinal_editor_entry();
     slot.view=slot.api->create(intent,&slot);
     if(!slot.view||!slot.api->bind(slot.view,slot.effect,library.dli_fname)){failure(3);return;}
-    MpcUiAdmittedProfile profile={sizeof(profile),MPC_UI_PROFILE_MPC_3_9_1,imageBias,uint32_t(syscall(SYS_gettid))};
+    MpcUiAdmittedProfile profile={sizeof(profile),MPC_UI_PROFILE_SELECTED,imageBias,uint32_t(syscall(SYS_gettid))};
     slot.context=mpc_ui_private_context_from_admitted(&profile);
     if(slot.context)mpc_ui_private_context_text_owner(slot.context,mpclearn_track_text_owner());
     if(slot.context)slot.parent=mpc_ui_private_parent_create(slot.context,component,attachChild,detachChild,nullptr);
@@ -182,13 +183,13 @@ extern "C" void mpclearn_track_editor_active(void* editor,int active){
     CARDINAL_GPU_EVENT(20,editor,active);
     if(trace)++trace->layouts;
     if(!editor)return;
-    bool insert=word(editor,0)==imageBias+0x069c9f24u;
-    if(!insert&&word(editor,0)!=imageBias+0x069eeae4u)return;
+    bool insert=word(editor,0)==imageBias+TH_FX_PAGE_VPTR;
+    if(!insert&&word(editor,0)!=imageBias+TH_INSTRUMENT_PAGE_VPTR)return;
     for(auto& slot:slots)if(slot.editor==editor){slot.active=active!=0;if(!active)close(slot);return;}
     if(active)for(auto& slot:slots)if(!slot.editor){slot.editor=editor;slot.active=true;slot.insert=insert;return;}
 }
 extern "C" void mpclearn_insert_editor_active(void* editor){
-    if(editor&&word(editor,0)==imageBias+0x069c9f24u)
+    if(editor&&word(editor,0)==imageBias+TH_FX_PAGE_VPTR)
         mpclearn_track_editor_active(editor,*(static_cast<unsigned char*>(editor)+0xc4)!=0);
 }
 extern "C" void mpclearn_insert_editor_changed(void* editor){
@@ -223,7 +224,7 @@ extern "C" void mpclearn_track_editor_refresh(){
                 close(slot);
                 if(insert){
                     // Same close request as the stock insert overlay's Back.
-                    ((void(*)(void*))(uintptr_t)(imageBias+0x0364bde8u))(editor);
+                    ((void(*)(void*))(uintptr_t)(imageBias+TH_FX_CLOSE_REQUEST))(editor);
                 }else if(!mpclearn_track_editor_main())failure(9);
                 return; // Native navigation can synchronously deactivate the page.
             }

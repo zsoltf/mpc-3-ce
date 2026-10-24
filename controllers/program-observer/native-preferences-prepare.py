@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 """Generate exact native Preferences admission after stock/current comparison."""
-import hashlib,json,struct,sys
+import hashlib,importlib.util,json,os,struct,sys
 from pathlib import Path
 
 if len(sys.argv)!=4:raise SystemExit('native-preferences-prepare.py /current/CE/MPC /stock/MPC /output/header')
 current_path,stock_path,out=map(Path,sys.argv[1:])
+profile=os.environ.get('MPCLEARN_FIRMWARE','3.9.1')
+if profile=='3.10':
+ spec=importlib.util.spec_from_file_location('native_preferences_310',Path(__file__).with_name('native-preferences-310.py'))
+ module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+ module.prepare(current_path,stock_path,out)
+ raise SystemExit(0)
+if profile!='3.9.1':raise SystemExit('unsupported explicit Native Preferences firmware profile')
 current=current_path.read_bytes();stock=stock_path.read_bytes()
 identity=json.loads((Path(__file__).resolve().parents[2]/'firmware/mpc-ce.json').read_text())
 if len(current)!=identity['size'] or hashlib.sha256(current).hexdigest()!=identity['output_sha256']:raise SystemExit('wrong current CE MPC')

@@ -242,9 +242,9 @@ static int channel_name(uint32_t property,char text[CHANNEL_TEXT],unsigned *leng
 }
 static uint32_t channel_program_frame(Context *c,int copy,unsigned extra){
  uint32_t sp=source_sp(c)+extra,p;
- if(extra&&word(source_sp(c)+0x8c)!=observer_image_bias+(copy?0x236faf4:0x236f090))return 0;
- if(!copy){if(word(sp+0xb4)!=observer_image_bias+0x237034c||word(sp+0x114)!=observer_image_bias+0x23705f8||word(sp+0x13c)!=observer_image_bias+0x2514c08)return 0;p=word(sp+0x12c);}
- else{if(word(sp+0x8c)!=observer_image_bias+0x2370710||word(sp+0xf4)!=observer_image_bias+0x2370a7c||word(sp+0x10c)!=observer_image_bias+0x2514334)return 0;p=word(sp+0xf8);}
+ if(extra&&word(source_sp(c)+0x8c)!=observer_image_bias+(copy?MODEL_MUTE_COPY_LR:MODEL_MUTE_NORMAL_LR))return 0;
+ if(!copy){if(word(sp+0xb4)!=observer_image_bias+MODEL_SEED_NORMAL_LR1||word(sp+0x114)!=observer_image_bias+MODEL_SEED_NORMAL_LR2||word(sp+0x13c)!=observer_image_bias+MODEL_SEED_NORMAL_LR3)return 0;p=word(sp+0x12c);}
+ else{if(word(sp+0x8c)!=observer_image_bias+MODEL_SEED_COPY_LR1||word(sp+0xf4)!=observer_image_bias+MODEL_SEED_COPY_LR2||word(sp+0x10c)!=observer_image_bias+MODEL_SEED_COPY_LR3)return 0;p=word(sp+0xf8);}
  return pointer(p)&&p+(extra?0x48:0x3c)==c->r[4]?p:0;
 }
 static int channel_source(unsigned site){return site>=CH_PROGRAM_BIRTH||site==M_MUTE||site==M_BOOL||site==M_COLOR||site==M_NAME;}
@@ -267,12 +267,12 @@ static void channel_output_descriptor(Context *c,unsigned site){
 }
 static void channel_hook(Context *c,unsigned site){
  if(site>=IO_OUTPUT_BIRTH0&&site<=IO_OUTPUT_APPLY_COMMIT2){channel_output_descriptor(c,site);return;}
- if(site==IO_AUDIO_IN_COPY){if(typed(c->r[5],0x692fec4))channel_birth(c->r[5],c->r[5]+0x2784,CI_AUDIO_IN,c->r[3],NULL,0,2);return;}
+ if(site==IO_AUDIO_IN_COPY){if(typed(c->r[5],MODEL_AUDIOPROGRAM_VPTR))channel_birth(c->r[5],c->r[5]+0x2784,CI_AUDIO_IN,c->r[3],NULL,0,2);return;}
 
  if(site>=IO_AUDIO_MONITOR_BIRTH&&site<=IO_AUDIO_APPLY_COPY){
   unsigned copy=site==IO_AUDIO_MONITOR_COPY||site==IO_AUDIO_APPLY_COPY,monitor=site==IO_AUDIO_MONITOR_BIRTH||site==IO_AUDIO_MONITOR_COPY,ui=site==IO_AUDIO_IN_BIRTH;
   uint32_t p=c->r[copy?5:4],value=site==IO_AUDIO_MONITOR_BIRTH?(uint32_t)(c->d[16]>>32):c->r[3];
-  if(!typed(p,0x692fec4))return;
+  if(!typed(p,MODEL_AUDIOPROGRAM_VPTR))return;
   channel_birth(p,p+(monitor?0x26c8:ui?0x2784:0x2798),monitor?CI_AUDIO_MONITOR:ui?CI_AUDIO_IN:CI_AUDIO_IN_AUDIO,value,NULL,0,copy?2:1);return;
  }
  if(site==IO_AUDIO_UI_COMMIT||site==IO_AUDIO_MONITOR_COMMIT||site==IO_AUDIO_APPLY_COMMIT){
@@ -282,7 +282,7 @@ static void channel_hook(Context *c,unsigned site){
 
  if(site==IO_MONITOR_BIRTH||site==IO_SEND_BIRTH){
   unsigned send=site==IO_SEND_BIRTH,offset=send?0x41c:0x3fc,tag=send?CI_SEND_TO:CI_MIDI_MONITOR;uint32_t t=c->r[4]-offset;
-  if(word(source_sp(c)+44)!=observer_image_bias+(send?0x26523e0:0x26523c8))return;
+  if(word(source_sp(c)+44)!=observer_image_bias+(send?MODEL_IO_SEND_BIRTH_LR:MODEL_IO_MONITOR_BIRTH_LR))return;
   channel_birth(t,t+offset+4,tag,(uint32_t)c->d[16],NULL,0,1);channel_birth(t,t+offset+0x18,tag+1,(uint32_t)(c->d[16]>>32),NULL,0,1);return;
  }
  if(site==IO_MONITOR_COMMIT||site==IO_SEND_COMMIT||site==IO_MONITOR_AUDIO||site==IO_SEND_AUDIO){
@@ -296,7 +296,7 @@ static void channel_hook(Context *c,unsigned site){
  }
  if(site>=IO_IN_PORT_COMMIT&&site<=IO_CHANNEL_COMMIT){
   uint32_t property=c->r[site==IO_IN_PORT_COMMIT?0:5];ChannelCell *cell=channel_cell(property);if(!cell)return;
-  unsigned field=atomic_load(&cell->field);if((site==IO_IN_PORT_COMMIT&&field==CI_MIDI_IN_PORT)||(site==IO_OUT_PORT_COMMIT&&field==CI_MIDI_OUT_PORT)||(site==IO_CHANNEL_COMMIT&&(field==CI_MIDI_IN_CHANNEL||field==CI_MIDI_OUT_CHANNEL)))channel_write(cell,c->r[site==IO_IN_PORT_COMMIT?1:site==IO_OUT_PORT_COMMIT?7:3],NULL,0,0);
+  unsigned field=atomic_load(&cell->field);if((site==IO_IN_PORT_COMMIT&&field==CI_MIDI_IN_PORT)||(site==IO_OUT_PORT_COMMIT&&field==CI_MIDI_OUT_PORT)||(site==IO_CHANNEL_COMMIT&&(field==CI_MIDI_IN_CHANNEL||field==CI_MIDI_OUT_CHANNEL)))channel_write(cell,c->r[site==IO_IN_PORT_COMMIT?MODEL_IO_INPUT_COMMIT_REGISTER:site==IO_OUT_PORT_COMMIT?7:3],NULL,0,0);
   return;
  }
 
@@ -304,7 +304,7 @@ static void channel_hook(Context *c,unsigned site){
   uint32_t track=c->r[4]-0x114;ChannelOwner *o=channel_owner(track);
   if(!o||!atomic_load(&o->live)||atomic_load(&o->kind)!=CO_TRACK||c->r[8]!=track+0x28c)return;
   if(site==MI_VOLUME_BIRTH){
-   if(word(source_sp(c))!=track||word(source_sp(c)+0x1c)!=observer_image_bias+0x26522b4)return;
+   if(word(source_sp(c))!=track||word(source_sp(c)+0x1c)!=observer_image_bias+MODEL_MIDI_VOLUME_BIRTH_LR)return;
    channel_birth(track,track+0x28c,CF_MIDI_VOLUME,c->r[2],NULL,0,1);
   }else{
    /* No additional Track copy caller has been qualified. Only an already
@@ -326,7 +326,7 @@ static void channel_hook(Context *c,unsigned site){
  if(site==CH_AUTOMATION_BIRTH){channel_birth(c->r[4],c->r[4]+0xc,CF_AUTOMATION,c->r[2],NULL,0,1);return;}
  if(site==CH_MIXER_BIRTH||site==CH_TIMELINE_BIRTH){channel_owner_birth(c->r[0],site==CH_MIXER_BIRTH?CO_MIXER:CO_TIMELINE);return;}
  if(site==CH_MIXER_DEATH||site==CH_TIMELINE_DEATH){channel_owner_death(c->r[0]);return;}
- if(site==CH_MASTER_BIRTH){channel_birth(c->r[4],c->r[4]+0xa8,CF_MASTER,c->r[5],NULL,0,1);return;}
+ if(site==CH_MASTER_BIRTH){channel_birth(c->r[4],c->r[4]+MODEL_MIXER_MASTER,CF_MASTER,c->r[5],NULL,0,1);return;}
  if(site==CH_PLAYING_BIRTH){channel_birth(c->r[4],c->r[4]+0xec,CF_PLAYING,c->r[3]&255,NULL,0,1);return;}
 
  if(site==CH_PROGRAM_BIRTH||site==CH_PROGRAM_COPY){channel_owner_birth(c->r[0],CO_PROGRAM);return;}
@@ -343,7 +343,7 @@ static void channel_hook(Context *c,unsigned site){
  }
  if(site==CH_NAME_BIRTH){char text[CHANNEL_TEXT];unsigned length;if(channel_name(c->r[4]+0x440,text,&length))channel_birth(c->r[4],c->r[4]+0x440,CF_NAME,0,text,length,1);return;}
  if(site==CH_COLOR_BIRTH){channel_birth(c->r[4],c->r[4]+0x5f0,CF_COLOR,c->r[3],NULL,0,1);return;}
- if(site==CH_ARM_BIRTH){if(word(source_sp(c)+0x6c)==observer_image_bias+0x2652458)channel_birth(c->r[4]-0x46c,c->r[4]+8,CF_ARM,c->r[3]&255,NULL,0,1);return;}
+ if(site==CH_ARM_BIRTH){if(word(source_sp(c)+0x6c)==observer_image_bias+MODEL_ARM_BIRTH_LR)channel_birth(c->r[4]-0x46c,c->r[4]+8,CF_ARM,c->r[3]&255,NULL,0,1);return;}
  if(site==CH_SELECTION_BIRTH){channel_birth(c->r[4],c->r[4]+0x78,CF_SELECTION,(uint32_t)c->d[16],NULL,0,1);return;}
  if(site>=CH_MUTE_BIRTH&&site<=CH_EFFECTIVE_COPY){
   unsigned offset=site-CH_MUTE_BIRTH,copy=offset&1;uint32_t p=channel_program_frame(c,copy,0x90);if(!p)return;

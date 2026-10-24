@@ -1,16 +1,12 @@
 #!/usr/bin/env python3
-"""Create the exact MPC 3.9.1 CE executable with the Az01 EHCI CPU policy from the pristine ELF."""
+"""Create an exact CE executable with its admitted label and Az01 EHCI CPU policy."""
+import argparse
 import hashlib
 import json
 import os
 import pathlib
-import sys
 
 SPEC = json.loads((pathlib.Path(__file__).with_name("mpc-ce.json")).read_text())
-EXPECTED_INPUT = SPEC["input_sha256"]
-EXPECTED_OUTPUT = SPEC["output_sha256"]
-EXPECTED_SIZE = SPEC["size"]
-SLOTS = SPEC["slots"]
 
 
 def digest(data):
@@ -18,18 +14,23 @@ def digest(data):
 
 
 def main():
-    if len(sys.argv) != 3:
-        raise SystemExit("patch-mpc-ce.py PRISTINE_MPC OUTPUT_MPC")
-    source, output = map(pathlib.Path, sys.argv[1:])
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('source', type=pathlib.Path)
+    parser.add_argument('output', type=pathlib.Path)
+    parser.add_argument('--mpc-3.10', dest='mpc_310', action='store_true',
+                        help='explicit MPC 3.10 / CE 0.4.0 data slots; does not enable runtime admission')
+    args = parser.parse_args()
+    source, output = args.source, args.output
+    spec = json.loads(pathlib.Path(__file__).with_name('mpc-ce-3.10.json').read_text()) if args.mpc_310 else SPEC
     if source.resolve() == output.resolve():
         raise SystemExit("output must not replace the pristine MPC executable")
     raw = source.read_bytes()
-    if len(raw) != EXPECTED_SIZE or digest(raw) != EXPECTED_INPUT:
+    if len(raw) != spec['size'] or digest(raw) != spec['input_sha256']:
         raise SystemExit("wrong pristine MPC executable")
     patched = bytearray(raw)
     allowed = []
     end = 0
-    for slot in SLOTS:
+    for slot in spec['slots']:
         offset = slot["offset"]
         before = bytes.fromhex(slot["before_hex"])
         after = bytes.fromhex(slot["after_hex"])
@@ -45,14 +46,14 @@ def main():
     differences = [i for i, (a, b) in enumerate(zip(raw, patched)) if a != b]
     if differences != allowed or len(patched) != len(raw):
         raise SystemExit("unexpected executable delta")
-    if digest(patched) != EXPECTED_OUTPUT:
+    if digest(patched) != spec['output_sha256']:
         raise SystemExit("patched executable identity changed")
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_name(output.name + ".next")
     temporary.write_bytes(patched)
     os.chmod(temporary, source.stat().st_mode & 0o777)
     temporary.replace(output)
-    print(f"PASS: {len(differences)} bytes changed only in the {len(SLOTS)} admitted MPC slots")
+    print(f"PASS: {len(differences)} bytes changed only in the {len(spec['slots'])} admitted MPC slots")
     print(digest(patched))
 
 

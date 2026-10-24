@@ -1,4 +1,4 @@
-/* CMD31: bounded independent transactions, unique sequence-qualified ownership. MMV17
+/* CMD32: bounded independent transactions, unique sequence-qualified ownership. MMV17
  * remains the sole musical-state owner. Prior CMD1 artifacts remain versioned. */
 #ifndef MPC_COMMAND_STATE_H
 #define MPC_COMMAND_STATE_H
@@ -14,7 +14,7 @@
 #include "step-state.h"
 #include "clip-state.h"
 #define COMMAND_MAGIC 0x41444d43u
-#define COMMAND_VERSION 31u
+#define COMMAND_VERSION 32u
 #define COMMAND_SLOTS 32u
 #define COMMAND_LANES 8u
 #define COMMAND_EVENTS 128u
@@ -48,7 +48,6 @@ static inline int command_mode_delta(uint32_t bits){int32_t value=(int32_t)bits;
 static inline int command_qlink(unsigned op){return op==QLINK_VALUE;}
 static inline int command_effect(unsigned op){return op==EFFECT_PARAMETER||op==EFFECT_ENABLE;}
 static inline int command_page(unsigned op){return op>=GLOBAL_PAGE_MAIN&&op<=GLOBAL_PAGE_STEP;}
-static inline unsigned command_page_id(unsigned op){static const unsigned ids[]={0x20ea,0x20f0,0x20eb,0x20ee,0x20ed,0x20ec,0x20f4,0x20f8};return command_page(op)?ids[op-GLOBAL_PAGE_MAIN]:0;}
 /* The six original keys keep their contiguous range; Tab and Shift+Tab are
  * appended operations and are named explicitly. */
 static inline int command_key(unsigned op){return (op>=GLOBAL_KEY_ENTER&&op<=GLOBAL_KEY_DOWN)||op==GLOBAL_KEY_TAB||op==GLOBAL_KEY_BACKTAB;}
@@ -134,7 +133,7 @@ static inline int command_focus_controller(unsigned op){return command_counted_f
 /* Signed relative native units, not a desired position or Track identity. */
 static inline int command_jog_delta(uint32_t bits){int32_t n=(int32_t)bits;return n&&n>=-JOG_DELTA_LIMIT&&n<=JOG_DELTA_LIMIT;}
 enum {IO_INPUT_SET=218,IO_OUTPUT_SET,IO_FILTER_SET,IO_INPUT_DONE,IO_OUTPUT_DONE,IO_FILTER_DONE,IO_CONNECTOR_BIRTH,IO_CONNECTOR_DEATH,IO_CONNECTOR_DELETE,IO_BIND_ENTER,IO_BIND_DONE,IO_PORT_CATALOGUE,IO_INPUT_CATALOGUE_SEED,IO_OUTPUT_CATALOGUE_SEED,IO_CONNECTOR_READY};
-enum {CE_DISPATCH=1,CE_RETURN,CE_QUEUE,CE_BODY,CE_COMMIT,CE_DONE,CE_OTHER_COMMIT,CE_OWNER_BEGIN,CE_OWNER_END,CE_JOG_ENQUEUE,CE_JOG_ENTER,CE_JOG_DONE,CE_MASTER_CREATE,CE_MASTER_QUEUE,CE_MASTER_ENTER,CE_MASTER_SET,CE_MASTER_COMMIT,CE_MASTER_VALUE,CE_MASTER_DONE,CE_GLOBAL_BEGIN,CE_GLOBAL_STATE,CE_GLOBAL_END,CE_RECORD_QUEUE,CE_RECORD_ENTER,CE_RECORD_APPLY,CE_RECORD_DONE,CE_RECORD_WORK,CE_RECORD_WORK_ENTER,CE_RECORD_HANDLED,CE_RECORD_WORK_DONE,CE_RECORD_COMMIT,CE_RECORD_TIME,CE_PAD_EXECUTE,CE_MIDI_QUEUE,CE_MIDI_ENTER,CE_MIDI_SET,CE_MIDI_COMMIT,CE_MIDI_DONE,CE_JOG_OUTCOME,CE_EFFECT_EXECUTE,CE_EFFECT_VALUE,CE_QL_QUEUE,CE_QL_RESULT,CE_QL_ENTER,CE_QL_DONE,CE_QL_VALUE,CE_QL_BARRIER,CE_QM_QUEUE,CE_QM_RESULT,CE_QM_ENTER,CE_QM_DONE,CE_QM_VALUE,CE_QM_ACCEPT,CE_IO_SET,CE_IO_COMMIT,CE_IO_DONE,CE_IO_VALUE,CE_IO_QUEUE,CE_IO_RESULT,CE_IO_ENTER,CE_IO_AUDIO_DONE,CE_CHOOSER_ACCEPT,CE_WHEEL_STEP,CE_STEP_BEGIN,CE_STEP_RETURN,CE_STEP_STATE,CE_CLIP_BEGIN,CE_CLIP_RETURN,CE_CLIP_ACCEPT};
+enum {CE_DISPATCH=1,CE_RETURN,CE_QUEUE,CE_BODY,CE_COMMIT,CE_DONE,CE_OTHER_COMMIT,CE_OWNER_BEGIN,CE_OWNER_END,CE_JOG_ENQUEUE,CE_JOG_ENTER,CE_JOG_DONE,CE_MASTER_CREATE,CE_MASTER_QUEUE,CE_MASTER_ENTER,CE_MASTER_SET,CE_MASTER_COMMIT,CE_MASTER_VALUE,CE_MASTER_DONE,CE_GLOBAL_BEGIN,CE_GLOBAL_STATE,CE_GLOBAL_END,CE_RECORD_QUEUE,CE_RECORD_ENTER,CE_RECORD_APPLY,CE_RECORD_DONE,CE_RECORD_WORK,CE_RECORD_WORK_ENTER,CE_RECORD_HANDLED,CE_RECORD_WORK_DONE,CE_RECORD_COMMIT,CE_RECORD_TIME,CE_PAD_EXECUTE,CE_MIDI_QUEUE,CE_MIDI_ENTER,CE_MIDI_SET,CE_MIDI_COMMIT,CE_MIDI_DONE,CE_JOG_OUTCOME,CE_EFFECT_EXECUTE,CE_EFFECT_VALUE,CE_QL_QUEUE,CE_QL_RESULT,CE_QL_ENTER,CE_QL_DONE,CE_QL_VALUE,CE_QL_BARRIER,CE_QM_QUEUE,CE_QM_RESULT,CE_QM_ENTER,CE_QM_DONE,CE_QM_VALUE,CE_QM_ACCEPT,CE_IO_SET,CE_IO_COMMIT,CE_IO_DONE,CE_IO_VALUE,CE_IO_QUEUE,CE_IO_RESULT,CE_IO_ENTER,CE_IO_AUDIO_DONE,CE_CHOOSER_ACCEPT,CE_WHEEL_STEP,CE_STEP_BEGIN,CE_STEP_RETURN,CE_STEP_STATE,CE_CLIP_BEGIN,CE_CLIP_RETURN,CE_CLIP_ACCEPT,CE_IO_RETIRED};
 typedef struct {
  uint32_t seq,pid,start_lo,start_hi,origin_sec,origin_nsec,epoch,serial,binding,incarnation,
  bits,created,expires,before_bits,before_revision,reserved; /* reserved is the version3 ChannelField operation */
@@ -161,6 +160,7 @@ typedef struct {
 #define PROCESSOR_WORDS 13u
 enum {PX_LOSS_WRITER=1,PX_LOSS_FRAME=2,PX_LOSS_SEQUENCE=4};
 typedef struct {_Atomic uint32_t guard,sequence,words[PROCESSOR_WORDS];} ProcessorObservation;
+#include "plugin-controls-state.h"
 typedef struct {
  uint32_t magic,version,bytes,pid,start_lo,start_hi,origin_sec,origin_nsec,owner_token,capacity,seconds;
  _Atomic uint32_t alive,error,trace_error,published,consumed,closed,reclaimed;
@@ -183,6 +183,7 @@ typedef struct {
  MeterInterest meter_interest;
  CommandSlot slots[COMMAND_SLOTS];
  _Atomic uint32_t lane_tokens[COMMAND_LANES];
+ PluginUiState plugin_ui;
 } CommandState;
 /* Diagnostic publication is lane-owned except for bounded ticket/slot claims.
  * A single explicit exclusive attempt never retries inside compiler lowering. */
@@ -350,7 +351,14 @@ static inline int command_step_format(const CommandRequest *r){
  return command_step(r->reserved)&&r->bits<=1&&r->before_bits<=1&&r->bits!=r->before_bits&&r->epoch&&r->serial&&r->binding&&r->incarnation&&r->project_owner&&r->track_owner&&r->program_owner&&r->pad_index<128&&r->qlink_root&&r->qlink_wrapper&&r->qlink_provider&&r->qlink_generation&&r->effect_generation&&r->effect_ap<128&&r->effect_slot<=STEP_VIEWS&&!r->before_revision&&!r->pad_owner&&!r->global_owner&&!r->field_incarnation&&!r->pad_generation&&!r->io_generation&&!r->io_choice_generation&&!r->io_field&&!r->io_connector;
 }
 static inline int command_clip_format(const CommandRequest *r){
- return command_clip(r->reserved)&&r->bits>=CLIP_LAUNCH&&r->bits<=CLIP_SELECT&&r->before_bits<=CLIP_WILL_STOP_OVERDUBBING&&r->epoch&&r->project_owner&&r->qlink_root&&(r->effect_index||r->bits!=CLIP_RECORD_TOGGLE)&&r->pad_index<128&&(!r->track_owner?clip_scene_intent(r->bits):1)&&!r->serial&&!r->binding&&!r->incarnation&&!r->program_owner&&!r->before_revision&&!r->pad_owner&&!r->global_owner&&!r->field_incarnation&&!r->pad_generation&&!r->effect_slot&&!r->effect_key&&!r->effect_ap&&!r->effect_position&&!r->qlink_wrapper&&!r->qlink_provider&&!r->qlink_generation&&!r->qlink_index&&!r->io_generation&&!r->io_choice_generation&&!r->io_field&&!r->io_connector;
+ unsigned copy=clip_copy_intent(r->bits),row=r->bits==CLIP_COPY_ROW;
+ if(copy){
+  if(!r->effect_key||r->effect_slot>=128||!r->effect_position||r->effect_position>128)return 0;
+  if(row){if(r->program_owner||r->pad_owner||r->effect_slot||r->track_owner||r->effect_generation)return 0;}
+  else if(!r->program_owner||!r->pad_owner||r->effect_generation)return 0;
+ }else if(r->program_owner||r->pad_owner||r->effect_slot||r->effect_key||r->effect_position)return 0;
+ if(clip_edit_intent(r->bits)&&(!r->effect_index||((r->bits==CLIP_DELETE||r->bits>=CLIP_DOUBLE_EVENTS)&&!r->effect_generation)))return 0;
+ return command_clip(r->reserved)&&r->bits>=CLIP_LAUNCH&&r->bits<=CLIP_LAST&&r->before_bits<=CLIP_WILL_STOP_OVERDUBBING&&r->epoch&&r->project_owner&&r->qlink_root&&(r->effect_index||r->bits!=CLIP_RECORD_TOGGLE)&&r->pad_index<128&&(!r->track_owner?clip_scene_intent(r->bits):1)&&!r->serial&&!r->binding&&!r->incarnation&&!r->before_revision&&!r->global_owner&&!r->field_incarnation&&!r->pad_generation&&!r->effect_ap&&!r->qlink_wrapper&&!r->qlink_provider&&!r->qlink_generation&&!r->qlink_index&&!r->io_generation&&!r->io_choice_generation&&!r->io_field&&!r->io_connector;
 }
 static inline int command_publish_request_at(CommandState *s,const CommandRequest *r,unsigned at){
  if(command_clip(r->reserved)){if(!command_clip_format(r))return 0;}else if(command_step(r->reserved)){if(!command_step_format(r))return 0;}else{

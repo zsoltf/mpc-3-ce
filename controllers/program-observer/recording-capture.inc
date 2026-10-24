@@ -5,6 +5,7 @@ static _Atomic uint32_t recording_cp[COMMAND_SLOTS],recording_first_done[COMMAND
 static _Atomic uint32_t recording_pad_owner[COMMAND_SLOTS],recording_pad_property[COMMAND_SLOTS];
 static uint32_t recording_timed_event[COMMAND_SLOTS][14];
 static uint32_t recording_factory[COMMAND_SLOTS],recording_track[COMMAND_SLOTS],recording_track_owner[COMMAND_SLOTS],recording_queue[COMMAND_SLOTS];
+static uint32_t recording_event_kind[COMMAND_SLOTS];
 static __thread uint32_t recording_submission __attribute__((tls_model("initial-exec")));
 typedef struct {uint32_t id,payload,sp,phase,producer,producer_sp;} RecordingCall;
 static __thread RecordingCall recording_call __attribute__((tls_model("initial-exec")));
@@ -14,8 +15,19 @@ static void recording_initialize(void){
  for(unsigned i=0;i<COMMAND_SLOTS;i++){atomic_store(recording_payload+i,0);atomic_store(recording_work+i,0);atomic_store(recording_cp+i,0);atomic_store(recording_first_done+i,0);atomic_store(recording_second_done+i,0);recording_factory[i]=recording_track[i]=recording_track_owner[i]=recording_queue[i]=0;}
 }
 static unsigned recording_prepare(unsigned at){
- uint32_t f=word(root+0x318),a=word(root+0x2e4);
- if(!typed(f,0x6899fa0)||f!=atomic_load(&master_factory)||f==atomic_load(&master_dead_factory)||!pointer(a)||a>UINT32_MAX-0x400||word(f+4)!=command_queues||word(f+0x10)!=command_queues||word(f+0x14)!=project||word(f+0x30)!=word(project+0xab0)||word(f+0x28)!=word(a+0x3bc))return C_NATIVE_MEMBERSHIP;
+ uint32_t f=word(root+MODEL_ROOT_COMMAND_FACTORY),a=word(root+MODEL_ROOT_AUDIO);
+ if(!typed(f,MODEL_COMMAND_FACTORY_VPTR)||f!=atomic_load(&master_factory)||f==atomic_load(&master_dead_factory)||!pointer(a)||a>UINT32_MAX-0x400||word(f+4)!=command_queues||word(f+0x10)!=command_queues||word(f+0x14)!=project||word(f+0x30)!=word(project+MODEL_PROJECT_HISTORY)||word(f+0x28)!=word(a+MODEL_AUDIO_SEQUENCER))return C_NATIVE_MEMBERSHIP;
+ const CommandRequest *r=&accepted[at].request;
+ unsigned kind=command_arg_kind(r);
+ if(r->pad_owner){
+  /* The facade receives a slot, but its queued type-2 event carries the
+   * native Program slot-to-note mapping. Retain this submitted scalar;
+   * the later Instrument execute still owns actual receiver settlement. */
+  uint32_t program=accepted[at].program;
+  if(kind>=PAD_SLOTS||!typed(program,MODEL_DRUMPROGRAM_VPTR)||program>UINT32_MAX-(MODEL_PROGRAM_PAD_NOTES+PAD_SLOTS*4))return C_NATIVE_MEMBERSHIP;
+  kind=word(program+MODEL_PROGRAM_PAD_NOTES+kind*4);
+ }
+ recording_event_kind[at]=kind;
  atomic_store(recording_pad_owner+at,0);atomic_store(recording_pad_property+at,0);
  recording_factory[at]=f;recording_track[at]=recording_track_owner[at]=recording_queue[at]=0;
  atomic_store(recording_payload+at,0);atomic_store(recording_work+at,0);atomic_store(recording_cp+at,0);atomic_store(recording_first_done+at,0);atomic_store(recording_second_done+at,0);return 0;
@@ -35,7 +47,7 @@ static int recording_current(unsigned at){
  return target&&canonical&&revision==atomic_load_explicit(&mirror_state->revision,memory_order_relaxed)&&r->epoch==atomic_load(&mirror_state->epoch)&&atomic_load(&mirror_state->ready);
 }
 static int recording_event(unsigned at,uint32_t ev){
- return pointer(ev)&&ev<=UINT32_MAX-0x38&&*(const unsigned char*)(uintptr_t)(ev+8)==2&&word(ev+0x10)==command_arg_kind(&accepted[at].request)&&word(ev+0x14)==accepted[at].native_bits&&word(ev+0x18)==accepted[at].controller;
+ return pointer(ev)&&ev<=UINT32_MAX-0x38&&*(const unsigned char*)(uintptr_t)(ev+8)==2&&word(ev+0x10)==recording_event_kind[at]&&word(ev+0x14)==accepted[at].native_bits&&word(ev+0x18)==accepted[at].controller;
 }
 static void recording_emit(Context *c,unsigned kind,unsigned at,uint32_t payload,uint32_t counter){
  event(c,kind,accepted[at].request.seq,payload,counter,accepted[at].program,command_arg_kind(&accepted[at].request),accepted[at].controller,accepted[at].native_bits,0,accepted[at].request.epoch);
@@ -56,7 +68,7 @@ static void recording_dispatch(unsigned at,float value){
 #ifdef COMMAND_COMPONENT
  component_recording_dispatch(recording_factory[at],accepted[at].program,command_arg_kind(&accepted[at].request),accepted[at].controller,value);
 #else
- ((void (*)(void*,void*,unsigned,unsigned,float))(uintptr_t)(observer_image_bias+0x13ed940))((void*)(uintptr_t)recording_factory[at],(void*)(uintptr_t)accepted[at].program,command_arg_kind(&accepted[at].request),accepted[at].controller,value);
+ ((void (*)(void*,void*,unsigned,unsigned,float))(uintptr_t)(observer_image_bias+MODEL_RECORD_DISPATCH))((void*)(uintptr_t)recording_factory[at],(void*)(uintptr_t)accepted[at].program,command_arg_kind(&accepted[at].request),accepted[at].controller,value);
 #endif
  recording_submission=0;
 }
@@ -66,25 +78,25 @@ static int recording_publication(Context *c){
  if(!recording_submission&&!recording_call.id)return 0;
  uint32_t h=c->r[10];if(!pointer(h)||h>UINT32_MAX-8)return 0;
  uint32_t inv=word(h),mgr=word(h+4);
- return (recording_submission&&(inv==observer_image_bias+0x13cf830||mgr==observer_image_bias+0x13d18b0))||(recording_call.id&&recording_call.producer&&(inv==observer_image_bias+0x1bbce38||mgr==observer_image_bias+0x1bbf2e8));
+ return (recording_submission&&(inv==observer_image_bias+MODEL_RECORD_INVOKER||mgr==observer_image_bias+MODEL_RECORD_MANAGER))||(recording_call.id&&recording_call.producer&&(inv==observer_image_bias+MODEL_RECORD_SECOND_INVOKER||mgr==observer_image_bias+MODEL_RECORD_SECOND_MANAGER));
 }
 static void recording_point(Context *c,unsigned site){
  if(site==RC_CP_DEATH){recording_lifetime(c->r[0],0);return;}
  unsigned at=COMMAND_SLOTS;
  if(site==JG_PUBLISH){
-  uint32_t h=c->r[10],n=h+8;unsigned second=word(h)==observer_image_bias+0x1bbce38||word(h+4)==observer_image_bias+0x1bbf2e8;
+  uint32_t h=c->r[10],n=h+8;unsigned second=word(h)==observer_image_bias+MODEL_RECORD_SECOND_INVOKER||word(h+4)==observer_image_bias+MODEL_RECORD_SECOND_MANAGER;
   at=command_find(command_state,second?recording_call.id:recording_submission);
   if(at==COMMAND_SLOTS||source_requests[at]!=accepted[at].request.seq||!recording_current(at)||h>UINT32_MAX-(second?0x80:0x60)){trace_fail(C_TRACE_AMBIGUOUS);return;}
   uint32_t f=recording_factory[at];
   if(!second){
    uint32_t track=word(n+0x50);
-   if(token()!=command_owner||!atomic_load(&command_in_hook)||atomic_load(recording_payload+at)||c->r[7]!=command_queues+0xfc||c->r[9]!=((f+4)|1u)||word(h)!=observer_image_bias+0x13cf830||word(h+4)!=observer_image_bias+0x13d18b0||word(n)!=f+4||word(n+8)!=f||word(n+0xc)!=command_arg_kind(&accepted[at].request)||word(n+0x10)!=accepted[at].controller||word(n+0x14)!=accepted[at].program||!recording_event(at,n+0x18)||!typed(track,0x6935554)||word(track+0x648)!=accepted[at].program||!channel_owner_id(track)){trace_fail(C_TRACE_AMBIGUOUS);return;}
+   if(token()!=command_owner||!atomic_load(&command_in_hook)||atomic_load(recording_payload+at)||c->r[7]!=command_queues+MODEL_QUEUE_AUDIO||c->r[9]!=((f+4)|1u)||word(h)!=observer_image_bias+MODEL_RECORD_INVOKER||word(h+4)!=observer_image_bias+MODEL_RECORD_MANAGER||word(n)!=f+4||word(n+8)!=f||word(n+0xc)!=command_arg_kind(&accepted[at].request)||word(n+0x10)!=accepted[at].controller||word(n+0x14)!=accepted[at].program||!recording_event(at,n+0x18)||!typed(track,MODEL_TRACK_VPTR)||word(track+0x648)!=accepted[at].program||!channel_owner_id(track)){trace_fail(C_TRACE_AMBIGUOUS);return;}
    recording_track[at]=track;recording_track_owner[at]=channel_owner_id(track);
    if(!recording_current(at)){trace_fail(C_IDENTITY);return;}
    recording_emit(c,CE_RECORD_QUEUE,at,n,f+4);atomic_store_explicit(recording_payload+at,n,memory_order_release);
   }else{
    uint32_t cp=recording_call.producer;
-   if(!cp||atomic_load(recording_work+at)||!recording_queue[at]||c->r[7]!=recording_queue[at]||c->r[9]!=((cp+0x18)|1u)||word(h)!=observer_image_bias+0x1bbce38||word(h+4)!=observer_image_bias+0x1bbf2e8||word(n)!=cp+0x18||word(n+8)!=cp||word(n+0xc)!=recording_track[at]||!recording_event(at,n+0x18)){trace_fail(C_TRACE_AMBIGUOUS);return;}
+   if(!cp||atomic_load(recording_work+at)||!recording_queue[at]||c->r[7]!=recording_queue[at]||c->r[9]!=((cp+0x18)|1u)||word(h)!=observer_image_bias+MODEL_RECORD_SECOND_INVOKER||word(h+4)!=observer_image_bias+MODEL_RECORD_SECOND_MANAGER||word(n)!=cp+0x18||word(n+8)!=cp||word(n+0xc)!=recording_track[at]||!recording_event(at,n+0x18)){trace_fail(C_TRACE_AMBIGUOUS);return;}
    for(unsigned k=0;k<14;k++)recording_timed_event[at][k]=word(n+0x18+k*4);
    event(c,CE_RECORD_TIME,accepted[at].request.seq,recording_timed_event[at][0],recording_timed_event[at][1],accepted[at].program,command_arg_kind(&accepted[at].request),accepted[at].controller,accepted[at].native_bits,word(n+0x10),accepted[at].request.epoch);
    recording_emit(c,CE_RECORD_WORK,at,n,cp+0x18);atomic_store_explicit(recording_work+at,n,memory_order_release);
@@ -107,14 +119,14 @@ static void recording_point(Context *c,unsigned site){
    * proof the callback is not this command's: ignore it and leave this
    * command's own callback free to arrive. The window stays a fault and still
    * precedes the receipt. */
-  if(c->lr!=observer_image_bias+0x1c04b94||c->r[0]!=accepted[at].program||!recording_event(at,c->r[2]))return;
+  if(c->lr!=observer_image_bias+MODEL_RECORD_APPLY_LR||c->r[0]!=accepted[at].program||!recording_event(at,c->r[2]))return;
   if(recording_call.phase!=1){trace_fail(C_TRACE_AMBIGUOUS);return;}
   recording_call.phase=2;effects_native_body(at);recording_emit(c,CE_RECORD_APPLY,at,n,f+4);
  }else if(site==RC_PRODUCER){
   /* Another call site, a receiver that is not a producer, a producer on another
    * Track, another queued event, or a second producer after this command's own
    * was retained: all proof the callback is not this command's. */
-  if(c->lr!=observer_image_bias+0x1c04b60||!typed(c->r[0],0x689fe14)||word(c->r[0]+0x80)!=recording_track[at]||!recording_event(at,c->r[2])||recording_call.producer)return;
+  if(c->lr!=observer_image_bias+MODEL_RECORD_PRODUCER_LR||!typed(c->r[0],MODEL_CLIP_PLAYER_VPTR)||word(c->r[0]+0x80)!=recording_track[at]||!recording_event(at,c->r[2])||recording_call.producer)return;
   if(recording_call.phase!=1||word(c->r[0]+0x18)!=command_queues){trace_fail(C_TRACE_AMBIGUOUS);return;}
   recording_call.producer=c->r[0];recording_call.producer_sp=source_sp(c);atomic_store_explicit(recording_cp+at,c->r[0],memory_order_release);
  }else if(site==RC_ENQUEUER){
@@ -134,13 +146,13 @@ static void recording_point(Context *c,unsigned site){
    * admitted here rather than only the measured one, because the fallback arm
    * is live code at this same call site and narrowing to eight rows of one
    * session would only move the next fault.
-   * The image's third implementation, NoOpEnqueuer (slot 8 +0x28c8108), is
+   * The image's third implementation, NoOpEnqueuer (slot 8 +MODEL_ENQUEUE_NOOP), is
    * deliberately NOT admitted: it drops the work, so retaining its queue would
    * leave this lane holding a queue that never publishes. An object whose class
    * cannot be read stays a fault - it cannot be told apart from this command's
    * own enqueuer, and this is the only remaining reason to fail here. */
   uint32_t enqueue=pointer(q)&&pointer(word(q))?word(word(q)+8):0;
-  if(enqueue!=observer_image_bias+0x134b794&&enqueue!=observer_image_bias+0x28c4078){trace_fail(C_TRACE_AMBIGUOUS);return;}
+  if(enqueue!=observer_image_bias+MODEL_ENQUEUE_NONLOCKING&&enqueue!=observer_image_bias+MODEL_ENQUEUE_LOCKING){trace_fail(C_TRACE_AMBIGUOUS);return;}
   recording_queue[at]=q+4;
  }else if(site==RC_ENQUEUE_RETURN){
   /* No identity key exists on this return beyond the retained producer, so only
@@ -178,7 +190,7 @@ static void recording_pad_execute(Context *c){
   * the application executing other pads. A receiver that is not a pad slot,
   * another pad field, another value, or a repeat after this command's own
   * execute was receipted is proof the execute is not this command's. */
- if(!typed(c->r[0],0x692f650)||c->r[1]!=accepted[at].controller||(uint32_t)c->d[0]!=accepted[at].native_bits||atomic_load(recording_pad_owner+at))return;
+ if(!typed(c->r[0],MODEL_INSTRUMENT_VPTR)||c->r[1]!=accepted[at].controller||(uint32_t)c->d[0]!=accepted[at].native_bits||atomic_load(recording_pad_owner+at))return;
  /* A pad slot whose owner record cannot be resolved, or a lost identity on this
   * command's own side, cannot be told apart from this command's receiver. */
  if(!recording_current(at)||atomic_load(&mirror_state->pads.error)||!p||!parent||f==PF_COUNT){trace_fail(C_TRACE_AMBIGUOUS);return;}

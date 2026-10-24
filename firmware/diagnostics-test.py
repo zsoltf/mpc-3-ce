@@ -18,6 +18,16 @@ import time
 REPO = pathlib.Path(__file__).resolve().parents[1]
 SOURCE = REPO / "firmware/usb-diagnostics.c"
 MARKER = "MPCLEARN-DIAGNOSTICS"
+PROFILE_310 = os.environ.get("MPCLEARN_FIRMWARE") == "3.10"
+if PROFILE_310:
+    BUILD = pathlib.Path(os.environ["MPCLEARN_DIAGNOSTIC_BUILD"])
+    PAYLOAD = pathlib.Path(os.environ["MPCLEARN_DIAGNOSTIC_PAYLOAD"])
+    EXECUTABLE = BUILD / "MPC"
+    CURSOR_SLOT = 0x06F35FD4
+else:
+    PAYLOAD = REPO / "artifacts/mcu-v0_2_6"
+    EXECUTABLE = REPO / "build/v0_2_6/MPC"
+    CURSOR_SLOT = 0x06B220D4
 
 
 def define(name, value):
@@ -63,9 +73,9 @@ class Fixture:
                           self.scratch.parent, self.session, self.sys_block,
                           self.drm / "1"]:
             directory.mkdir(parents=True, exist_ok=True)
-        self.mpc.write_bytes((REPO / "build/v0_2_6/MPC").read_bytes())
+        self.mpc.write_bytes(EXECUTABLE.read_bytes())
         self.observer.write_bytes(
-            (REPO / "artifacts/mcu-v0_2_6/command-observer.so").read_bytes())
+            (PAYLOAD / "command-observer.so").read_bytes())
         self.settings.write_bytes(b"fixture settings are not read")
         self.systemctl.write_text("""#!/bin/sh
 case "$3" in
@@ -114,9 +124,11 @@ connector[39]: HDMI-A-1
             define("SETTINGS_PATH", self.settings), define("SESSION_DIR", self.session),
             define("SYSTEMCTL_PATH", self.systemctl),
             define("DRM_DEBUG_ROOT", self.drm),
-            define("PAYLOAD_DIR", REPO / "artifacts/mcu-v0_2_6"),
+            define("PAYLOAD_DIR", PAYLOAD),
             str(SOURCE), "-o", str(self.binary),
         ]
+        if PROFILE_310:
+            args[1:1] = ["-include", str(BUILD / "diagnostics-profile.h")]
         if report_cap:
             args.insert(7, f"-DREPORT_CAP={report_cap}")
         subprocess.run(args, check=True)
@@ -186,7 +198,7 @@ connector[39]: HDMI-A-1
             target.write(struct.pack("ii", x, y))
             target.seek(0x1000 + 0x38)
             target.write(bytes([cursor_enabled]))
-            target.seek(0x10000 + 0x06B220D4)
+            target.seek(0x10000 + CURSOR_SLOT)
             target.write(struct.pack("I", 0x1000))
         if state:
             self.command.write_bytes(b"")

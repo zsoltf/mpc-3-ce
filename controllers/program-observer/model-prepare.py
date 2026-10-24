@@ -2,9 +2,12 @@
 """Exact ELF/raw ARM coordinate checks and model-mode detour recipes."""
 import hashlib,json,struct,sys
 from pathlib import Path
+offline_310=len(sys.argv)==4 and sys.argv[3] in ("--offline-3.10","--offline-mirror-3.10")
+command_310=len(sys.argv)==4 and sys.argv[3]=='--command-3.10'
+profile_310=offline_310 or command_310
 raw=Path(sys.argv[1]).read_bytes()
-identity=json.loads((Path(__file__).resolve().parents[2]/'firmware/mpc-ce.json').read_text())
-if len(raw)!=identity['size'] or hashlib.sha256(raw).hexdigest()!=identity['output_sha256']:raise SystemExit('wrong MPC CE ELF')
+identity=json.loads((Path(__file__).resolve().parents[2]/('firmware/mpc-ce-3.10.json' if command_310 else 'firmware/mpc-ce.json')).read_text())
+if not offline_310 and (len(raw)!=identity['size'] or hashlib.sha256(raw).hexdigest()!=identity['output_sha256']):raise SystemExit('wrong MPC CE ELF')
 if raw[:7]!=b'\x7fELF\x01\x01\x01' or struct.unpack_from('<HH',raw,16)!=(3,40):raise SystemExit('wrong ABI')
 phoff=struct.unpack_from('<I',raw,28)[0];ents,count=struct.unpack_from('<HH',raw,42)
 loads=[struct.unpack_from('<8I',raw,phoff+i*ents) for i in range(count)]
@@ -36,8 +39,8 @@ sites=[
 mode=sys.argv[3] if len(sys.argv)>3 else ''
 ui_witness=mode=='--ui-witness'
 wheel_probe=mode=='--command-wheel-probe'
-command=mode=='--command' or wheel_probe
-mirror=mode in ('--mirror','--ui-witness','--command','--command-wheel-probe')
+command=mode in ('--command','--command-3.10') or wheel_probe
+mirror=mode in ('--mirror','--ui-witness','--command','--command-wheel-probe','--offline-mirror-3.10','--command-3.10')
 if mirror:
  selected=list(range(22))+[22,27,28,29,34,35,36,37,38]
  selected += [43,44,45]
@@ -161,7 +164,19 @@ if mirror:
   selected += [305]
   sites += [(0x1bdcc98,'004094e5040055e1')]
   selected += [306]
+  # D1 has drained/canceled its queue holder before this ordinary return.
+  sites += [(0x2c6f834,'0500a0e114d08de2')]
+  selected += [307]
+  # Track D1 ordinary return, after both native Send/Monitor holder drains.
+  sites += [(0x264f78c,'0500a0e134d08de2')]
+  selected += [308]
  sites=[sites[i] for i in selected]
+origin={}
+if profile_310:
+ import importlib.util
+ spec=importlib.util.spec_from_file_location('model_310',Path(__file__).with_name('model-310.py'))
+ profile=importlib.util.module_from_spec(spec);spec.loader.exec_module(profile)
+ sites,profile_guards,origin,profile_data_words=profile.prepare(sys.argv[1],sys.argv[2],sites if mirror else None,command=command_310)
 for a,h in sites:
  if at(a,8).hex()!=h:raise SystemExit(f'raw recipe changed at {a:x}')
 if command:
@@ -170,9 +185,13 @@ if command:
  interiors={0xe45848,0xe45b30,0xba6888,0xbd20e4,0xa0a0d4,0xa0d9f4,0xa09c94,0xa0d5e8}
  interiors.update((0x331ea38,0x331ea3c))
  interiors.update([0x1d1f7cc,0x1cf8e60])
+ if command_310:
+  interiors={a+4 for a,_ in sites}
+  interiors.update(a for a,_ in sites if origin[a]==0x331ea38)
  for typ,off,va,pa,size,mem,flags,align in loads:
   if typ!=1 or not flags&1:continue
   for offset in range(0,size-3,4):
+   if command_310 and va+offset in profile_data_words:continue
    w=struct.unpack_from('<I',raw,off+offset)[0]
    if w&0x0e000000!=0x0a000000:continue
    d=w&0xffffff
@@ -185,7 +204,7 @@ guards=[(0x25178b8,0x48),(0x25175cc,0xa8),(0x2517900,0x50),(0x2517a7c,0x58),(0x2
  (0x25832f4,0x19c),(0x25836b4,0xfc),(0x2581890,0x44),
  (0x255f900,0x10),(0x255fad4,12),(0x2564788,24),
  (0xe5af48,0x88),(0xe298bc,0x84),(0xe5afa8,0x30),(0xe29928,0x20),(0xe4af44,0x18),(0xe524b0,0x18),(0xe5fc4c,0x2c)]
-if command:
+if command and not command_310:
  guards += [(0x331e37c,0x1b8),(0x10dfe2c,0x278)]
  def probe_word(a):return struct.unpack('<I',at(a,4))[0]
  # Exact callback construction, concrete modifier getter and host dispatch.
@@ -205,6 +224,7 @@ if mirror and not ui_witness:
 if ui_witness or command:
  guards += [(0x10e9dec,0xa0),(0x10ea5c8,0x10),(0x10ec76c,8),(0x28c66b8,0xf4),(0x28c6c88,0x18)]
 if command:guards += [(0x1beaad0,0x248),(0x1c27e90,0x34),(0x1c22a30,0x1c),(0x13ed940,0x80),(0x13d3bd8,0x230),(0x13cf830,0x80),(0x1bd74dc,0x320),(0x1bbce38,0x94),(0x2513fc0,0xa0),(0x1bbe6a0,0x40),(0x13d63a8,0x1b0),(0x13c01a8,0x168),(0x13bfd1c,0x48),(0x13f5770,0xf0),(0x1359840,0x104),(0x13fa704,0x100),(0x1c2e768,0x30),(0x1c2f620,0x40),(0x1c2ce20,0x120),(0x1c2bf70,0x38),(0x1c2caac,0x20),(0x1374b48,0x24),(0x1bba540,0xa8),(0x1bba6a8,0x160),(0x1bba824,0x140),(0x1bb9324,0x468),(0x28cb18c,0x1e0),(0x1bb8470,0x348),(0x1c3b630,0x120),(0x238f8d4,0xa0),(0x1462a8c,0x88),(0x1bfcea4,0x7c),(0x135a48c,0x98),(0x135a6f8,0x70),(0x1356840,0x64),(0x1c37144,0xd4),(0x1c37c4c,0x90),(0x236f410,0x44),(0x236fe54,0x58),(0x2549c90,8),(0x26500f8,0x1c0),(0x2650488,0x140),(0x2510754,0xc0),(0x236d65c,0x14c),(0x236d848,0x290),(0x250ba74,0x220),(0x2555f7c,0xc8),(0x2557750,0x80),(0x28c66b8,0xf4)]
+if command:guards += [(0x2c6e7e4,0x13e4)]
 if command:guards += [(0x13ed940,0x84),(0x13d4408,0x1f0),(0x2356afc,0x154),(0x2350278,0x180),(0x23569e0,0x138),(0x23565f4,0x90),(0x235a920,0x90),(0x2358740,0x90),(0x1c374f0,0x290),(0x1c0c254,0x8d0),(0x1c0cddc,0x178),(0x1c0cf44,0x130),(0x2c53c40,0x2400),(0x2c70f20,0x2300),(0x1575a98,0x200)]
 if command:guards += [(0x235d660,0x1f4),(0x235efe0,0xa40),(0x2362dfc,0x36c),(0x235c5c8,0x58),(0x1a24810,0x240),(0x1a263c0,0x1d0),(0x8f0094,0x930),(0x8b3be8,0x3f8)]
 if command:guards += [(0x25701f0,0x23c),(0x15951e4,0x1b0),(0x158bbb0,0x28),(0xa12bd8,0x84),(0x240274c,0x60),(0x13f64cc,0x90),(0x13f5e58,0x80),(0x2366954,0x180),(0x2366abc,0x150),(0x2652224,0xa0),(0x13d5fd0,0x300),(0x13fa308,0x160),(0x13f7714,0x100),(0x257eec4,0x44),(0x257ea18,0xa0),(0x264a378,0x220),(0x265415c,0x58),(0x13cfa14,0x78),(0x264d450,0x40)]
@@ -234,7 +254,7 @@ if command:guards += [(0xbd1e2c,0x3d4),(0xbd2200,0x188),(0x35c28f4,0xe8),(0x2b64
 # Grid selection native entries and callback used by the exact live note type.
 if command:guards += [(0x2e95f8c,0x250),(0x2e962d4,0x268),(0x2e99764,0x220),
  (0x2e9ad64,0x92c),(0x2a72264,0x84),(0x35f7234,0xbc)]
-if command:
+if command and not command_310:
  if struct.unpack('<2I',at(0x69c67f0+0xd4,8))!=(0x2e962d4,0x2e95f8c):
   raise SystemExit('Grid clear/select vtable changed')
  if struct.unpack('<I',at(0x69c6b4c+0xc4,4))[0]!=0x2a72264:
@@ -285,7 +305,7 @@ if command:guards += [(0xe4fb24,0x1f0),(0xeeedec,0x1e0),(0x1462c7c,0x1f4),(0x1dc
 # calls; slot 5, 35c2648, is the controller-side press entry the JOG_PRESS lane
 # calls and what the panel performer 331e8c4 calls for the wheel's own push. The
 # two countless siblings at +0x18 and +0x1c are checked as provenance only.
-if command:
+if command and not command_310:
  for vtable in (0x699ee00,0x69c3090,0x69c3af4,0x69c8f9c):
   if struct.unpack('<4I',at(vtable+0x14,16))!=(0x35c2648,0x35c2b04,0x35c2bdc,0x35c28f4):
    raise SystemExit(f'focus controller vtable {vtable:x} no longer dispatches the data wheel and its press')
@@ -304,7 +324,7 @@ if command:
 # 3. The shared control block the creation site builds takes its vptr from a
 #    GOT slot; that slot must still carry the _Sp_counted_ptr_inplace vtable
 #    whose dispose and destroy the release path calls.
-if command:
+if command and not command_310:
  def pcrel(literal_at,add_at,extra=0):
   return add_at+8+struct.unpack('<I',at(literal_at,4))[0]+extra
  command_vtable=pcrel(0x13fad84,0x13fac88,676)
@@ -315,7 +335,7 @@ if command:
  if navigator_vtable!=0x689fdac:raise SystemExit('sequence navigator vtable no longer formed at 689fdac')
  if struct.unpack('<I',at(0x6a904e0,4))[0]+8!=0x689d0a0 or struct.unpack('<2I',at(0x689d0a0+8,8))!=(0x1956a70,0x195778c):
   raise SystemExit('shared command control block vtable or its dispose/destroy changed')
-for address,target in [(0x17b7fb4,0x25f0c9c),(0x17b80fc,0x255caa4),(0x25f1274,0x26320d4),(0x25f1284,0x255f370),(0x255fad8,0x2581890),(0xe5fc6c,0x925d58),(0x2651cf8,0x264e1d8),(0x2651f48,0x264e1d8),(0x2651ba8,0x264e1d8),(0x25178d0,0x25175cc),(0x25176d0,0x2510754)]:
+for address,target in ([] if profile_310 else [(0x17b7fb4,0x25f0c9c),(0x17b80fc,0x255caa4),(0x25f1274,0x26320d4),(0x25f1284,0x255f370),(0x255fad8,0x2581890),(0xe5fc6c,0x925d58),(0x2651cf8,0x264e1d8),(0x2651f48,0x264e1d8),(0x2651ba8,0x264e1d8),(0x25178d0,0x25175cc),(0x25176d0,0x2510754)]):
  w=struct.unpack('<I',at(address,4))[0];d=w&0xffffff
  if d&0x800000:d-=1<<24
  if w>>24!=0xeb or address+8+4*d!=target:raise SystemExit('call provenance changed')
@@ -330,7 +350,7 @@ def prel(x,place):
 starts=[]
 for s in ex:
  for o in range(0,s[5],8):starts.append(prel(struct.unpack_from('<I',raw,s[4]+o)[0],s[3]+o))
-if command:
+if command and not command_310:
  # I/O source/command paths are guarded as complete native function ranges.
  io_entries=[a for a,_ in sites if a in [sites[j][0] for j in range(len(sites)) if selected[j]>=211]]
  io_entries += [0x15762ec,0xe44ef4,0x25612e0,0x2570b1c,0x34fd450,0x3b3da14,0x2b528cc,0x2b51808,0x2b068f0,0x340e5d4,0x157507c,0x1e93ba0,0x1e8ac24,0x245f088,0x4a66cc,0x2699a90,0x4c8140,0x257eec4,0x25765d4,0x1e5d8b8,0x269741c,0x26991b0,0x250b754,0x1e60570,0x1e5b964,0x2472758,0x1605144,0x2373a08]
@@ -349,13 +369,15 @@ if command:guards += [(0xe658d0,0x30),(0xe66230,0xf8),(0xe67140,0x28),(0xe90d50,
 # Existing native touch toggle and its owned add/remove dispatch.
 if command:guards += [(0x1d1f7c8,0x18),(0x1cecd04,0x8c),(0x1cf8ddc,0x538),(0x1bddae0,0x58),(0x1bc8064,0x34),(0x1d1f840,0x32c)]
 if command:guards += [(0x1ced9c0,0x2b8),(0x1ced4d8,0x270),(0x1cf1624,0x290),(0x1d18594,0x24)]
+if profile_310:guards=profile_guards
 for a,_ in sites:
  found=[x for x in starts if x<=a]
  if not found:raise SystemExit('no unwind range')
  start=max(found);end=min(x for x in starts if x>start)
- if command and a==0x331ea38 and (start,end)!=(0x331e6f4,0x331eb84):raise SystemExit('wheel callback unwind boundary changed')
+ if command and not command_310 and a==0x331ea38 and (start,end)!=(0x331e6f4,0x331eb84):raise SystemExit('wheel callback unwind boundary changed')
  print(f'anchor={a:08x} unwind=[{start:08x},{end:08x}) bytes={at(a,8).hex()}')
 lines=['/* Generated from exact raw ARM ELF; regenerate with model-prepare.py. */',
+ '#if !defined(MODEL_OFFLINE_310) || !defined(OBSERVER_COMPONENT)\n#error "3.10 finite offline component only"\n#endif' if offline_310 else '#ifndef MODEL_FIRMWARE_310\n#error "3.10 command profile required"\n#endif' if command_310 else '',
  'static const uint32_t anchor[PATCH_COUNT]={'+','.join(hex(a) for a,h in sites)+'};',
  'static const unsigned char expected[PATCH_COUNT][8]={'+','.join('{'+','.join(hex(b) for b in at(a,8))+'}' for a,h in sites)+'};']
 # A zero relocation entry means ordinary position-independent displaced word.
@@ -367,18 +389,18 @@ for a,_ in sites:
   if w&0xffff0000==0xe59f0000:row.append(struct.unpack('<I',at(a+offset+8+(w&4095),4))[0])
   else:row.append(0)
  reloc.append(row)
-lines+=['static const unsigned char capture_after_pair[PATCH_COUNT]={'+','.join('1' if (command and a==0x331ea38) or a in (0x1e75f48,0x24713cc,0x236f204,0x236f210,0x236f21c,0x236fc74,0x236fc80,0x236fc8c,0x236f274,0x236f280,0x236f294,0x236fce0,0x236fcf0,0x236fd0c,0x16051a4,0x16051b0,0x16051c0,0x2373a8c,0x2373a9c,0x2373aa8,0x2471e84,0x24712cc,0x2471f60,0x2471fa4,0x2471420,0x11fabd0,0xf57e0c,0x245e8bc,0x1351008,0x245e63c,0x245e650,0x245ee98,0x1462ed0,0x245ec18,0x245ec2c,0x1e8cc2c,0x1e8cca0,0x26522e4,0x2652328,0x265236c,0x26523b0,0xeeee58,0xe4fb9c,0x1462cec,0x128f750,0x12c5aec,0x1c3752c,0x1c37708,0x23669d0,0x2366b44,0x1bea98c,0x1c2f644,0x28cb31c,0x264fccc,0x1bda804,0x1bda9f4,0x2651d04,0x2652160,0x25178d4,0x236f628,0x236f3d8,0x236fe14,0x26527dc,0x257b858,0x254c9c0,0x23755ac,0x2374f88,0x23755ec,0x2375288,0x236f444,0x236fe98,0x135a760,0x1c371fc,0x238f964,0x1c3b740) else '0' for a,h in sites)+'};','static const uint32_t relocated[PATCH_COUNT][2]={'+','.join('{'+','.join(hex(x) for x in row)+'}' for row in reloc)+'};']
+lines+=['static const unsigned char capture_after_pair[PATCH_COUNT]={'+','.join('1' if (command and origin.get(a,a)==0x331ea38) or origin.get(a,a) in (0x1e75f48,0x24713cc,0x236f204,0x236f210,0x236f21c,0x236fc74,0x236fc80,0x236fc8c,0x236f274,0x236f280,0x236f294,0x236fce0,0x236fcf0,0x236fd0c,0x16051a4,0x16051b0,0x16051c0,0x2373a8c,0x2373a9c,0x2373aa8,0x2471e84,0x24712cc,0x2471f60,0x2471fa4,0x2471420,0x11fabd0,0xf57e0c,0x245e8bc,0x1351008,0x245e63c,0x245e650,0x245ee98,0x1462ed0,0x245ec18,0x245ec2c,0x1e8cc2c,0x1e8cca0,0x26522e4,0x2652328,0x265236c,0x26523b0,0xeeee58,0xe4fb9c,0x1462cec,0x128f750,0x12c5aec,0x1c3752c,0x1c37708,0x23669d0,0x2366b44,0x1bea98c,0x1c2f644,0x28cb31c,0x264fccc,0x1bda804,0x1bda9f4,0x2651d04,0x2652160,0x25178d4,0x236f628,0x236f3d8,0x236fe14,0x26527dc,0x257b858,0x254c9c0,0x23755ac,0x2374f88,0x23755ec,0x2375288,0x236f444,0x236fe98,0x135a760,0x1c371fc,0x238f964,0x1c3b740) else '0' for a,h in sites)+'};','static const uint32_t relocated[PATCH_COUNT][2]={'+','.join('{'+','.join(hex(x) for x in row)+'}' for row in reloc)+'};']
 branches=[]
 for a,_ in sites:
  row=[]
  for offset in (0,4):
   w=struct.unpack('<I',at(a+offset,4))[0]
   if w>>24==0xea:
-   if a!=0x11b77f0 or offset!=4:raise SystemExit('unqualified displaced branch')
+   if origin.get(a,a)!=0x11b77f0 or offset!=4:raise SystemExit('unqualified displaced branch')
    d=w&0xffffff
    if d&0x800000:d-=1<<24
    target=a+offset+8+4*d
-   if target!=0x14e040c:raise SystemExit('mode bridge continuation changed')
+   if target!=(0x1631d20 if command_310 else 0x14e040c):raise SystemExit('mode bridge continuation changed')
    row.append(target)
   else:row.append(0)
  branches.append(row)
@@ -386,6 +408,8 @@ lines+=['static const uint32_t branch_target[PATCH_COUNT][2]={'+','.join('{'+','
 for i,(a,n) in enumerate(guards):lines+=['static const unsigned char guard_bytes_'+str(i)+'[]={'+','.join(hex(b) for b in at(a,n))+'};']
 lines+=['static const struct {uint32_t address;unsigned length;const unsigned char *bytes;} guards[]={'+','.join('{'+hex(a)+','+str(n)+',guard_bytes_'+str(i)+'}' for i,(a,n) in enumerate(guards))+'};']
 if mirror:lines+=['static const unsigned hook_ids[PATCH_COUNT]={'+','.join(str(i) for i in selected)+'};']
-out=Path(sys.argv[2]);out.write_text('\n'.join(lines)+'\n')
+out=Path(sys.argv[2])
+out.with_name('model-build-profile.h').write_text('/* Exact preparation selects one build profile. */\n'+('#define MODEL_FIRMWARE_310 1\n' if command_310 else ''))
+out.write_text('\n'.join(lines)+'\n')
 ranges=[(va,va+size,flags) for typ,off,va,pa,size,mem,flags,align in loads if typ==1 and size]
 out.with_name('module-ranges.h').write_text('static const uint32_t module_ranges[][3]={'+','.join('{'+','.join(hex(n) for n in row)+'}' for row in ranges)+'};\n')

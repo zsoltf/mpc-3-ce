@@ -31,17 +31,17 @@ path = stage / "controllers/program-observer/native-preferences-build.sh"
 text = path.read_text()
 anchor = 'docker run --rm --network none -v "$PWD:/src:ro"'
 assert text.count(anchor) == 1
-text = text.replace(anchor, '''docker run --rm --network none -v "$(cd ../../ui && pwd):/ui:ro" -v "$PWD/$out:/out" mpclearn-editor-build bash -ec '
-flags="-march=armv7-a -marm -mfloat-abi=hard -mfpu=neon -O2 -Wall -Wextra -Werror -fPIC -fvisibility=hidden"
+text = text.replace(anchor, '''docker run --rm --network none -v "$(cd ../../ui && pwd):/ui:ro" -v "$PWD/package/mirror-input:/model:ro" -v "$PWD/$out:/out" mpclearn-editor-build bash -ec '
+flags="-include /model/model-build-profile.h -march=armv7-a -marm -mfloat-abi=hard -mfpu=neon -O2 -Wall -Wextra -Werror -fPIC -fvisibility=hidden"
 for editor in pd cardinal; do
  arm-linux-gnueabihf-g++ -std=c++14 $flags -fexceptions -funwind-tables -c /ui/examples/$editor-entry.cc -o /out/$editor-entry.o
 done
 arm-linux-gnueabihf-gcc -std=c11 $flags -Wno-misleading-indentation -c /ui/examples/patch-files.c -o /out/patch-files.o
 '
 ''' + anchor)
-anchor = '/out/toolkit-example.o /usr/arm-linux-gnueabihf/lib/libstdc++.so.6'
+anchor = '/out/toolkit-example.o /out/plugin-controls-screen.o /usr/arm-linux-gnueabihf/lib/libstdc++.so.6'
 assert text.count(anchor) == 1
-text = text.replace(anchor, '/out/toolkit-example.o /out/pd-entry.o /out/cardinal-entry.o /out/patch-files.o /usr/arm-linux-gnueabihf/lib/libstdc++.so.6')
+text = text.replace(anchor, '/out/toolkit-example.o /out/plugin-controls-screen.o /out/pd-entry.o /out/cardinal-entry.o /out/patch-files.o /usr/arm-linux-gnueabihf/lib/libstdc++.so.6')
 path.write_text(text)
 if "--track" in sys.argv[2:]:
     subprocess.run([sys.executable,str(kit / "prepare-track-host.py"),str(stage)],check=True)

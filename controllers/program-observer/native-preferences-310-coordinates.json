@@ -1,0 +1,4206 @@
+{
+  "stock_sha256": "753f838ca362d42c8cc3f5c9c3fcc604ba076b5919212e0301923a3c11c93494",
+  "provenance": [
+    {
+      "artifact": "/tmp/mpclearn-m25-ui-trace/integration-closure.json",
+      "sha256": "7256750051ee3058d91d15bfa1008567ec460423c6eeb514c3d0f1a47579809a"
+    },
+    {
+      "artifact": "/tmp/mpclearn-m25-global-files-trace/receipt.json",
+      "sha256": "9760385a5087143793cc463192150b1afcf04bb29512e5264834fb326299dd77"
+    },
+    {
+      "artifact": "/tmp/mpclearn-m25-preferences-trace/coordinates.json",
+      "sha256": "89b6342ce524658614ce3b33bc58ba89261dd1d56f5140c64a9535c3ffb4c8ef"
+    }
+  ],
+  "ranges": [
+    {
+      "address": "0xb5cc60",
+      "length": 532,
+      "sha256": "3fb36d211cb323e48226d70f25feed88a3bb4209e59c9e46f331cbb16b448760",
+      "name": "Component add deep MouseListener",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xb5ce74",
+      "length": 416,
+      "sha256": "1cd4c1b415152e9c33a107f17ae42b3eed264f52f0a050c487af39dc43ac5954",
+      "name": "Component remove MouseListener",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xbbdea0",
+      "length": 288,
+      "sha256": "fb987eb60708d33d8827f88d52c0e04675d74d19517d55e3a73095cbee8a6feb",
+      "name": "MouseEvent relative aggregate return",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xb89ffc",
+      "length": 8,
+      "sha256": "f54b2d8a3ad9a156ae4592784d8c0481cd43cab2f53878e106e9e96f71c62595",
+      "name": "ListBox select on mouse down setter",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc840e8",
+      "length": 300,
+      "sha256": "be43419c8f326b36a7d1fd743b6629933df63f31791ffc492e4dfb599888a7a2",
+      "name": "ListBox row down owner row and deferred selection",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc843d8",
+      "length": 180,
+      "sha256": "b3722fff70802ac6377ca1da8273276097b36ce70a2502438edfb83c0e9fe9e8",
+      "name": "ListBox row up click settlement",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0x6c948e8",
+      "length": 52,
+      "sha256": "b8502b89c460df4b887f9592c492398eb718e81ff9bd2bebad463f52dd08ee3a",
+      "name": "ListBox row vtable prefix and pointer slots",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ],
+      "relocated_table": true
+    },
+    {
+      "address": "0xa4dd74",
+      "length": 316,
+      "sha256": "acb5599997f6de9c3d375b0625e9267152680bcd45b5d46a1e44e8c7a2970c97",
+      "name": "NativeImageType create hidden Image return",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xad3d9c",
+      "length": 176,
+      "sha256": "7f813deedfd091e0c1901e94f6d2461a1b83f3415d13e8a6ab5521d2fe478157",
+      "name": "SoftwarePixelData initialise BitmapData",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xa50c84",
+      "length": 60,
+      "sha256": "6359d582acb945dd7cbee23ea488c7d876687951bfb5974c973dda4e443c65a0",
+      "name": "ImagePixelData reference release",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xa727e4",
+      "length": 376,
+      "sha256": "5e0f35d36e87c5c9f834149edac2d8d34edb20c417c598c8eb3f803e1a9d491c",
+      "name": "Graphics drawImageAt",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xbbf8f8",
+      "length": 84,
+      "sha256": "761b1ce870173033aee26ad3d86eb76e1ec4ef0df8bdf3cbd605207ef7803489",
+      "name": "Button drag MouseEvent local float position",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xbe04a0",
+      "length": 124,
+      "sha256": "ef8580e25f5a19bf14b60ec3f7379f5d1d3e1e31d963215e7c42b5dd5c58cb77",
+      "name": "Button up MouseEvent local float position",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0x6c93140",
+      "length": 28,
+      "sha256": "6ffbe9a3d29266ebe826526c3e1e1db67bc07e0c03eeee0380fd20c968affeff",
+      "name": "NativeImageType vtable",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ],
+      "relocated_table": true
+    },
+    {
+      "address": "0x6c92f10",
+      "length": 48,
+      "sha256": "fbe2e94946e48c1fe09d7bb364f45096d1cb5b94d44329229fc631ef4424c136",
+      "name": "SoftwarePixelData vtable",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ],
+      "relocated_table": true
+    },
+    {
+      "address": "0x3804734",
+      "length": 12,
+      "sha256": "e5c477905b0d7405d8ee56c9744dfafd3ba2790f18a8d72ca7b15f94dd62211b",
+      "name": "host operator new PLT",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0x3804764",
+      "length": 12,
+      "sha256": "526c50baee3004a82c94bf02a12fa303e3f51054c62aa0a21b5b0a016de75d38",
+      "name": "host sized delete PLT",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0x983ea0",
+      "length": 152,
+      "sha256": "fe090261845122466b7dbbe2556a0c1ff337f35d3d55faf9bfc3e62061d0c296",
+      "name": "JUCE String char constructor",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0x934bc8",
+      "length": 104,
+      "sha256": "b6fa5958a19fed7cea6eb107df9a4ee79bafb0af3d4d8660b7b995a619ad4d3e",
+      "name": "JUCE String destructor",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xbf593c",
+      "length": 60,
+      "sha256": "8d32028928af98c8bbe5205e695b1cf36895dd074c0bdb4684f5227884b46aa0",
+      "name": "named TextButton constructor",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc04630",
+      "length": 60,
+      "sha256": "eec7d52e3b2eb19577c6eb201ed77008ac54611f4ac70f3ba649f7d42d50284d",
+      "name": "TextButton complete destructor",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc007a8",
+      "length": 912,
+      "sha256": "06f889ffaa9c21c959f3e55a804ae48caddf0d874dc0b56f97b8a7bf34c4811a",
+      "name": "Label constructor",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc000fc",
+      "length": 544,
+      "sha256": "ae06acb0b044f64d3cc402e4e8fb1536bb55c9fcbdab693eb9118d1313892de3",
+      "name": "Label complete destructor",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc2f624",
+      "length": 432,
+      "sha256": "467a504fcbff59b5ea8a3e163b728dff7c0de4910585571d5c7d1a4092b11057",
+      "name": "Label silent text update",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xbb2cdc",
+      "length": 24,
+      "sha256": "36047a0c25948a419857ded8542e59c19584bfe5b3c45e4e36e24aaa6463f1c4",
+      "name": "Label justification setter",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xb5bafc",
+      "length": 36,
+      "sha256": "93c86630b66e68b7e229406a3ac636fcf40a0c5f77883d1cc35181b55124f5e2",
+      "name": "Component mouse interception setter",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xba9cfc",
+      "length": 152,
+      "sha256": "368ed4a00eef00b54c39c54c8000327fd77330ab65461fcb02fea66fd1f5bca6",
+      "name": "Label inherited paint",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc08570",
+      "length": 200,
+      "sha256": "89147fcc42e659cfdfeebde8f27590a9e94c9e90dc6f6574fd8034de1e14ee26",
+      "name": "ListBox constructor",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xbf9688",
+      "length": 312,
+      "sha256": "9d005357c4f95cdad6730de49ff3de7d444a4d9cb341e44f3c6753dda8f7d6df",
+      "name": "ListBox complete and deleting destructors",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xbea6e4",
+      "length": 52,
+      "sha256": "842147c370836cbefde377403a5b0a60e106b3991305f9a34870fce36fd64164",
+      "name": "ListBox setModel",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xbe9e10",
+      "length": 872,
+      "sha256": "d4bda20a6a8f7df697a95ed0d0caee3e68f411d49b6b2296d561fb0b8e269a80",
+      "name": "ListBox updateContent",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xbea35c",
+      "length": 96,
+      "sha256": "d84aa673996cd76b2dc1d08cbc3fabbe2d6c90c5cadb671c97f9c2430e22e25f",
+      "name": "ListBox setRowHeight",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc1da18",
+      "length": 28,
+      "sha256": "2cb10bea864e64111554d465c3a6799841fc69dd713df729eb27128cf7aca8a4",
+      "name": "ListBox selectRow",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xb8a0c0",
+      "length": 8,
+      "sha256": "2769a7361987f02cd9992286851b50892fb5d98c7b44c3a4cc7587f46a802807",
+      "name": "ListBox getViewport",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xbac8b4",
+      "length": 1356,
+      "sha256": "9fe1d70d607597668fdd83efb0965f50edf850cd23cd23b27e86fd763c095123",
+      "name": "Viewport setScrollOnDragEnabled with threshold",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc358e4",
+      "length": 436,
+      "sha256": "2cb05fda58d4c960a74880be401d03c36f30de9c0f0dedc7527598ae432363ca",
+      "name": "Slider default constructor",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc24d28",
+      "length": 324,
+      "sha256": "e7e979bf04eaea0a8e849de16dee07e5fc4afbfffe8ca30f833b038ac461709a",
+      "name": "Slider complete destructor",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc35568",
+      "length": 64,
+      "sha256": "306e3d1b687b788fdb69b2c4fb9cec56ddd89304f8b31972482995b20c6357d3",
+      "name": "Slider style entry",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc36994",
+      "length": 64,
+      "sha256": "d1269f1e0942e22beda7e05cd17913e187699b2dd53c4c3e378b83b513adc849",
+      "name": "Slider range entry",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc354b0",
+      "length": 64,
+      "sha256": "810bf75a079706e0809913b4edec93837caa0f1ec0895d3e7fe376d09b28eef4",
+      "name": "Slider text-box entry",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xb8a8fc",
+      "length": 244,
+      "sha256": "25cc4d104aff15ef6ef2d32a4a2e958d077197dc6061db47715e08c358aeef64",
+      "name": "Slider addListener",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xb8a9f0",
+      "length": 160,
+      "sha256": "1ca9eec1ea91e9945bae58b5cb40d720965ca2b62030d118b76ff4d0d4743767",
+      "name": "Slider removeListener entry",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xb8ad98",
+      "length": 32,
+      "sha256": "2a72a4734a851bd12b18ee05664374694b47296018cacc8c4bf56626749c9040",
+      "name": "Slider value getter entry",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc367b4",
+      "length": 8,
+      "sha256": "e1bb510060e56e8164015dda3544dcb5bc9102f29ebcacde09517de95df2d938",
+      "name": "Slider silent value setter entry",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc6dd5c",
+      "length": 24,
+      "sha256": "85a5b84e6a965c7a12bae9fce93953203ace9864b8e7cb55473e52759114fcdd",
+      "name": "Slider value listener dispatch",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc6e1e4",
+      "length": 36,
+      "sha256": "b920c215040791cdbeb615c25a800f388bff903a91aff30221b9c1164bf817be",
+      "name": "Slider drag-start listener slot",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc6e348",
+      "length": 12,
+      "sha256": "ba5de5a859cc6ab971c2b3e69e5abe1850dd8dfd73204a5bc3807b8c508c9b16",
+      "name": "Slider drag-start indirect call",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc6df7c",
+      "length": 36,
+      "sha256": "dac00b00c1a25a173ce8db09bd4f13faeebd55c5398b6c97a694a019528f4f78",
+      "name": "Slider drag-end listener slot",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc6e0e8",
+      "length": 12,
+      "sha256": "b718f2c618919fe1ceb7c253994be1a022c8cba499e5a4577d8534f8dc013310",
+      "name": "Slider drag-end indirect call",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc25298",
+      "length": 40,
+      "sha256": "b06590dd13df2e5fe583a68910a5604109a23025050bc705942e7d5415a2b674",
+      "name": "Slider mouse-up drag-end caller",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xc438ec",
+      "length": 88,
+      "sha256": "50a0e055969183b03632cb62ec143f89e429421f12df510c1dbe91697a444ec2",
+      "name": "ListBox stock model paint dispatch",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xbcb2d0",
+      "length": 572,
+      "sha256": "35c37bd6de2b0bb6c521b007b83ad6da3eb847f0c8bc2154097e76cea8bfe04b",
+      "name": "Component setBounds",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xbe1f4c",
+      "length": 656,
+      "sha256": "2439e0db217e872a2762d4f13b5106388df0e7a046d66e707c07f710bca49432",
+      "name": "Component setVisible",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xbde664",
+      "length": 8,
+      "sha256": "48ba116993b3b39a006802d6bd0cd32fa6bf2b57528828c92b39116fbdaca6d3",
+      "name": "Button setToggleState no-notification entry",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xb5b1c4",
+      "length": 160,
+      "sha256": "f5401a1f3f56fabab3c9d4c4e2b0cf1b0ad4471dbe009900c7e4a4c0213bb624",
+      "name": "Component default constructor",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xbf4fd8",
+      "length": 1104,
+      "sha256": "6d304bffa40258412ef61ccc679bcf66462b062d819a87cd35c5bb42468af566",
+      "name": "Component complete destructor",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xbe8850",
+      "length": 100,
+      "sha256": "102da8532e49a528e3e48c2075094b55ab3174b58ba8a7127c4d497be32f34a1",
+      "name": "Component removeChildComponent",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xbe88b4",
+      "length": 428,
+      "sha256": "9d767a858baec505fef26d6f4d1e1c60be1030c8e455be4c07bb1f47fdc8ca00",
+      "name": "Component addChildComponent",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xbe54b8",
+      "length": 516,
+      "sha256": "f609aae4ab48217f4e70b4ed277b6e388efe56fa7ee435aae546d1c7f6f7174c",
+      "name": "Component setAlwaysOnTop",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xbb1ea8",
+      "length": 64,
+      "sha256": "fe19d945e8ba2f60cb49157c3d0bc0cd0d0a64ae1f9b41f3f59a443baa799db1",
+      "name": "Component repaint",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xb5c3f0",
+      "length": 368,
+      "sha256": "068342e34cc96f9b280dc7ef12790f4a3803440bb92de0be8a964345e4179b22",
+      "name": "Component setColour",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xa6eeb8",
+      "length": 400,
+      "sha256": "022f2ca76247a26a1ff5db12b0d676326062802f5b085f9f53a57cf6e9a5f4b9",
+      "name": "Graphics setColour",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xa6f730",
+      "length": 676,
+      "sha256": "b39394dfaed908fe7f48ce4212f777086cfa5386d950cdc40b2742b7ef4209d2",
+      "name": "Graphics setFont float",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xa6fcf4",
+      "length": 460,
+      "sha256": "9e3a6eca271ee199f0cf7c8dacfbbe5751f1558671fb5805124da78535443e38",
+      "name": "Graphics fillAll Colour",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xacb238",
+      "length": 844,
+      "sha256": "e7641a51c8275591d82893796c4d17c5201b82784b021b76bc883bb256642108",
+      "name": "Graphics drawFittedText integer bounds",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xb9d29c",
+      "length": 616,
+      "sha256": "2c468a19ae80db1af385641d11cbcea5a0de3794fd842855f6c2c07964d916ab",
+      "name": "TextButton label drawing helper",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xb9d50c",
+      "length": 332,
+      "sha256": "b201eb004bea654a2312d51b7149666dd9dc02057fff925f0b6038668e1a294e",
+      "name": "TextButton paintButton",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0xb47bb0",
+      "length": 132,
+      "sha256": "e5c6294475d675dc1653d362dd352e64d59f80bda7668d608482814a4920abde",
+      "name": "Button clicked and modifier dispatch",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0x9562dc",
+      "length": 12,
+      "sha256": "233df71df779d3345a7ab19d42b1cbe9ea7a93fc7a3d39ca6eb67d424cd03382",
+      "name": "Global MIDI Learn HostString UTF-8 borrow",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        },
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Reused UI receipt; exactly ldr r3,[r1]; str r3,[r0]; bx lr, borrowed chars, no ownership transfer."
+        }
+      ]
+    },
+    {
+      "address": "0x4af984",
+      "length": 12,
+      "sha256": "e8a342488c0281364b296b6fa953a6c230621225c885bdd12c07a0fc04a87c47",
+      "name": "Global MIDI Learn Mapping allocation free veneer",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ]
+    },
+    {
+      "address": "0x6c979a8",
+      "length": 212,
+      "sha256": "fdcaf174746e5b2916b4a32a51ecf34679712cbf94deb9fac1eb407b4c98c55e",
+      "name": "TextButton primary vtable",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ],
+      "relocated_table": true
+    },
+    {
+      "address": "0x6cd3d3c",
+      "length": 68,
+      "sha256": "21dfe9af93fb7c104f93b202c2151401f8ff3d37d9cff15c0fcea6e2830e497b",
+      "name": "ListBoxModel primary vtable",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ],
+      "relocated_table": true
+    },
+    {
+      "address": "0x6c95f78",
+      "length": 180,
+      "sha256": "8d9a87a89ce6e0d0ec9ed570e99be721eecb76561d200b64fb6716b6a511b6ca",
+      "name": "Component primary vtable",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Prior 58-coordinate and 53-range receipts, or explicit generic implementation proof in integration-closure.md."
+        }
+      ],
+      "relocated_table": true
+    },
+    {
+      "address": "0x935dfc",
+      "length": 124,
+      "sha256": "f8c0fd0c15b8694e3b113a25543b4e36c9b7cc4fae818784482e1ed4f6577f4b",
+      "name": "NamedValue entry destructor",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Entry+8 type,+16 payload; type virtual+5c then Identifier String release. Does not free the entry array."
+        }
+      ]
+    },
+    {
+      "address": "0x93604c",
+      "length": 196,
+      "sha256": "026a190bf83bf3e49eeb0b76b69c16f3bb1e7e2004d63ddc7a909c8d29ed28f1",
+      "name": "NamedValueSet array destructor",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Array+0,count+8,stride24; inlined entry disposal; free(array); called from Component D1+230."
+        }
+      ]
+    },
+    {
+      "address": "0x998c58",
+      "length": 1124,
+      "sha256": "44787af734a028f81de9d989d967432308b7deecc08fc96320f09b1c4b1e6505",
+      "name": "StringPool intern/search",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Pool array/cap/count +0/+4/+8; hidden result; UTF8 search; retained hit or sorted insert."
+        }
+      ]
+    },
+    {
+      "address": "0x99ca00",
+      "length": 384,
+      "sha256": "4ce00a3b07707a92f16495e7d099986f26f46e98449c490ce1556ae03cbd0eca",
+      "name": "StringPool collection",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Mutex+c, sole-pool-reference collection, array compaction/capacity, last collection+24."
+        }
+      ]
+    },
+    {
+      "address": "0x95c840",
+      "length": 324,
+      "sha256": "5e72d43667c1bc58cbaebe3d19c6e5d865c9b2a1862e13352ff418063c470af5",
+      "name": "Native millisecond source",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Clock ID1 through __clock_gettime64; seconds/nanoseconds -> milliseconds; shared cached low32 tick."
+        }
+      ]
+    },
+    {
+      "address": "0x9c2844",
+      "length": 60,
+      "sha256": "20d9db36ef1fca6cabaadfcc34a92d513fffedd02d1fe0932280bd893b7634fb",
+      "name": "String retain",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Atomic retain; immortal flag skip."
+        }
+      ]
+    },
+    {
+      "address": "0x9cd880",
+      "length": 116,
+      "sha256": "d4d163328c588d089669999c95165e8116185552d056a138d38c27bd2fb59e49",
+      "name": "String backing create",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "UTF8 count, allocation, copy+NUL or immortal empty holder+8."
+        }
+      ]
+    },
+    {
+      "address": "0x998ae0",
+      "length": 376,
+      "sha256": "dc9bbd81640a0a5d82b42d806d28a0ddff670938f351b5717042456cc7b3b60d",
+      "name": "Pool sorted insertion",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Capacity growth, shift slots, retain new string, increment count."
+        }
+      ]
+    },
+    {
+      "address": "0x9d7a08",
+      "length": 272,
+      "sha256": "dfe1b237e9e3e373dc31b5c2983e26e91075174facbd85b0a2fbe31671dd70b5",
+      "name": "Pool capacity",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Allocate capacity*4, move pointers, neutralize moved old slots, free old array."
+        }
+      ]
+    },
+    {
+      "address": "0x99dac4",
+      "length": 344,
+      "sha256": "dde919487f3d90b685efacaabc41020946803e639d8b94fb89bdd02d5a96a46f",
+      "name": "Intern locking wrapper",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Mutex+c; count>300 plus elapsed30000 collection; finally unlock including exception path."
+        }
+      ]
+    },
+    {
+      "address": "0x96f370",
+      "length": 176,
+      "sha256": "002e4bb27e2e59489a50ed0f0ccbb81345be77919ac9065e1c6a076a25f93700",
+      "name": "Global pool getter",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Guard+9c; pool+a0; registered __aeabi_atexit destructor; pool mutex initialization."
+        }
+      ]
+    },
+    {
+      "address": "0x96f210",
+      "length": 172,
+      "sha256": "238e2e621ecdaf3a95785dbfa3da6859229115bd2de6922d1cd9fa8497b81740",
+      "name": "Pool mutex constructor",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "pthread attr type1/protocol1 and init/destroy attr."
+        }
+      ]
+    },
+    {
+      "address": "0x934b18",
+      "length": 176,
+      "sha256": "ffb8a40efe0ac6d65656c3a3e7210bbeb655b1a83a723eaec8e38b7fea7fff4b",
+      "name": "Pool destructor",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Mutex destroy then all retained strings release and free array."
+        }
+      ]
+    },
+    {
+      "address": "0x95ecdc",
+      "length": 28,
+      "sha256": "0a77ac04e691a090425d5d8830f8907de9718036cb7fc60b794f5c55014f2c21",
+      "name": "var(double)",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "d0 payload+8; registered VariantType_Double singleton."
+        }
+      ]
+    },
+    {
+      "address": "0x95ecc0",
+      "length": 28,
+      "sha256": "eeca7fc9ebfda0539913a4bae7fb24fed3025f6def8eb190dd17c37f7cd685cc",
+      "name": "var(bool)",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "r1 byte payload+8; registered VariantType_Bool singleton."
+        }
+      ]
+    },
+    {
+      "address": "0x95f080",
+      "length": 20,
+      "sha256": "a97a103f5c866be6798bc15bffe90a7a8ce47430120d38233d3a45dac7e95906",
+      "name": "var scalar truth conversion",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Type virtual+18, payload+8; used by toggle paint state."
+        }
+      ]
+    },
+    {
+      "address": "0x95f0c0",
+      "length": 20,
+      "sha256": "268ff86243a19b64878037aec44f2a2a4c99548aba16e2329950b610ee4ef2ce",
+      "name": "var double conversion",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Type virtual+10, payload+8; double d0 output."
+        }
+      ]
+    },
+    {
+      "address": "0x95fb70",
+      "length": 60,
+      "sha256": "671796cf1fef99f7835ec596be13087cabd8060bf2d6f03a605f43d1acb04b90",
+      "name": "var inequality",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Type virtual+64 equality, invert resulting boolean."
+        }
+      ]
+    },
+    {
+      "address": "0x9f07dc",
+      "length": 132,
+      "sha256": "88b6e1ebbe5e31a1dca2d03ec4671d832fcb4ab4fe605786cfe3b653b5eb2f2e",
+      "name": "Value get",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Hidden var result; source Value+0 virtual slot2."
+        }
+      ]
+    },
+    {
+      "address": "0x9f0860",
+      "length": 132,
+      "sha256": "8bdafcbda81a2f5943fc1f1da09c3d2b5281534a9512862db20655c4672ab0e8",
+      "name": "Value get alternate entry",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Same hidden-result source getter ABI at distinct called entry."
+        }
+      ]
+    },
+    {
+      "address": "0x9f09c8",
+      "length": 44,
+      "sha256": "420493b2cbfef5a19170786cf21fee33344324968fc2fe7f09c2a06342f8bf0d",
+      "name": "Value set",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Value+0 source virtual slot3; r1 var; returns Value."
+        }
+      ]
+    },
+    {
+      "address": "0xc08570",
+      "length": 944,
+      "sha256": "ffdaec96bc7331f0ba9bfd2150f3f9141f75101475c52b941b08bed9b98e105a",
+      "name": "LIST_CTOR",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Old c8 guard is prefix. Complete constructor normal/EH/literals; owned Viewport allocation316 and install at+7c."
+        }
+      ]
+    },
+    {
+      "address": "0xbf9688",
+      "length": 260,
+      "sha256": "22944ac5e3074a6f82441b65d9be8c11e0152e459a688eadde36492d1c41f1ab",
+      "name": "LIST_DTOR D1",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Old138 guard folds D1 + secondary adjustment + D0. D1 ends before bf978c."
+        }
+      ]
+    },
+    {
+      "address": "0xbea35c",
+      "length": 100,
+      "sha256": "e3e7b2cbeabc15741568792b18e31bfb07f4aebf5e647281d10e9897fa602e45",
+      "name": "LIST_SET_ROW_HEIGHT",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Old60 guard omits final branch to common updateContent tail."
+        }
+      ]
+    },
+    {
+      "address": "0xb5ce74",
+      "length": 248,
+      "sha256": "5f11a74f528ef90ef5b1b0d43b7904d1845bb4d7eacd76e7f44dab0edd7e7c3c",
+      "name": "REMOVE_MOUSE_LISTENER",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Old1a0 guard also covers flags and focus getter; removal proper ends before b5cf6c."
+        }
+      ]
+    },
+    {
+      "address": "0xc35568",
+      "length": 128,
+      "sha256": "267dd460314c9d71ad34ec34f4a8bcc7b68ce4ca9f5bada4e9b3b2e4b8d89b90",
+      "name": "SLIDER_SET_STYLE",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Old40 guard is prefix; Pimpl style+10; Slider virtual21/default layout path."
+        }
+      ]
+    },
+    {
+      "address": "0xc354b0",
+      "length": 184,
+      "sha256": "f6431846463f554c98157d0f8d884c27d71496b09596863c367fc583fa5b86b1",
+      "name": "SLIDER_SET_TEXT_BOX",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Old40 prefix; Pimpl position+144, editable flag+160,width+150,height+154; layout tail."
+        }
+      ]
+    },
+    {
+      "address": "0xb8a9f0",
+      "length": 200,
+      "sha256": "c34b53627424e7484e57396c7d33a8adc91bb7ab50a3c908e3f09fca56468aa6",
+      "name": "SLIDER_REMOVE_LISTENER",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Olda0 prefix excludes shrink allocation paths; pointer list storage only, borrowed listener."
+        }
+      ]
+    },
+    {
+      "address": "0xb8ad98",
+      "length": 160,
+      "sha256": "589903a4ebb13e67678933a42a3389465b2ec715ff2105ae568aef00902e8a65",
+      "name": "SLIDER_GET_VALUE",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Old20 prefix; Value+20, hidden var -> double conversion, destructor, d0 return."
+        }
+      ]
+    },
+    {
+      "address": "0xc36994",
+      "length": 1104,
+      "sha256": "bed5ccc698a6f9452616d87077346d70606a278b2ee773b78118bc1abe884fdf",
+      "name": "SLIDER_SET_RANGE",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Old40 prefix; d0/d1/d2 -> min/max/interval+68/+70/+78; manager-owned conversion functions; normalize current Values."
+        }
+      ]
+    },
+    {
+      "address": "0xc8e594",
+      "length": 1012,
+      "sha256": "00c93a5ab472a2a42b72c23fb87f2417ffc48271044c6e73410504516abeaf8d",
+      "name": "SLIDER_SET_VALUE implementation",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "8-byte facade c13b64/c367b4 tailcalls here. Pimpl r0,r1 notification,d0 value; normalized value and native callbacks."
+        }
+      ]
+    },
+    {
+      "address": "0xbde3cc",
+      "length": 664,
+      "sha256": "6d3f9db9213da13c0b6c99a52dc567e24aeadbb6def6fa770fd0df47d6152b18",
+      "name": "SET_TOGGLE implementation",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "8-byte facade bbba14/bde664 copies r2 to r3 then branches. Native Value+e8/cached+f8, weak guard+64, silent notification path."
+        }
+      ]
+    },
+    {
+      "address": "0x1810b8c",
+      "length": 856,
+      "sha256": "36d680a591a26f47a469e4389a995637cf051bfc7810643d972c37641afa3db6",
+      "name": "TEXT_OPEN",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Old360 guard includes 8 bytes of next independent method."
+        }
+      ]
+    },
+    {
+      "address": "0x1810ef4",
+      "length": 8,
+      "sha256": "f3b2a0df50b4244466762abacb21f2bc945b1f106dbc0ab864183c65624fa1f2",
+      "name": "TEXT_CLOSE facade",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Facade mov0 then tailcall active setter at+8; existing1f0 guard is not either exact function span."
+        }
+      ]
+    },
+    {
+      "address": "0x1810efc",
+      "length": 496,
+      "sha256": "1302651aad387014664b0c78fbc4d6022ea4e3487a48bbc9b8ae2b0502168766",
+      "name": "TEXT_ACTIVE implementation",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Facade plus complete tail is1f8; inherited1f0 guard omits final two literal words18110e4/e8."
+        }
+      ]
+    },
+    {
+      "address": "0xbbf8f8",
+      "length": 240,
+      "sha256": "b83468104723fb02d8828de95d0c4aeca0171289090d012b7314c8e0a010328b",
+      "name": "Button drag callback",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Typed TextButton slot6, complete callback versus54-byte semantic prefix."
+        }
+      ]
+    },
+    {
+      "address": "0xbe04a0",
+      "length": 524,
+      "sha256": "7876c1af772ede8bd27b428058fe287b42119df1c30fd6de8d89df56c9ea61b9",
+      "name": "Button up callback",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Typed TextButton slot7, complete callback versus7c-byte semantic prefix."
+        }
+      ]
+    },
+    {
+      "address": "0xc6dcd8",
+      "length": 516,
+      "sha256": "b56c727a01f5625611f2037736ecefb2900b8aad94dc062617cfd227495c2ca4",
+      "name": "Slider value listener loop",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Typed Pimpl slot2, listener slot2 and native std::function callback; source guard is contained18-byte dispatch."
+        }
+      ]
+    },
+    {
+      "address": "0xc6e14c",
+      "length": 608,
+      "sha256": "a61111a3c820085f46adb618b630bf4b6e568e316e5dd199101f9d147d5cbf35",
+      "name": "Slider drag-start loop",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Full native loop containing slot3 load/call; weak-reference lifetime checks."
+        }
+      ]
+    },
+    {
+      "address": "0xc6dedc",
+      "length": 624,
+      "sha256": "ab8600f8f335a2a0206dc3653f4c5c455d2964e423a899671642a08b057aa023",
+      "name": "Slider drag-end loop",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Full native loop containing slot4 load/call; weak-reference lifetime checks."
+        }
+      ]
+    },
+    {
+      "address": "0xc251e8",
+      "length": 796,
+      "sha256": "404a347826d9f29acfac62f745f5d9257c969c62490a22b042715e404f6bbb14",
+      "name": "Slider mouse-up callback",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Typed Slider slot7; existing28-byte slice is drag-owner retirement seam inside callback."
+        }
+      ]
+    },
+    {
+      "address": "0xb79ef4",
+      "length": 1112,
+      "sha256": "694819cbf10a543376953bb05181d9e44fa50e8c995719bfd985f5ee8de85855",
+      "name": "LookAndFeel_V2 constructor",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "RTTI primary/secondary vptr installation and real standard-colour table consumption loop."
+        }
+      ]
+    },
+    {
+      "address": "0x1810ef4",
+      "length": 504,
+      "sha256": "36cff34c1f76926589fa79678919e6bfdf36847b6d8a09701517b2f045a2ad5d",
+      "name": "Text close facade and complete active setter",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Concatenation of separately verified 8-byte facade and 0x1f0 active setter; includes both final literals"
+        }
+      ]
+    },
+    {
+      "address": "0x1714ee8",
+      "length": 204,
+      "sha256": "9d014e30838544374c32fa326c3a223506e504705292e1c4d377e3467d0c0af3",
+      "name": "Global MIDI Learn selected-file name",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Typed XmmFile slot 4; hidden String result, receiver+8 path; destroys temporary File."
+        }
+      ]
+    },
+    {
+      "address": "0x17156fc",
+      "length": 504,
+      "sha256": "246f966a4588d3b778af2ed1fde287305e499f16bac92cfb98c683b522425606",
+      "name": "Global MIDI Learn file construction and vtable store",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Called from imported-file factory; String path copied at object+8; typed primary vptr stored at1715780."
+        }
+      ]
+    },
+    {
+      "address": "0x1718710",
+      "length": 804,
+      "sha256": "8e34c405973a18f7985c2236aa24a132ed4d12f2b919a4305b61ad5af93ef4a1",
+      "name": "Global MIDI Learn file collection enumeration",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Actual VC file-list caller14fb128; vector+a4/+a8, eight-byte entries, name vslot+10."
+        }
+      ]
+    },
+    {
+      "address": "0x14f9f98",
+      "length": 8,
+      "sha256": "9a7dd825f751b86b9c05f980d2bacf792e58cb96e0d34b9740db16d0fe26d653",
+      "name": "Global MIDI Learn duplicate file action",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "VC+13c tail call171f720; stock action caller31e6570."
+        }
+      ]
+    },
+    {
+      "address": "0x14fabbc",
+      "length": 936,
+      "sha256": "d9199cac57e84f4715d848334948e816a374fc0156de6b5b9f550fdd841cc09e",
+      "name": "Global MIDI Learn synchronous import/export chooser action",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "VC chooser+130, handler+13c, selected+70; same synchronous twelve-argument chooser call and cleanup."
+        }
+      ]
+    },
+    {
+      "address": "0x14fb1f0",
+      "length": 8,
+      "sha256": "1c30ded296706ccf1785405a7a0ae5eed339937d57b0d0814e352e734094c32a",
+      "name": "Global MIDI Learn native file selection action",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "VC+13c tail call1720560, index preserved in r1; stock caller31e75a4."
+        }
+      ]
+    },
+    {
+      "address": "0x14fbaec",
+      "length": 640,
+      "sha256": "4487502bbdb98ad7f36f7c5d6048fa4171e2cbfd155b9afb7c582cff03cff38f",
+      "name": "Global MIDI Learn create file action",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "VC+13c handler creation171ccdc and selection171fedc; stock caller31e6564."
+        }
+      ]
+    },
+    {
+      "address": "0x1de781c",
+      "length": 1092,
+      "sha256": "9039fe83a03d925fc474eeac93c3a4f3c92dec15088a89f5e0bb4c82e98d6253",
+      "name": "Global MIDI Learn synchronous chooser vslot",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Typed SavePathProvider slot2; hidden String result and same stack arguments; native modal loop returns owned String copy."
+        }
+      ]
+    },
+    {
+      "address": "0x9a9438",
+      "length": 120,
+      "sha256": "ee1a04cebd45e51ea3c08d486e3681c42cfdf5f62ca4493e1bb6967bdb59c1df",
+      "name": "Global MIDI Learn File String constructor",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Actual chooser caller14fad44 and XmmFile name caller1714f20; four-byte File/String storage, returns supplied receiver."
+        },
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Old twelve-byte veneer computes986680; corresponding new actual callers call9a9438 directly. No separate new veneer is required."
+        }
+      ]
+    },
+    {
+      "address": "0x16772c8",
+      "length": 256,
+      "sha256": "076b4d709485e72abd731cda1e466ca3d052f7715abb5ec7eb776cb8bb5b1dc4",
+      "name": "Global MIDI Learn writable user mapping directory",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Actual duplicate/native-import callers171f7c8/171e2f0. New body delegates initial-dir1676db8 then appends Midi Learn; hidden File result unchanged."
+        }
+      ]
+    },
+    {
+      "address": "0x1676db8",
+      "length": 332,
+      "sha256": "c8ba091ed0f6e89039b2ccdde67f7c705f2f993c46527ba3b168a10fd99e678e",
+      "name": "Global MIDI Learn chooser initial directory",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Actual chooser call14fac84 and default-initial-dir call1de789c; Documents suffix retained, hidden File result unchanged."
+        }
+      ]
+    },
+    {
+      "address": "0x171f1a8",
+      "length": 1280,
+      "sha256": "e3fec024ad4586dbb894ae621703db882441977a6899ffbb9917fb8290ab531d",
+      "name": "Global MIDI Learn native export writer",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Actual native action14fae48; handler r0/destination File r1, native save vslot+3c receives handler+a0, bool result and shared cleanup retained."
+        }
+      ]
+    },
+    {
+      "address": "0x979ac0",
+      "length": 340,
+      "sha256": "4362c6b6a9c525d2fbccbbf1b7d4866fd2e192f8dbf061b3f06abca1622a2b6c",
+      "name": "Global MIDI Learn source filename",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Actual native import171e314; hidden String output r0, File r1; basename after last slash, including extension."
+        }
+      ]
+    },
+    {
+      "address": "0x9a94b0",
+      "length": 1316,
+      "sha256": "85782621c470c7434182e748f5017d9df8108af872cc63c86e32762b3fa950ba",
+      "name": "Global MIDI Learn child File construction",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Actual native import171e338; output File r0, directory File r1, borrowed UTF8 chars r2; owns returned String backing."
+        }
+      ]
+    },
+    {
+      "address": "0x9707dc",
+      "length": 60,
+      "sha256": "cff9674ebb9316e611e214c0749cec8a206247b4cb385abda8d78bf156286022",
+      "name": "Global MIDI Learn destination collision predicate",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Nonempty stored path and access(path,0)==0; paired named access PLT imports."
+        }
+      ]
+    },
+    {
+      "address": "0x970818",
+      "length": 88,
+      "sha256": "c890a6eea4bb11ebc9a451cb3a554570630d5821c7660091d5763faf70c0f23c",
+      "name": "Global MIDI Learn source regular-file predicate",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Actual import facade171e730 and factory1715fec; access(path,0) then !isDirectory. This is the native predicate, not a claim of S_ISREG semantics."
+        }
+      ]
+    },
+    {
+      "address": "0x98e4b0",
+      "length": 168,
+      "sha256": "e580a8ba319d4bd0124c76c5df8402664b7fd6bfb378d25955aece2522f57072",
+      "name": "Global MIDI Learn byte-copy",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Actual native import171e390; source File r0/destination File r1; unchanged finite facade and tail copy boundary9885d8."
+        }
+      ]
+    },
+    {
+      "address": "0x172bed4",
+      "length": 252,
+      "sha256": "b41cb62d7d8d9f7e93ccb99e5f5806f9c74dbd84da4a65d185c76dd894fab514",
+      "name": "Global MIDI Learn mapping open from copied File",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Actual import171e784/export171f200; .xmm extension guard, zero pair on rejection, hidden shared result to native factory1715f30."
+        }
+      ]
+    },
+    {
+      "address": "0x171a8d4",
+      "length": 1284,
+      "sha256": "134e2bfa983736f7cbdd2cc7566bc37f42c2cd857a9c3e5fd32a438e111c0f30",
+      "name": "Global MIDI Learn mapping registration",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Handler r0/shared pair r1; exact-object duplicate check17171fc, retained strong reference and appended8-byte entry, bool return."
+        }
+      ]
+    },
+    {
+      "address": "0x1720560",
+      "length": 672,
+      "sha256": "a3692a92aa2fc540c17aeae8ae330e3b460f042340195e2e117d395c826fae9a",
+      "name": "Global MIDI Learn file-handler mapping selection",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Handler r0/index r1; unsigned bounds against vector count, temporary native weak/strong handling, selected owner update171fd04."
+        }
+      ]
+    },
+    {
+      "address": "0xcb9c3c",
+      "length": 244,
+      "sha256": "4a8d1870df2834d7a0f96328b2f23c8e0d9aaf2eb249d01eee6e167646f7ef28",
+      "name": "Global MIDI Learn temporary shared-reference release",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Actual native import exception cleanup171e864; strong+4 decrement then dispose slot+8; weak+8 decrement then destroy slot+0xc."
+        }
+      ]
+    },
+    {
+      "address": "0x6ca3b54",
+      "length": 32,
+      "sha256": "f62e6c4089bdd39139f77204d50a5d08a3bd783c0faa202c793b56cb0204a868",
+      "name": "Global MIDI Learn file primary vtable",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Named RTTI7XmmFile, offset-to-top0. Prefix covers pre-existing guard width; full typed slot table separately recorded."
+        }
+      ],
+      "relocated_table": true
+    },
+    {
+      "address": "0x6ca8784",
+      "length": 32,
+      "sha256": "a603668004c1aca10caec1da9e7487a44286e2e80de0b0e17902fcb7686a99e4",
+      "name": "Global MIDI Learn chooser primary vtable",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "Named RTTI16SavePathProvider, offset-to-top0; slot2=1de781c."
+        }
+      ],
+      "relocated_table": true
+    },
+    {
+      "address": "0x4fecb30",
+      "length": 32,
+      "sha256": "908fc8d74615ec58fdfa287f099e8297b7d0115169aefe72e5e42eaf44559cfc",
+      "name": "LookAndFeel standard TextButton colours",
+      "provenance": [
+        {
+          "artifact": "ui/integration-closure.json",
+          "proof": "Constructor literal+PC+1000; ID/value loop passes these entries to native colour setter."
+        }
+      ]
+    },
+    {
+      "address": "0x171f720",
+      "length": 1508,
+      "sha256": "159fa957e893367a34fe168ae81dce2929f54a94131058185fb32f93b00984d4",
+      "name": "duplicate_handler",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "File owner/factory/shared-lifetime support body"
+        }
+      ]
+    },
+    {
+      "address": "0x171e6f0",
+      "length": 444,
+      "sha256": "55fb655a8c0d7456ef7a7bce8aff20fb0b8bb1acf76f8f970f17c011de134e12",
+      "name": "native_import_facade",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "File owner/factory/shared-lifetime support body"
+        }
+      ]
+    },
+    {
+      "address": "0x171e1f0",
+      "length": 1280,
+      "sha256": "79c474d0f42a93dc57bfea30a62cf71d94e83ddbe7216f83e0b73793faa77d99",
+      "name": "native_import_registration",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "File owner/factory/shared-lifetime support body"
+        }
+      ]
+    },
+    {
+      "address": "0x1715f30",
+      "length": 988,
+      "sha256": "92975ab6d20b7de9b65655fcf838e5108cc3de7a4780b0dcd3523a4a658be6d2",
+      "name": "shared_file_factory",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "File owner/factory/shared-lifetime support body"
+        }
+      ]
+    },
+    {
+      "address": "0x1716310",
+      "length": 84,
+      "sha256": "2a8ede339efa81017c2330117835b6cf87f8a1e07c4925a67f72c7ad36941fe2",
+      "name": "shared_control_callbacks",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "File owner/factory/shared-lifetime support body"
+        }
+      ]
+    },
+    {
+      "address": "0x1716364",
+      "length": 304,
+      "sha256": "ab9bbaaf0a8dbe8131cd2f1a7413081500110553369b19b0a14322b4a1eb01f6",
+      "name": "XmmFile_D1",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "File owner/factory/shared-lifetime support body"
+        }
+      ]
+    },
+    {
+      "address": "0x1716494",
+      "length": 316,
+      "sha256": "37b526a6664ad3aff22bd955505fbcda795465bf10c7b8387a67e918ed6b7176",
+      "name": "XmmFile_D0",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "File owner/factory/shared-lifetime support body"
+        }
+      ]
+    },
+    {
+      "address": "0x171fd04",
+      "length": 472,
+      "sha256": "8ff5b067f45f2bdceeefa1a870cb54d5b03c0ff9d757ee383790bc4751c55588",
+      "name": "selected_owner_update",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "File owner/factory/shared-lifetime support body"
+        }
+      ]
+    },
+    {
+      "address": "0x17171fc",
+      "length": 560,
+      "sha256": "b000dad3e1eb620c2c085be7021ff623d67a6b0920d0809279b67d6281ed827f",
+      "name": "exact_object_membership",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "File owner/factory/shared-lifetime support body"
+        }
+      ]
+    },
+    {
+      "address": "0x14fb0f8",
+      "length": 124,
+      "sha256": "fc8ce05ebec7916bd5f00324f096c3a9572199e10d5ce02111f9e177c48590f5",
+      "name": "file_list_caller",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "File owner/factory/shared-lifetime support body"
+        }
+      ]
+    },
+    {
+      "address": "0x31e6290",
+      "length": 1160,
+      "sha256": "563907d4d34aa0883445893f93fd766622e72a3a563f35c64a97a0baa2d89064",
+      "name": "native_action_caller",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "File owner/factory/shared-lifetime support body"
+        }
+      ]
+    },
+    {
+      "address": "0x31e74e0",
+      "length": 552,
+      "sha256": "b4e93a1783bcf1cba40ba721f857bc1c29cff17eef875727ef0b0fc742ee0efb",
+      "name": "native_selection_caller",
+      "provenance": [
+        {
+          "artifact": "files/receipt.json",
+          "proof": "File owner/factory/shared-lifetime support body"
+        }
+      ]
+    },
+    {
+      "address": "0x38ee000",
+      "length": 264,
+      "sha256": "965d339b8b1c29dd3ef64aa2439dd57e32211c925f05ca85d6b90051cde07596",
+      "name": "stock NotImplementedTab call and append",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "typed ctor call38ee0d0/append38ee0f0..104"
+        }
+      ]
+    },
+    {
+      "address": "0x38ee12c",
+      "length": 216,
+      "sha256": "d0ee1eb5ee07a5eb6569a41c1d3a8ab55327d063164cd1677e24f44c064b05ac",
+      "name": "final Splice construction and append",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "final constructor call38ee1c4; index58,label4c,signal64"
+        }
+      ]
+    },
+    {
+      "address": "0x38ef494",
+      "length": 348,
+      "sha256": "055b5a10c45f3f02af2dd5009fe86d06ccfe5d7e1d6f49331b648cda7aa85aef",
+      "name": "overlay teardown",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "TouchPreferencesOverlay D1; vector virtual destruction38ef4dc..524"
+        }
+      ]
+    },
+    {
+      "address": "0x38ec300",
+      "length": 176,
+      "sha256": "bb3abf602cb7e1be249bce0e96b683792103f7dbb57cb22b00b86f22e251463f",
+      "name": "inline std string constructor",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "actual final tab caller38ee174"
+        }
+      ]
+    },
+    {
+      "address": "0x3923848",
+      "length": 432,
+      "sha256": "ac7811bd59425bec15a6f20e86a336526a4bc50c4ca166930fc4cf1eba77e0ef",
+      "name": "NotImplementedTab constructor",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "NotImplementedTab RTTI; base ctor39370c4; placeholder+70"
+        }
+      ]
+    },
+    {
+      "address": "0x39234c0",
+      "length": 96,
+      "sha256": "9a50eb74e2c87ef855fc596c2c5277b02a0d872e94f849495933407430cb6d4a",
+      "name": "NotImplementedTab complete destructor",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "NotImplementedTab primary D1"
+        }
+      ]
+    },
+    {
+      "address": "0x3926b5c",
+      "length": 88,
+      "sha256": "af76c688a02063613a46b6f55d602668003cee6bacc94901e5b3412cb258f093",
+      "name": "tab child removal",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "paired remove helper; widget+12c/+1a4/native child-list refresh"
+        }
+      ]
+    },
+    {
+      "address": "0x3926bb4",
+      "length": 92,
+      "sha256": "7af40cf09c9ff230d40f17ae6b8a12aa7310ea04242c4c6af74991848f5ba4fa",
+      "name": "tab child addition",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "typed constructor call3923928"
+        }
+      ]
+    },
+    {
+      "address": "0x3936af8",
+      "length": 188,
+      "sha256": "6b6fbf9201caf3ccb775e331e5a61bc81ce00dc5d9a98593053896764073224b",
+      "name": "NotImplementedTab active callback",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "NotImplementedTab primary slot2; contents+4c visibility"
+        }
+      ]
+    },
+    {
+      "address": "0x38ea008",
+      "length": 676,
+      "sha256": "e4097c7aebb94a55adec252e602c03441ca85631ebfce262446c51f16a083967",
+      "name": "TouchModeMenuOverlay constructor",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "TouchModeMenuOverlay ctor actual vptr stores; child call36d6178"
+        }
+      ]
+    },
+    {
+      "address": "0x36d6178",
+      "length": 964,
+      "sha256": "99b44842e7291117325d30d9109b60edee38556c86715ed6c12c3d8366f62fda",
+      "name": "launcher Page constructor",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "TouchModeMenuGrid ctor called38ea164; vector+c8/cc/d0 zeroed"
+        }
+      ]
+    },
+    {
+      "address": "0x36d6d50",
+      "length": 228,
+      "sha256": "92262e75b07f7cde6d8f082630fe963d9e1d90f69838e4e569fd38ff65de959a",
+      "name": "outer launcher Page layout and child rebuild iteration",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "TouchModeMenuOverlay resize tail38e9aa0; actual vector iteration"
+        }
+      ]
+    },
+    {
+      "address": "0x36d871c",
+      "length": 1084,
+      "sha256": "93b88185d3722f0642ced9e62c789858754c01e2dedefed6baa3eebe39d4dd5e",
+      "name": "launcher Page rebuild",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "actual wrapper call36d8b9c; nested Page pairs +a0/a4/a8"
+        }
+      ]
+    },
+    {
+      "address": "0x36d8b58",
+      "length": 80,
+      "sha256": "a60a699bce617fd734aba857665261329277e5e1d09481c936d094404ed303c2",
+      "name": "launcher child rebuild wrapper",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "actual outer layout call36d6e18; prefix of714-byte function"
+        }
+      ]
+    },
+    {
+      "address": "0xee54a8",
+      "length": 248,
+      "sha256": "dac6f60f52a4e1f9205106fdfb85669e032d6a56df4b10ed9cd58cb63dc9d8f2",
+      "name": "launcher mode-list getter",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "actual rebuild BL36d87bc->veneer38075c0->ee54a8; copies page vector"
+        }
+      ]
+    },
+    {
+      "address": "0x38ea7f0",
+      "length": 16,
+      "sha256": "a0e6673f132c8ef2e95e723c7c6c710354cdd6f0846541b96ead676e92503a52",
+      "name": "launcher overlay child addition",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "actual overlay ctor call38ea190"
+        }
+      ]
+    },
+    {
+      "address": "0x38e99d4",
+      "length": 364,
+      "sha256": "d45870348e17465c74473ffb49a03c74da684a5f0bfb4a35f10e73e2a1761eda",
+      "name": "launcher overlay destructors",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "TouchModeMenuOverlay primary D1/D0, deleting size168"
+        }
+      ]
+    },
+    {
+      "address": "0xff6554",
+      "length": 112,
+      "sha256": "79a9acead0cde6f84b5617cd364af2caeb5c2b9fb881df09a6e00b7dde66025c",
+      "name": "Global MIDI Learn owner and view-controller startup",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "root ctor constructs VC, root+3e8/+800, r4/r5/r6/r7 capture"
+        }
+      ]
+    },
+    {
+      "address": "0x14fc454",
+      "length": 536,
+      "sha256": "b6019942ea367c0c38dfd4843eec67d3e3553e63fa1979e13b9404f2333a4d2b",
+      "name": "Global MIDI Learn view-controller constructor owner/file store",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "typed MidiLearnViewController ctor, prefix218 covers owner stores"
+        }
+      ]
+    },
+    {
+      "address": "0x1721b38",
+      "length": 8,
+      "sha256": "0351c869d4f0a02e9e720bc24d05eb8e138dd1aae901f2808f4fa81b1cab75c6",
+      "name": "Global MIDI Learn file-handler getter",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "actual root callff6578; collection+50 leaf"
+        }
+      ]
+    },
+    {
+      "address": "0x6ddddf4",
+      "length": 64,
+      "sha256": "b82c57f3804a9dd79e30c8b8fb07af506c7fa62164c2fa3fd582053ced1ce1fd",
+      "name": "NotImplementedTab vtables",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "RTTI22NotImplementedTab primary/secondary table headers"
+        }
+      ],
+      "relocated_table": true
+    },
+    {
+      "address": "0x6ddb8c0",
+      "length": 100,
+      "sha256": "15db27f34cf50b4c3dcfcb03ac85bc950de86c267d8307b4ed38603624c71305",
+      "name": "launcher overlay primary vtable",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "RTTI20TouchModeMenuOverlay primary23 slots"
+        }
+      ],
+      "relocated_table": true
+    },
+    {
+      "address": "0x14fd518",
+      "length": 1100,
+      "sha256": "ebe809fc47f8183769684e98390f25a2ad350461549fd831571cbc06748a2816",
+      "name": "Global MIDI Learn selected Target property setter",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "selected Target Property setter; getter172b4e0/assign172b558; actual VC caller14fbf38"
+        }
+      ]
+    },
+    {
+      "address": "0x1722980",
+      "length": 252,
+      "sha256": "da446bb11a4eb72c299e724226b4a599e97905d609e1b35e4b69ec8c51a7a815",
+      "name": "Global MIDI Learn live pairing lookup",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "actual stock table lookup; Target copy12 bytes; collection finder1721b40 compares raw IDs"
+        }
+      ]
+    },
+    {
+      "address": "0x172ad80",
+      "length": 412,
+      "sha256": "2f901825d29b57e77f77f31c1c49bc85f96b5cfa43a90c05a8ff06c010a726f9",
+      "name": "Global MIDI Learn target construction and lifetime",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "default/fixed constructors, shared Target copy/destructor; default ID121; fixed172af08"
+        }
+      ]
+    },
+    {
+      "address": "0x172be78",
+      "length": 92,
+      "sha256": "19e654152be43ff7332292b8a96132b6abf423f24800888505198e181a988cf2",
+      "name": "Global MIDI Learn assignment formatter",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "actual stock table call31ec60c; hidden output String r0, Mapping r1"
+        }
+      ]
+    },
+    {
+      "address": "0x31ec3a0",
+      "length": 812,
+      "sha256": "916b7992858c32cd8ee1702b79426f8a7fa7c15644e7881fdd78312941d9d588",
+      "name": "Global MIDI Learn stock table caller",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "typed MidiMappingTableGlobalModel/Project slot4; Target getter joins label decoder at31ec5a4/5b0"
+        }
+      ]
+    },
+    {
+      "address": "0x31edd74",
+      "length": 2968,
+      "sha256": "fa78cfda941f47b1e63686c6b503e7656c7788a911bd051bbe02cde7d78ef914",
+      "name": "Global MIDI Learn target label decoder",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "full native ID switch and string decode in global-target-labels.json; inserted native118 Browser Help"
+        }
+      ]
+    },
+    {
+      "address": "0x14f9404",
+      "length": 376,
+      "sha256": "0a74aab111531a0b07afecd08f489261bee808959fe43a6f33f04e8e4cbbeb3b",
+      "name": "Global MIDI Learn owner-property listener and mirror queue",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "actual VC constructor14fc6a8; owner bool +34; queued mirror callable14fbd6c and manager14f9218"
+        }
+      ]
+    },
+    {
+      "address": "0x14f9e1c",
+      "length": 32,
+      "sha256": "61c46a22baa1029a47a25f0888513d58f582819236db5194187cd0210a65fae6",
+      "name": "Global MIDI Learn queued Learn intent entry prefix",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "same native queued Learn entry, intentionally only existing prefix"
+        }
+      ]
+    },
+    {
+      "address": "0x14f9e1c",
+      "length": 380,
+      "sha256": "65fa255647326583fd87324a8ead7e1eb05274672f10ec163de8ad946203e944",
+      "name": "Global MIDI Learn queued Learn intent entry",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "native Learn queue, queue+100/mutex128, callback14fbdb4 manager14f9264; pending token VC+c/+10"
+        }
+      ]
+    },
+    {
+      "address": "0x14fbd6c",
+      "length": 32,
+      "sha256": "2972dbf0f42994048d8ceb08318b32992cf7e5e0c99808532c0aff8d4838ab37",
+      "name": "Global MIDI Learn view-controller mirror closure",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "mirror closure calls e5e5d4 on VC+14 and settles token pending"
+        }
+      ]
+    },
+    {
+      "address": "0x14fbdb4",
+      "length": 32,
+      "sha256": "d57eab4f94c8d74ad048a2f35ba8de7f6cec427d33e699e2acc5f759d695f1f5",
+      "name": "Global MIDI Learn owner-property closure",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "owner closure calls11fe518 on owner+c and settles token pending"
+        }
+      ]
+    },
+    {
+      "address": "0x11fe518",
+      "length": 504,
+      "sha256": "8d0e699be0e308cbb80310e3165eabf1d24cb8511e8e97aa2a8d16c57b167cb8",
+      "name": "Global MIDI Learn bool Property setter",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "actual owner closure14fbdcc; bool Property value+28, mutex+10, listener slot14; final literals through11fe70c"
+        }
+      ]
+    },
+    {
+      "address": "0x14fa100",
+      "length": 196,
+      "sha256": "58c304da8f08e2dec79c250d9e6c3d10b27d8dfd2c3a4bf7622a43190eecb84b",
+      "name": "Global MIDI Learn clear target action",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "VC+138 owner, copies Target, calls owner1711a2c, releases Target"
+        }
+      ]
+    },
+    {
+      "address": "0x7f9abc",
+      "length": 68,
+      "sha256": "5aa40636a8dc8d02f72dcb838558cbcea2d4001b2393c31937331799e7c4ca01",
+      "name": "Global MIDI Learn note-message factory",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "native note factory: hidden24byte message, 1-based channel, data7bit, timestamp zero"
+        }
+      ]
+    },
+    {
+      "address": "0x7f9a7c",
+      "length": 64,
+      "sha256": "e47fbd46b5a47f45841fb5c1aff407bfd5aacb755e782bae3dc3771c5e8f82af",
+      "name": "Global MIDI Learn controller-message factory",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "native CC factory: hidden24byte message, channel/data masks"
+        }
+      ]
+    },
+    {
+      "address": "0x7f99c0",
+      "length": 56,
+      "sha256": "c60ace7c399b957d7b6008c329366644fcba6c7e1f13c9d247665ecd23f8ea24",
+      "name": "Global MIDI Learn pitch-message factory",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "native pitch factory: hidden24byte message, 14bit pitch split"
+        }
+      ]
+    },
+    {
+      "address": "0x7f867c",
+      "length": 64,
+      "sha256": "0c8f7bb0a6b23c9045c1243f07581747a49ccb99795d064b3def334ef17b277c",
+      "name": "Global MIDI Learn message destructor",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "message destructor frees heap only if length+10 >4"
+        }
+      ]
+    },
+    {
+      "address": "0x17276e8",
+      "length": 480,
+      "sha256": "e94d9c7890679e8d554ad035a319e9c6c7ebeee3c686677663400c08f6cd9996",
+      "name": "Global MIDI Learn Mapping constructor",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "Mapping ctor actual note/CC/pitch classifiers; scalars9c/a0/a4/a8/a9 and signals8/30/5c"
+        }
+      ]
+    },
+    {
+      "address": "0x1724698",
+      "length": 824,
+      "sha256": "b58fd9ebac73eba09629c69b20d5f4288b84bc093cb9470e30e071099c329f97",
+      "name": "Global MIDI Learn Mapping owner commit",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "actual learned Mapping caller170e324; copies Target into collection lookup then Mapping update"
+        }
+      ]
+    },
+    {
+      "address": "0x1723360",
+      "length": 320,
+      "sha256": "4a66e2a94825c0fd529ac34a790a0373ce347c308194987d20de880b4c1986ca",
+      "name": "Global MIDI Learn Mapping control setter",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "actual native caller170e4dc; collection lookup then Mapping+a0 control, signal+c"
+        }
+      ]
+    },
+    {
+      "address": "0x17234a0",
+      "length": 320,
+      "sha256": "8ce97c2a8ffd82208fce674cff7c7bb6026d4de1316c5f30c5757442a2f5ef6b",
+      "name": "Global MIDI Learn Mapping reverse setter",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "actual VC reverse closure14f9990; collection lookup then Mapping+a9 reverse"
+        }
+      ]
+    },
+    {
+      "address": "0x1724ae4",
+      "length": 32,
+      "sha256": "4991e1c4c804bde82dfc20ce460e8d6c28d18cefbceaa30bfa506cb70c69e3c3",
+      "name": "Global MIDI Learn Mapping cleanup caller",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "actual cleanup after added native filter branches; stack+90 free and signal+64/+38/+10"
+        }
+      ]
+    },
+    {
+      "address": "0x170e324",
+      "length": 36,
+      "sha256": "f6b82b73af4b1ea868d16855e37e8e624eb09f539aaee10bcfa685713365f348",
+      "name": "Global MIDI Learn learned-Mapping cleanup caller",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "native learned Mapping commit BL then heap/signal cleanup"
+        }
+      ]
+    },
+    {
+      "address": "0x223d974",
+      "length": 328,
+      "sha256": "e63cc1347e7a414729b377af16ee4dec3e51d8c1af13846becd194f8e1445602",
+      "name": "Global MIDI Learn Mapping signal destructor",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "shared Mapping signal destructor join, full static guard; live skips first8 patched bytes; reuse preferences-build-join receipt"
+        }
+      ]
+    },
+    {
+      "address": "0xab7260",
+      "length": 32,
+      "sha256": "213027d4cc2098eb999cc6381984c8084ad60e7d0f345f10a6ea22b8b9281bfa",
+      "name": "stock hidden image return caller",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "same native Image hidden-return call ab7278 ->a4dd74; r0 output, r1 receiver, r2 format, r3 width, stack height/clear"
+        }
+      ]
+    },
+    {
+      "address": "0xa56284",
+      "length": 80,
+      "sha256": "9f6d6ac79086db4e7f1de6e0b739490632e5dcac5f315c4d5ebff3893642512d",
+      "name": "stock BitmapData width height mode caller",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "same BitmapData native caller: width/height, mode1, zero origin/releaser, pixel vslot14; UI image-bitmap-caller paired evidence"
+        }
+      ]
+    },
+    {
+      "address": "0xad0988",
+      "length": 56,
+      "sha256": "704602036ece86668c8c96567cdb7e0c79ca7b3bc53bd63cd35e8771e8d99b3e",
+      "name": "stock image transfer and data release",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "JPEGImageFormat primary slot5 oldaada4c ->newad069c; createad09a0 ->a4dd74, releasead09bc ->a50c84"
+        }
+      ]
+    },
+    {
+      "address": "0xb4a614",
+      "length": 28,
+      "sha256": "35626d552a4fe67662ca48491125db746105e4cdf081916a2217fe41e5a8d907",
+      "name": "stock drawImageAt caller",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "LookAndFeel_V2 primary slot124 oldb27954 ->newb4a5a4; drawImageAt callb4a628 ->a727e4"
+        }
+      ]
+    },
+    {
+      "address": "0xb4b008",
+      "length": 28,
+      "sha256": "6a3be3e52672a9b14e1cb1dcc6fe5a1124cfaa1e62d47601ef3a9e6efe4ebd62",
+      "name": "stock cached drawImageAt caller",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "native cached image caller retains r0 Graphics,r1 Image,r2/r3 zero, stack false; callb4b01c ->a727e4"
+        }
+      ]
+    },
+    {
+      "address": "0xa564e0",
+      "length": 96,
+      "sha256": "ef5a5c1f39f05457638397fc082c28ee4f96f5b9130bf800d2eb3c1177cc2e8a",
+      "name": "stock RGBA to premultiplied BGRA",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "same decoded image body as BitmapData caller; byte RGBA load/BGRA store; alpha0/255 special paths and (channel*alpha+127)>>8"
+        }
+      ]
+    },
+    {
+      "address": "0x3638874",
+      "length": 84,
+      "sha256": "3d5d1ccc4353cd6b81897388f3a0d8255b1680cb217717ce8598614b0286cd70",
+      "name": "stock Label construction caller",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "TouchComboBoxBase ctor installs typed vptr6db68f8; Label at+110, hidden String arguments, call36388b4 ->veneer3804b0c ->c007a8"
+        }
+      ]
+    },
+    {
+      "address": "0x3638b34",
+      "length": 160,
+      "sha256": "6f6ef676a14689436a1d020365ae7ccd6f84a538d5db97c9959a21543ce657a2",
+      "name": "stock Label setup caller",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "same TouchComboBoxBase ctor; colour01000280, justification r1, intercept r1/r2 false, Label object+110"
+        }
+      ]
+    },
+    {
+      "address": "0x3637204",
+      "length": 60,
+      "sha256": "e6e8bb63e561c7e42d3017e49d20f24e1c8cc8c4e1d0fb01931d67bfff4c4809",
+      "name": "stock Label silent text caller",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "TouchComboBoxBase helper; Label+110, String pointerr1, notificationr2=0; call363723c ->veneer3804adc ->c2f624"
+        }
+      ]
+    },
+    {
+      "address": "0x136e52c",
+      "length": 148,
+      "sha256": "cce10e51979581dd849ce70a5daf80d003ea70a235fc013ed47054518056bab1",
+      "name": "stock Slider listener callback",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "EditorViewport/SongEditorViewport Slider Listener RTTI secondary -1f0 slot2; get doubleb8ad98, forwarding native owner slot3"
+        }
+      ]
+    },
+    {
+      "address": "0x136e5c0",
+      "length": 176,
+      "sha256": "253a4c0eb225002abff394c35d7aab67fc0edcf8485ab560b29db72746499704",
+      "name": "stock Slider construction and binding",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "actual EditorViewport callback neighbor helper; native style/range/textbox calls c35568/c36994/c354b0, listener owner+1f0"
+        }
+      ]
+    },
+    {
+      "address": "0x2e4c5dc",
+      "length": 32,
+      "sha256": "e4ba43426588220f1b8d99c101414d11a020d041904135542b1485c1aa5df759",
+      "name": "stock silent Slider owner refresh",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "actual native refresh loads float source+18, converts to d0, r1=0, passes Slider owner+14ac; call2e4c5f8 ->veneer3018ad0 ->c367b4"
+        }
+      ]
+    },
+    {
+      "address": "0x39dbd28",
+      "length": 16,
+      "sha256": "270c1cefe1a053f5d07f9f090faf34aaa7c2109c4ca64726825e7e3672bd8aec",
+      "name": "stock Viewport drag-scroll enable caller",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "TouchKeyboardPage ctor39db834 installs typed primary6deb0c4; Viewport+144, enabledr1=1,s0=8.0; veneer3bfd168 ->bac8b4"
+        }
+      ]
+    },
+    {
+      "address": "0x3345768",
+      "length": 176,
+      "sha256": "7833ffd8b3fbabd32e2296418e123de52bf683333b0cd272507583b64c7b6bea",
+      "name": "stock Preferences embedded ListBox construction",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "PreferencesWindowListBox typed vptr6d9bb58, embedded ListBoxModel+ac retained; ctor340fb98 ->c08570, model340fba4 ->bea6e4"
+        }
+      ]
+    },
+    {
+      "address": "0xb4e810",
+      "length": 144,
+      "sha256": "3a8e30f5d2b969927584790d0ffebb0e4b718cb42cd96d3e66f4cf8462416e85",
+      "name": "MPC fitted-text paint caller",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "PropertyPanel section paint native slot; Graphics setColoura6eeb8,setFonta6f730,drawFittedTextacb238; integer bounds and String+190"
+        }
+      ]
+    },
+    {
+      "address": "0x8ef3d8",
+      "length": 40,
+      "sha256": "591a70a99f3b5babdf9b694c332ae9f845da1aa88d4eda9bdf72df44caf8acc3",
+      "name": "MPC fillAll caller",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "PluginListComponent TableModel slot3 old8cc6bc ->new8ef394; Graphicsr0 and Colourr1 to fillAlla6fcf4"
+        }
+      ]
+    },
+    {
+      "address": "0x3018b18",
+      "length": 12,
+      "sha256": "97ab993b81ff19c70c124a25e2b6e084b6520ebf413826776a83c42362222e20",
+      "name": "stock Component setColour veneer",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "Actual native caller resolves through this inter-range veneer"
+        }
+      ]
+    },
+    {
+      "address": "0x3804b0c",
+      "length": 12,
+      "sha256": "7ba038b4e3ca19e0db070598f8a90d608ada9a0d3cc6a9c7df0ec8eda6d51f18",
+      "name": "stock Label constructor veneer",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "Actual native caller resolves through this inter-range veneer"
+        }
+      ]
+    },
+    {
+      "address": "0x3804b48",
+      "length": 12,
+      "sha256": "1c1ed1ab11c6404b187fb31db034bf8a914c299a200cf3062bfab93ec9031632",
+      "name": "stock Label justification veneer",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "Actual native caller resolves through this inter-range veneer"
+        }
+      ]
+    },
+    {
+      "address": "0x3804fe0",
+      "length": 12,
+      "sha256": "cf3a304b2766e9cf600f93b5d9e943ab8b92979d1af718634409ee3adfc3cbab",
+      "name": "stock Component interception veneer",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "Actual native caller resolves through this inter-range veneer"
+        }
+      ]
+    },
+    {
+      "address": "0x3804adc",
+      "length": 12,
+      "sha256": "cc36423993a496a63c5547329631b98ba75c6b3bf76e3ddc2de56fde70282d0a",
+      "name": "stock silent Label text veneer",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "Actual native caller resolves through this inter-range veneer"
+        }
+      ]
+    },
+    {
+      "address": "0x3018ad0",
+      "length": 12,
+      "sha256": "131c3ef4f987f78f3cd5acc2527cb84be469c34ed2bf37ca3293d110a7cbe4d1",
+      "name": "stock silent Slider value new veneer veneer",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "Actual native caller resolves through this inter-range veneer"
+        }
+      ]
+    },
+    {
+      "address": "0x3bfd168",
+      "length": 12,
+      "sha256": "b9c46eaad770c8f729d67e632b51eb4eea018f717d06c0b37f8a02482910c3f4",
+      "name": "stock Viewport drag enable veneer",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "Actual native caller resolves through this inter-range veneer"
+        }
+      ]
+    },
+    {
+      "address": "0x340fb98",
+      "length": 12,
+      "sha256": "e06ef2e9aae6f0bafec1c504b437fca8e952ea6e6b53423cf6d03ccb62394f0f",
+      "name": "stock embedded ListBox constructor veneer",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "Actual native caller resolves through this inter-range veneer"
+        }
+      ]
+    },
+    {
+      "address": "0x340fba4",
+      "length": 12,
+      "sha256": "5fc152bad43c3b861859ec44259aa55565639fd27dcd87742e0885a89265b636",
+      "name": "stock embedded ListBox model veneer",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "Actual native caller resolves through this inter-range veneer"
+        }
+      ]
+    },
+    {
+      "address": "0x38075c0",
+      "length": 12,
+      "sha256": "6956aa0b9a79e8a6e8a4956d1bbdfbc238a1c79f3a486406b3e6540f31139cc3",
+      "name": "launcher mode-list getter new veneer veneer",
+      "provenance": [
+        {
+          "artifact": "preferences/coordinates.json",
+          "proof": "Actual native caller resolves through this inter-range veneer"
+        }
+      ]
+    }
+  ],
+  "constants": {
+    "PREFERENCES_FRAME_SIGNAL": 100,
+    "PREFERENCES_FRAME_INDEX": 88,
+    "PREFERENCES_FRAME_LABEL": 76,
+    "GLOBAL_ROOT_OWNER": 1000,
+    "GLOBAL_ROOT_VC": 2048,
+    "RVA_PREFERENCES_STD_STRING_CTOR": 59687680,
+    "RVA_PREFERENCES_TAB_CTOR": 59914312,
+    "RVA_PREFERENCES_TAB_DTOR": 59913408,
+    "RVA_PREFERENCES_TAB_REMOVE": 59927388,
+    "RVA_PREFERENCES_TAB_VTABLE": 115203572,
+    "RVA_LAUNCHER_OVERLAY_ADD": 59680752,
+    "RVA_LAUNCHER_OVERLAY_COMPLETE": 59677140,
+    "RVA_LAUNCHER_OVERLAY_DELETING": 59677348,
+    "RVA_LAUNCHER_OVERLAY_VTABLE": 115194048,
+    "RVA_GLOBAL_FILE_HANDLER": 24255288,
+    "RVA_GLOBAL_TARGET_FIXED": 24293128,
+    "RVA_GLOBAL_TARGET_DTOR": 24292760,
+    "RVA_GLOBAL_LOOKUP": 24258944,
+    "RVA_GLOBAL_FORMAT_MAPPING": 24297080,
+    "RVA_GLOBAL_TARGET_LABEL": 52354420,
+    "RVA_GLOBAL_SELECT_TARGET": 22009112,
+    "RVA_GLOBAL_SET_LEARN_INTENT": 21995036,
+    "RVA_GLOBAL_FILE_NAME": 24202984,
+    "RVA_GLOBAL_DUPLICATE_FILE": 21995416,
+    "RVA_GLOBAL_CREATE_FILE": 22002412,
+    "RVA_GLOBAL_EXPORT_FILE": 24244648,
+    "RVA_GLOBAL_SELECT_FILE": 22000112,
+    "RVA_GLOBAL_CLEAR_TARGET": 21995776,
+    "RVA_GLOBAL_NOTE_MESSAGE": 8362684,
+    "RVA_GLOBAL_CC_MESSAGE": 8362620,
+    "RVA_GLOBAL_PITCH_MESSAGE": 8362432,
+    "RVA_GLOBAL_MESSAGE_DTOR": 8357500,
+    "RVA_GLOBAL_MAPPING_CTOR": 24278760,
+    "RVA_GLOBAL_COMMIT_MAPPING": 24266392,
+    "RVA_GLOBAL_SET_CONTROL": 24261472,
+    "RVA_GLOBAL_SET_REVERSE": 24261792,
+    "RVA_GLOBAL_SIGNAL_DTOR": 35903860,
+    "RVA_GLOBAL_FREE_BLOCK": 4913540,
+    "RVA_GLOBAL_FILE_CTOR": 10130488,
+    "RVA_GLOBAL_USER_MIDI_DIRECTORY": 23556808,
+    "RVA_GLOBAL_CHOOSER_INITIAL_DIRECTORY": 23555512,
+    "RVA_GLOBAL_FILENAME": 9935552,
+    "RVA_GLOBAL_CHILD_FILE": 10130608,
+    "RVA_GLOBAL_FILE_EXISTS": 9897948,
+    "RVA_GLOBAL_FILE_EXISTS_AS_FILE": 9898008,
+    "RVA_GLOBAL_COPY_FILE": 10020016,
+    "RVA_GLOBAL_OPEN_MAPPING": 24297172,
+    "RVA_GLOBAL_REGISTER_MAPPING": 24226004,
+    "RVA_GLOBAL_SELECT_HANDLER_FILE": 24249696,
+    "RVA_GLOBAL_RELEASE_CONTROL": 13343804,
+    "VPTR_GLOBAL_FILE": 113916756,
+    "VPTR_GLOBAL_CHOOSER": 113936260,
+    "RVA_GLOBAL_CHOOSER_OPEN": 31356956
+  },
+  "sites": [
+    {
+      "old_address": "0x3667a94",
+      "address": "0x38ee130",
+      "bytes": "4c709de5a72100e3",
+      "name": "Preferences insertion"
+    },
+    {
+      "old_address": "0x3663ac8",
+      "address": "0x38ea168",
+      "bytes": "0030a0e30110a0e3",
+      "name": "launcher overlay construction"
+    },
+    {
+      "old_address": "0x34560dc",
+      "address": "0x36d6e24",
+      "bytes": "2cd08de2d040cde1",
+      "name": "launcher outer Page after layout and child rebuilds"
+    },
+    {
+      "old_address": "0xe40628",
+      "address": "0xff65bc",
+      "bytes": "4800a0e3005884e5",
+      "name": "Global MIDI Learn owner/view-controller capture"
+    }
+  ],
+  "pointers": [
+    {
+      "slot": "0x6c94904",
+      "target": "0xc840e8",
+      "name": "N4juce7ListBox12RowComponentE slot 5"
+    },
+    {
+      "slot": "0x6c9490c",
+      "target": "0xc843d8",
+      "name": "N4juce7ListBox12RowComponentE slot 7"
+    },
+    {
+      "slot": "0x6c93150",
+      "target": "0xa4dd74",
+      "name": "NativeImageType create"
+    },
+    {
+      "slot": "0x6c92f2c",
+      "target": "0xad3d9c",
+      "name": "SoftwarePixelData bitmap"
+    },
+    {
+      "slot": "0x6c92f1c",
+      "target": "0xad418c",
+      "name": "SoftwarePixelData D0"
+    },
+    {
+      "slot": "0x6c979c4",
+      "target": "0xbb59b0",
+      "name": "TextButton down"
+    },
+    {
+      "slot": "0x6c979c8",
+      "target": "0xbbf8f8",
+      "name": "TextButton drag"
+    },
+    {
+      "slot": "0x6c979cc",
+      "target": "0xbe04a0",
+      "name": "TextButton up"
+    },
+    {
+      "slot": "0x6c97a68",
+      "target": "0xb47bb0",
+      "name": "TextButton clicked"
+    },
+    {
+      "slot": "0x6c97a6c",
+      "target": "0xb47c28",
+      "name": "TextButton modifier"
+    },
+    {
+      "slot": "0x6c97a70",
+      "target": "0xb9d50c",
+      "name": "TextButton paintButton"
+    },
+    {
+      "slot": "0x6c95f80",
+      "target": "0xbf4fd8",
+      "name": "Component D1"
+    },
+    {
+      "slot": "0x6c95f84",
+      "target": "0xbf5428",
+      "name": "Component D0"
+    },
+    {
+      "slot": "0x6cd3d40",
+      "target": "0x6cd38f0",
+      "name": "ListBoxModel typeinfo"
+    },
+    {
+      "slot": "0x6cd3d5c",
+      "target": "0xb48400",
+      "name": "ListBoxModel doubleclick"
+    },
+    {
+      "slot": "0x6cd3d60",
+      "target": "0xb47c10",
+      "name": "ListBoxModel background"
+    },
+    {
+      "slot": "0x6cd3d68",
+      "target": "0xb47bb8",
+      "name": "ListBoxModel delete"
+    },
+    {
+      "slot": "0x6cd3d6c",
+      "target": "0xb47bb8",
+      "name": "ListBoxModel return"
+    },
+    {
+      "slot": "0x6cd3d70",
+      "target": "0xb47bb0",
+      "name": "ListBoxModel scroll"
+    },
+    {
+      "slot": "0x6cd3d74",
+      "target": "0xb4a238",
+      "name": "ListBoxModel drag"
+    },
+    {
+      "slot": "0x6cd3d78",
+      "target": "0xb493c4",
+      "name": "ListBoxModel tooltip"
+    },
+    {
+      "slot": "0x6cd3d7c",
+      "target": "0xb48cdc",
+      "name": "ListBoxModel cursor"
+    },
+    {
+      "slot": "0x6c94958",
+      "target": "0xc438ec",
+      "name": "N4juce7ListBox12RowComponentE slot 26"
+    },
+    {
+      "slot": "0x6c9914c",
+      "target": "0xba9cfc",
+      "name": "N4juce5LabelE slot 26"
+    },
+    {
+      "slot": "0x6c9ad50",
+      "target": "0xc251e8",
+      "name": "N4juce6SliderE slot 7"
+    },
+    {
+      "slot": "0x6c94bec",
+      "target": "0xc6dcd8",
+      "name": "N4juce6Slider5PimplE slot 2"
+    },
+    {
+      "slot": "0x6c932e0",
+      "target": "0xc44320",
+      "name": "N4juce28StandardCachedComponentImageE slot 5"
+    },
+    {
+      "slot": "0x6c966ec",
+      "target": "0xb9d504",
+      "name": "N4juce14LookAndFeel_V2E slot 5"
+    },
+    {
+      "slot": "0x6e9a01c",
+      "target": "0xc43784",
+      "name": "Slider listener start GOT comparison"
+    },
+    {
+      "slot": "0x6e9a018",
+      "target": "0xc43788",
+      "name": "Slider listener end GOT comparison"
+    },
+    {
+      "slot": "0x6e99da0",
+      "target": "0xc44320",
+      "name": "StandardCachedComponentImage slot5 GOT comparison"
+    },
+    {
+      "slot": "0x6ca3b64",
+      "target": "0x1714ee8",
+      "name": "XmmFile consumed slot 4"
+    },
+    {
+      "slot": "0x6ca878c",
+      "target": "0x1de781c",
+      "name": "SavePathProvider consumed slot 2"
+    },
+    {
+      "slot": "0x6ddddfc",
+      "target": "0x39234c0",
+      "name": "NotImplementedTab D1"
+    },
+    {
+      "slot": "0x6ddde00",
+      "target": "0x3923634",
+      "name": "NotImplementedTab D0"
+    },
+    {
+      "slot": "0x6ddde04",
+      "target": "0x3936af8",
+      "name": "NotImplementedTab active"
+    },
+    {
+      "slot": "0x6ddb8c8",
+      "target": "0x38e99d4",
+      "name": "TouchModeMenuOverlay D1"
+    },
+    {
+      "slot": "0x6ddb8cc",
+      "target": "0x38e9aa4",
+      "name": "TouchModeMenuOverlay D0"
+    }
+  ],
+  "words": [
+    {
+      "address": "0xb5c400",
+      "word": "0xe58d2004",
+      "name": "setColour argument/property/virtual ABI"
+    },
+    {
+      "address": "0xb5c418",
+      "word": "0xe1a04000",
+      "name": "setColour argument/property/virtual ABI"
+    },
+    {
+      "address": "0xb5c41c",
+      "word": "0xe2805058",
+      "name": "setColour argument/property/virtual ABI"
+    },
+    {
+      "address": "0xb5c4cc",
+      "word": "0xe59330a8",
+      "name": "setColour argument/property/virtual ABI"
+    },
+    {
+      "address": "0xbcb2d4",
+      "word": "0xe1a04000",
+      "name": "Component bounds"
+    },
+    {
+      "address": "0xbcb2d8",
+      "word": "0xe5900018",
+      "name": "Component bounds"
+    },
+    {
+      "address": "0xbcb2e4",
+      "word": "0xe5940010",
+      "name": "Component bounds"
+    },
+    {
+      "address": "0xbcb33c",
+      "word": "0xe2843010",
+      "name": "Component bounds"
+    },
+    {
+      "address": "0xbcb340",
+      "word": "0xf4038a8f",
+      "name": "Component bounds"
+    },
+    {
+      "address": "0xbe88bc",
+      "word": "0xe591000c",
+      "name": "Component children/always-on-top ordering"
+    },
+    {
+      "address": "0xbe88f0",
+      "word": "0xe586500c",
+      "name": "Component children/always-on-top ordering"
+    },
+    {
+      "address": "0xbe88fc",
+      "word": "0xe5950028",
+      "name": "Component children/always-on-top ordering"
+    },
+    {
+      "address": "0xbe8900",
+      "word": "0xe5957030",
+      "name": "Component children/always-on-top ordering"
+    },
+    {
+      "address": "0xbe88f8",
+      "word": "0xe5d63069",
+      "name": "Component children/always-on-top ordering"
+    },
+    {
+      "address": "0xbe8904",
+      "word": "0xe3130001",
+      "name": "Component children/always-on-top ordering"
+    },
+    {
+      "address": "0xbe892c",
+      "word": "0xe5dcc069",
+      "name": "Component children/always-on-top ordering"
+    },
+    {
+      "address": "0xbe8930",
+      "word": "0xe31c0001",
+      "name": "Component children/always-on-top ordering"
+    },
+    {
+      "address": "0xbe8948",
+      "word": "0xe595202c",
+      "name": "Component children/always-on-top ordering"
+    },
+    {
+      "address": "0xbe8970",
+      "word": "0xe5857030",
+      "name": "Component children/always-on-top ordering"
+    },
+    {
+      "address": "0xbe54bc",
+      "word": "0xe1a05001",
+      "name": "Component on-top bit"
+    },
+    {
+      "address": "0xbe54c8",
+      "word": "0xe5d03069",
+      "name": "Component on-top bit"
+    },
+    {
+      "address": "0xbe54e4",
+      "word": "0xe2033001",
+      "name": "Component on-top bit"
+    },
+    {
+      "address": "0xbe5554",
+      "word": "0xe7c03015",
+      "name": "Component on-top bit"
+    },
+    {
+      "address": "0xbe555c",
+      "word": "0xe5c43069",
+      "name": "Component on-top bit"
+    },
+    {
+      "address": "0xb9d384",
+      "word": "0xe5954018",
+      "name": "TextButton label/bounds"
+    },
+    {
+      "address": "0xb9d388",
+      "word": "0xe595801c",
+      "name": "TextButton label/bounds"
+    },
+    {
+      "address": "0xb9d418",
+      "word": "0xe28510a8",
+      "name": "TextButton label/bounds"
+    },
+    {
+      "address": "0xc438ec",
+      "word": "0xe5903074",
+      "name": "Row paint callback ABI"
+    },
+    {
+      "address": "0xc438f4",
+      "word": "0xe5930078",
+      "name": "Row paint callback ABI"
+    },
+    {
+      "address": "0xc43924",
+      "word": "0xe591400c",
+      "name": "Row paint callback ABI"
+    },
+    {
+      "address": "0xc43928",
+      "word": "0xe59c3018",
+      "name": "Row paint callback ABI"
+    },
+    {
+      "address": "0xc4392c",
+      "word": "0xe59c107c",
+      "name": "Row paint callback ABI"
+    },
+    {
+      "address": "0xc43930",
+      "word": "0xe12fff34",
+      "name": "Row paint callback ABI"
+    },
+    {
+      "address": "0xc6dd5c",
+      "word": "0xe5943014",
+      "name": "Slider value listener ABI"
+    },
+    {
+      "address": "0xc6dd60",
+      "word": "0xe594100c",
+      "name": "Slider value listener ABI"
+    },
+    {
+      "address": "0xc6dd6c",
+      "word": "0xe5933008",
+      "name": "Slider value listener ABI"
+    },
+    {
+      "address": "0xc6dd70",
+      "word": "0xe12fff33",
+      "name": "Slider value listener ABI"
+    },
+    {
+      "address": "0x935e14",
+      "word": "0xe593305c",
+      "name": "NamedValue entry virtual payload release"
+    },
+    {
+      "address": "0x935e1c",
+      "word": "0xe12fff33",
+      "name": "NamedValue entry virtual payload release"
+    },
+    {
+      "address": "0x95c854",
+      "word": "0xe3a00001",
+      "name": "Native time ID1"
+    },
+    {
+      "address": "0x38ee0a8",
+      "word": "0xe59d1064",
+      "name": "tab stack signal +64"
+    },
+    {
+      "address": "0x38ee0cc",
+      "word": "0xe59d1058",
+      "name": "tab index +58"
+    },
+    {
+      "address": "0x38ee118",
+      "word": "0xe58d3058",
+      "name": "native index write +58"
+    },
+    {
+      "address": "0x38ee130",
+      "word": "0xe59d704c",
+      "name": "final tab label +4c"
+    },
+    {
+      "address": "0xff6560",
+      "word": "0xe59473e8",
+      "name": "root Global owner +3e8"
+    },
+    {
+      "address": "0xff65c0",
+      "word": "0xe5845800",
+      "name": "root Global VC +800"
+    },
+    {
+      "address": "0x2fb197c",
+      "word": "0xe3001103",
+      "name": "Component setColour caller register/ID/ARGB argument"
+    },
+    {
+      "address": "0x2fb1980",
+      "word": "0xe3401100",
+      "name": "Component setColour caller register/ID/ARGB argument"
+    },
+    {
+      "address": "0x2fb1984",
+      "word": "0xe59d2004",
+      "name": "Component setColour caller register/ID/ARGB argument"
+    },
+    {
+      "address": "0x2fb1988",
+      "word": "0xe1a00004",
+      "name": "Component setColour caller register/ID/ARGB argument"
+    },
+    {
+      "address": "0x2fb1990",
+      "word": "0xe3001102",
+      "name": "Component setColour caller register/ID/ARGB argument"
+    },
+    {
+      "address": "0x2fb1994",
+      "word": "0xe3401100",
+      "name": "Component setColour caller register/ID/ARGB argument"
+    },
+    {
+      "address": "0x2fb1998",
+      "word": "0xe59d2000",
+      "name": "Component setColour caller register/ID/ARGB argument"
+    },
+    {
+      "address": "0x2fb199c",
+      "word": "0xe1a00004",
+      "name": "Component setColour caller register/ID/ARGB argument"
+    },
+    {
+      "address": "0x2fb19a4",
+      "word": "0xe3a01c01",
+      "name": "Component setColour caller register/ID/ARGB argument"
+    },
+    {
+      "address": "0x2fb19a8",
+      "word": "0xe3401100",
+      "name": "Component setColour caller register/ID/ARGB argument"
+    },
+    {
+      "address": "0x2fb19ac",
+      "word": "0xe59d2024",
+      "name": "Component setColour caller register/ID/ARGB argument"
+    },
+    {
+      "address": "0x2fb19b0",
+      "word": "0xe1a00004",
+      "name": "Component setColour caller register/ID/ARGB argument"
+    },
+    {
+      "address": "0x2fb19b8",
+      "word": "0xe3001101",
+      "name": "Component setColour caller register/ID/ARGB argument"
+    },
+    {
+      "address": "0x2fb19bc",
+      "word": "0xe3401100",
+      "name": "Component setColour caller register/ID/ARGB argument"
+    },
+    {
+      "address": "0x2fb19c0",
+      "word": "0xe59d2020",
+      "name": "Component setColour caller register/ID/ARGB argument"
+    },
+    {
+      "address": "0x2fb19c4",
+      "word": "0xe1a00004",
+      "name": "Component setColour caller register/ID/ARGB argument"
+    },
+    {
+      "address": "0xb4e844",
+      "word": "0xeeb20a0c",
+      "name": "Graphics integer fitted-text argument placement"
+    },
+    {
+      "address": "0xb4e848",
+      "word": "0xe1a00005",
+      "name": "Graphics integer fitted-text argument placement"
+    },
+    {
+      "address": "0xb4e860",
+      "word": "0xe2841e19",
+      "name": "Graphics integer fitted-text argument placement"
+    },
+    {
+      "address": "0xb4e864",
+      "word": "0xe58dc008",
+      "name": "Graphics integer fitted-text argument placement"
+    },
+    {
+      "address": "0xb4e874",
+      "word": "0xe58d300c",
+      "name": "Graphics integer fitted-text argument placement"
+    },
+    {
+      "address": "0x8ef3f4",
+      "word": "0xe1a00005",
+      "name": "Graphics fillAll receiver"
+    },
+    {
+      "address": "0x36d6d68",
+      "word": "0xe1c52cd8",
+      "name": "launcher outer Page iterator/epilogue"
+    },
+    {
+      "address": "0x36d6e08",
+      "word": "0xe1c54cd8",
+      "name": "launcher outer Page iterator/epilogue"
+    },
+    {
+      "address": "0x36d6e14",
+      "word": "0xe4940008",
+      "name": "launcher outer Page iterator/epilogue"
+    },
+    {
+      "address": "0x36d6e1c",
+      "word": "0xe1550004",
+      "name": "launcher outer Page iterator/epilogue"
+    },
+    {
+      "address": "0x36d6e20",
+      "word": "0x1afffffb",
+      "name": "launcher outer Page iterator/epilogue"
+    },
+    {
+      "address": "0x36d6e24",
+      "word": "0xe28dd02c",
+      "name": "launcher outer Page iterator/epilogue"
+    },
+    {
+      "address": "0x36d6e28",
+      "word": "0xe1cd40d0",
+      "name": "launcher outer Page iterator/epilogue"
+    },
+    {
+      "address": "0x36d6e2c",
+      "word": "0xe28dd008",
+      "name": "launcher outer Page iterator/epilogue"
+    },
+    {
+      "address": "0x36d8b84",
+      "word": "0xe1a05000",
+      "name": "launcher child wrapper receiver"
+    },
+    {
+      "address": "0x36d8754",
+      "word": "0xe1a04000",
+      "name": "launcher native mode-vector and paired children"
+    },
+    {
+      "address": "0x36d87c0",
+      "word": "0xe1cd21d8",
+      "name": "launcher native mode-vector and paired children"
+    },
+    {
+      "address": "0x36d87c4",
+      "word": "0xe0433002",
+      "name": "launcher native mode-vector and paired children"
+    },
+    {
+      "address": "0x36d87c8",
+      "word": "0xe3530000",
+      "name": "launcher native mode-vector and paired children"
+    },
+    {
+      "address": "0x36d8874",
+      "word": "0xe7927108",
+      "name": "launcher native mode-vector and paired children"
+    },
+    {
+      "address": "0x36d88a4",
+      "word": "0xe3a00f46",
+      "name": "launcher native mode-vector and paired children"
+    },
+    {
+      "address": "0x3637208",
+      "word": "0xe2845e11",
+      "name": "silent Label native arguments"
+    },
+    {
+      "address": "0x3637234",
+      "word": "0xe3a02000",
+      "name": "silent Label native arguments"
+    },
+    {
+      "address": "0x3637238",
+      "word": "0xe1a00005",
+      "name": "silent Label native arguments"
+    },
+    {
+      "address": "0x2e4c5e0",
+      "word": "0xe2850d52",
+      "name": "silent Slider native arguments"
+    },
+    {
+      "address": "0x2e4c5e4",
+      "word": "0xe3a01000",
+      "name": "silent Slider native arguments"
+    },
+    {
+      "address": "0x2e4c5e8",
+      "word": "0xe280002c",
+      "name": "silent Slider native arguments"
+    },
+    {
+      "address": "0x2e4c5ec",
+      "word": "0xe5933010",
+      "name": "silent Slider native arguments"
+    },
+    {
+      "address": "0x2e4c5f0",
+      "word": "0xed930a06",
+      "name": "silent Slider native arguments"
+    },
+    {
+      "address": "0x2e4c5f4",
+      "word": "0xeeb70ac0",
+      "name": "silent Slider native arguments"
+    },
+    {
+      "address": "0x39dbd28",
+      "word": "0xeeb20a00",
+      "name": "Viewport native enabled/threshold arguments"
+    },
+    {
+      "address": "0x39dbd2c",
+      "word": "0xe5940144",
+      "name": "Viewport native enabled/threshold arguments"
+    },
+    {
+      "address": "0x39dbd30",
+      "word": "0xe3a01001",
+      "name": "Viewport native enabled/threshold arguments"
+    }
+  ],
+  "branches": [
+    {
+      "address": "0xbe5588",
+      "target": "0xbdbc4c",
+      "name": "always-on-top toFront"
+    },
+    {
+      "address": "0xbe559c",
+      "target": "0xb5bc5c",
+      "name": "always-on-top hierarchy"
+    },
+    {
+      "address": "0xb9d5e4",
+      "target": "0xb9d29c",
+      "name": "TextButton native label fallback"
+    },
+    {
+      "address": "0xbf5208",
+      "target": "0x93604c",
+      "name": "Component property array destruction"
+    },
+    {
+      "address": "0x95c870",
+      "target": "0x4b0794",
+      "name": "time clock import"
+    },
+    {
+      "address": "0x95c8e8",
+      "target": "0x4afa20",
+      "name": "time int64 division"
+    },
+    {
+      "address": "0x99db7c",
+      "target": "0x998c58",
+      "name": "Identifier pool intern"
+    },
+    {
+      "address": "0xc252b0",
+      "target": "0xc6dedc",
+      "name": "Slider mouse-up drag-end"
+    },
+    {
+      "address": "0x2fb198c",
+      "target": "0x3018b18",
+      "name": "Component setColour caller through observed veneer"
+    },
+    {
+      "address": "0x2fb19a0",
+      "target": "0x3018b18",
+      "name": "Component setColour caller through observed veneer"
+    },
+    {
+      "address": "0x2fb19b4",
+      "target": "0x3018b18",
+      "name": "Component setColour caller through observed veneer"
+    },
+    {
+      "address": "0x2fb19c8",
+      "target": "0x3018b18",
+      "name": "Component setColour caller through observed veneer"
+    },
+    {
+      "address": "0xb4e840",
+      "target": "0xa6eeb8",
+      "name": "paint Graphics setColour"
+    },
+    {
+      "address": "0xb4e84c",
+      "target": "0xa6f730",
+      "name": "paint Graphics setFont"
+    },
+    {
+      "address": "0xb4e88c",
+      "target": "0xacb238",
+      "name": "paint Graphics drawFittedText"
+    },
+    {
+      "address": "0x8ef3f8",
+      "target": "0xa6fcf4",
+      "name": "paint Graphics fillAll"
+    },
+    {
+      "address": "0x36d6e18",
+      "target": "0x36d8b58",
+      "name": "outer layout invokes child wrapper"
+    },
+    {
+      "address": "0x36d8b9c",
+      "target": "0x36d871c",
+      "name": "wrapper invokes child rebuild"
+    },
+    {
+      "address": "0x36d87bc",
+      "target": "0x38075c0",
+      "name": "rebuild obtains native mode vector via new veneer"
+    },
+    {
+      "address": "0x36d88a0",
+      "target": "0x3781de0",
+      "name": "rebuild creates paired tile"
+    },
+    {
+      "address": "0x36d88a8",
+      "target": "0x3804734",
+      "name": "rebuild allocates companion"
+    },
+    {
+      "address": "0x36388b4",
+      "target": "0x3804b0c",
+      "name": "stock Label constructor"
+    },
+    {
+      "address": "0x3638b58",
+      "target": "0x3804b48",
+      "name": "stock Label justification"
+    },
+    {
+      "address": "0x3638b68",
+      "target": "0x3804fe0",
+      "name": "stock Label interception"
+    },
+    {
+      "address": "0x363723c",
+      "target": "0x3804adc",
+      "name": "stock Label silent update"
+    },
+    {
+      "address": "0x2e4c5f8",
+      "target": "0x3018ad0",
+      "name": "stock Slider silent value"
+    },
+    {
+      "address": "0x39dbd34",
+      "target": "0x3bfd168",
+      "name": "stock Viewport drag enable"
+    },
+    {
+      "address": "0x33457c0",
+      "target": "0x340fb98",
+      "name": "stock embedded ListBox constructor"
+    },
+    {
+      "address": "0x3345814",
+      "target": "0x340fba4",
+      "name": "stock embedded model"
+    },
+    {
+      "address": "0xad09a0",
+      "target": "0xa4dd74",
+      "name": "stock hidden Image create"
+    },
+    {
+      "address": "0xad09bc",
+      "target": "0xa50c84",
+      "name": "stock Image release"
+    },
+    {
+      "address": "0xb4a628",
+      "target": "0xa727e4",
+      "name": "stock Image drawing"
+    },
+    {
+      "address": "0xb4b01c",
+      "target": "0xa727e4",
+      "name": "stock cached Image drawing"
+    }
+  ],
+  "veneers": [
+    {
+      "address": "0x3018b18",
+      "target": "0xb5c3f0",
+      "name": "stock Component setColour"
+    },
+    {
+      "address": "0x3804b0c",
+      "target": "0xc007a8",
+      "name": "stock Label constructor"
+    },
+    {
+      "address": "0x3804b48",
+      "target": "0xbb2cdc",
+      "name": "stock Label justification"
+    },
+    {
+      "address": "0x3804fe0",
+      "target": "0xb5bafc",
+      "name": "stock Component interception"
+    },
+    {
+      "address": "0x3804adc",
+      "target": "0xc2f624",
+      "name": "stock silent Label text"
+    },
+    {
+      "address": "0x3018ad0",
+      "target": "0xc367b4",
+      "name": "stock silent Slider value new veneer"
+    },
+    {
+      "address": "0x3bfd168",
+      "target": "0xbac8b4",
+      "name": "stock Viewport drag enable"
+    },
+    {
+      "address": "0x340fb98",
+      "target": "0xc08570",
+      "name": "stock embedded ListBox constructor"
+    },
+    {
+      "address": "0x340fba4",
+      "target": "0xbea6e4",
+      "name": "stock embedded ListBox model"
+    },
+    {
+      "address": "0x38075c0",
+      "target": "0xee54a8",
+      "name": "launcher mode-list getter new veneer"
+    }
+  ],
+  "target_identity": {
+    "target_bytes": 12,
+    "target_id_offset": 0,
+    "target_fixed": 24293128,
+    "target_getter": 24294624,
+    "stock_getter_call": 52348324,
+    "stock_getter_to_label_argument": 52348328,
+    "stock_label_call": 52348336,
+    "collection_key_getter_calls": [
+      24255408,
+      24255420
+    ],
+    "selected_property": 22009112,
+    "ce_to_native": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        3
+      ],
+      [
+        4,
+        4
+      ],
+      [
+        5,
+        5
+      ],
+      [
+        6,
+        6
+      ],
+      [
+        7,
+        7
+      ],
+      [
+        8,
+        8
+      ],
+      [
+        9,
+        9
+      ],
+      [
+        10,
+        10
+      ],
+      [
+        11,
+        11
+      ],
+      [
+        12,
+        12
+      ],
+      [
+        13,
+        13
+      ],
+      [
+        14,
+        14
+      ],
+      [
+        15,
+        15
+      ],
+      [
+        16,
+        16
+      ],
+      [
+        17,
+        17
+      ],
+      [
+        18,
+        18
+      ],
+      [
+        19,
+        19
+      ],
+      [
+        20,
+        20
+      ],
+      [
+        21,
+        21
+      ],
+      [
+        22,
+        22
+      ],
+      [
+        23,
+        23
+      ],
+      [
+        24,
+        24
+      ],
+      [
+        25,
+        25
+      ],
+      [
+        26,
+        26
+      ],
+      [
+        27,
+        27
+      ],
+      [
+        28,
+        28
+      ],
+      [
+        29,
+        29
+      ],
+      [
+        30,
+        30
+      ],
+      [
+        31,
+        31
+      ],
+      [
+        32,
+        32
+      ],
+      [
+        33,
+        33
+      ],
+      [
+        34,
+        34
+      ],
+      [
+        35,
+        35
+      ],
+      [
+        36,
+        36
+      ],
+      [
+        37,
+        37
+      ],
+      [
+        38,
+        38
+      ],
+      [
+        39,
+        39
+      ],
+      [
+        40,
+        40
+      ],
+      [
+        41,
+        41
+      ],
+      [
+        42,
+        42
+      ],
+      [
+        43,
+        43
+      ],
+      [
+        44,
+        44
+      ],
+      [
+        45,
+        45
+      ],
+      [
+        46,
+        46
+      ],
+      [
+        47,
+        47
+      ],
+      [
+        48,
+        48
+      ],
+      [
+        49,
+        49
+      ],
+      [
+        50,
+        50
+      ],
+      [
+        51,
+        51
+      ],
+      [
+        52,
+        52
+      ],
+      [
+        53,
+        53
+      ],
+      [
+        54,
+        54
+      ],
+      [
+        55,
+        55
+      ],
+      [
+        56,
+        56
+      ],
+      [
+        57,
+        57
+      ],
+      [
+        58,
+        58
+      ],
+      [
+        59,
+        59
+      ],
+      [
+        60,
+        60
+      ],
+      [
+        61,
+        61
+      ],
+      [
+        62,
+        62
+      ],
+      [
+        63,
+        63
+      ],
+      [
+        64,
+        64
+      ],
+      [
+        65,
+        65
+      ],
+      [
+        66,
+        66
+      ],
+      [
+        67,
+        67
+      ],
+      [
+        68,
+        68
+      ],
+      [
+        69,
+        69
+      ],
+      [
+        70,
+        70
+      ],
+      [
+        71,
+        71
+      ],
+      [
+        72,
+        72
+      ],
+      [
+        73,
+        73
+      ],
+      [
+        74,
+        74
+      ],
+      [
+        75,
+        75
+      ],
+      [
+        76,
+        76
+      ],
+      [
+        77,
+        77
+      ],
+      [
+        78,
+        78
+      ],
+      [
+        79,
+        79
+      ],
+      [
+        80,
+        80
+      ],
+      [
+        81,
+        81
+      ],
+      [
+        82,
+        82
+      ],
+      [
+        83,
+        83
+      ],
+      [
+        84,
+        84
+      ],
+      [
+        85,
+        85
+      ],
+      [
+        86,
+        86
+      ],
+      [
+        87,
+        87
+      ],
+      [
+        88,
+        88
+      ],
+      [
+        89,
+        89
+      ],
+      [
+        90,
+        90
+      ],
+      [
+        91,
+        91
+      ],
+      [
+        92,
+        92
+      ],
+      [
+        93,
+        93
+      ],
+      [
+        94,
+        94
+      ],
+      [
+        95,
+        95
+      ],
+      [
+        96,
+        96
+      ],
+      [
+        97,
+        97
+      ],
+      [
+        98,
+        98
+      ],
+      [
+        99,
+        99
+      ],
+      [
+        100,
+        100
+      ],
+      [
+        101,
+        101
+      ],
+      [
+        102,
+        102
+      ],
+      [
+        103,
+        103
+      ],
+      [
+        104,
+        104
+      ],
+      [
+        105,
+        105
+      ],
+      [
+        106,
+        106
+      ],
+      [
+        107,
+        107
+      ],
+      [
+        108,
+        108
+      ],
+      [
+        109,
+        109
+      ],
+      [
+        110,
+        110
+      ],
+      [
+        111,
+        111
+      ],
+      [
+        112,
+        112
+      ],
+      [
+        113,
+        113
+      ],
+      [
+        114,
+        114
+      ],
+      [
+        115,
+        115
+      ],
+      [
+        116,
+        116
+      ],
+      [
+        117,
+        117
+      ],
+      [
+        118,
+        119
+      ],
+      [
+        119,
+        120
+      ]
+    ],
+    "native_excluded": 118,
+    "native_default": 121,
+    "native_assignable": 122,
+    "proof": "global-target-labels.json, 310-global-id-label-join.asm, 310-global-key-lookup-prefix.asm; root approved preservation of120CE rows only",
+    "target_id_store_pc": 24293136,
+    "native_fixed_ctor_words": [
+      4072669200,
+      3785371648,
+      3833794564,
+      4098033551,
+      3778019102
+    ]
+  },
+  "baseline_coverage": {
+    "mapped_rows": 159,
+    "unresolved": []
+  }
+}

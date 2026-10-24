@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "firmware_version": "3.10.0",
+  "generation": 1,
+  "purpose": "Exact stock inputs for explicit 3.10 preparation; not runtime admission or a CE patch manifest",
+  "source_url": "https://cdn.inmusicbrands.com/Software/M310PCFIN26OCT/MPC-3.10.0-Gen1-update.img",
+  "image": {
+    "size": 167084848,
+    "sha256": "d09b1e4c1c765d6bea0f0b93bb7ba661200fc14bd893422dcbf0e86e406a2a20"
+  },
+  "rootfs": {
+    "size": 451468288,
+    "sha256": "674fc1978a9f588dec556aa002953e4f0c5abadd467e07de2adf32a0466ecabb"
+  },
+  "executable": {
+    "path": "/usr/bin/MPC",
+    "size": 116497964,
+    "sha256": "753f838ca362d42c8cc3f5c9c3fcc604ba076b5919212e0301923a3c11c93494"
+  }
+}

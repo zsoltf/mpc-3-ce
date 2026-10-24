@@ -1,14 +1,54 @@
 /* Clip actions reach the native UI facades exactly once. A receipt means the
  * native action was delivered/enqueued, never that quantized playback or
  * recording has started. Only Clip Matrix native state supplies feedback. */
+/* Explicit editing delegates to MPC's native history owner. Row replacement
+ * and recording eligibility are deliberately MPC's CopyRow semantics. */
+static unsigned clip_edit_resolve(const CommandRequest *r,uint32_t lanes,unsigned columns,unsigned rows){
+#ifndef MODEL_FIRMWARE_310
+ (void)r;(void)lanes;(void)columns;(void)rows;return C_NOT_READY;
+#else
+ if(!r->effect_index||r->effect_index>=rows||!columns||columns>128)return C_IDENTITY;
+ if(clip_copy_intent(r->bits)&&(r->effect_position!=columns||!r->effect_key||r->effect_key>=rows))return C_SOURCE_CHANGED;
+ if(clip_scene_intent(r->bits))return C_OK;
+ if(r->pad_index>=columns)return C_IDENTITY;
+ uint32_t dest=clip_native_track(lanes,r->pad_index);
+ if(!typed(dest,MODEL_TRACK_VPTR)||channel_owner_id(dest)!=r->track_owner)return C_IDENTITY;
+ if((r->bits==CLIP_COPY||r->bits==CLIP_DELETE)&&clip_native_track_recording(lanes,r->pad_index))return C_BUSY;
+ ClipNativeShared dst=clip_native_lookup(lanes,r->pad_index,r->effect_index);
+ unsigned match=dst.object==r->effect_generation&&(r->bits<CLIP_DOUBLE_EVENTS||typed(dst.object,MODEL_CLIP_VPTR));clip_native_release(&dst);
+ if(!match)return C_SOURCE_CHANGED;
+ if(r->bits!=CLIP_COPY)return C_OK;
+ if(r->effect_slot>=columns||(r->effect_slot==r->pad_index&&r->effect_key==r->effect_index))return C_IDENTITY;
+ uint32_t source=clip_native_track(lanes,r->effect_slot);
+ if(!typed(source,MODEL_TRACK_VPTR)||channel_owner_id(source)!=r->program_owner)return C_IDENTITY;
+ if(clip_native_track_recording(lanes,r->effect_slot))return C_BUSY;
+ ClipNativeShared src=clip_native_lookup(lanes,r->effect_slot,r->effect_key);match=src.object==r->pad_owner&&typed(src.object,MODEL_CLIP_VPTR);clip_native_release(&src);
+ if(!match)return C_SOURCE_CHANGED;
+ /* Native CopyClip compares Track::isAudio; existing destinations retain
+  * their instrument. It must never reach the native create-track branch. */
+ if(clip_native_audio(source)!=clip_native_audio(dest))return C_FORMAT;
+ return C_OK;
+#endif
+}
+static __attribute__((unused)) unsigned clip_edit_readback(const CommandRequest *r){
+ uint32_t lanes=r->qlink_root;
+ /* CopyRow owns replacement and per-track eligibility; DeleteRow is void.
+  * Both report native delivery, not a CE content guarantee. Actual contents
+  * remain observable through MPC and the ordinary clip projections. */
+ if(clip_scene_intent(r->bits)||r->bits>=CLIP_DOUBLE_EVENTS)return C_OK;
+ ClipNativeShared dst=clip_native_lookup(lanes,r->pad_index,r->effect_index);
+ unsigned valid=r->bits==CLIP_DELETE?!dst.object:dst.object&&dst.object!=r->pad_owner&&typed(dst.object,MODEL_CLIP_VPTR);
+ clip_native_release(&dst);return valid?C_OK:C_SOURCE_FAILURE;
+}
 static unsigned clip_request_resolve(const CommandRequest *r,uint32_t *out_track){
  uint32_t lanes=0;unsigned columns=0,rows=0,why=clip_native_context(&lanes,&columns,&rows);
  if(why)return why;
  if(r->epoch!=epoch||r->project_owner!=channel_owner_id(project)||r->qlink_root!=lanes||r->effect_index>=rows)return C_IDENTITY;
+ if(clip_edit_intent(r->bits))return clip_edit_resolve(r,lanes,columns,rows);
  if(clip_scene_intent(r->bits))return columns<=128?C_OK:C_CAPACITY;
  if(r->pad_index>=columns)return C_IDENTITY;
  uint32_t track=clip_native_track(lanes,r->pad_index);
- if(!typed(track,0x6935554)||channel_owner_id(track)!=r->track_owner)return C_IDENTITY;
+ if(!typed(track,MODEL_TRACK_VPTR)||channel_owner_id(track)!=r->track_owner)return C_IDENTITY;
  ClipNativeShared clip=clip_native_lookup(lanes,r->pad_index,r->effect_index);
  unsigned match=clip.object==r->effect_generation;clip_native_release(&clip);if(!match)return C_SOURCE_CHANGED;
  unsigned state=clip_native_state(lanes,r->pad_index,r->effect_index);
@@ -25,6 +65,13 @@ static unsigned clip_request_resolve(const CommandRequest *r,uint32_t *out_track
 }
 static unsigned clip_action_native(const CommandRequest *r,uint32_t track){
  uint32_t lanes=r->qlink_root;unsigned column=r->pad_index,row=r->effect_index;
+ if(clip_edit_intent(r->bits)){
+#ifdef MODEL_FIRMWARE_310
+  unsigned why=clip_native_edit(r);return why?why:clip_edit_readback(r);
+#else
+  return C_NOT_READY;
+#endif
+ }
  switch(r->bits){
  case CLIP_LAUNCH:clip_native_trigger(lanes,column,row);return C_OK;
  case CLIP_STOP:clip_native_stop_track(lanes,column);return C_OK;

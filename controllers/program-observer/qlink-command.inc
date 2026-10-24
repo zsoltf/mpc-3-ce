@@ -47,8 +47,8 @@ static void qlink_input_service(Context *c,unsigned at,const CommandRequest *r){
    * jobs are ordered native submissions, not an atomic physical gesture. */
   if(part==1&&(qlink_result[at][0]!=2||qlink_fault[at]))continue;
   if(part==2&&qlink_result[at][0]==1&&!atomic_load(&qlink_payload[at][0]))break;
-  if(part==1){for(unsigned lane=0;lane<COMMAND_LANES;lane++)atomic_store(&qlink_barrier[at][lane],atomic_load_explicit(&qlink_witness[lane][r->qlink_index].revision,memory_order_acquire));float value;memcpy(&value,&r->bits,4);((void (*)(void*,unsigned,float))(uintptr_t)(observer_image_bias+0x14de2d8))((void*)(uintptr_t)n.wrapper,r->qlink_index,value);}
-  else ((void (*)(void*,unsigned,unsigned))(uintptr_t)(observer_image_bias+0x14dd984))((void*)(uintptr_t)n.wrapper,r->qlink_index,part==0);
+  if(part==1){for(unsigned lane=0;lane<COMMAND_LANES;lane++)atomic_store(&qlink_barrier[at][lane],atomic_load_explicit(&qlink_witness[lane][r->qlink_index].revision,memory_order_acquire));float value;memcpy(&value,&r->bits,4);((void (*)(void*,unsigned,float))(uintptr_t)(observer_image_bias+MODEL_QLINK_VALUE))((void*)(uintptr_t)n.wrapper,r->qlink_index,value);}
+  else ((void (*)(void*,unsigned,unsigned))(uintptr_t)(observer_image_bias+MODEL_QLINK_ACTIVITY))((void*)(uintptr_t)n.wrapper,r->qlink_index,part==0);
  }
  qlink_submission=0;
  for(unsigned j=0;j<3;j++)if(qlink_result[at][j]!=2||!atomic_load_explicit(&qlink_payload[at][j],memory_order_acquire))why=C_TRACE_AMBIGUOUS;
@@ -82,15 +82,15 @@ static void qlink_job_point(Context *c,unsigned site){
   const CommandRequest *r=&accepted[at].request;uint32_t w=r->qlink_wrapper;
   if(token()!=command_owner||!atomic_load(&command_in_hook)){qlink_fault[at]=C_OWNER;return;}
   if(site==QJ_ACTIVITY_PREPARE||site==QJ_VALUE_PREPARE){
-   if(site!=(part==1?QJ_VALUE_PREPARE:QJ_ACTIVITY_PREPARE)||qlink_source_frame[at][part]||c->r[4]!=w||c->r[6]!=r->qlink_index||c->r[5]!=(part==0?1:part==1?r->bits:0)||c->r[3]!=observer_image_bias+(part==1?0x14e3a50:0x14dfc04)||!qlink_span(source_sp(c),24)){qlink_fault[at]=C_TRACE_AMBIGUOUS;return;}
+   if(site!=(part==1?QJ_VALUE_PREPARE:QJ_ACTIVITY_PREPARE)||qlink_source_frame[at][part]||c->r[4]!=w||c->r[6]!=r->qlink_index||c->r[5]!=(part==0?1:part==1?r->bits:0)||c->r[3]!=observer_image_bias+(part==1?MODEL_QLINK_VALUE_INVOKER:MODEL_QLINK_ACTIVITY_INVOKER)||!qlink_span(source_sp(c),24)){qlink_fault[at]=C_TRACE_AMBIGUOUS;return;}
    qlink_source_frame[at][part]=source_sp(c);return;
   }
   if(site==JG_PUBLISH){
    uint32_t cell=c->r[10],input=c->r[8],expected=part==0?1:part==1?r->bits:0;
    /* Native pair/payload layout validated against the pinned factory. */
-   uint32_t invoker=observer_image_bias+(part==1?0x14e3a50:0x14dfc04);
-   uint32_t manager=observer_image_bias+(part==1?0x14dcd1c:0x14dcb54);
-   if(atomic_load(&qlink_payload[at][part])||!qlink_span(cell,24)||!qlink_source_frame[at][part]||input!=qlink_source_frame[at][part]||c->r[7]!=command_queues+0xfc||c->r[9]!=(w|1u)||word(cell)!=invoker||word(cell+4)!=manager||word(cell+8)!=w||word(cell+12)!=w||word(cell+16)!=r->qlink_index||(part==1?word(cell+20):*(const volatile unsigned char*)(uintptr_t)(cell+20))!=expected){qlink_fault[at]=C_TRACE_AMBIGUOUS;return;}
+   uint32_t invoker=observer_image_bias+(part==1?MODEL_QLINK_VALUE_INVOKER:MODEL_QLINK_ACTIVITY_INVOKER);
+   uint32_t manager=observer_image_bias+(part==1?MODEL_QLINK_VALUE_MANAGER:MODEL_QLINK_ACTIVITY_MANAGER);
+   if(atomic_load(&qlink_payload[at][part])||!qlink_span(cell,24)||!qlink_source_frame[at][part]||input!=qlink_source_frame[at][part]||c->r[7]!=command_queues+MODEL_QUEUE_AUDIO||c->r[9]!=(w|1u)||word(cell)!=invoker||word(cell+4)!=manager||word(cell+8)!=w||word(cell+12)!=w||word(cell+16)!=r->qlink_index||(part==1?word(cell+20):*(const volatile unsigned char*)(uintptr_t)(cell+20))!=expected){qlink_fault[at]=C_TRACE_AMBIGUOUS;return;}
    atomic_store_explicit(&qlink_payload[at][part],cell+8,memory_order_release);
    event(c,CE_QL_QUEUE,r->seq,cell+8,w,w,part,r->qlink_index,expected,r->qlink_index,r->epoch);
   }else{
@@ -125,7 +125,7 @@ static int qlink_complete(Context *c){
   if(!seq||accepted[at].request.seq!=seq||!command_qlink(accepted[at].request.reserved)||seq==atomic_load(&slot->reclaimed)||qlink_receipted(at))continue;
   const CommandRequest *r=&accepted[at].request;QLinkNative n;unsigned outcome=QL_INVALID,bits=0;
   if(!qlink_input_resolve(c,r,&n,0)){
-   qlink_reading=1;float value=((float (*)(void*,unsigned))(uintptr_t)(observer_image_bias+0x14ddc94))((void*)(uintptr_t)n.wrapper,r->qlink_index);QLinkNative after;
+   qlink_reading=1;float value=((float (*)(void*,unsigned))(uintptr_t)(observer_image_bias+MODEL_QLINK_GET))((void*)(uintptr_t)n.wrapper,r->qlink_index);QLinkNative after;
    if(!qlink_input_resolve(c,r,&after,0)&&!memcmp(&n,&after,sizeof(n))&&value>=0&&value<=1){memcpy(&bits,&value,4);outcome=QL_SAMPLED;}
    qlink_reading=0;
   }

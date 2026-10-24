@@ -1,17 +1,24 @@
 #!/usr/bin/env python3
 """Apply the admitted CE label and Az01 EHCI CPU deltas to /usr/bin/MPC in an ext root image."""
 import hashlib
+import argparse
 import json
 import os
 import pathlib
 import re
 import subprocess
-import sys
 import tempfile
 
 repo = pathlib.Path(__file__).resolve().parents[1]
-rootfs, executable, expectation = map(pathlib.Path, sys.argv[1:])
-spec = json.loads((repo / "firmware/mpc-ce.json").read_text())
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('rootfs', type=pathlib.Path)
+parser.add_argument('executable', type=pathlib.Path)
+parser.add_argument('expectation', type=pathlib.Path)
+parser.add_argument('--mpc-3.10', dest='mpc_310', action='store_true',
+                    help='explicit MPC 3.10 / CE 0.4.0 data slots; no runtime payload qualification')
+args = parser.parse_args()
+rootfs, executable, expectation = args.rootfs, args.executable, args.expectation
+spec = json.loads((repo / 'firmware' / ('mpc-ce-3.10.json' if args.mpc_310 else 'mpc-ce.json')).read_text())
 slots = spec["slots"]
 
 

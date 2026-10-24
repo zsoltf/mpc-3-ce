@@ -41,7 +41,7 @@ static void tick(void){if(!hold_enable_echo){for(unsigned i=0;i<4;i++)if(enable_
  * after this command's own call was already receipted. The rogue variant is the
  * opposite case, an effect-typed receiver whose identity cannot be read. */
 static void automation_setters(unsigned slot,unsigned index,uint32_t bits,unsigned when){
- uint32_t mine=ordinary?0x25176d4:0x250b5b4,other=ordinary?0x250b5b4:0x25176d4;Context f;
+ uint32_t mine=ordinary?MODEL_EFFECT_SET_LR:MODEL_EFFECT_RECORD_SET_LR,other=ordinary?MODEL_EFFECT_RECORD_SET_LR:MODEL_EFFECT_SET_LR;Context f;
  if(when==1){f=context();f.r[0]=effect_slots[slot];f.r[1]=index;f.d[0]=bits;f.lr=mine;call(&f,PX_SET);return;}
  f=context();f.r[0]=effect_slots[slot];f.r[1]=index;f.d[0]=bits;f.lr=other;call(&f,PX_SET);
  f=context();f.r[0]=effect_slots[slot];f.r[1]=index?index-1:index+1;f.d[0]=bits;f.lr=mine;call(&f,PX_SET);
@@ -60,10 +60,10 @@ static void *apply_effect(void *unused){
  /* A setter matching this command in every respect, but arriving before the
   * matching body proves the window, cannot be told apart from this command's
   * own call and must still fail. */
- if(automation_early&&!skip_setter&&!(code>=0x146&&code<=0x149)){Context f=context();f.r[0]=effect_slots[slot];f.r[1]=index;f.d[0]=bits;f.lr=ordinary?0x25176d4:0x250b5b4;call(&f,PX_SET);}
- *end=context();end->r[0]=p;if(ordinary){end->r[1]=0x101;end->r[2]=code;end->d[0]=bits;end->lr=0x25178d4;call(end,M_COMMAND_BODY);}else{end->r[2]=ptr(payload+2)+0x18;end->lr=0x1c04b94;call(end,RC_APPLY);}
+ if(automation_early&&!skip_setter&&!(code>=0x146&&code<=0x149)){Context f=context();f.r[0]=effect_slots[slot];f.r[1]=index;f.d[0]=bits;f.lr=ordinary?MODEL_EFFECT_SET_LR:MODEL_EFFECT_RECORD_SET_LR;call(&f,PX_SET);}
+ *end=context();end->r[0]=p;if(ordinary){end->r[1]=0x101;end->r[2]=code;end->d[0]=bits;end->lr=MODEL_QUEUE_RETURN;call(end,M_COMMAND_BODY);}else{end->r[2]=ptr(payload+2)+0x18;end->lr=MODEL_RECORD_APPLY_LR;call(end,RC_APPLY);}
  if(code>=0x146&&code<=0x149){enable_audio[slot]=enable_echo[slot]=bits;enable_echo_pending|=1u<<slot;}
- else if(!skip_setter){if(automation_write)automation_setters(slot,index,bits,0);Context setter=context();setter.r[0]=effect_slots[slot];setter.r[1]=index;setter.d[0]=bits;setter.lr=ordinary?0x25176d4:0x250b5b4;call(&setter,PX_SET);float v;memcpy(&v,&bits,4);parameters[index]=floorf(v*10)/10;if(automation_write)automation_setters(slot,index,bits,1);}
+ else if(!skip_setter){if(automation_write)automation_setters(slot,index,bits,0);Context setter=context();setter.r[0]=effect_slots[slot];setter.r[1]=index;setter.d[0]=bits;setter.lr=ordinary?MODEL_EFFECT_SET_LR:MODEL_EFFECT_RECORD_SET_LR;call(&setter,PX_SET);float v;memcpy(&v,&bits,4);parameters[index]=floorf(v*10)/10;if(automation_write)automation_setters(slot,index,bits,1);}
  *end=context();end->r[4]=ptr(ordinary?payload:payload+2);end->r[3]=payload[0];call(end,ordinary?M_QUEUE_DONE:RC_DONE);return NULL;
 }
 static unsigned settle_delay_ms,settle_stop_in_facade,settle_thread_live;
@@ -76,7 +76,7 @@ static void settle_join(void){if(settle_thread_live){require(!pthread_join(settl
 static void facade(uint32_t f,uint32_t p,unsigned kind,unsigned code,float value){
  dispatches++;require(f==ptr(recording_fixture_factory)&&p==ptr(program_objects[0])&&kind==0x101&&((code>=0x6000&&code<0xa000)||(code>=0x146&&code<=0x149)),"facade receives selected Program/kind and parameter or native326+slot enable controller");unsigned bits;memcpy(&bits,&value,4);memset(payload,0,sizeof(payload));
  if(ordinary){payload[0]=p+0x40;payload[1]=p;payload[2]=kind;payload[3]=code;payload[4]=bits;}
- else{uint32_t n=ptr(payload+2);payload[0]=0x13cf830;payload[1]=0x13d18b0;put(n,f+4);put(n+8,f);put(n+0xc,kind);put(n+0x10,code);put(n+0x14,p);put(n+0x20,2);put(n+0x28,kind);put(n+0x2c,bits);put(n+0x30,code);put(n+0x50,ptr(track_objects[0]));Context c=context();c.r[7]=ptr(queue_object)+0xfc;c.r[9]=(f+4)|1u;c.r[10]=ptr(payload);call(&c,JG_PUBLISH);}
+ else{uint32_t n=ptr(payload+2);payload[0]=MODEL_RECORD_INVOKER;payload[1]=MODEL_RECORD_MANAGER;put(n,f+4);put(n+8,f);put(n+0xc,kind);put(n+0x10,code);put(n+0x14,p);put(n+0x20,2);put(n+0x28,kind);put(n+0x2c,bits);put(n+0x30,code);put(n+0x50,ptr(track_objects[0]));Context c=context();c.r[7]=ptr(queue_object)+MODEL_QUEUE_AUDIO;c.r[9]=(f+4)|1u;c.r[10]=ptr(payload);call(&c,JG_PUBLISH);}
  /* The real audio job completes a few milliseconds AFTER the dispatch
   * returns, on the audio thread. The default fixture joins it inside the
   * facade, which makes the value already settled at return and would let a
@@ -97,9 +97,9 @@ static void facade(uint32_t f,uint32_t p,unsigned kind,unsigned code,float value
 }
 static void prepare(void){
  fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"bounded Effects component state");initial(1);command_initialize();observer_image_bias=0;observer_running=1;atomic_store(&command_state->alive,1);seed_fixture(0,0,0x3f000000,1);load_fixture();
- uint32_t p=ptr(program_objects[0]),i=ptr(insert_object);put(p+0x40,ptr(queue_object));put(p+0x5e0,i);put(i,0x68ac370);put(i+0x44,ptr(queue_object));put(i+0x60,ptr(effect_slots));put(i+0x64,ptr(effect_slots)+16);put(i+0x68,ptr(effect_slots)+16);
- for(unsigned slot=0;slot<5;slot++){uint32_t e=ptr(effect_objects[slot]);put(e,0x692e180);put(e+0x68,ptr(effect_aps[slot]));effect_tuples[slot][0]=p;effect_tuples[slot][1]=0x101;effect_tuples[slot][2]=slot<4?slot:0;put(e+0x70,ptr(effect_tuples[slot]));if(slot<4)effect_slots[slot]=e;}
- uint32_t rogue=ptr(rogue_object);put(rogue,0x692e180);put(rogue+0x68,ptr(effect_aps[0]));put(rogue+0x70,4);
+ uint32_t p=ptr(program_objects[0]),i=ptr(insert_object);put(p+0x40,ptr(queue_object));put(p+0x5e0,i);put(i,MODEL_INSERTS_VPTR);put(i+0x44,ptr(queue_object));put(i+0x60,ptr(effect_slots));put(i+0x64,ptr(effect_slots)+16);put(i+0x68,ptr(effect_slots)+16);
+ for(unsigned slot=0;slot<5;slot++){uint32_t e=ptr(effect_objects[slot]);put(e,MODEL_INSERT_EFFECT_VPTR);put(e+0x68,ptr(effect_aps[slot]));effect_tuples[slot][0]=p;effect_tuples[slot][1]=0x101;effect_tuples[slot][2]=slot<4?slot:0;put(e+0x70,ptr(effect_tuples[slot]));if(slot<4)effect_slots[slot]=e;}
+ uint32_t rogue=ptr(rogue_object);put(rogue,MODEL_INSERT_EFFECT_VPTR);put(rogue+0x68,ptr(effect_aps[0]));put(rogue+0x70,4);
  Context c=context();c.r[5]=ptr(project_object)+0x78;c.r[7]=ptr(track_objects[0]);call(&c,CH_SELECTION_COMMIT);
  component_effect_description=get_description;component_effect_enable=get_enable;for(unsigned i=0;i<4;i++)enable_ui[i]=enable_audio[i]=0x3f800000;component_effect_count=get_count;component_effect_string=get_string;component_effect_scalar=get_scalar;component_effect_automatable=get_automatable;component_effect_integer=get_integer;component_recording_dispatch=facade;for(unsigned j=0;j<20;j++)parameters[j]=0.5f;
 }
@@ -313,18 +313,18 @@ static void observed_insert_enable(void){
 }
 
 static uint32_t chooser_context_fixture,chooser_pages_fixture;static unsigned chooser_popup,chooser_calls;
-static unsigned chooser_is_open(void *pages,unsigned page){require(ptr(pages)==chooser_pages_fixture&&page==0x30a8,"native popup query ABI");return chooser_popup;}
+static unsigned chooser_is_open(void *pages,unsigned page){require(ptr(pages)==chooser_pages_fixture&&page==MODEL_PLUGIN_CHOOSER_PAGE,"native popup query ABI");return chooser_popup;}
 static void chooser_bind(void *bridge,void *program){(void)bridge;chooser_calls++;put(chooser_context_fixture+0x34,ptr(program));put(chooser_context_fixture+0x38,0x101);}
 static void chooser_launch(void *list,unsigned slot){(void)list;chooser_calls++;put(chooser_context_fixture+0x3c,slot);chooser_popup=1;}
 static void chooser_checks(void){
  unsigned char *objects=calloc(1,0x5000);require(objects!=NULL,"rooted chooser fixture storage");
  uint32_t tmi=ptr(objects),main=tmi+0x3600,content=tmi+0x3700,clip=tmi+0x3800,panel=tmi+0x3900,bridge=tmi+0x3a00,overlay=tmi+0x3b00,node=tmi+0x3e00;
  chooser_context_fixture=tmi+0x4000;chooser_pages_fixture=tmi+0x4100;
- put(root+0x83c,tmi);put(tmi,0x699efd0);put(tmi+0x124,root);put(tmi+0x128,chooser_pages_fixture);put(root+0x114,chooser_pages_fixture);put(root+0x1fc,chooser_context_fixture);
- put(tmi+0x598,main);put(main,0x69e6b98);put(main+0xe8,content);put(content,0x69e7608);put(content+0x9c,clip);put(clip,0x69e9314);put(clip+0xc8,panel);put(panel,0x69e96a8);put(panel+0xc8,bridge);put(bridge,0x69e97b8);put(bridge+0x2c,chooser_context_fixture);put(bridge+0x48,chooser_pages_fixture);
- put(tmi+0x34ec,node);put(tmi+0x34f8,1);put(node+0x10,0x30fa);put(node+0x14,overlay);put(node+0x18,node+0x20);put(overlay,0x69ca244);put(overlay+0x18c,0x69ac190);put(overlay+0x250,chooser_pages_fixture);put(overlay+0x254,chooser_context_fixture);
- const unsigned native[]={0x157507c,0x2b068f0,0x340e5d4};void *functions[]={chooser_is_open,chooser_bind,chooser_launch};
- for(unsigned i=0;i<3;i++){uint32_t page=native[i]&~4095u;require(mmap((void*)(uintptr_t)page,4096,PROT_READ|PROT_WRITE|PROT_EXEC,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)!=MAP_FAILED,"native chooser call substitution");uint32_t *code=(uint32_t*)(uintptr_t)native[i];jump(&code,ptr(functions[i]));__builtin___clear_cache((char*)(uintptr_t)native[i],(char*)code);}
+ put(root+MODEL_ROOT_TMI,tmi);put(tmi,MODEL_TMI_VPTR);put(tmi+0x124,root);put(tmi+0x128,chooser_pages_fixture);put(root+MODEL_ROOT_PAGES,chooser_pages_fixture);put(root+MODEL_CHOOSER_ROOT_CONTEXT,chooser_context_fixture);
+ put(tmi+MODEL_TMI_MAIN_PAGE,main);put(main,MODEL_MAIN_PAGE_VPTR);put(main+0xe8,content);put(content,MODEL_MAIN_CONTENT_VPTR);put(content+0x9c,clip);put(clip,MODEL_MAIN_TRACK_PANEL_VPTR);put(clip+0xc8,panel);put(panel,MODEL_CHOOSER_TRACKPANEL_VPTR);put(panel+0xc8,bridge);put(bridge,MODEL_CHOOSER_BRIDGE_VPTR);put(bridge+0x2c,chooser_context_fixture);put(bridge+0x48,chooser_pages_fixture);
+ put(tmi+MODEL_CHOOSER_MAP_ROOT,node);put(tmi+MODEL_CHOOSER_MAP_COUNT,1);put(node+0x10,MODEL_CHOOSER_OVERLAY_ID);put(node+0x14,overlay);put(node+0x18,node+0x20);put(overlay,MODEL_CHOOSER_OVERLAY_VPTR);put(overlay+0x18c,MODEL_CHOOSER_LIST_VPTR);put(overlay+0x250,chooser_pages_fixture);put(overlay+0x254,chooser_context_fixture);
+ const unsigned native[]={MODEL_PAGE_IS_OPEN,MODEL_CHOOSER_PROGRAM_OPEN,MODEL_CHOOSER_SLOT_OPEN};void *functions[]={chooser_is_open,chooser_bind,chooser_launch};
+ for(unsigned i=0;i<3;i++){uint32_t page=native[i]&~4095u;require(mmap((void*)(uintptr_t)page,4096,PROT_READ|PROT_WRITE|PROT_EXEC,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)==(void*)(uintptr_t)page,"native chooser call substitution at exact address");uint32_t *code=(uint32_t*)(uintptr_t)native[i];jump(&code,ptr(functions[i]));__builtin___clear_cache((char*)(uintptr_t)native[i],(char*)code);}
  for(unsigned replace=0;replace<2;replace++){
   unsigned slot=replace?0:2;Context change=context();change.r[0]=ptr(insert_object);change.r[1]=slot;change.r[2]=replace?effect_slots[slot]:0;if(!replace){call(&change,PX_REPLACE);effect_slots[slot]=0;}
   watch(replace?slot:EFFECT_LIST,0);for(unsigned j=0;j<13;j++)tick();MIRROR_COPY(copy);require(copy_mirror(fixture,&copy)&&copy.effects.status==EF_READY,"chooser list/parameter source ready");MirrorBank bank;bank_init(&bank);bank.assignment=BA_EFFECT;bank_apply(&bank,&copy,copy.heartbeat);bank.effects_slot=replace?slot:EFFECT_LIST;MirrorInput in={.commands=command_state};
@@ -340,14 +340,14 @@ static void chooser_checks(void){
  watch(0,0);for(unsigned j=0;j<9;j++)tick();MIRROR_COPY(copy);copy_mirror(fixture,&copy);MirrorBank bank;bank_init(&bank);bank.assignment=BA_EFFECT;bank_apply(&bank,&copy,copy.heartbeat);bank.effects_slot=0;MirrorInput in={.commands=command_state};input_effect_chooser(&in,&bank,&copy,0,1,copy.heartbeat);input_pump(&in,&bank,&copy,copy.heartbeat);tick();command_retire();tick();copy_mirror(fixture,&copy);input_drain(&in,&bank,&copy,copy.heartbeat);command_retire();
  Context change=context();change.r[0]=ptr(insert_object);change.r[1]=0;change.r[2]=ptr(effect_objects[4]);call(&change,PX_REPLACE);effect_slots[0]=ptr(effect_objects[4]);chooser_popup=0;
  for(unsigned j=0;j<14;j++){tick();}copy_mirror(fixture,&copy);require(copy.effects.chooser.status==EC_LOADED&&copy.effects.chooser.key==effect_slots[0]&&copy.effects.chooser.ap==ptr(effect_aps[4]),"fresh UI replacement inventory distinct from open receipt");bank_apply(&bank,&copy,copy.heartbeat);require(bank.effects_slot==0&&bank.effects_page==0,"fresh loaded slot opens its parameter page");
- effects_chooser.status=EC_NONE;put(root+0x83c,0);free(objects);
+ effects_chooser.status=EC_NONE;put(root+MODEL_ROOT_TMI,0);free(objects);
  for(unsigned i=0;i<3;i++)munmap((void*)(uintptr_t)(native[i]&~4095u),4096);
  puts("PASS chooser actual rooted resolution/input/three-event acceptance/consumer, busy popup, cancel and fresh inventory entry; native binder/popup and replacement object storage substituted, DSP completion unobserved");
 }
 
 int main(void){
- alarm(30);require(mmap((void*)0x692e000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)!=MAP_FAILED,"effect vtable fixture");require(mmap((void*)0x6930000,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)!=MAP_FAILED,"program vtable fixture");put(0x6930c28,0x250ba74);put(0x6930c78,0x1375c68);
- const unsigned offset[]={0x10,0x30,0x40,0x48,0x50,0x58,0x60,0x68,0x74,0x78,0x90},methods[]={0x234fd38,0x234ff08,0x2350278,0x2350670,0x2350a90,0x2350eb8,0x2351690,0x23512b0,0x2351c50,0x2351e28,0x2352000};for(unsigned j=0;j<11;j++)put(0x692e180+offset[j],methods[j]);prepare();
+ alarm(30);require(mmap((void*)(MODEL_INSERT_EFFECT_VPTR&~4095u),4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)==(void*)(MODEL_INSERT_EFFECT_VPTR&~4095u),"effect vtable fixture at exact address");require(mmap((void*)(MODEL_DRUMPROGRAM_VPTR&~4095u),4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)==(void*)(MODEL_DRUMPROGRAM_VPTR&~4095u),"program vtable fixture at exact address");put((MODEL_DRUMPROGRAM_VPTR+0x28),MODEL_PROGRAM_CONTROL);put((MODEL_DRUMPROGRAM_VPTR+0x78),MODEL_MIXABLE_PREDICATE);
+ const unsigned offset[]={0x10,0x30,0x40,0x48,0x50,0x58,0x60,0x68,0x74,0x78,0x90},methods[]={MODEL_EFFECT_NAME,MODEL_EFFECT_COUNT,MODEL_EFFECT_VALUE,MODEL_EFFECT_MINIMUM,MODEL_EFFECT_MAXIMUM,MODEL_EFFECT_DEFAULT,MODEL_EFFECT_STEPS,INPUT_IMAGE(0x23512b0,0x27881a0u),MODEL_EFFECT_PARAMETER_NAME,MODEL_EFFECT_PARAMETER_TEXT,MODEL_EFFECT_AUTOMATABLE};for(unsigned j=0;j<11;j++)put(MODEL_INSERT_EFFECT_VPTR+offset[j],methods[j]);prepare();
  tick();require(!effects_current.reads,"no interest means zero native getter calls");watch(EFFECT_LIST,0);for(unsigned j=0;j<5;j++)tick();MIRROR_COPY(s);require(copy_mirror(fixture,&s)&&s.effects_available&&s.effects.status==EF_READY&&!strcmp(s.effects.slots[0].name,"Fixture Delay")&&s.effects.slots[3].count==20,"actual retained reader exposes four inserts");
  unsigned reads=effects_current.reads;tick();require(effects_current.reads==reads+1,"unchanged list caches metadata and samples only one host-enable mirror per drain");watch(0,0);for(unsigned j=0;j<8;j++)tick();require(copy_mirror(fixture,&s)&&s.effects.parameters[7].status==EF_READY,"bounded visible eight parameters reach copied reader");require(s.effects.parameters[1].steps==2&&s.effects.parameters[2].steps==0x7fffffff&&!s.effects.parameters[0].steps,"native count survives independent legacy discretefalse; defaultlarge and unknown counts preserved");edit(0);fast_reverse();
  watch(0,1);for(unsigned j=0;j<13;j++)tick();require(copy_mirror(fixture,&s)&&s.effects.parameters[0].index==8,"page selects outer index8 instead of inner AP index guesses");ordinary=0;edit(0);fast_reverse();automation_write_race();observed_reverb_mapping();observed_insert_enable();chooser_checks();

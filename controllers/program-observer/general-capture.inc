@@ -1,16 +1,34 @@
+static inline unsigned command_page_id(unsigned op){static const unsigned ids[]={MODEL_PAGE_ACTION_MAIN,MODEL_PAGE_ACTION_ARRANGE,MODEL_PAGE_ACTION_CLIP,MODEL_PAGE_ACTION_MIXER,MODEL_PAGE_ACTION_PADMIX,MODEL_PAGE_ACTION_TRACKEDIT,MODEL_PAGE_ACTION_SAMPLEEDIT,MODEL_PAGE_ACTION_STEP};return command_page(op)?ids[op-GLOBAL_PAGE_MAIN]:0;}
 static unsigned type_open_native(Context*,const CommandRequest*,uint32_t);
 static unsigned new_track_open_native(Context*,const CommandRequest*,uint32_t);
 static unsigned type_open_selected(const CommandRequest*);
 typedef struct {uint32_t seq,at,epoch,root,project,project_owner,editor,editor_owner,responder,function,holder,operation;} TransportJob;
 static TransportJob transport_jobs[COMMAND_SLOTS];
-static _Atomic uint32_t transport_pending;
+static _Atomic uint32_t transport_pending,transport_live[COMMAND_SLOTS],transport_editors[COMMAND_SLOTS];
 /* Native synchronous global operations. Completion is facade completion, not
  * persisted-file proof, requested-value equality, or automation recording. */
 static __thread struct {uint32_t id,owner,property,sp,phase,generation,mode,mixed,count;} global_call __attribute__((tls_model("initial-exec")));
-static void global_initialize(void){memset(&global_call,0,sizeof(global_call));memset(transport_jobs,0,sizeof(transport_jobs));atomic_store(&transport_pending,0);
+static void global_initialize(void){memset(&global_call,0,sizeof(global_call));memset(transport_jobs,0,sizeof(transport_jobs));atomic_store(&transport_pending,0);for(unsigned i=0;i<COMMAND_SLOTS;i++){atomic_store(transport_live+i,0);atomic_store(transport_editors+i,0);}
 #ifdef COMMAND_COMPONENT
  transport_queue_component_reset();
 #endif
+}
+/* One CE flight owner settles either on callback return or after the native
+ * Editor D1 has drained its holder. Native cancellation invokes no manager.
+ * The retirement scan reads atomic identity words, never a concurrently reused
+ * mutable job. The sequence CAS prevents an old scan retiring a new flight. */
+static void transport_finish(unsigned at,uint32_t seq){
+ uint32_t expected=seq;
+ if(atomic_compare_exchange_strong_explicit(transport_live+at,&expected,0,memory_order_seq_cst,memory_order_seq_cst)){
+  expected=seq;atomic_compare_exchange_strong_explicit(active_request+at,&expected,0,memory_order_seq_cst,memory_order_seq_cst);
+  atomic_fetch_sub_explicit(&transport_pending,1,memory_order_seq_cst);
+ }
+}
+static void transport_editor_retired(uint32_t editor){
+ for(unsigned i=0;i<COMMAND_SLOTS;i++){
+  uint32_t seq=atomic_load_explicit(transport_live+i,memory_order_seq_cst);
+  if(seq&&atomic_load_explicit(transport_editors+i,memory_order_seq_cst)==editor)transport_finish(i,seq);
+ }
 }
 static int global_quiescent(void){return !atomic_load_explicit(&transport_pending,memory_order_seq_cst);}
 static void global_changed(void){
@@ -33,7 +51,7 @@ static void global_root(unsigned site){
  GeneralState *s=&mirror_state->general;
  if(site==M_ROOT_DESTROY){channel_owner_death(atomic_load(&s->zoom));atomic_store(&s->zoom,0);atomic_store(&s->zoom_owner,0);return;}
  if(site!=M_RESET||!root)return;
- uint32_t controls=word(root+0x388),z=pointer(controls)&&controls<UINT32_MAX-0x80?word(controls+0x78):0;
+ uint32_t controls=word(root+MODEL_ROOT_CONTROLS),z=pointer(controls)&&controls<UINT32_MAX-0x80?word(controls+0x78):0;
  if(pointer(z)&&z<UINT32_MAX-0x154){
   if(!channel_owner_id(z))channel_owner_birth(z,CO_ZOOM);
   atomic_store(&s->zoom,z);atomic_store_explicit(&s->zoom_owner,channel_owner_id(z),memory_order_release);
@@ -43,7 +61,7 @@ static void global_point(Context *c,unsigned site,unsigned lane){
  GeneralState *s=&mirror_state->general;
  if(site==GL_EDITOR_PUBLISH){
   uint32_t editor=c->r[5],e=c->r[4]+0xd0;
-  if(token()!=command_owner||!typed(e,0x68d7bf8)||!typed(editor,0x695395c)||!typed(editor+0x230,0x6953b1c)||word(editor+0x37c)!=e)return;
+  if(token()!=command_owner||!typed(e,MODEL_ROOT_VPTR)||!typed(editor,MODEL_EDITOR_VPTR)||!typed(editor+0x230,MODEL_EDITOR_SECONDARY_VPTR)||word(editor+0x37c)!=e)return;
   channel_owner_birth(editor,CO_EDITOR);atomic_store(&s->editor_root,e);atomic_store(&s->editor,editor);atomic_store_explicit(&s->editor_owner,channel_owner_id(editor),memory_order_release);return;
  }
  if(site==GL_EDITOR_DEATH){channel_owner_death(c->r[0]);if(c->r[0]==atomic_load(&s->editor)){atomic_store(&s->editor_owner,0);atomic_store(&s->editor,0);}return;}
@@ -71,23 +89,23 @@ static unsigned global_toggle_target(const CommandRequest *r,uint32_t *target,ui
   /* Same nonretained UI-owner path as native Learn/hardware. Native notifier
    * linkage is not a separate foreign-destructor exclusion mechanism. */
   uint32_t sequence=word(project+0xe4);
-  if(r->global_owner!=r->project_owner||r->field_incarnation||!typed(sequence,0x6934b18)||sequence>UINT32_MAX-0x23c)return C_IDENTITY;
+  if(r->global_owner!=r->project_owner||r->field_incarnation||!typed(sequence,MODEL_SEQUENCE_VPTR)||sequence>UINT32_MAX-0x23c)return C_IDENTITY;
   unsigned raw=*(const volatile unsigned char*)(uintptr_t)(sequence+0x238);
   if(raw>1||word(project+0xe4)!=sequence)return C_IDENTITY;
-  *target=sequence+0x210;*property=*target;*function=observer_image_bias+0xe298bc;*value=raw;return 0;
+  *target=sequence+0x210;*property=*target;*function=observer_image_bias+MODEL_LOOP_SET;*value=raw;return 0;
  }
- uint32_t a=word(root+0x2e4),owner=0;unsigned field;
+ uint32_t a=word(root+MODEL_ROOT_AUDIO),owner=0;unsigned field;
  if(!pointer(a)||a>UINT32_MAX-0x400)return C_IDENTITY;
  if(command_record(r->reserved)){
-  uint32_t seq=word(a+0x3bc),rec;
+  uint32_t seq=word(a+MODEL_AUDIO_SEQUENCER),rec;
   if(!pointer(seq)||seq>UINT32_MAX-0x400)return C_IDENTITY;
-  rec=word(seq+0x3ec);if(!typed(rec,0x68a0318)||rec>UINT32_MAX-0x9c)return C_IDENTITY;
-  owner=word(rec+0x98);if(!typed(owner,0x68a0340)||owner>UINT32_MAX-0x52c)return C_IDENTITY;
-  *target=rec;*function=observer_image_bias+0x1c27e90;*property=owner+0x500;field=CF_RECORD_MODE;
+  rec=word(seq+0x3ec);if(!typed(rec,MODEL_RECORDER_VPTR)||rec>UINT32_MAX-0x9c)return C_IDENTITY;
+  owner=word(rec+0x98);if(!typed(owner,MODEL_RECORD_PROPERTIES_VPTR)||owner>UINT32_MAX-0x52c)return C_IDENTITY;
+  *target=rec;*function=observer_image_bias+MODEL_RECORD_TOGGLE;*property=owner+0x500;field=CF_RECORD_MODE;
  }else if(r->reserved==GLOBAL_CLICK_TOGGLE){
-  owner=word(a+0x3c0);uint32_t metronome=word(a+0x3b8);
-  if(!typed(owner,0x689fed4)||owner>UINT32_MAX-0x68||!typed(metronome,0x689febc)||word(owner+0x60)!=metronome||word(owner+0x64)!=word(a+0x3bc))return C_IDENTITY;
-  *target=owner;*function=observer_image_bias+0x1beaad0;*property=owner+0xc;field=CF_CLICK;
+  owner=word(a+MODEL_AUDIO_CLICK);uint32_t metronome=word(a+MODEL_AUDIO_METRONOME);
+  if(!typed(owner,MODEL_CLICK_VPTR)||owner>UINT32_MAX-0x68||!typed(metronome,MODEL_METRONOME_VPTR)||word(owner+0x60)!=metronome||word(owner+0x64)!=word(a+MODEL_AUDIO_SEQUENCER))return C_IDENTITY;
+  *target=owner;*function=observer_image_bias+MODEL_CLICK_TOGGLE;*property=owner+0xc;field=CF_CLICK;
  }else return C_NOT_READY;
  ChannelCell *cell=channel_cell(*property);ChannelOwner *o=channel_owner(owner);
  if(!o||atomic_load(&o->kind)!=channel_kind(field)||channel_owner_id(owner)!=r->global_owner||!cell||!atomic_load(&cell->live)||atomic_load(&cell->owner_incarnation)!=r->global_owner||atomic_load(&cell->incarnation)!=r->field_incarnation||channel_fault(atomic_load(&mirror_state->channel.errors[field])))return C_IDENTITY;
@@ -98,8 +116,8 @@ static unsigned global_toggle_target(const CommandRequest *r,uint32_t *target,ui
 static void global_toggle_commit(Context *c,unsigned site,unsigned at){
  const CommandRequest *r=&accepted[at].request;
  if(c->r[5]!=accepted[at].property)return;
- /* Both configured Loop and Click's native listener call e298bc: its commit
-  * at e29938 is M_MUTE, despite the broader bool-shaped hook names. */
+ /* Configured Loop and Click's native listener use MODEL_LOOP_SET; its
+  * commit is M_MUTE, despite the broader bool-shaped hook names. */
  unsigned expected=command_record(r->reserved)?CH_RECORD_COMMIT:M_MUTE;
  if(site!=expected)return;
  unsigned raw=c->r[7],value=command_record(r->reserved)?(raw==1||raw==3):raw;
@@ -109,14 +127,14 @@ static void global_toggle_commit(Context *c,unsigned site,unsigned at){
 }
 static unsigned transport_current(const CommandRequest *r,uint32_t *target,uint32_t *function,uint32_t *holder,uint32_t *editor_out){
  GeneralState *s=&mirror_state->general;uint32_t editor=atomic_load_explicit(&s->editor,memory_order_acquire);
- if(!ready||loading||depth||reset_pending||root<0xd0||!project||!command_queues||root>UINT32_MAX-0x388||editor>UINT32_MAX-0x380)return C_NOT_READY;
+ if(!ready||loading||depth||reset_pending||root<0xd0||!project||!command_queues||root>UINT32_MAX-MODEL_ROOT_CONTROLS||editor>UINT32_MAX-0x380)return C_NOT_READY;
  if(r->epoch!=epoch||r->project_owner!=channel_owner_id(project)||atomic_load(&s->editor_root)!=root||r->global_owner!=atomic_load(&s->editor_owner)||channel_owner_id(editor)!=r->global_owner)return C_IDENTITY;
- if(word(root+0x24c)!=project||word(root+0xf8)!=command_queues||word(root-0xd0+0x904)!=editor||!typed(editor,0x695395c)||!typed(editor+0x230,0x6953b1c)||word(editor+0x37c)!=root)return C_NATIVE_MEMBERSHIP;
- uint32_t controls=word(root+0x388),audio=word(root+0x2e4),h=editor+0x2c8;
- if(!pointer(controls)||controls>UINT32_MAX-0xf4||!pointer(audio)||audio>UINT32_MAX-0x400||word(h)!=command_queues)return C_NATIVE_MEMBERSHIP;
- uint32_t responder=word(controls+0xf0),sequencer=word(audio+0x3bc),timeline=word(audio+0x3a4);
- if(!pointer(responder)||responder>UINT32_MAX-0x234||!pointer(sequencer)||sequencer>UINT32_MAX-0x404||!typed(timeline,0x69091b0)||word(sequencer+0x400)!=timeline||word(responder+0x1f0)!=sequencer)return C_NATIVE_MEMBERSHIP;
- *target=responder;*function=observer_image_bias+(r->reserved==GLOBAL_PLAY?0xf2358c:0xf23628);*holder=h;*editor_out=editor;return 0;
+ if(word(root+MODEL_ROOT_PROJECT)!=project||word(root+MODEL_ROOT_QUEUES)!=command_queues||word(root-0xd0+MODEL_APP_EDITOR)!=editor||!typed(editor,MODEL_EDITOR_VPTR)||!typed(editor+0x230,MODEL_EDITOR_SECONDARY_VPTR)||word(editor+0x37c)!=root)return C_NATIVE_MEMBERSHIP;
+ uint32_t controls=word(root+MODEL_ROOT_CONTROLS),audio=word(root+MODEL_ROOT_AUDIO),h=editor+0x2c8;
+ if(!pointer(controls)||controls>UINT32_MAX-(MODEL_CONTROLS_TRANSPORT+4)||!pointer(audio)||audio>UINT32_MAX-0x400||word(h)!=command_queues)return C_NATIVE_MEMBERSHIP;
+ uint32_t responder=word(controls+MODEL_CONTROLS_TRANSPORT),sequencer=word(audio+MODEL_AUDIO_SEQUENCER),timeline=word(audio+MODEL_AUDIO_TIMELINE);
+ if(!pointer(responder)||responder>UINT32_MAX-0x234||!pointer(sequencer)||sequencer>UINT32_MAX-0x404||!typed(timeline,MODEL_TIMELINE_VPTR)||word(sequencer+0x400)!=timeline||word(responder+0x1f0)!=sequencer)return C_NATIVE_MEMBERSHIP;
+ *target=responder;*function=observer_image_bias+(r->reserved==GLOBAL_PLAY?MODEL_TRANSPORT_PLAY:MODEL_TRANSPORT_STOP);*holder=h;*editor_out=editor;return 0;
 }
 static unsigned global_resolve(Context *c,const CommandRequest *r,uint32_t *target,uint32_t *function){
  unsigned now=atomic_load(&mirror_state->heartbeat);
@@ -128,27 +146,27 @@ static unsigned global_resolve(Context *c,const CommandRequest *r,uint32_t *targ
  if(!ready||loading||depth||reset_pending||!root||!project||!command_queues)return C_NOT_READY;
  if(r->epoch!=epoch||r->project_owner!=channel_owner_id(project))return C_IDENTITY;
  for(unsigned i=0;i<count;i++)if(tracks[i].transition)return C_NOT_READY;
- if(c->r[0]!=command_queues+4||word(c->r[0]+0xf0)||word(root+0x24c)!=project||word(root+0xf8)!=command_queues)return C_NOT_READY;
+ if(c->r[0]!=command_queues+4||word(c->r[0]+0xf0)||word(root+MODEL_ROOT_PROJECT)!=project||word(root+MODEL_ROOT_QUEUES)!=command_queues)return C_NOT_READY;
  if(r->reserved==CF_AUTOMATION){
-  uint32_t g=word(project+0xaac);ChannelCell *cell=channel_cell(g+0xc);
-  if(!typed(g,0x68ac48c)||channel_owner_id(g)!=r->global_owner||!cell||!atomic_load(&cell->live)||atomic_load(&cell->incarnation)!=r->field_incarnation||atomic_load(&mirror_state->general.automation_error))return C_IDENTITY;
-  *target=g;*function=observer_image_bias+0x238f5d8;
+  uint32_t g=word(project+MODEL_PROJECT_AUTOMATION);ChannelCell *cell=channel_cell(g+0xc);
+  if(!typed(g,MODEL_AUTOMATION_VPTR)||channel_owner_id(g)!=r->global_owner||!cell||!atomic_load(&cell->live)||atomic_load(&cell->incarnation)!=r->field_incarnation||atomic_load(&mirror_state->general.automation_error))return C_IDENTITY;
+  *target=g;*function=observer_image_bias+MODEL_AUTOMATION_SET;
  }else if(command_toggle(r->reserved)){
   uint32_t property;unsigned value;return global_toggle_target(r,target,function,&property,&value);
  }else if((r->reserved==GLOBAL_TRACK_NEW||r->reserved==GLOBAL_TRACK_TYPE||command_transport(r->reserved)||command_history(r->reserved)||r->reserved==GLOBAL_SAVE||command_page(r->reserved)||command_key(r->reserved)||command_sequence_duplicate(r->reserved))){
   if(r->reserved==GLOBAL_TRACK_TYPE&&!type_open_selected(r))return C_IDENTITY;
   GeneralState *s=&mirror_state->general;uint32_t editor=atomic_load(&s->editor);
-  if(atomic_load(&s->editor_root)!=root||r->global_owner!=atomic_load(&s->editor_owner)||channel_owner_id(editor)!=r->global_owner||root<0xd0||word(root-0xd0+0x904)!=editor||!typed(editor,0x695395c)||!typed(editor+0x230,0x6953b1c)||word(editor+0x37c)!=root)return C_IDENTITY;
+  if(atomic_load(&s->editor_root)!=root||r->global_owner!=atomic_load(&s->editor_owner)||channel_owner_id(editor)!=r->global_owner||root<0xd0||word(root-0xd0+MODEL_APP_EDITOR)!=editor||!typed(editor,MODEL_EDITOR_VPTR)||!typed(editor+0x230,MODEL_EDITOR_SECONDARY_VPTR)||word(editor+0x37c)!=root)return C_IDENTITY;
   if(command_transport(r->reserved)){
    uint32_t holder,checked_editor;return transport_current(r,target,function,&holder,&checked_editor);
   /* Duplicate Sequence names the application's own CopySequence Confirm, the
    * one native entry this operation calls, so the identity re-check before and
    * after the call covers the entry as well as the receiver. */
-  }else {*target=editor;*function=observer_image_bias+(command_key(r->reserved)?0xbc18ec:command_sequence_duplicate(r->reserved)?SEQ_DUP_CONFIRM_RVA:0x2c70f20);}
+  }else {*target=editor;*function=observer_image_bias+(command_key(r->reserved)?MODEL_INPUT_KEY_PRESS:command_sequence_duplicate(r->reserved)?SEQ_DUP_CONFIRM_RVA:MODEL_EDITOR_ACTION);}
  }else{
-  uint32_t controls=word(root+0x388),z=pointer(controls)&&controls<UINT32_MAX-0x80?word(controls+0x78):0;
+  uint32_t controls=word(root+MODEL_ROOT_CONTROLS),z=pointer(controls)&&controls<UINT32_MAX-0x80?word(controls+0x78):0;
   if(!pointer(z)||z!=atomic_load(&mirror_state->general.zoom)||channel_owner_id(z)!=r->global_owner||r->global_owner!=atomic_load(&mirror_state->general.zoom_owner))return C_IDENTITY;
-  static const unsigned funcs[]={0x10383c4,0x10383e4,0x1038424,0x1038444};*target=z;*function=observer_image_bias+funcs[r->reserved-GLOBAL_ZOOM_IN];
+  static const unsigned funcs[]={MODEL_ZOOM_IN,MODEL_ZOOM_OUT,MODEL_ZOOM_UP,MODEL_ZOOM_DOWN};*target=z;*function=observer_image_bias+funcs[r->reserved-GLOBAL_ZOOM_IN];
  }
  return 0;
 }
@@ -225,7 +243,7 @@ static unsigned global_resolve(Context *c,const CommandRequest *r,uint32_t *targ
  * again if the restore changed it. The whole cost is one command's worth of
  * loads, four native calls and two stores, on the owner thread inside the
  * existing lane. */
-#define KEY_STATICS_RVA 0x6b220a8u
+#define KEY_STATICS_RVA MODEL_KEY_STATICS
 #define KEY_MODIFIERS_OFFSET 0x10u
 #define KEY_FOCUS_OFFSET 0x50u
 /* juce::Desktop's singleton pointer, the slot b73474 reads and only writes when
@@ -238,35 +256,35 @@ static unsigned global_resolve(Context *c,const CommandRequest *r,uint32_t *targ
 #define KEY_COMPONENT_FLAGS 0x68u
 #define KEY_COMPONENT_HEAVYWEIGHT 1u
 #define KEY_PEER_COMPONENT 0x4u
-#define KEY_PEER_VTABLE_RVA 0x688e864u
-#define KEY_DOWN_BITMAP_RVA 0x6b221a8u
+#define KEY_PEER_VTABLE_RVA MODEL_KEY_PEER_VPTR
+#define KEY_DOWN_BITMAP_RVA MODEL_KEY_BITMAP
 /* One bit per 16-bit keysym: the handler indexes it with keysym>>3. */
 #define KEY_DOWN_BITMAP_BYTES 0x2000u
-#define KEY_PEER_RVA 0xb740bcu
+#define KEY_PEER_RVA MODEL_INPUT_KEY_PEER_LOOKUP_FOLD
 #define KEY_PEER_LENGTH 0x170u
 /* ComponentPeer::getPeerFor, the body b740bc tail-calls; guarded with it so the
  * whole called path is install-time verified, not only its entry. */
-#define KEY_PEER_FOR_RVA 0xb74074u
+#define KEY_PEER_FOR_RVA MODEL_INPUT_KEY_PEER_FOR
 #define KEY_PEER_FOR_LENGTH 0x48u
-#define KEY_PRESS_RVA 0xbc18ecu
+#define KEY_PRESS_RVA MODEL_INPUT_KEY_PRESS
 #define KEY_PRESS_LENGTH 0x378u
-#define KEY_UP_DOWN_RVA 0xb74600u
+#define KEY_UP_DOWN_RVA MODEL_INPUT_KEY_UPDOWN
 #define KEY_UP_DOWN_LENGTH 0x24cu
-#define KEY_MODIFIERS_CHANGED_RVA 0xb899b8u
+#define KEY_MODIFIERS_CHANGED_RVA MODEL_INPUT_KEY_MODIFIERS_CHANGED
 #define KEY_MODIFIERS_CHANGED_LENGTH 0xa8u
 /* Exact 3.9.1 program headers: RX segment [0,6875d04), RW segment
  * [6877010,6bd6078). module_ranges carries p_filesz only, so these three
  * writable addresses, which live past the writable segment's file image, are
  * qualified here the way wheel-capture.inc qualifies the focus slot. */
-_Static_assert(KEY_STATICS_RVA+KEY_MODIFIERS_OFFSET>=0x6877010u&&KEY_STATICS_RVA+KEY_MODIFIERS_OFFSET+4u<=0x6bd6078u,"JUCE modifier word inside the writable segment");
-_Static_assert(KEY_STATICS_RVA+KEY_FOCUS_OFFSET>=0x6877010u&&KEY_STATICS_RVA+KEY_FOCUS_OFFSET+4u<=0x6bd6078u,"focused component slot inside the writable segment");
-_Static_assert(KEY_STATICS_RVA+KEY_DESKTOP_OFFSET>=0x6877010u&&KEY_STATICS_RVA+KEY_DESKTOP_OFFSET+4u<=0x6bd6078u,"Desktop singleton slot inside the writable segment");
-_Static_assert(KEY_DOWN_BITMAP_RVA>=0x6877010u&&KEY_DOWN_BITMAP_RVA+KEY_DOWN_BITMAP_BYTES<=0x6bd6078u,"keysDown bitmap inside the writable segment");
-_Static_assert(KEY_PEER_RVA+KEY_PEER_LENGTH<=0x6875d04u,"peer lookup inside the executable segment");
-_Static_assert(KEY_PEER_FOR_RVA+KEY_PEER_FOR_LENGTH<=0x6875d04u,"peer table lookup inside the executable segment");
-_Static_assert(KEY_PRESS_RVA+KEY_PRESS_LENGTH<=0x6875d04u,"handleKeyPress inside the executable segment");
-_Static_assert(KEY_UP_DOWN_RVA+KEY_UP_DOWN_LENGTH<=0x6875d04u,"handleKeyUpOrDown inside the executable segment");
-_Static_assert(KEY_MODIFIERS_CHANGED_RVA+KEY_MODIFIERS_CHANGED_LENGTH<=0x6875d04u,"handleModifierKeysChange inside the executable segment");
+_Static_assert(KEY_STATICS_RVA+KEY_MODIFIERS_OFFSET>=MODEL_WRITABLE_START&&KEY_STATICS_RVA+KEY_MODIFIERS_OFFSET+4u<=MODEL_WRITABLE_END,"JUCE modifier word inside the writable segment");
+_Static_assert(KEY_STATICS_RVA+KEY_FOCUS_OFFSET>=MODEL_WRITABLE_START&&KEY_STATICS_RVA+KEY_FOCUS_OFFSET+4u<=MODEL_WRITABLE_END,"focused component slot inside the writable segment");
+_Static_assert(KEY_STATICS_RVA+KEY_DESKTOP_OFFSET>=MODEL_WRITABLE_START&&KEY_STATICS_RVA+KEY_DESKTOP_OFFSET+4u<=MODEL_WRITABLE_END,"Desktop singleton slot inside the writable segment");
+_Static_assert(KEY_DOWN_BITMAP_RVA>=MODEL_WRITABLE_START&&KEY_DOWN_BITMAP_RVA+KEY_DOWN_BITMAP_BYTES<=MODEL_WRITABLE_END,"keysDown bitmap inside the writable segment");
+_Static_assert(KEY_PEER_RVA+KEY_PEER_LENGTH<=MODEL_EXECUTABLE_END,"peer lookup inside the executable segment");
+_Static_assert(KEY_PEER_FOR_RVA+KEY_PEER_FOR_LENGTH<=MODEL_EXECUTABLE_END,"peer table lookup inside the executable segment");
+_Static_assert(KEY_PRESS_RVA+KEY_PRESS_LENGTH<=MODEL_EXECUTABLE_END,"handleKeyPress inside the executable segment");
+_Static_assert(KEY_UP_DOWN_RVA+KEY_UP_DOWN_LENGTH<=MODEL_EXECUTABLE_END,"handleKeyUpOrDown inside the executable segment");
+_Static_assert(KEY_MODIFIERS_CHANGED_RVA+KEY_MODIFIERS_CHANGED_LENGTH<=MODEL_EXECUTABLE_END,"handleModifierKeysChange inside the executable segment");
 #ifdef COMMAND_COMPONENT
 static void (*component_global_dispatch)(unsigned,uint32_t,uint32_t,unsigned);
 /* The exact juce::KeyPress triple the production path builds, so the regression
@@ -388,7 +406,7 @@ canceled:
   * this callback without fabricating a native completion or a trace failure. */
  atomic_store_explicit(active_request+job.at,0,memory_order_seq_cst);
 finished:
- atomic_fetch_sub_explicit(&transport_pending,1,memory_order_seq_cst);
+ transport_finish(job.at,job.seq);
 }
 static void global_service(Context *c,unsigned at,const CommandRequest *r){
  uint32_t target=0,function=0;unsigned why=global_resolve(c,r,&target,&function);if(why==COMMAND_WAIT_HEARTBEAT)return;
@@ -417,8 +435,8 @@ static void global_service(Context *c,unsigned at,const CommandRequest *r){
   uint32_t holder=0,editor=0;why=transport_current(r,&check_target,&check_function,&holder,&editor);
   if(why||check_target!=target||check_function!=function){if(!why)why=C_SOURCE_CHANGED;goto reject;}
   TransportJob *job=transport_jobs+at;*job=(TransportJob){r->seq,at,r->epoch,root,project,r->project_owner,editor,r->global_owner,target,function,holder,r->reserved};
-  atomic_fetch_add_explicit(&transport_pending,1,memory_order_seq_cst);native_started[at]=r->seq;
-  if(!transport_queue_submit(observer_image_bias,holder,job,transport_audio)){native_started[at]=0;atomic_fetch_sub_explicit(&transport_pending,1,memory_order_seq_cst);why=C_NOT_READY;goto reject;}
+  atomic_fetch_add_explicit(&transport_pending,1,memory_order_seq_cst);atomic_store_explicit(transport_editors+at,job->editor,memory_order_seq_cst);atomic_store_explicit(transport_live+at,r->seq,memory_order_seq_cst);native_started[at]=r->seq;
+  if(!transport_queue_submit(observer_image_bias,holder,job,transport_audio)){native_started[at]=0;transport_finish(at,r->seq);why=C_NOT_READY;goto reject;}
   atomic_store_explicit(&slot->dispatched,r->seq,memory_order_release);atomic_store_explicit(&slot->returned,r->seq,memory_order_release);atomic_store_explicit(&slot->processed,r->seq,memory_order_release);atomic_store_explicit(&command_state->consumed,atomic_load(&command_state->consumed)+1,memory_order_release);return;
  }
  global_call.id=r->seq;global_call.owner=target;global_call.property=accepted[at].property;global_call.generation=atomic_load(&mirror_state->general.automation_generation);
@@ -462,7 +480,7 @@ if(record_already_on){
  native_started[at]=r->seq;memcpy(component_global_key,key,sizeof(key));component_global_dispatch(r->reserved,target,function,accepted[at].native_bits);
 #else
  if(r->reserved==CF_AUTOMATION||command_toggle(r->reserved)){native_started[at]=r->seq;((void (*)(void*,unsigned))(uintptr_t)function)((void*)(uintptr_t)target,accepted[at].native_bits);}
- else if(r->reserved==GLOBAL_SAVE||command_page(r->reserved)||command_history(r->reserved)){native_started[at]=r->seq;unsigned id=command_page(r->reserved)?command_page_id(r->reserved):r->reserved==GLOBAL_SAVE?0x2006:r->reserved==GLOBAL_UNDO?0x2018:0x2019;handled=((unsigned (*)(void*,unsigned))(uintptr_t)function)((void*)(uintptr_t)target,id);}
+ else if(r->reserved==GLOBAL_SAVE||command_page(r->reserved)||command_history(r->reserved)){native_started[at]=r->seq;unsigned id=command_page(r->reserved)?command_page_id(r->reserved):r->reserved==GLOBAL_SAVE?MODEL_GLOBAL_SAVE_ACTION:r->reserved==GLOBAL_UNDO?MODEL_GLOBAL_UNDO_ACTION:MODEL_GLOBAL_REDO_ACTION;handled=((unsigned (*)(void*,unsigned))(uintptr_t)function)((void*)(uintptr_t)target,id);}
  else {native_started[at]=r->seq;((void (*)(void*))(uintptr_t)function)((void*)(uintptr_t)target);}
 #endif
  }
@@ -471,7 +489,7 @@ if(record_already_on){
  if(command_toggle(r->reserved)){
   uint32_t post_target=0,post_function=0,post_property=0;unsigned value=0;
   /* Check the old current link before any post-call Sequence dereference. */
-  if(r->reserved==GLOBAL_LOOP_TOGGLE&&(!ready||loading||depth||reset_pending||!root||!project||r->epoch!=epoch||r->project_owner!=channel_owner_id(project)||word(root+0x24c)!=project||word(project+0xe4)!=target-0x210)){why=C_SOURCE_CHANGED;goto reject;}
+  if(r->reserved==GLOBAL_LOOP_TOGGLE&&(!ready||loading||depth||reset_pending||!root||!project||r->epoch!=epoch||r->project_owner!=channel_owner_id(project)||word(root+MODEL_ROOT_PROJECT)!=project||word(project+0xe4)!=target-0x210)){why=C_SOURCE_CHANGED;goto reject;}
   why=global_resolve(c,r,&post_target,&post_function);
   if(!why)why=global_toggle_target(r,&post_target,&post_function,&post_property,&value);
   if(why||post_target!=target||post_function!=function||post_property!=accepted[at].property||global_call.phase!=2||value!=accepted[at].native_bits){if(!why)why=C_SOURCE_CHANGED;goto reject;}

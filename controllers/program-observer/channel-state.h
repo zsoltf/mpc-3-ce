@@ -2,6 +2,7 @@
  * native owner and each Property has its own producer-scoped incarnation. */
 #ifndef MPC_CHANNEL_STATE_H
 #define MPC_CHANNEL_STATE_H
+#include "model-layout.h"
 #define CHANNEL_OWNERS 2048u
 #define CHANNEL_FIELDS 4096u
 #define CHANNEL_HASH 8192u
@@ -52,7 +53,7 @@ typedef struct {
  ChannelOwner owners[CHANNEL_OWNERS];ChannelCell fields[CHANNEL_FIELDS];
 } ChannelState;
 static inline unsigned channel_offset(unsigned field){
- static const unsigned offsets[CF_COUNT]={0x5b0,0x3d0,0x50,0x88,0x474,0x440,0x5f0,0x78,0x184,0x98,0x428,0x460,0x498,0x4d0,0xa8,0xec,0xc,0x68,0x500,0xc,0x28c};return field<CF_COUNT?offsets[field]:0;
+ static const unsigned offsets[CF_COUNT]={0x5b0,0x3d0,0x50,0x88,0x474,0x440,0x5f0,0x78,0x184,0x98,0x428,0x460,0x498,0x4d0,MODEL_MIXER_MASTER,0xec,0xc,0x68,0x500,0xc,0x28c};return field<CF_COUNT?offsets[field]:0;
 }
 static inline unsigned channel_kind(unsigned field){if(field>=CI_MIDI_MONITOR&&field<CHANNEL_FIELD_KINDS)return field<=CI_SEND_TO_AUDIO?CO_TRACK:CO_PROGRAM;return field==CF_CLICK?CO_CLICK:field==CF_RECORD_MODE?CO_RECORDING:field==CF_LOOP?CO_LOOP:field==CF_AUTOMATION?CO_AUTOMATION:field==CF_MASTER?CO_MIXER:field==CF_PLAYING?CO_TIMELINE:field==CF_SELECTION?CO_PROJECT:field==CF_ARM||field==CF_NAME||field==CF_COLOR||field==CF_MIDI_VOLUME?CO_TRACK:CO_PROGRAM;}
 #endif

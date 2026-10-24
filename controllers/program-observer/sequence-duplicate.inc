@@ -1,4 +1,6 @@
-/* Duplicate Sequence in one press: GLOBAL_SEQ_DUPLICATE.
+/* The historical address narrative below describes3.9.1. The selected profile
+ * supplies paired3.10 coordinates from the native CopySequence/owner trace.
+ * Duplicate Sequence in one press: GLOBAL_SEQ_DUPLICATE.
  *
  * The application has no one-press duplicate. Its pencil menu opens a
  * From/To/Name popup (popup id 0x3099, dialog ctor 0x02e71830) whose Confirm
@@ -141,26 +143,26 @@
  *    native call the observer makes) nor the cost of a synchronous whole-
  *    sequence copy on the UI drain in a loaded project is covered anywhere.
  */
-#define SEQ_DUP_CONFIRM_RVA 0x1951810u
+#define SEQ_DUP_CONFIRM_RVA MODEL_DUP_CONFIRM
 #define SEQ_DUP_CONFIRM_LENGTH 0x3a8u
 /* One folded .ARM.exidx range holds GetSequence 0x0255c304, FirstUnusedSequence
  * 0x0255c32c, CountUsedSequences 0x0255c378 and CurrentSequenceIndex
  * 0x0255c3b0. The lane calls the second; the others are provenance. */
-#define SEQ_DUP_ACCESSORS_RVA 0x255c304u
+#define SEQ_DUP_ACCESSORS_RVA MODEL_DUP_ACCESSORS
 #define SEQ_DUP_ACCESSORS_LENGTH 0xbcu
-#define SEQ_DUP_FIRST_UNUSED_RVA 0x255c32cu
-#define SEQ_DUP_DEFAULT_NAME_RVA 0x25b9638u
+#define SEQ_DUP_FIRST_UNUSED_RVA MODEL_DUP_FIRST_UNUSED
+#define SEQ_DUP_DEFAULT_NAME_RVA MODEL_DUP_DEFAULT_NAME
 #define SEQ_DUP_DEFAULT_NAME_LENGTH 0xf0u
 /* The String destructor the creation site itself uses on its temporary
  * (0x019518dc), inside its folded range. */
-#define SEQ_DUP_STRING_FREE_RVA 0x911f58u
-#define SEQ_DUP_STRING_GROUP_RVA 0x911e40u
+#define SEQ_DUP_STRING_FREE_RVA MODEL_STRING_DESTROY
+#define SEQ_DUP_STRING_GROUP_RVA MODEL_STRING_DESTROY_GROUP
 #define SEQ_DUP_STRING_GROUP_LENGTH 0x270u
-#define SEQ_DUP_NAV_VTABLE_RVA 0x689fdacu
-_Static_assert(SEQ_DUP_CONFIRM_RVA+SEQ_DUP_CONFIRM_LENGTH<=0x6875d04u,"CopySequence confirm inside the executable segment");
-_Static_assert(SEQ_DUP_ACCESSORS_RVA+SEQ_DUP_ACCESSORS_LENGTH<=0x6875d04u,"sequence accessors inside the executable segment");
-_Static_assert(SEQ_DUP_DEFAULT_NAME_RVA+SEQ_DUP_DEFAULT_NAME_LENGTH<=0x6875d04u,"default sequence name inside the executable segment");
-_Static_assert(SEQ_DUP_STRING_GROUP_RVA+SEQ_DUP_STRING_GROUP_LENGTH<=0x6875d04u,"String destructor inside the executable segment");
+#define SEQ_DUP_NAV_VTABLE_RVA MODEL_ASYNC_SEQUENCER_VPTR
+_Static_assert(SEQ_DUP_CONFIRM_RVA+SEQ_DUP_CONFIRM_LENGTH<=MODEL_EXECUTABLE_END,"CopySequence confirm inside the executable segment");
+_Static_assert(SEQ_DUP_ACCESSORS_RVA+SEQ_DUP_ACCESSORS_LENGTH<=MODEL_EXECUTABLE_END,"sequence accessors inside the executable segment");
+_Static_assert(SEQ_DUP_DEFAULT_NAME_RVA+SEQ_DUP_DEFAULT_NAME_LENGTH<=MODEL_EXECUTABLE_END,"default sequence name inside the executable segment");
+_Static_assert(SEQ_DUP_STRING_GROUP_RVA+SEQ_DUP_STRING_GROUP_LENGTH<=MODEL_EXECUTABLE_END,"String destructor inside the executable segment");
 /* The six words Confirm reads, and nothing else; the block is zeroed first, so
  * the seventh constructor argument at +0x50 goes in as 0. */
 #define SEQ_DUP_BLOCK_BYTES 0x58u
@@ -172,12 +174,12 @@ _Static_assert(SEQ_DUP_STRING_GROUP_RVA+SEQ_DUP_STRING_GROUP_LENGTH<=0x6875d04u,
 #define SEQ_DUP_BLOCK_NAV 0x54u
 /* The navigator chain, and the Project members the plan reads. */
 #define SEQ_DUP_EDITOR_ROOT 0x37cu
-#define SEQ_DUP_ROOT_AUDIO 0x2e4u
-#define SEQ_DUP_AUDIO_NAVIGATOR 0x3d8u
-#define SEQ_DUP_PROJECT_SEQUENCES 0xa70u
-#define SEQ_DUP_PROJECT_COUNT 0xa78u
+#define SEQ_DUP_ROOT_AUDIO MODEL_ROOT_AUDIO
+#define SEQ_DUP_AUDIO_NAVIGATOR MODEL_AUDIO_NAVIGATOR
+#define SEQ_DUP_PROJECT_SEQUENCES MODEL_PROJECT_SEQUENCES
+#define SEQ_DUP_PROJECT_COUNT MODEL_PROJECT_SEQUENCE_COUNT
 #define SEQ_DUP_PROJECT_CURRENT 0xe4u
-#define SEQ_DUP_PROJECT_MANAGER 0xab0u
+#define SEQ_DUP_PROJECT_MANAGER MODEL_PROJECT_HISTORY
 #define SEQ_DUP_SEQUENCE_SLOT 0x250u
 #define SEQ_DUP_SEQUENCE_USED 0x258u
 /* This lane's own sanity cap on the project's sequence count; a count past it
@@ -246,8 +248,8 @@ static void sequence_duplicate_string_free(uint32_t name){
 static unsigned sequence_duplicate_plan(uint32_t editor,SequenceDuplicatePlan *plan){
  memset(plan,0,sizeof(*plan));
  uint32_t here=atomic_load_explicit(&project,memory_order_acquire),editor_root=atomic_load_explicit(&root,memory_order_acquire);
- if(!pointer(here)||here>UINT32_MAX-(SEQ_DUP_PROJECT_MANAGER+4u)||!typed(here,0x6933c4c))return C_NATIVE_MEMBERSHIP;
- if(!pointer(editor_root)||editor_root<0xd0||word(editor_root+0x24c)!=here)return C_NATIVE_MEMBERSHIP;
+ if(!pointer(here)||here>UINT32_MAX-(SEQ_DUP_PROJECT_MANAGER+4u)||!typed(here,MODEL_PROJECT_VPTR))return C_NATIVE_MEMBERSHIP;
+ if(!pointer(editor_root)||editor_root<0xd0||word(editor_root+MODEL_ROOT_PROJECT)!=here)return C_NATIVE_MEMBERSHIP;
  uint32_t navigator=sequence_duplicate_navigator(editor,editor_root);
  if(!navigator)return C_NATIVE_MEMBERSHIP;
  uint32_t manager=word(here+SEQ_DUP_PROJECT_MANAGER);

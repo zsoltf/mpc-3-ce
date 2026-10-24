@@ -29,6 +29,12 @@ static const struct action *parse_action(int argc,char **argv) {
     return NULL;
 }
 
+/* MPC's ALSA client is renamed in 3.10. */
+#ifdef MODEL_FIRMWARE_310
+#define MPC_CLIENT_NAME "MPC 3"
+#else
+#define MPC_CLIENT_NAME "MPC"
+#endif
 struct route { snd_seq_addr_t input, adapter; int mpc_pid, adapter_pid; };
 static int same_address(snd_seq_addr_t a, snd_seq_addr_t b) {
     return a.client == b.client && a.port == b.port;
@@ -52,7 +58,7 @@ static int discover(snd_seq_t *seq, const char *adapter_exe, struct route *route
     int inputs = 0, sources = 0, rc;
     while ((rc = snd_seq_query_next_client(seq, client)) >= 0) {
         const char *name = snd_seq_client_info_get_name(client);
-        int mpc = !strcmp(name, "MPC"), adapter = !strcmp(name, "mpclearn-controls");
+        int mpc = !strcmp(name, MPC_CLIENT_NAME), adapter = !strcmp(name, "mpclearn-controls");
         if (!mpc && !adapter) continue;
         int pid = snd_seq_client_info_get_pid(client);
         if (snd_seq_client_info_get_type(client) != SND_SEQ_USER_CLIENT ||

@@ -3,31 +3,31 @@
 typedef struct {uint32_t tmi,bridge,list,context,pages;} EffectChooserNative;
 static int effects_chooser_native(EffectChooserNative *out){
  memset(out,0,sizeof(*out));
- if(!root||root>UINT32_MAX-0x840||!typed(root,0x68d7bf8))return 0;
- uint32_t tmi=word(root+0x83c);if(!typed(tmi,0x699efd0)||tmi>UINT32_MAX-0x3500||word(tmi+0x124)!=root)return 0;
- uint32_t object=word(tmi+0x598);
- const unsigned types[]={0x69e6b98,0x69e7608,0x69e9314,0x69e96a8,0x69e97b8};
+ if(!root||root>UINT32_MAX-MODEL_CHOOSER_ROOT_MIN_SPAN||!typed(root,MODEL_ROOT_VPTR))return 0;
+ uint32_t tmi=word(root+MODEL_ROOT_TMI);if(!typed(tmi,MODEL_TMI_VPTR)||tmi>UINT32_MAX-MODEL_CHOOSER_TMI_MIN_SPAN||word(tmi+0x124)!=root)return 0;
+ uint32_t object=word(tmi+MODEL_TMI_MAIN_PAGE);
+ const unsigned types[]={MODEL_MAIN_PAGE_VPTR,MODEL_MAIN_CONTENT_VPTR,MODEL_MAIN_TRACK_PANEL_VPTR,MODEL_CHOOSER_TRACKPANEL_VPTR,MODEL_CHOOSER_BRIDGE_VPTR};
  const unsigned offsets[]={0xe8,0x9c,0xc8,0xc8};
  for(unsigned i=0;i<5;i++){if(!typed(object,types[i])||object>UINT32_MAX-0x100)return 0;if(i<4)object=word(object+offsets[i]);}
- uint32_t bridge=object,context=word(root+0x1fc),pages=word(root+0x114);
+ uint32_t bridge=object,context=word(root+MODEL_CHOOSER_ROOT_CONTEXT),pages=word(root+MODEL_ROOT_PAGES);
  if(!pointer(context)||context>UINT32_MAX-0x40||!pointer(pages)||word(tmi+0x128)!=pages||word(bridge+0x2c)!=context||word(bridge+0x48)!=pages)return 0;
- uint32_t node=word(tmi+0x34ec),sentinel=tmi+0x34e8,n=word(tmi+0x34f8),seen[256];unsigned used=0;
+ uint32_t node=word(tmi+MODEL_CHOOSER_MAP_ROOT),sentinel=tmi+MODEL_CHOOSER_MAP_SENTINEL,n=word(tmi+MODEL_CHOOSER_MAP_COUNT),seen[256];unsigned used=0;
  if(!n||n>256)return 0;
  while(node&&node!=sentinel){
   if(used>=n||used>=256||!pointer(node)||node>UINT32_MAX-0x1c)return 0;
   for(unsigned i=0;i<used;i++)if(seen[i]==node)return 0;
   seen[used++]=node;uint32_t key=word(node+0x10);
-  if(key==0x30fa){object=word(node+0x14);if(!pointer(word(node+0x18))||!typed(object,0x69ca244)||object>UINT32_MAX-0x25c)return 0;
-   uint32_t list=object+0x18c;if(!typed(list,0x69ac190)||word(list+0xc4)!=pages||word(list+0xc8)!=context)return 0;
-   if(word(root+0x83c)!=tmi||word(tmi+0x124)!=root||word(root+0x1fc)!=context||word(root+0x114)!=pages)return 0;
+  if(key==MODEL_CHOOSER_OVERLAY_ID){object=word(node+0x14);if(!pointer(word(node+0x18))||!typed(object,MODEL_CHOOSER_OVERLAY_VPTR)||object>UINT32_MAX-0x25c)return 0;
+   uint32_t list=object+0x18c;if(!typed(list,MODEL_CHOOSER_LIST_VPTR)||word(list+0xc4)!=pages||word(list+0xc8)!=context)return 0;
+   if(word(root+MODEL_ROOT_TMI)!=tmi||word(tmi+0x124)!=root||word(root+MODEL_CHOOSER_ROOT_CONTEXT)!=context||word(root+MODEL_ROOT_PAGES)!=pages)return 0;
    *out=(EffectChooserNative){tmi,bridge,list,context,pages};return 1;
   }
-  node=word(node+(key<0x30fa?0xc:8));
+  node=word(node+(key<MODEL_CHOOSER_OVERLAY_ID?0xc:8));
  }
  return 0;
 }
 static unsigned effects_chooser_open(const EffectChooserNative *n){
- return ((unsigned (*)(void*,unsigned))(uintptr_t)(observer_image_bias+0x157507c))((void*)(uintptr_t)n->pages,0x30a8)!=0;
+ return ((unsigned (*)(void*,unsigned))(uintptr_t)(observer_image_bias+MODEL_PAGE_IS_OPEN))((void*)(uintptr_t)n->pages,MODEL_PLUGIN_CHOOSER_PAGE)!=0;
 }
 static int effects_chooser_context(const EffectChooserNative *n,uint32_t program,unsigned slot){return word(n->context+0x34)==program&&word(n->context+0x38)==0x101&&word(n->context+0x3c)==slot;}
 static unsigned effects_chooser_resolve(Context *c,const CommandRequest *r,EffectNative *out){
@@ -59,9 +59,9 @@ static void effects_chooser_service(Context *c,unsigned at,const CommandRequest 
  if(effects_chooser_open(&before)){why=C_BUSY;goto refused;}
  if(effects_chooser_resolve(c,r,&native)){why=C_SOURCE_CHANGED;goto refused;}
  atomic_store(active_request+at,r->seq);native_started[at]=r->seq;effects_chooser_event(c,CE_DISPATCH,at,&before);
- ((void (*)(void*,void*))(uintptr_t)(observer_image_bias+0x2b068f0))((void*)(uintptr_t)before.bridge,(void*)(uintptr_t)native.track->program);
+ ((void (*)(void*,void*))(uintptr_t)(observer_image_bias+MODEL_CHOOSER_PROGRAM_OPEN))((void*)(uintptr_t)before.bridge,(void*)(uintptr_t)native.track->program);
  if(effects_chooser_resolve(c,r,&native)||!effects_chooser_native(&after)||memcmp(&before,&after,sizeof(before))||word(after.context+0x34)!=native.track->program||word(after.context+0x38)!=0x101||effects_chooser_open(&after)){why=C_SOURCE_CHANGED;goto failed;}
- ((void (*)(void*,unsigned))(uintptr_t)(observer_image_bias+0x340e5d4))((void*)(uintptr_t)after.list,r->effect_slot);
+ ((void (*)(void*,unsigned))(uintptr_t)(observer_image_bias+MODEL_CHOOSER_SLOT_OPEN))((void*)(uintptr_t)after.list,r->effect_slot);
  if(effects_chooser_resolve(c,r,&native)||!effects_chooser_native(&after)||memcmp(&before,&after,sizeof(before))||!effects_chooser_open(&after)||!effects_chooser_context(&after,native.track->program,r->effect_slot)){why=C_SOURCE_CHANGED;goto failed;}
  effects_chooser=(EffectChooser){r->seq,EC_OPEN,r->epoch,r->serial,r->track_owner,r->program_owner,r->effect_slot,r->effect_generation,r->effect_key,r->effect_ap,atomic_load(&mirror_state->heartbeat)};
  effects_publish();effects_chooser_event(c,CE_CHOOSER_ACCEPT,at,&after);effects_chooser_event(c,CE_RETURN,at,&after);

@@ -19,9 +19,9 @@ static int clip_interest_cli(const char *command_path,const char *mirror_path,co
 unmap:munmap((void*)m,sizeof(*m));close(mfd);
 done:munmap(c,sizeof(*c));close(fd);return result;
 }
-static int clip_submit_cli(const char *command_path,const char *mirror_path,const char *view_arg,const char *intent_arg,const char *column_arg,const char *row_arg){
+static int clip_submit_cli(const char *command_path,const char *mirror_path,const char *view_arg,const char *intent_arg,const char *column_arg,const char *row_arg,const char *source_view_arg,const char *source_column_arg,const char *source_row_arg){
  char *end;errno=0;unsigned long view=strtoul(view_arg,&end,10);if(errno||!*view_arg||*end||view>=CLIP_VIEWS)return 2;
- unsigned long intent=strtoul(intent_arg,&end,10);if(errno||!*intent_arg||*end||intent<CLIP_LAUNCH||intent>CLIP_SELECT)return 2;
+ unsigned long intent=strtoul(intent_arg,&end,10);if(errno||!*intent_arg||*end||intent<CLIP_LAUNCH||intent>CLIP_LAST)return 2;
  unsigned long column=strtoul(column_arg,&end,10);if(errno||!*column_arg||*end||column>=8)return 2;
  unsigned long row=strtoul(row_arg,&end,10);if(errno||!*row_arg||*end||row>=8)return 2;
  int fd=-1,mfd=-1,result=1;struct stat st,mst;CommandState *c=map_file(command_path,sizeof(*c),1,&fd,&st);if(c==MAP_FAILED)return 1;
@@ -30,7 +30,13 @@ static int clip_submit_cli(const char *command_path,const char *mirror_path,cons
  uint64_t start=((uint64_t)c->start_hi<<32)|c->start_lo;
  if(!start||command_process_start(c->pid)!=start||!command_process_exact(c->pid)||!file_current(command_path,fd,&st)||!file_current(mirror_path,mfd,&mst)||!command_idle(c)||command_pending(c))goto unmap;
  MIRROR_COPY(s);uint32_t now;const char *reason=NULL;CommandRequest r;
- if(settlement_snapshot(m,&s,&now,&reason)!=1||!s.clips_available||!clip_request_bind(&r,&s.clips,view,intent,column,row,now)||command_process_start(c->pid)!=start)goto unmap;
+ if(settlement_snapshot(m,&s,&now,&reason)!=1||!s.clips_available||command_process_start(c->pid)!=start)goto unmap;
+ if(source_view_arg){
+  unsigned long sv=strtoul(source_view_arg,&end,10);if(errno||!*source_view_arg||*end||sv>=CLIP_VIEWS)goto unmap;
+  unsigned long sc=strtoul(source_column_arg,&end,10);if(errno||!*source_column_arg||*end||sc>=8)goto unmap;
+  unsigned long sr=strtoul(source_row_arg,&end,10);if(errno||!*source_row_arg||*end||sr>=8)goto unmap;
+  ClipEditSource source={0};if(!clip_edit_source(&source,&s.clips,sv,sc,sr,intent==CLIP_COPY_ROW,now)||!clip_copy_request(&r,&s.clips,view,&source,column,row,now))goto unmap;
+ }else if(!clip_request_bind(&r,&s.clips,view,intent,column,row,now))goto unmap;
  unsigned seq=atomic_load_explicit(&c->published,memory_order_acquire);if(seq>=COMMAND_SEQUENCE_LAST)goto unmap;
  r.pid=c->pid;r.start_lo=c->start_lo;r.start_hi=c->start_hi;r.origin_sec=c->origin_sec;r.origin_nsec=c->origin_nsec;r.seq=seq+1;
  unsigned at=command_free(c);if(!command_publish_request_at(c,&r,at))goto unmap;
