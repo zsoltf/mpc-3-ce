@@ -889,20 +889,78 @@
     #setup .setup { margin-top: 32px; }
     .release-note { color: var(--ink-2); font-size: 15px; margin-top: 28px; }
     .release-note a { margin-left: 8px; color: var(--ink); }
-    .workflow-session { width: 1280px; height: 800px; background: #111113; }
-    .workflow-session-head { height: 92px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; font-size: 28px; border-bottom: 3px solid #39393d; }
-    .workflow-session-head strong { color: #fff; font-size: 31px; }
-    .workflow-session-head span { color: #bbb; }
-    .workflow-clips { display: grid; grid-template-columns: 110px repeat(8, 1fr); grid-template-rows: 64px repeat(5, 112px); gap: 6px; padding: 14px; }
-    .workflow-track { color: #0b0b0b; background: var(--tc); text-align: center; font-size: 23px; line-height: 64px; overflow: hidden; }
-    .workflow-scene { display: grid; place-items: center; color: #bbb; font-size: 22px; }
-    .workflow-clip { position: relative; background: #1c1c20; border: 2px solid #343439; border-radius: 3px; }
-    .workflow-clip.filled { background: color-mix(in srgb, var(--tc) 28%, #141418); border-top: 8px solid var(--tc); }
-    .workflow-clip.filled::before { content: ''; position: absolute; left: 15px; right: 15px; top: 24px; height: 28px; background: repeating-linear-gradient(90deg, var(--tc) 0 5px, transparent 5px 13px); opacity: .7; }
-    .workflow-clip.playing { outline: 3px solid #fff; outline-offset: -5px; }
-    .workflow-clip.playing::after, .workflow-clip.queued::after { content: '\25B6'; position: absolute; right: 10px; bottom: 3px; color: #fff; font-size: 27px; }
-    .workflow-clip.queued::after { content: '\2026'; }
-    .workflow-playhead { position: absolute; top: 0; bottom: 0; width: 3px; background: #fff; z-index: 2; }
+    .workflow-session, .workflow-sequencer { width: 1280px; height: 800px; background: #171719; }
+    .workflow-clips { position: absolute; inset: 0 120px 68px 0; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: 100px repeat(8, 1fr); gap: 3px; }
+    .workflow-track { position: relative; padding: 9px 9px; color: var(--tc); background: #242427; border-top: 4px solid var(--tc); border-radius: 5px 5px 0 0; font-size: 20px; line-height: 1.15; overflow: hidden; }
+    .workflow-track small { display: block; font-size: 18px; margin-bottom: 3px; }
+    .workflow-track.selected { color: #111; background: var(--tc); }
+    .workflow-track.selected::after { content: ''; position: absolute; right: 14px; bottom: 13px; width: 25px; height: 25px; background: #141414; border-radius: 5px; }
+    .workflow-scenes { position: absolute; top: 102px; right: 1px; bottom: 68px; width: 118px; display: grid; grid-template-rows: repeat(8, 1fr); gap: 2px; }
+    .workflow-scene { position: relative; padding: 7px; color: #cccbd9; font-size: 15px; font-weight: 600; background: color-mix(in srgb, var(--sc) 28%, #08080b); border: 1px solid var(--sc); }
+    .workflow-scene::after { content: '\25B6'; position: absolute; left: 7px; bottom: 5px; font-size: 23px; }
+    .workflow-scene.playing::after { color: #19ff00; }
+    .workflow-session-settings { position: absolute; right: 0; top: 0; width: 120px; height: 101px; background: #242427; color: #c6c8d7; font-size: 15px; font-weight: 600; }
+    .workflow-session-settings span { display: block; height: 51px; padding: 13px 8px; border-bottom: 2px solid #171719; }
+    .workflow-session-settings b { float: right; font-size: 20px; line-height: 1; }
+    .workflow-clip { position: relative; min-width: 0; background: #222225; border-radius: 4px; overflow: hidden; }
+    .workflow-clip.filled { background: color-mix(in srgb, var(--tc) 25%, #171719); box-shadow: inset 0 0 0 2px var(--tc); }
+    .workflow-clip span { display: none; position: absolute; left: 13px; right: 5px; top: 50%; transform: translateY(-50%); color: #d0d0d7; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .workflow-clip.filled span { display: block; }
+    .workflow-clip span::before { content: '\25B6'; margin-right: 9px; }
+    .workflow-clip.arrange { clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 0 100%); }
+    .workflow-clip.arrange span { text-align: center; font-size: 0; }
+    .workflow-clip.arrange span::before { content: '\25B7'; font-size: 28px; margin: 0; }
+    .workflow-clip.playing { background: #4b4b4b; box-shadow: none; }
+    .workflow-clip.playing::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 20px; background: #fff; }
+    .workflow-clip.queued { box-shadow: inset 0 0 0 2px #fff; }
+    .workflow-footer { position: absolute; bottom: 0; left: 0; right: 0; height: 62px; padding: 10px 6px 8px; display: flex; gap: 12px; background: #050505; }
+    .workflow-footer > span { flex: 1; display: flex; align-items: center; justify-content: space-around; color: #eee; background: #171717; border: 1px solid #262626; border-radius: 5px; font-size: 19px; }
+    .workflow-footer > .wide { flex: 2.1; }
+    .workflow-footer i { font-style: normal; }
+    .workflow-seq-header { position: absolute; inset: 0 0 auto; height: 110px; display: grid; grid-template-columns: 510px 166px 92px 195px 1fr; padding: 14px; gap: 12px; border-bottom: 3px solid #090909; }
+    .workflow-seq-header > div { border-right: 1px solid #454548; padding-right: 12px; }
+    .workflow-seq-header small, .workflow-seq-tools small { display: block; color: #747478; font-size: 15px; line-height: 1.25; margin: 0 0 7px; }
+    .workflow-seq-header strong { font-size: 28px; font-weight: 400; color: #eee; }
+    .workflow-seq-header .track { border: 1px solid #bd1646; border-radius: 5px; padding: 12px 7px; margin-right: 2px; }
+    .workflow-seq-header .track small { margin-bottom: 3px; }
+    .workflow-seq-header .track b { color: #666; font-weight: 400; }
+    .workflow-seq-header .track em { float: right; font-size: 17px; font-style: normal; }
+    .workflow-seq-header .length { text-align: center; padding-top: 12px; }
+    .workflow-seq-header .length span { font-size: 19px; color: #747478; }
+    .workflow-seq-header .length b, .workflow-seq-header .bpm b { background: #c4c9d5; border-radius: 5px; color: #1d1d23; padding: 7px 12px; font-weight: 500; }
+    .workflow-seq-header .bpm b { font-size: 15px; margin-left: 22px; padding: 3px 9px; }
+    .workflow-seq-header .position { display: flex; justify-content: space-between; border: 0; }
+    .workflow-seq-header .position span { font-size: 26px; color: #ddd; }
+    .workflow-seq-header .position small { font-size: 12px; margin-bottom: 10px; }
+    .workflow-seq-tools { position: absolute; top: 110px; height: 113px; left: 0; right: 0; display: flex; align-items: center; gap: 30px; padding: 20px 24px; background: #242429; border-bottom: 2px solid #080808; }
+    .workflow-seq-tools .pad-selection { flex: 0 0 86px; background: transparent; border: 0; box-shadow: none; font-size: 19px; color: #d5d5e2; }
+    .workflow-seq-tools .pad-selection span { display: block; margin: 7px 0; }
+    .workflow-seq-tools .pad-selection small { display: inline; margin-right: 10px; }
+    .workflow-seq-tools .parameter { width: 320px; }
+    .workflow-seq-tools strong { color: #eee; font-size: 29px; font-weight: 400; }
+    .workflow-seq-tools .pages { font-size: 20px; color: #55555c; margin: 0 10px; }
+    .workflow-seq-tools .nudge { margin-left: auto; font-size: 19px; color: #b9b9ca; }
+    .workflow-seq-tools .presets { padding: 18px 28px; background: #18181a; font-size: 15px; color: #666; }
+    .workflow-velocities { position: absolute; left: 32px; top: 224px; width: 1056px; height: 394px; display: grid; grid-template-columns: repeat(16, 1fr); }
+    .workflow-velocity { position: relative; background: #18181a; border-right: 1px solid #151515; border-bottom: 4px solid #fff; }
+    .workflow-velocity:nth-child(8n+1), .workflow-velocity:nth-child(8n+2), .workflow-velocity:nth-child(8n+3), .workflow-velocity:nth-child(8n+4) { background: #202022; }
+    .workflow-velocity i { position: absolute; bottom: 0; left: 0; right: 0; background: #df0646; border-top: 4px double #262626; }
+    .workflow-velocity.current { border-bottom-color: #00cb87; }
+    .workflow-velocity.current i { background: #00cb87; }
+    .workflow-velocity-scale { position: absolute; left: 5px; top: 224px; width: 1084px; height: 394px; pointer-events: none; }
+    .workflow-velocity-scale span { position: absolute; left: 0; right: 0; border-bottom: 1px solid #303033; color: #666; font-size: 12px; padding-bottom: 3px; }
+    .workflow-velocity-fader { position: absolute; top: 255px; right: 35px; width: 120px; height: 328px; background: repeating-linear-gradient(to bottom, transparent 0 13px, #29292b 13px 14px); }
+    .workflow-velocity-fader::before { content: ''; position: absolute; left: 58px; top: 0; bottom: 0; width: 6px; background: #030303; border-radius: 4px; }
+    .workflow-velocity-fader::after { content: ''; position: absolute; top: 140px; left: 32px; width: 56px; height: 54px; border: 2px solid #c4d2d7; background: linear-gradient(#8fa1aa 0 44%, #df0646 45% 51%, #8fa1aa 52%); }
+    .workflow-step-controls { position: absolute; left: 0; right: 0; top: 620px; height: 118px; padding: 20px 198px 20px 32px; display: grid; grid-template-columns: repeat(16, 1fr); gap: 10px; background: #25252b; }
+    .workflow-step { position: relative; height: 44px; background: #303036; border: 2px solid transparent; border-radius: 4px; }
+    .workflow-step.on { background: #00b8ee; }
+    .workflow-step.current { border-color: #00cb87; }
+    .workflow-step.on.current { background: #00cb87; }
+    .workflow-step span { position: absolute; top: 60px; left: -5px; right: -5px; text-align: center; font-size: 14px; color: #666; }
+    .workflow-step:nth-child(4n+1) span { color: #eee; }
+    .workflow-flip { position: absolute; right: 36px; top: 642px; width: 120px; text-align: center; color: #666; font-size: 14px; }
+    .workflow-flip b { display: block; font: 48px/1.2 var(--sans); color: #66b4c8; margin-bottom: 4px; }
     .workflow-added { outline: 3px solid #fff; outline-offset: -3px; }
     .sc-world .lpb.demo-press { outline: 3px solid #fff; outline-offset: 3px; }
     .sc-world .xl-cap.demo-press { box-shadow: 0 0 0 3px #fff; }
@@ -2261,34 +2319,48 @@ mpc.style.marginTop = '0';
 mpc.querySelectorAll('.pad.hit').forEach(e => e.classList.remove('hit'));
 const screen = mpc.querySelector('.vwrap'), mix = screen.firstElementChild;
 const mixStrips = [...mix.querySelectorAll('.vs')];
+// Native layout references: cap-b1-matrix-after-launch.png and drum-step-fresh.png.
+// Demo track names, tempo and pattern differ; the screen arrangements follow the captures.
 const session = mk('div', 'vui workflow-session', screen);
-mk('div', 'workflow-session-head', session, null, '<strong>Clips</strong><span>120.00 BPM</span>');
 const clipGrid = mk('div', 'workflow-clips', session), clipCells = [];
-mk('span', '', clipGrid);
-TR.forEach(t => mk('div', 'workflow-track', clipGrid, { '--tc': t.c }, t.name));
-for (let r = 0; r < 5; r++) {
-  mk('div', 'workflow-scene', clipGrid, null, r === 0 ? 'Arrange' : 'Scene ' + r);
-  clipCells[r] = TR.map((t, c) => mk('div', 'workflow-clip' + (CLIPS[r][c] ? ' filled' : ''), clipGrid, { '--tc': t.c }));
+TR.forEach((t, c) => mk('div', 'workflow-track' + (c === 1 ? ' selected' : ''), clipGrid, { '--tc': t.c }, '<small>' + (c === 0 || c === 5 ? '&#9638; ' : '&#9641; ') + (c + 1) + '</small>' + t.name));
+for (let r = 0; r < 8; r++) {
+  clipCells[r] = TR.map((t, c) => {
+    const cell = mk('div', 'workflow-clip' + (r === 0 ? ' arrange' : '') + (CLIPS[r][c] ? ' filled' : ''), clipGrid, { '--tc': t.c });
+    mk('span', '', cell, null, t.name);
+    return cell;
+  });
 }
-const drum = decorativeClone(document.querySelector('#gridM'));
-screen.append(drum);
-drum.querySelectorAll('.gv-lane, .gv-lanel').forEach(e => e.remove());
-const drumRows = drum.querySelector('.gv-rows'), drumRoll = drum.querySelector('.gv-roll');
-const drumNames = ['A01 Kick', 'A02 Snare', 'A03 Hat', 'A04 Perc'];
-const rollH = 454, rowH = rollH / 4, rollW = 874;
-drumRows.replaceChildren();
-drumRows.style.height = rollH + 'px';
-for (let r = 3; r >= 0; r--) mk('span', '', drumRows, { height: rowH + 'px' }, drumNames[r]);
-drumRoll.replaceChildren();
-drumRoll.style.height = rollH + 'px';
-drumRoll.style.background = 'repeating-linear-gradient(to right, #383838 0 1px, transparent 1px ' + rollW / 4 + 'px), repeating-linear-gradient(to right, #232323 0 1px, transparent 1px ' + rollW / 16 + 'px), repeating-linear-gradient(to bottom, #171719 0 ' + (rowH - 1) + 'px, #39393c ' + (rowH - 1) + 'px ' + rowH + 'px)';
-const drumNotes = STEPS.map((row, sound) => row.map((on, step) => {
-  const note = mk('div', 'note', drumRoll, { left: step / 16 * rollW + 'px', top: (3 - sound) * rowH + 'px', width: rollW / 16 + 'px', height: rowH + 'px', '--nc': '#ff2f5f' });
-  mk('i', '', note);
-  note.hidden = !on;
-  return note;
-}));
-const playhead = mk('div', 'workflow-playhead', drumRoll);
+mk('div', 'workflow-session-settings', session, null, '<span>120.00 <b>&#9881;</b></span><span>1 bar</span>');
+const scenes = mk('div', 'workflow-scenes', session);
+const sceneColors = ['#6200ff', '#e300e8', '#f78700', '#c6d800', '#1bd100', '#00c7aa', '#0071ef', '#7800ed'];
+const sceneButtons = sceneColors.map((color, r) => mk('div', 'workflow-scene', scenes, { '--sc': color }, r === 0 ? 'Arrange' : String(r)));
+mk('div', 'workflow-footer', session, null, '<span class="wide"><i>&#9650;</i>MOVE 1<i>&#9660;</i></span><span class="wide"><i>&#9664;</i>MOVE 1<i>&#9654;</i></span><span>PADS: NOTES</span><span>BUSES</span>');
+
+// The native Step Sequencer displays one selected pad, not four drum lanes.
+const drum = mk('div', 'vui workflow-sequencer', screen);
+mk('div', 'workflow-seq-header', drum, null,
+  '<div class="track"><small>TRACK</small><strong><b>1</b> Drums <em>&#9662;</em></strong></div>' +
+  '<div class="length"><small>TRACK LENGTH</small><span>TRACK <b>SEQ</b></span></div>' +
+  '<div><small>BARS</small><strong>1</strong></div><div class="bpm"><small>BPM</small><strong>120.00</strong><b>GBL</b></div>' +
+  '<div class="position"><span><small>BAR</small>1:</span><span><small>BEAT</small>1:</span><span><small>TICK</small>0</span><span>&#9881;</span></div>');
+mk('div', 'workflow-seq-tools', drum, null,
+  '<div class="pad-selection"><span><small>PAD</small>A02</span><span><small>BAR</small>1</span></div>' +
+  '<div class="parameter"><small>PARAMETER</small><strong>Velocity</strong></div><div><small>TIME DIV</small><strong>1/16</strong></div>' +
+  '<span class="pages">&#8249; &nbsp; 1-16 &nbsp; &#8250;</span><span class="nudge">&#8249; &nbsp; NUDGE &nbsp; &#8250;</span><span class="presets">PRESETS</span>');
+const velocities = mk('div', 'workflow-velocities', drum);
+const velocityBars = Array.from({ length: 16 }, () => {
+  const column = mk('div', 'workflow-velocity', velocities);
+  const bar = mk('i', '', column, { height: (100 / 127 * 100) + '%' });
+  return { column, bar };
+});
+const velocityScale = mk('div', 'workflow-velocity-scale', drum);
+[96, 64, 32].forEach(value => mk('span', '', velocityScale, { bottom: (value / 127 * 100) + '%' }, String(value)));
+mk('div', 'workflow-velocity-fader', drum);
+const stepControls = mk('div', 'workflow-step-controls', drum);
+const stepButtons = Array.from({ length: 16 }, (_, i) => mk('div', 'workflow-step', stepControls, null, '<span>' + (i + 1) + '</span>'));
+mk('div', 'workflow-flip', drum, null, '<b>&#10227;</b>FLIP STEPS');
+mk('div', 'workflow-footer', drum, null, '<span>TC</span><span class="wide"><i>-</i>BAR<i>+</i></span><span>PAD SEL</span><span class="wide"><i>-</i>PAD<i>+</i></span>');
 const DBY = [[6, 328], [3, 374], [0, 413], [-3, 446], [-9, 496], [-20, 554], [-30, 583], [-60, 617]];
 function faderY(v) {
   const d = v > 0 ? Math.max(-60, 40 * Math.log10(v) + 6.0206) : -60;
@@ -2318,7 +2390,7 @@ function compose() {
     v.d.style.transform = 'translate(' + (x - v.w / 2).toFixed(1) + 'px,' + (y - h / 2).toFixed(1) + 'px) scale(' + scale.toFixed(4) + ')';
   });
   world.style.transform = 'scale(' + (stage.clientWidth / (narrow ? 600 : 1200)).toFixed(5) + ')';
-  [mix, session, drum].forEach(ui => ui.style.transform = 'scale(' + screen.clientWidth / (ui === drum ? 960 : 1280) + ')');
+  [mix, session, drum].forEach(ui => ui.style.transform = 'scale(' + screen.clientWidth / 1280 + ')');
 }
 
 /* ---------- One finite example, shared by each MPC screen and its controller ---------- */
@@ -2348,17 +2420,20 @@ function moment(k, t) {
       cell.classList.toggle('playing', PLAY[c] === r || (phase === 2 && c === 1 && r === 1));
       cell.classList.toggle('queued', phase === 1 && c === 1 && r === 1);
     }));
+    sceneButtons.forEach((button, r) => button.classList.toggle('playing', PLAY.includes(r) || (phase === 2 && r === 1)));
     announce(phase === 0 ? 'Launch the Bass clip in Scene 1.' : phase === 1 ? 'The Bass clip is queued for the next bar.' : 'Bass is playing. Its Launchpad pad pulses white.');
   } else if (k === 'pro') {
     const added = t >= 1.5, head = t < 6.5 ? Math.floor(t * 4) % 16 : -1;
     if (STEPS[1][6] !== added) { STEPS[1][6] = added; pro.head = null; }
     paintPro(pro, head);
     proCell(pro, 1, 6).classList.toggle('demo-press', added && t < 2.5);
-    drumNotes[1][6].hidden = !added;
-    drumNotes[1][6].classList.toggle('workflow-added', added);
-    playhead.hidden = head < 0;
-    playhead.style.left = head / 16 * rollW + 'px';
-    announce(added ? 'A snare step has been added on the Launchpad and in the MPC Grid.' : 'Add a snare on step 7 while the pattern plays.');
+    velocityBars.forEach(({ column, bar }, step) => {
+      bar.hidden = !STEPS[1][step];
+      column.classList.toggle('current', step === head);
+      stepButtons[step].classList.toggle('on', STEPS[1][step]);
+      stepButtons[step].classList.toggle('current', step === head);
+    });
+    announce(added ? 'Step 7 is added to A02 Snare on both devices.' : 'A02 Snare plays on steps 5 and 13. Add step 7 while it plays.');
   } else if (k === 'xl') {
     showXL(false);
     const p = Math.max(0, Math.min(1, (t - 1) / 1.8));
@@ -2385,6 +2460,7 @@ function show(k) {
   capEls.forEach(c => c.classList.toggle('on', c.dataset.k === k));
   Object.entries(DEV).forEach(([key, v]) => v.d.classList.toggle('on', k !== 'xt' && (key === 'mpc' || key === k || (key === 'lpx' && k === 'edit'))));
   lpx.box.querySelectorAll('.demo-press').forEach(e => e.classList.remove('demo-press'));
+  sceneButtons.forEach(button => button.classList.remove('playing'));
   clipCells.forEach((row, r) => row.forEach((cell, c) => {
     cell.classList.toggle('filled', CLIPS[r][c]);
     cell.classList.remove('playing', 'queued', 'workflow-added');
