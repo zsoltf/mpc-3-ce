@@ -2,11 +2,12 @@
 
 ## Connect a controller
 
-1. Set the device mode and its MPC MIDI/Sync input as listed below.
-2. Plug it in, open Preferences > CONTROLLERS and press **Detect**. Detect adds
+1. Set the device mode listed below, then connect it by USB.
+2. In Preferences > MIDI/Sync, set its input as listed below.
+3. Open Preferences > CONTROLLERS and press **Detect**. Detect adds
    every connected controller marked "Detect" that is not listed yet, and says
    what it added. It never changes or removes existing rows.
-3. For other controllers press **Add**, choose the profile, the From and To
+4. For other controllers press **Add**, choose the profile, the From and To
    ports, then **Apply**.
 
 To switch, select a row: **Edit** changes its profile or ports, **Disable**

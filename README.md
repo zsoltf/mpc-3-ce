@@ -1,7 +1,8 @@
 # MPC 3 CE
 
-MPC 3 CE for **MPC Live II**. Add USB controller
-integration, Global MIDI Learn, mouse editing, and touchscreen Pd and Cardinal.
+Free, unofficial firmware for **MPC Live II**. Mix tracks, launch clips and
+program drum patterns from USB controllers. Map controls with Global MIDI Learn,
+edit notes with a mouse, and play Pd and Cardinal synths and effects.
 Build your image in your browser from Akai's official update. Nothing is uploaded.
 
 **[Build your image](https://mpc3ce.com/builder.html)** ·
@@ -12,11 +13,11 @@ Build your image in your browser from Akai's official update. Nothing is uploade
 ## What it adds
 
 - **X-Touch:** motorized faders, track names and meters that follow the MPC;
-  mixer, transport, effects and Q-Link controls. [X-Touch guide](https://mpc3ce.com/guide.html).
+  mixer, transport, effects, Q-Link controls and project saving. [X-Touch guide](https://mpc3ce.com/guide.html).
 - **Launchpad X and Pro Mk3:** launch clips and scenes, copy clips or whole rows,
-  delete, double events, capture playing clips into a row and use Undo/Redo.
+  paste, delete and double clips, copy playing clips into a new row and use Undo/Redo.
   Pro Mk3 also has a direct Quantise shortcut.
-  Drum step sequencing works alongside clip control. [Visual guide](https://mpc3ce.com/launchpad-guide.html).
+  Program drum patterns while other clips play. [Visual guide](https://mpc3ce.com/launchpad-guide.html).
 - **Launch Control XL3:** faders and knobs for tracks and drum pads.
 - **Global MIDI Learn:** map MIDI buttons, knobs and faders to MPC functions.
 - **Mouse and wheel editing:** click and drag with a USB mouse; use Shift +
@@ -85,7 +86,7 @@ work without a controller.
 
 [Build from source](docs/BUILDING.md) ·
 [Report a bug](https://github.com/zsoltf/mpc-3-ce/issues) ·
-[Recovery](controllers/program-observer/MCU-START.md) ·
+[Recovery](controllers/program-observer/MCU-START.md#return-to-official-firmware) ·
 [Licence notes](NOTICE.md)
 
 MIT licence. Built on [MPC-LiveXplore](https://github.com/TheKikGen/MPC-LiveXplore).

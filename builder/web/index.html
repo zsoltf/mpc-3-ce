@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MPC 3 CE</title>
-  <meta name="description" content="Unofficial MPC 3 CE firmware for MPC Live II: motorized faders, clip launching, a step sequencer and hands-on mixing, plus Pd and Cardinal on the touchscreen.">
+  <meta name="description" content="Unofficial MPC 3 CE firmware for MPC Live II: motorized faders, clip launching, a step sequencer and mixing, plus Pd and Cardinal on the touchscreen.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <meta property="og:type" content="website">
   <meta property="og:title" content="MPC 3 CE">
-  <meta property="og:description" content="Unofficial MPC 3 CE firmware for MPC Live II: motorized faders, clip launching, a step sequencer and hands-on mixing, plus Pd and Cardinal on the touchscreen.">
+  <meta property="og:description" content="Unofficial MPC 3 CE firmware for MPC Live II: motorized faders, clip launching, a step sequencer and mixing, plus Pd and Cardinal on the touchscreen.">
   <meta property="og:url" content="https://mpc3ce.com/">
   <meta property="og:image" content="https://mpc3ce.com/og.png">
   <meta property="og:image:width" content="1200">
@@ -859,7 +859,14 @@
     .hero-intro h1 { font-size: clamp(64px, 7.4vw, 112px); }
     .hero-intro .lead { color: #e6e6e6; }
     .rig-chapter { padding-top: clamp(64px, 8vw, 112px); }
-    .rig-chapter .rig { margin-top: var(--gap); }
+    .rig-chapter .rig { max-width: none; margin-top: var(--gap); }
+    .rig-chapter .rig-tabs { margin-top: 0; }
+    #xtouch { scroll-margin-top: 90px; }
+    #xtouchDemo[hidden], #scStage[hidden] { display: none; }
+    #xtouchDemo .ch-links { justify-content: center; margin-bottom: 28px; }
+    #scStage { max-width: 1100px; margin: 28px auto 0; }
+    #scStage .sc-dev:not(.on) { visibility: hidden; }
+    #scStage[hidden] *, #scStage .sc-dev:not(.on) * { animation-play-state: paused !important; }
     @media (max-width: 860px) {
       .hero { min-height: 0; flex-direction: column; }
       .hero-photo { position: relative; z-index: 0; width: 100%; height: auto; aspect-ratio: 3 / 2; object-position: 70% 50%; order: 2; -webkit-mask-image: none; mask-image: none; }
@@ -900,7 +907,7 @@
       <div class="hero-intro">
         <p class="product">MPC 3 CE <span>v0.4.0 for MPC Live II</span></p>
         <h1>MPC 3 CE</h1>
-        <p class="lead">Unofficial MPC firmware with motorized faders, clip editing, a step sequencer, MIDI Learn and Pd/Cardinal. Free, built in your browser from Akai's 3.10 or 3.9.1 update.</p>
+        <p class="lead">Mix tracks, launch and edit clips, program drum patterns, and play Pd and Cardinal synths and effects. Free, unofficial firmware for MPC Live II, built in your browser from Akai's 3.10 or 3.9.1 update.</p>
         <div class="ctas">
           <a class="btn primary" href="builder.html">Build your image</a>
           <a class="text-link" href="#xtouch">X-Touch controls</a>
@@ -911,68 +918,19 @@
 
   <section class="chapter rig-chapter" id="tour">
     <div class="wrap">
-      <header class="ch-head">
+      <header class="ch-head" id="xtouch">
         <h2>Controllers</h2>
-        <p class="lead">Pick a feature to see what each controller does.</p>
+        <p class="lead">Move a fader or press Play in the X-Touch demo, or choose a Launchpad or XL3 feature to see it in action.</p>
       </header>
-      <figure class="rig">
-        <div class="sc-stage" id="scStage" role="img" aria-label="An MPC Live II with a Launchpad X, a Launchpad Pro Mk3, a Launch Control XL 3 and an X-Touch connected at once">
-          <div class="sc-world" id="scWorld" aria-hidden="true"></div>
+      <div class="rig">
+        <div class="rig-tabs" role="group" aria-label="Show a controller feature">
+          <button type="button" data-k="xt" aria-pressed="true" aria-controls="xtouchDemo">X-Touch</button>
+          <button type="button" data-k="lpx" aria-pressed="false" aria-controls="scStage">Clip launching</button>
+          <button type="button" data-k="pro" aria-pressed="false" aria-controls="scStage">Step sequencer</button>
+          <button type="button" data-k="xl" aria-pressed="false" aria-controls="scStage">Mixing</button>
         </div>
-        <div class="rig-tabs" role="group" aria-label="Show a feature">
-          <button type="button" data-k="xt" aria-pressed="false">Motorized faders</button>
-          <button type="button" data-k="lpx" aria-pressed="false">Clip launching</button>
-          <button type="button" data-k="pro" aria-pressed="false">Step sequencer</button>
-          <button type="button" data-k="xl" aria-pressed="false">Hands&#8209;on mixing</button>
-          <button type="button" data-k="mpc" aria-pressed="false">Setup</button>
-        </div>
-        <div class="rig-caps" aria-live="polite">
-          <p class="rig-cap on" data-k="">Two Launchpads, an XL3 and an X&#8209;Touch on one MPC Live II.</p>
-          <p class="rig-cap" data-k="xt">A Behringer X&#8209;Touch follows the MPC mixer: faders, track names and meters. <a href="guide.html">X&#8209;Touch guide</a></p>
-          <p class="rig-cap" data-k="lpx">A Launchpad X or Pro Mk3 shows your clips in their track colours and launches them in time with the MPC.</p>
-          <p class="rig-cap" data-k="pro">Program drum steps on a Launchpad while the MPC plays: 64 steps for one sound, or 16 for four.</p>
-          <p class="rig-cap" data-k="xl">A Launch Control XL3 mixes tracks in their colours. Shift and a track button switch it to that track&rsquo;s drum pads.</p>
-          <p class="rig-cap" data-k="mpc">Press Detect on the MPC&rsquo;s Controllers page. It adds every controller it recognises.</p>
-        </div>
-      </figure>
-      <h2>Independent Launchpads</h2>
-      <p>One Launchpad launches the next scene while the other edits a drum pattern. Use an X and Pro Mk3 together: each keeps its own view, and the drum editor stays on the chosen clip while the other surface launches clips.</p>
-      <p>Copy and delete clips or rows, use Undo/Redo, double events and insert a row containing the playing clips. Pro Mk3 also has a direct Quantise shortcut. See the <a class="text-link" href="launchpad-guide.html">Launchpad visual guide</a> for the exact buttons and examples.</p>
-      <noscript><p class="nojs">The drawings on this page need JavaScript.</p></noscript>
-    </div>
-  </section>
-
-  <section class="chapter" id="screens">
-    <div class="wrap">
-      <header class="ch-head">
-        <h2>On the MPC</h2>
-        <p class="lead">Real screens from an MPC Live II running CE.</p>
-      </header>
-      <div class="shots">
-        <figure>
-          <div class="ch-screen"><img src="img/mpc-controllers-detect.webp" width="1280" height="800" loading="lazy" decoding="async" alt="The MPC Controllers page with an X-Touch, a Launch Control XL 3, a Launchpad X and a Launchpad Pro Mk3, all connected, and the Detect button."></div>
-          <figcaption><strong>Controllers</strong>Detect has added the X&#8209;Touch, the XL3 and both Launchpads.</figcaption>
-        </figure>
-        <figure>
-          <div class="ch-screen"><img src="img/mpc-global-midi-learn.webp" width="1280" height="800" loading="lazy" decoding="async" alt="CE's Global MIDI Learn screen on the MPC: function groups, targets and the MIDI assignment for the selected target."></div>
-          <figcaption><strong>Global MIDI Learn</strong>Map any MIDI controller to MPC functions. It is on page two of the MPC menu.</figcaption>
-        </figure>
-        <figure>
-          <div class="ch-screen"><img src="img/mpc-cardinal.webp" width="1280" height="800" loading="lazy" decoding="async" alt="Cardinal Synth open on the MPC touchscreen, with patched Rack modules and the Back, Patches, Add and Tools buttons."></div>
-          <figcaption><strong>Pd and Cardinal</strong>Modular synths as MPC plugins, patched by touch. <a href="https://github.com/zsoltf/mpc-3-ce/blob/main/firmware/plugin-setup/README.md">Install the plugin bundle</a></figcaption>
-        </figure>
-      </div>
-    </div>
-  </section>
-
-  <section class="chapter" id="xtouch">
-    <div class="wrap">
-      <header class="ch-head">
-        <h2>X-Touch controls</h2>
-        <p class="lead">Move a fader on either device, tap a pad or press Play. Each follows the other.</p>
-        <p class="ch-links"><a class="btn" href="guide.html">X-Touch guide</a><a class="text-link" href="xtouch-cheatsheet.md" download>Download the cheat sheet</a></p>
-      </header>
-      <div class="ch-visual ch-stage">
+      <div class="ch-visual ch-stage" id="xtouchDemo">
+      <p class="ch-links"><a class="btn" href="guide.html">X-Touch guide</a><a class="text-link" href="xtouch-cheatsheet.md" download>Download the cheat sheet</a></p>
       <a class="skip" href="#mouse">Skip the demo</a>
       <div class="stage" id="stage" role="group" aria-label="Interactive demo: an MPC Live II and an X-Touch stay in sync">
         <figure>
@@ -1014,14 +972,49 @@
       </div>
       <p class="stage-hint"><button class="btn small" id="watchDemo" type="button" aria-pressed="false">Watch demo</button></p>
       </div>
+        <div class="sc-stage" id="scStage" role="img" aria-label="Launchpad X clip launching" hidden>
+          <div class="sc-world" id="scWorld" aria-hidden="true"></div>
+        </div>
+        <div class="rig-caps" aria-live="polite">
+          <p class="rig-cap on" data-k="xt">The MPC and X-Touch respond together. Try the faders, pads and Play button, or choose Watch demo.</p>
+          <p class="rig-cap" data-k="lpx">Launch clips and scenes from a Launchpad X or Pro Mk3. The pads show the MPC track colours. <a href="launchpad-guide.html">Launchpad guide</a></p>
+          <p class="rig-cap" data-k="pro">Program drum patterns while the MPC plays: 64 steps for one drum sound, or 16 steps each for four sounds. <a href="launchpad-guide.html">Launchpad guide</a></p>
+          <p class="rig-cap" data-k="xl">Use the Launch Control XL3&rsquo;s faders and knobs to adjust track volume and pan. Hold Shift and press a drum track&rsquo;s lower button to control its pads.</p>
+        </div>
+      </div>
+      <noscript><p class="nojs">The drawings on this page need JavaScript.</p></noscript>
     </div>
   </section>
+
+  <section class="chapter" id="screens">
+    <div class="wrap">
+      <header class="ch-head">
+        <h2>On the MPC</h2>
+        <p class="lead">Real screens from an MPC Live II running CE.</p>
+      </header>
+      <div class="shots">
+        <figure>
+          <div class="ch-screen"><img src="img/mpc-controllers-detect.webp" width="1280" height="800" loading="lazy" decoding="async" alt="The MPC Controllers page with an X-Touch, a Launch Control XL 3, a Launchpad X and a Launchpad Pro Mk3, all connected, and the Detect button."></div>
+          <figcaption><strong>Controllers</strong>Detect has added the X&#8209;Touch, the XL3 and both Launchpads.</figcaption>
+        </figure>
+        <figure>
+          <div class="ch-screen"><img src="img/mpc-global-midi-learn.webp" width="1280" height="800" loading="lazy" decoding="async" alt="CE's Global MIDI Learn screen on the MPC: function groups, targets and the MIDI assignment for the selected target."></div>
+          <figcaption><strong>Global MIDI Learn</strong>Map any MIDI controller to MPC functions. It is on page two of the MPC menu.</figcaption>
+        </figure>
+        <figure>
+          <div class="ch-screen"><img src="img/mpc-cardinal.webp" width="1280" height="800" loading="lazy" decoding="async" alt="Cardinal Synth open on the MPC touchscreen, with patched Rack modules and the Back, Patches, Add and Tools buttons."></div>
+          <figcaption><strong>Pd and Cardinal</strong>Modular synths as MPC plugins, patched by touch. <a href="https://github.com/zsoltf/mpc-3-ce/blob/main/firmware/plugin-setup/README.md">Install the plugin bundle</a></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
 
   <section class="chapter" id="mouse">
     <div class="wrap">
       <header class="ch-head">
         <h2>Mouse editing</h2>
-        <p class="lead">Plug a USB mouse into the MPC. Click a note or drag a box around several, then roll the wheel: it&rsquo;s the MPC&rsquo;s data wheel.</p>
+        <p class="lead">Plug a USB mouse into the MPC. Click a note or drag a box to select several notes. The mouse wheel works like the MPC data wheel.</p>
       </header>
       <div class="ch-visual ch-demo-wide">
         <div class="bezel" id="mouseDemo">
@@ -1046,7 +1039,7 @@
   <section class="chapter" id="shift">
     <div class="wrap">
       <header class="ch-head">
-        <h2>Note stepping</h2>
+        <h2>Note selection</h2>
         <p class="lead">In the Grid, hold Shift and turn the data wheel to select the next or previous note. On the X-Touch, Shift and the jog wheel do the same with Scrub off.</p>
       </header>
       <div class="ch-visual ch-demo-wide">
@@ -1076,9 +1069,9 @@
       </figure>
       <div class="setup">
         <ol class="setup-steps numbered">
-          <li><span>Set the controller's mode. Launchpads and the XL3 switch automatically.</span></li>
+          <li><span>Set the controller's mode, then connect it by USB. Launchpads and the XL3 switch modes automatically.</span></li>
           <li><span>In Preferences &gt; MIDI/Sync, turn <b>Track, Global and Control</b> off for its input.</span></li>
-          <li><span>Plug it in, open Preferences &gt; CONTROLLERS and press <b>Detect</b>. Existing rows stay as they are.</span></li>
+          <li><span>Open Preferences &gt; CONTROLLERS and press <b>Detect</b>.</span></li>
         </ol>
         <div class="table-wrap">
           <table class="dev-table">
@@ -1103,9 +1096,9 @@
       <p class="lead">CE runs on MPC 3.10. Build it from Akai&rsquo;s 3.10 update; the 3.9.1 update still builds v0.3.0.</p>
       <ul class="news">
         <li><strong>MPC 3.10</strong><span>Controllers, Detect, Global MIDI Learn and the Pd and Cardinal editors work on MPC 3.10.</span></li>
-        <li><strong>Launchpad editing</strong><span>Copy and delete clips or rows, Undo/Redo, Double and Insert &amp; Capture on both Launchpads; Quantise on Pro Mk3. Accepted edits briefly flash the target. The X-Touch Save key saves the current project.</span></li>
+        <li><strong>Clip editing</strong><span>Copy, paste, delete and double clips from either Launchpad. Copy or delete whole rows, copy playing clips into a new row, and undo or redo edits. Pro Mk3 also lets you quantize clips. The pad or scene button flashes after an edit.</span></li>
+        <li><strong>Save from the X-Touch</strong><span>Press Save to save the current project.</span></li>
         <li><strong>One builder</strong><span>Choose the 3.10 or 3.9.1 update file. The builder recognises it and makes the matching image.</span></li>
-        <li><strong>Version on the MPC</strong><span>Preferences &gt; Info shows MPC 3 CE 0.4.0.</span></li>
       </ul>
       <p class="news-more"><a class="text-link" href="https://github.com/zsoltf/mpc-3-ce/releases/tag/v0.4.0" rel="noopener noreferrer">Release notes</a></p>
     </div>
@@ -1116,7 +1109,7 @@
       <h2>Install</h2>
       <dl class="req">
         <div><dt>MPC Live II on firmware 3.10 or 3.9.1</dt><dd>Other Gen1 MPCs are untested. Gen2 and Force are not supported.</dd></div>
-        <div><dt>Controllers</dt><dd>Full-size X-Touch, Launchpad X or Pro Mk3, and Launch Control XL3 have device-tested features. See the <a href="https://github.com/zsoltf/mpc-3-ce/blob/main/docs/controller-programs.md">guide</a> for modes, routing and other profiles.</dd></div>
+        <div><dt>Controllers</dt><dd>Use an X-Touch, Launchpad X, Launchpad Pro Mk3 or Launch Control XL3. See the <a href="https://github.com/zsoltf/mpc-3-ce/blob/main/docs/controller-programs.md">guide</a> for modes, routing and other profiles.</dd></div>
         <div><dt>Without a controller</dt><dd>The USB mouse and Shift+wheel note selection work on their own.</dd></div>
       </dl>
       <ol class="steps numbered">
@@ -1126,7 +1119,7 @@
       </ol>
       <div class="get-cta">
         <a class="btn primary" href="builder.html">Build your image</a>
-        <p>The builder has the full install steps.</p>
+        <p>After installing v0.4.0, Preferences &gt; Info shows <b>MPC 3 CE 0.4.0</b>. The builder has the full install steps.</p>
       </div>
       <ul class="res">
         <li><a href="builder.html"><strong>Image builder</strong><span>Make your firmware image and install it.</span></a></li>
@@ -1160,6 +1153,7 @@
     <nav aria-label="Project links">
       <a href="builder.html">Image builder</a>
       <a href="guide.html">X-Touch guide</a>
+      <a href="launchpad-guide.html">Launchpad guide</a>
       <a href="xtouch-cheatsheet.md" download>Cheat sheet</a>
       <a href="https://github.com/zsoltf/mpc-3-ce/releases" rel="noopener noreferrer">Releases</a>
       <a href="https://github.com/zsoltf/mpc-3-ce/issues" rel="noopener noreferrer">Report a bug</a>
@@ -1744,7 +1738,7 @@ $('#watchDemo').addEventListener('click', () => {
 ['pointerdown', 'wheel', 'keydown'].forEach(t => stage.addEventListener(t, e => { if (e.isTrusted) stopAuto(); }, { passive: true }));
 addEventListener('resize', hideGhost);
 
-let running = false, booted = false, last = 0, acc = 0;
+let running = false, booted = false, last = 0, acc = 0, frameId = 0;
 function frame(now) {
   if (!running) return;
   const dt = Math.min(0.05, (now - (last || now)) / 1000);
@@ -1756,13 +1750,17 @@ function frame(now) {
   if (n === 5) acc = 0;
   runTweens(now);
   draw(now);
-  requestAnimationFrame(frame);
+  frameId = requestAnimationFrame(frame);
 }
 new IntersectionObserver(entries => {
   const vis = entries[0].isIntersecting;
   if (vis && !booted) { booted = true; powerOn(); }
-  if (vis && !running) { running = true; last = 0; requestAnimationFrame(frame); }
-  if (!vis) running = false;
+  if (vis && !running) { running = true; last = 0; frameId = requestAnimationFrame(frame); }
+  if (!vis) {
+    running = false;
+    cancelAnimationFrame(frameId);
+    if ($('#xtouchDemo').hidden) stopAuto();
+  }
 }, { threshold: 0.05 }).observe(stage);
 if (reduce) stepMotors();
 draw(performance.now());
@@ -2029,12 +2027,12 @@ wRender();
 })();
 </script>
 <script>
-/* Hero rig: the MPC Live II and its controllers. A feature button zooms to its
-   device, which shows its job once with the lights CE sends it. */
+/* Controller features: the original interactive X-Touch stage and the existing
+   Launchpad and XL3 drawings, selected in one place. */
 (() => {
 'use strict';
-const stage = document.querySelector('#scStage'), world = document.querySelector('#scWorld'), src = document.querySelector('#live2');
-if (!stage || !world || !src) return;
+const stage = document.querySelector('#scStage'), world = document.querySelector('#scWorld'), xtouch = document.querySelector('#xtouchDemo');
+if (!stage || !world || !xtouch) return;
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const mk = (tag, cls, parent, style, html) => {
   const e = document.createElement(tag);
@@ -2045,11 +2043,9 @@ const mk = (tag, cls, parent, style, html) => {
   return e;
 };
 const px = n => n + 'px';
-const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const ease = p => p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
 world.inert = true;
 
-// The hero Mixer's eight tracks, in the same MPC colours.
+// The MPC's eight track colours.
 const TR = [
   { name: 'Drums', c: '#19e65c' }, { name: 'Bass', c: '#ffb000' }, { name: 'Keys', c: '#1ec8ff' }, { name: 'Vox', c: '#ff4fa3' },
   { name: 'Pad', c: '#4f6bff' }, { name: 'Perc', c: '#ff5a36' }, { name: 'Chops', c: '#f2e24a' }, { name: 'FX', c: '#2ad4c0' },
@@ -2058,40 +2054,6 @@ const TR = [
 // and the drum-slot colours 5, 9, 13, 17 (red, orange, yellow, lime).
 const W = '#e7e9ec', G = '#4fcf7a', B = '#6f8fec', O = '#e9a54b', Y = '#e3d35e';
 const DRUM = ['#e5604f', O, Y, '#afd65c'];
-const S = { sel: 0, vol: [0.8, 0.7, 0.6, 0.74, 0.46, 0.56, 0.66, 0.4], pan: [0, -0.1, 0.35, 0, -0.5, 0.55, -0.25, 0.2] };
-
-/* ---------- MPC Live II: the hero's drawing, cloned ---------- */
-const mpc = src.cloneNode(true);
-mpc.removeAttribute('id');
-mpc.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
-mpc.querySelectorAll('button, [tabindex]').forEach(e => e.setAttribute('tabindex', '-1'));
-mpc.querySelectorAll('.pad.hit').forEach(p => p.classList.remove('hit'));
-Object.assign(mpc.style, { width: '560px', marginTop: '0' });
-const mix = mpc.querySelector('.vui.mixer'), vwrap = mpc.querySelector('.vwrap');
-const strips = [...mix.querySelectorAll('.vs')].map(root => ({ root, thumb: root.querySelector('.vs-thumb'), fv: root.querySelector('.fv') }));
-
-// The Mixer's fader scale, as in the hero.
-const DBY = [[6, 328], [3, 374], [0, 413], [-3, 446], [-9, 496], [-20, 554], [-30, 583], [-60, 617]];
-function dbToY(d) {
-  if (d >= 6) return 328;
-  if (d <= -60) return 617;
-  for (let k = 0; k < DBY.length - 1; k++) {
-    const [d0, y0] = DBY[k], [d1, y1] = DBY[k + 1];
-    if (d <= d0 && d >= d1) return y0 + (y1 - y0) * (d0 - d) / (d0 - d1);
-  }
-  return 617;
-}
-// MPC volume and X-Touch values, formatted as in the hero.
-const vToDb = v => v > 0 ? Math.max(-100, 40 * Math.log10(v) + 6.0206) : -100;
-const dbText = v => vToDb(v) <= -96 ? '-INF dB' : vToDb(v).toFixed(2) + 'dB';
-const xtDb = v => { const d = vToDb(v), r = Math.abs(d) < 0.005 ? 0 : d; return d <= -96 ? '-INF' : (r > 0 ? '+' : '') + r.toFixed(2); };
-function drawStrip(i) {
-  const m = strips[i];
-  m.root.classList.toggle('sel', i === S.sel);
-  m.thumb.style.top = px(dbToY(vToDb(S.vol[i])) - 318);
-  m.fv.textContent = dbText(S.vol[i]);
-}
-
 /* ---------- Launchpad X and Launchpad Pro Mk3, Programmer layouts ---------- */
 const arrow = d => '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="' + d + '"/></svg>';
 const UP = arrow('M5 1.5 9 8H1z'), DOWN = arrow('M5 8.5 1 2h8z'), LEFT = arrow('M1.5 5 8 1v8z'), RIGHT = arrow('M8.5 5 2 9V1z');
@@ -2230,7 +2192,7 @@ function paintXL(d, pads) {
   light(d.soloArm, pads ? B : Y, 'on'); light(d.muteSel, O, 'on');
   d.play.classList.add('on');
 }
-const XP = [0.55, 0.62, 0.48, 0.7, 0.58, 0.5, 0.66, 0.44], XV = S.vol.slice();
+const XP = [0.55, 0.62, 0.48, 0.7, 0.58, 0.5, 0.66, 0.44], XV = [0.8, 0.7, 0.6, 0.74, 0.46, 0.56, 0.66, 0.4];
 let xlPads = null;
 function showXL(pads) {
   if (pads === xlPads) return;
@@ -2241,28 +2203,9 @@ function showXL(pads) {
   xl.oled[1].textContent = String(Math.round((pads ? XP[0] : XV[0]) * 127));
 }
 
-/* ---------- Behringer X-Touch: the Motorized faders drawing, cloned ---------- */
-const xtSrc = document.querySelector('#xtBody');
-function buildXT() {
-  const box = xtSrc.cloneNode(true);
-  box.removeAttribute('id');
-  box.classList.remove('boot');
-  box.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
-  box.querySelectorAll('button, [tabindex]').forEach(e => e.setAttribute('tabindex', '-1'));
-  box.querySelectorAll('.cap.moving').forEach(e => e.classList.remove('moving'));
-  box.style.width = '568px';
-  const ch = [...box.querySelectorAll('.xs:not(.master)')].map(st => ({ cap: st.querySelector('.cap'), l2: st.querySelector('.lcd span:last-child'), mi: st.querySelector('.xm i') }));
-  box.querySelector('.xs.master .cap').style.setProperty('--p', '0.8');
-  return { box, ch };
-}
-const xt = buildXT();
-const METER = [0.62, 0.5, 0.44, 0.56, 0.38, 0.3, 0.46, 0.25];
-xt.ch.forEach((c, i) => { c.mi.style.height = ((1 - Math.ceil(METER[i] * 12) / 12) * 100).toFixed(1) + '%'; });
-function drawXTStrip(i) { xt.ch[i].cap.style.setProperty('--p', S.vol[i].toFixed(3)); xt.ch[i].l2.textContent = xtDb(S.vol[i]); }
-
 /* ---------- Composition ---------- */
 const DEV = {};
-[['lpx', lpx.box, 300], ['mpc', mpc, 560], ['pro', pro.box, 320], ['xl', xl.box, 628], ['xt', xt.box, 568]].forEach(([k, node, w]) => {
+[['lpx', lpx.box, 300], ['pro', pro.box, 320], ['xl', xl.box, 628]].forEach(([k, node, w]) => {
   // Each wrapper is a size container, so the drawings' cqw units resolve against the device.
   const d = mk('div', 'sc-dev', world, { width: px(w) });
   d.append(node);
@@ -2270,8 +2213,8 @@ const DEV = {};
 });
 // Device centre and width in world pixels.
 const LAYOUT = {
-  wide: { lpx: [175, 190, 250], mpc: [600, 185, 470], pro: [1025, 192, 252], xl: [358, 509, 245], xt: [768, 509, 395] },
-  narrow: { mpc: [300, 160, 500], lpx: [150, 450, 250], pro: [450, 452, 252], xl: [150, 736, 250], xt: [450, 736, 262] },
+  wide: { lpx: [175, 190, 250], pro: [1025, 192, 252], xl: [358, 509, 245] },
+  narrow: { lpx: [150, 450, 250], pro: [450, 452, 252], xl: [150, 736, 250] },
 };
 let narrow = false;
 function compose() {
@@ -2281,7 +2224,6 @@ function compose() {
     v.d.style.transform = 'translate(' + (x - v.w / 2).toFixed(1) + 'px,' + (y - h / 2).toFixed(1) + 'px) scale(' + s.toFixed(4) + ')';
   });
 }
-const WORLD = { wide: [1200, 690], narrow: [600, 860] };
 // A device's centre and size in world pixels.
 function box(k) {
   const [x, y, w] = LAYOUT[narrow ? 'narrow' : 'wide'][k], v = DEV[k];
@@ -2289,13 +2231,8 @@ function box(k) {
 }
 
 /* ---------- Moments: what each device does when the camera reaches it ---------- */
-// The MPC screen shows its real Controllers page at the Setup stop.
-const shot = mk('div', 'sc-shot', vwrap, null, '<img alt="" src="img/mpc-controllers-detect.webp" decoding="async">').firstChild;
 // Each feature's moment, t seconds after it is shown; still shows the end state.
 function moment(k, t) {
-  // Motorized faders: Vox rises on the MPC and the X-Touch motor follows.
-  const v = k === 'xt' ? 0.5 + 0.36 * ease(clamp((t - 0.6) / 1.2, 0, 1)) : 0.86;
-  if (v !== S.vol[3]) { S.vol[3] = v; drawStrip(3); drawXTStrip(3); }
   // Clip launching: Bass's scene 1 clip is queued, then plays on the next bar.
   const phase = k !== 'lpx' ? 2 : t < 0.9 ? 0 : t < 2.2 ? 1 : 2;
   if (phase !== moment.phase) { moment.phase = phase; paintLPX(phase); }
@@ -2303,76 +2240,65 @@ function moment(k, t) {
   paintPro(pro, k === 'pro' && t > 0.5 ? Math.floor((t - 0.5) / 0.25) % 16 : -1);
   // Hands-on mixing: Shift and the Drums track button switch the XL3 to its pads.
   showXL(k === 'xl' ? t >= 2 : false);
-  // Setup: Detect on the Controllers page.
-  shot.classList.toggle('on', k === 'mpc' && t >= 0.8);
 }
 
 const rig = stage.closest('.rig');
 const tabs = [...rig.querySelectorAll('.rig-tabs button')], capEls = [...rig.querySelectorAll('.rig-cap')];
-const ORDER = tabs.map(b => b.dataset.k), CYCLE = [''].concat(ORDER);
-const DWELL = 6;  // seconds per feature while cycling on its own
-let current = '', since = 0, auto = !reduce, visible = false, running = false;
+const labels = { lpx: 'Launchpad X clip launching', pro: 'Launchpad Pro Mk3 step sequencer', xl: 'Launch Control XL3 mixing' };
+let current = 'xt', since = 0, visible = false, running = false, frameId = 0;
 function aim() {
-  const W = stage.clientWidth, H = stage.clientHeight, [ww] = WORLD[narrow ? 'narrow' : 'wide'];
-  if (!current) { world.style.transform = 'scale(' + (W / ww).toFixed(4) + ')'; return; }
+  if (current === 'xt') return;
+  const W = stage.clientWidth, H = stage.clientHeight;
   const b = box(current), k = Math.min(W * (narrow ? 0.94 : 0.8) / b.w, H * 0.86 / b.h);
   world.style.transform = 'translate(' + (W / 2 - b.x * k).toFixed(1) + 'px,' + (H / 2 - b.y * k).toFixed(1) + 'px) scale(' + k.toFixed(4) + ')';
 }
 function show(k) {
   current = k;
   since = performance.now();
+  xtouch.hidden = k !== 'xt';
+  stage.hidden = k === 'xt';
   tabs.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === k)));
   capEls.forEach(c => c.classList.toggle('on', c.dataset.k === k));
-  stage.classList.toggle('cycling', !!k);
-  Object.entries(DEV).forEach(([key, v]) => v.d.classList.toggle('on', !k || key === k));
-  aim();
-  moment(k, reduce ? 99 : 0);
+  Object.entries(DEV).forEach(([key, v]) => v.d.classList.toggle('on', key === k));
+  if (k !== 'xt') {
+    stage.setAttribute('aria-label', labels[k]);
+    layout();
+    moment(k, reduce ? 99 : 0);
+  }
   wake();
 }
 function frame(now) {
   if (!running) return;
   const t = (now - since) / 1000;
   moment(current, t);
-  if (auto) {
-    const tab = tabs[ORDER.indexOf(current)];
-    if (tab) tab.style.setProperty('--t', clamp(t / DWELL, 0, 1).toFixed(3));
-    if (t >= (current ? DWELL : 4)) {
-      if (tab) tab.style.removeProperty('--t');
-      show(CYCLE[(CYCLE.indexOf(current) + 1) % CYCLE.length]);
-    }
-  }
-  // Rest when nothing moves: no autoplay and the moment is over (the Pro keeps playing).
-  if (!auto && t > 9 && current !== 'pro') { running = false; return; }
-  requestAnimationFrame(frame);
+  // Rest when the moment is over; the step sequencer keeps playing while shown.
+  if (t > 9 && current !== 'pro') { running = false; return; }
+  frameId = requestAnimationFrame(frame);
 }
 function wake() {
-  const want = visible && !document.hidden && !reduce;
-  if (want && !running) { running = true; requestAnimationFrame(frame); }
-  if (!want) running = false;
+  const want = current !== 'xt' && visible && !document.hidden && !reduce;
+  if (want && !running) { running = true; frameId = requestAnimationFrame(frame); }
+  if (!want) { running = false; cancelAnimationFrame(frameId); }
 }
-function stopAuto() { auto = false; rig.classList.remove('auto'); tabs.forEach(b => b.style.removeProperty('--t')); }
-tabs.forEach(b => b.addEventListener('click', () => {
-  stopAuto();
-  show(current === b.dataset.k ? '' : b.dataset.k);
-}));
+tabs.forEach(b => b.addEventListener('click', () => show(b.dataset.k)));
+// Existing X-Touch links select the original demo even after another mode was chosen.
+document.querySelectorAll('a[href="#xtouch"]').forEach(a => a.addEventListener('click', () => show('xt')));
+addEventListener('hashchange', () => { if (location.hash === '#xtouch') show('xt'); });
 function layout() {
+  if (stage.hidden) return;
   const nw = stage.clientWidth < 640;
-  if (nw !== narrow) { narrow = nw; stage.classList.toggle('narrow', nw); compose(); }
-  // The cloned Mixer is drawn at 1280x800; scale it to its frame (layout size, unaffected by the world).
-  mix.style.transform = 'scale(' + (vwrap.clientWidth / 1280) + ')';
+  narrow = nw;
+  stage.classList.toggle('narrow', nw);
+  compose();
   world.style.transition = 'none';
   aim();
   world.offsetWidth;
   world.style.transition = '';
 }
 
-for (let i = 0; i < 8; i++) { drawStrip(i); drawXTStrip(i); }
 showXL(false);
-compose();
-layout();
 new ResizeObserver(layout).observe(stage);
-if (auto) rig.classList.add('auto');
-show('');
+show('xt');
 new IntersectionObserver(es => { visible = es[0].isIntersecting; wake(); }, { threshold: 0.4 }).observe(stage);
 document.addEventListener('visibilitychange', wake);
 })();
