@@ -1849,15 +1849,17 @@ static void outbound_update_checks(void){
 static unsigned admission_interrupt_after,admission_write_count;
 static void admission_write_checkpoint(void){if(admission_interrupt_after&&++admission_write_count==admission_interrupt_after)raise(SIGKILL);}
 #include "control-program-production-test.inc"
+#include "mini-production-test.inc"
 int main(int argc,char **argv){
+ if(argc==2&&!strcmp(argv[1],"--mini")){mini_production_checks();return 0;}
  if(argc==2&&!strcmp(argv[1],"--profiles")){profile_policy_checks();return 0;}
  if(argc==2&&!strcmp(argv[1],"--programs")){control_program_production_checks();return 0;}
  if(argc==2&&!strcmp(argv[1],"--novation")){novation_production_checks();return 0;}
  control_program_production_checks();
  novation_production_checks();
- if(argc==2&&!strcmp(argv[1],"--policy")){alarm(20);profile_policy_checks();runtime_cycle_checks();collection_production_checks();hui_unready_liveness_checks();outbound_update_checks();native_text_wire_checks();binding_sync_checks();binding_reversal_checks();qlink_mode_routing_checks();input_page_checks();following_reenable_checks();milestone_checks();drum_channel_checks();drum_surface_checks();policy_checks();toggle_midi_checks();assignment_checks();effects_policy_checks();jog_policy_checks();data_wheel_checks();sequence_duplicate_bridge_checks();blocking_gate_checks();stop_type_checks();stop_relay_checks();master_policy_checks();return 0;}
+ if(argc==2&&!strcmp(argv[1],"--policy")){alarm(20);profile_policy_checks();mini_production_checks();runtime_cycle_checks();collection_production_checks();hui_unready_liveness_checks();outbound_update_checks();native_text_wire_checks();binding_sync_checks();binding_reversal_checks();qlink_mode_routing_checks();input_page_checks();following_reenable_checks();milestone_checks();drum_channel_checks();drum_surface_checks();policy_checks();toggle_midi_checks();assignment_checks();effects_policy_checks();jog_policy_checks();data_wheel_checks();sequence_duplicate_bridge_checks();blocking_gate_checks();stop_type_checks();stop_relay_checks();master_policy_checks();return 0;}
  if(argc!=3)return 2;
- alarm(20);profile_policy_checks();runtime_cycle_checks();collection_production_checks();hui_unready_liveness_checks();outbound_update_checks();native_text_wire_checks();binding_sync_checks();binding_reversal_checks();qlink_mode_routing_checks();input_page_checks();following_reenable_checks();milestone_checks();drum_channel_checks();drum_surface_checks();policy_checks();toggle_midi_checks();assignment_checks();effects_policy_checks();jog_policy_checks();data_wheel_checks();sequence_duplicate_bridge_checks();blocking_gate_checks();stop_type_checks();stop_relay_checks();master_policy_checks();
+ alarm(20);profile_policy_checks();mini_production_checks();runtime_cycle_checks();collection_production_checks();hui_unready_liveness_checks();outbound_update_checks();native_text_wire_checks();binding_sync_checks();binding_reversal_checks();qlink_mode_routing_checks();input_page_checks();following_reenable_checks();milestone_checks();drum_channel_checks();drum_surface_checks();policy_checks();toggle_midi_checks();assignment_checks();effects_policy_checks();jog_policy_checks();data_wheel_checks();sequence_duplicate_bridge_checks();blocking_gate_checks();stop_type_checks();stop_relay_checks();master_policy_checks();
  char *defaults[]={"mirror-input","/volume","/command"};need(servo_arguments(3,defaults)==3&&servo_disabled,"separate-process composition uses default no-echo policy");
  int fd=open(argv[1],O_RDONLY|O_CLOEXEC);struct stat st;need(fd>=0&&!fstat(fd,&st)&&st.st_size==sizeof(MirrorState),"actual producer mirror file");
  const MirrorState *state=mmap(NULL,sizeof(*state),PROT_READ,MAP_SHARED,fd,0);need(state!=MAP_FAILED,"actual read-only mirror mapping");

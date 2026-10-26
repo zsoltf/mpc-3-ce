@@ -433,5 +433,11 @@
   "release/public-source-v0.3.0.json": "release/public-source-v0.3.0.json",
   "firmware/v0.4.0-runtime.sha256": "firmware/v0.4.0-runtime.sha256",
   "firmware/v0.4.0-payload.sha256": "firmware/v0.4.0-payload.sha256",
-  "builder/web/site.css": "builder/web/site.css"
+  "builder/web/site.css": "builder/web/site.css",
+  "controllers/program-observer/mini-surface.inc": "controllers/program-observer/mini-surface.inc",
+  "controllers/program-observer/mini-production-test.inc": "controllers/program-observer/mini-production-test.inc",
+  "builder/web/mini-guide.html": "builder/web/mini-guide.html",
+  "docs/releases/v0.4.1.md": "docs/releases/v0.4.1.md",
+  "firmware/v0.4.1-runtime.sha256": "firmware/v0.4.1-runtime.sha256",
+  "firmware/v0.4.1-payload.sha256": "firmware/v0.4.1-payload.sha256"
 }

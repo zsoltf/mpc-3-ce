@@ -126,6 +126,13 @@ static inline int mcu_has(const McuEndpoint *endpoint,unsigned capability){
  return endpoint&&endpoint->profile&&(endpoint->profile->capabilities&capability)!=0;
 }
 
+/* Mini MC feedback addresses its sixteen ordinary buttons (QSG pp18-19),
+ * not the full MCU strip/global note space. Layer A/B are input controls;
+ * their assignable lamp behavior is undocumented, so do not send those notes. */
+static inline int mcu_led_note_supported(const McuProfile *profile,unsigned channel,unsigned note){
+ return profile!=&mcu_profile_xtouch_mini||(!channel&&((note>=40&&note<=45)||(note>=86&&note<=95)));
+}
+
 static inline int mcu_master_input_position(const McuEndpoint *endpoint,unsigned raw,unsigned *position){
  if(!endpoint||!endpoint->profile||!position||!endpoint->profile->master_input_max||raw>endpoint->profile->master_input_max)return 0;
  unsigned maximum=endpoint->profile->master_input_max;

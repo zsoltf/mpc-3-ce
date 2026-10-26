@@ -520,6 +520,7 @@ static int surface_event_profile(const snd_seq_event_t *event,snd_seq_addr_t ful
  if(mcu_has(endpoint,MCU_CAP_TOUCH)&&note>=104&&note<=111){*kind=1;*channel=note-104;*value=down;return 1;}
  if(note>=46&&note<=49){*kind=2;*channel=note-46;*value=down;return 1;}
 #ifdef MIRROR_INPUT
+ if(endpoint->profile==&mcu_profile_xtouch_mini&&(note==84||note==87||note==88||note==90)){*kind=11;*channel=note;*value=down;return 1;}
  if((mcu_has(endpoint,MCU_CAP_GLOBAL)&&((note>=54&&note<=61)||note==95||note==86||note==89||note==52||note==74||note==75||note==79||note==80||note==81||note==82||note==83||note==85))||(mcu_has(endpoint,MCU_CAP_JOG)&&note>=96&&note<=101)){*kind=11;*channel=note;*value=down;return 1;}
  if(mcu_has(endpoint,MCU_CAP_GLOBAL)&&(note==40||note==41||note==42||note==43||note==44||note==45||note==50||note==51||(note>=62&&note<=69))){*kind=6;*channel=note;*value=down;return 1;}
  if(note<40){*kind=5;*channel=note;*value=down;return 1;}
@@ -546,7 +547,7 @@ typedef struct {unsigned layer;unsigned char held[68];ProgramQLinkPickup qlinks[
 typedef struct {snd_seq_t *seq;snd_seq_addr_t full,output,ingress;int sink,source;unsigned bank_down[4],button_down[40],display_field[8],general_down[128];
 #ifdef MIRROR_INPUT
  SurfaceContext *context;
- unsigned shared_connection;
+ unsigned shared_connection,mini_layer_consumed,mini_button_mode,mini_navigation_locked;
  snd_seq_addr_t stop_adapter,stop_mpc;int stop_sink;
  HuiInput hui_input;HuiPickup hui_pickup[HUI_STRIPS];uint32_t hui_connected_tick,hui_heartbeat_tick,hui_reply_tick;unsigned hui_heartbeat_valid,hui_reply_count;
  unsigned char hui_led[HUI_STRIPS][4],hui_led_valid[HUI_STRIPS],hui_transport[3];unsigned hui_transport_valid;
@@ -682,7 +683,17 @@ static int surface_servo(Surface *s,MirrorBank *bank,unsigned strip,int position
  bank->faders[strip].last_sent=position;bank->faders[strip].last_tick=now;
  INPUT_LOG("SERVO fader=%u position=%d tick=%u; physical acknowledgement only\n",strip+1,position,now);return 1;
 }
+/* A Mini has eight encoders and no strip faders. Its Track assignment owns
+ * Volume directly; full-size MCU Track/Flip behavior stays in the bank core. */
+static unsigned surface_encoder_field(const Surface *s,const MirrorBank *bank,unsigned strip){
+ return SURFACE_VALUE(s,controller).profile==&mcu_profile_xtouch_mini&&bank->assignment==BA_TRACK?bank->volume_fields[strip]:bank_encoder_field(bank,strip);
+}
+#include "mini-surface.inc"
 static void surface_encoder(Surface *s,MirrorInput *in,const MirrorBank *bank,const CopiedMirror *snapshot,unsigned strip,int delta,int push,uint32_t now){
+ if(SURFACE_VALUE(s,controller).profile==&mcu_profile_xtouch_mini){
+  if(bank->assignment==BA_MINI_SEND){mini_send_encoder(in,bank,snapshot,strip,delta,push,now);return;}
+  if(push&&(bank->assignment==BA_TRACK||bank->assignment==BA_PAN)){input_control_bound(in,bank,snapshot,strip,CF_SELECTION,0,1,now,bank->strips+strip,3);return;}
+ }
  if(bank->assignment==BA_IO){if(!push)input_io_edit(in,bank,snapshot,strip,delta,now);return;}
  if(bank->assignment==BA_QLINK){
   if(bank->flip){unsigned field=bank->volume_fields[strip];input_control_bound(in,bank,snapshot,strip,field,delta,push,now,&bank->strips[strip],3);s->display_field[strip]=field;s->display_until[strip]=now+2000;}
@@ -698,7 +709,7 @@ static void surface_encoder(Surface *s,MirrorInput *in,const MirrorBank *bank,co
   }else input_effect_edit(in,bank,snapshot,strip,delta,push&&in->jog_shift?2:push,now);
   return;
  }
- unsigned field=bank_encoder_field(bank,strip);if(field>=CF_COUNT)return;
+ unsigned field=surface_encoder_field(s,bank,strip);if(field>=CF_COUNT)return;
  unsigned selected=bank->assignment==BA_SEND&&!bank->flip;
  input_control_bound(in,bank,snapshot,strip,field,delta,push,now,bank_encoder_identity(bank,strip),selected?1:3);
  s->display_until[strip]=now>UINT32_MAX-2000?UINT32_MAX:now+2000;
@@ -914,6 +925,9 @@ static int surface_consume(Surface *s,MirrorBank *bank,const MirrorState *state,
    hui_pickup_sync(s,&SURFACE_VALUE(s,input),bank,now);
    if(!copied||!snapshot->ready||atomic_load(&SURFACE_VALUE(s,input).commands->new_project_intent)){
     unsigned held_shift=SURFACE_VALUE(s,input).jog_shift;input_discard(&SURFACE_VALUE(s,input));input_jog_discard(&SURFACE_VALUE(s,input));SURFACE_VALUE(s,input).jog_shift=held_shift;input_master_invalidate(&SURFACE_VALUE(s,input));
+    if(SURFACE_VALUE(s,controller).profile==&mcu_profile_xtouch_mini&&(kind==6||kind==9||kind==11||kind==12)){
+     mini_unready_button(s,&SURFACE_VALUE(s,input),snapshot,channel,value,now);continue;
+    }
     if(kind==1)bank_touch(bank,channel,value,now);
     else if(kind==7){s->master_touch=value;s->master_tick=now;}
     else if(kind==3){if(SURFACE_VALUE(s,controller).profile->protocol==MCU_PROTOCOL_HUI)(void)hui_pickup_position(s,channel,value);else{bank->faders[channel].physical=value;motor_follow_report(&SURFACE_VALUE(s,following).motors[channel],value,now,0);}}
@@ -921,10 +935,11 @@ static int surface_consume(Surface *s,MirrorBank *bank,const MirrorState *state,
     else if(kind==9&&channel==70)SURFACE_VALUE(s,input).jog_shift=value;
     else if(kind==6&&channel==50){if(value&&!s->general_down[channel]&&SURFACE_VALUE(s,input).jog_shift)surface_assignment(s,&SURFACE_VALUE(s,input),bank,snapshot,channel,now);s->general_down[channel]=value;}
     else if(kind==5)s->button_down[channel]=value;
-    else if(kind==6||kind==11)s->general_down[channel]=value;
+    else if(kind==6||kind==11){s->general_down[channel]=value;if(SURFACE_VALUE(s,controller).profile==&mcu_profile_xtouch_mini&&(channel==84||channel==85))s->mini_layer_consumed|=1u<<(channel-84);}
     else if(kind==2)s->bank_down[channel]=value;
     continue;
    }
+   if((kind==6||kind==9||kind==11||kind==12)&&mini_button(s,&SURFACE_VALUE(s,input),bank,snapshot,channel,value,now))continue;
    if(kind==1){s->display_until[channel]=now>UINT32_MAX-2000?UINT32_MAX:now+2000;input_touch(&SURFACE_VALUE(s,input),bank,snapshot,channel,value,now);INPUT_LOG("TOUCH fader=%u %s; channel motion input=%u tick=%u\n",channel+1,value?"down":"up",SURFACE_VALUE(s,input).gestures[channel].held,now);}
    else if(kind==7){s->master_touch=value;input_master_touch(&SURFACE_VALUE(s,input),snapshot,value);}
    else if(kind==10){input_master_pitch(&SURFACE_VALUE(s,input),snapshot,value,now);if(mcu_has(&SURFACE_VALUE(s,controller),MCU_CAP_MASTER_MOTOR))motor_follow_report(&SURFACE_VALUE(s,following).motors[8],value,now,SURFACE_VALUE(s,input).master.pending);}
@@ -989,7 +1004,12 @@ fail:surface_close(s,bank);return 0;
 }
 static void motor_event(snd_seq_event_t *event,const Surface *surface,unsigned channel,int position){snd_seq_addr_t output=surface_output_address(surface);snd_seq_ev_clear(event);snd_seq_ev_set_pitchbend(event,channel,position-8192);snd_seq_ev_set_source(event,surface->source);snd_seq_ev_set_dest(event,output.client,output.port);snd_seq_ev_set_direct(event);}
 #ifdef MIRROR_INPUT
-static int channel_send(Surface *s,snd_seq_event_t *e){snd_seq_addr_t output=surface_output_address(s);if(stopping)return 0;snd_seq_ev_set_source(e,s->source);snd_seq_ev_set_dest(e,output.client,output.port);snd_seq_ev_set_direct(e);surfaces.encoded++;if(s->context)s->context->encoded++;int ok=snd_seq_event_output_direct(s->seq,e)>=0;surfaces.sent+=ok;if(s->context)s->context->sent+=ok;return ok;}
+static int channel_send(Surface *s,snd_seq_event_t *e){
+ if(stopping)return 0;
+ /* Apply physical LED capability at the common output boundary, including
+  * chooser/disconnect clears. Suppressed notes never reach ALSA or counters. */
+ if((e->type==SND_SEQ_EVENT_NOTEON||e->type==SND_SEQ_EVENT_NOTEOFF)&&!mcu_led_note_supported(SURFACE_VALUE(s,controller).profile,e->data.note.channel,e->data.note.note))return 1;
+ snd_seq_addr_t output=surface_output_address(s);snd_seq_ev_set_source(e,s->source);snd_seq_ev_set_dest(e,output.client,output.port);snd_seq_ev_set_direct(e);surfaces.encoded++;if(s->context)s->context->encoded++;int ok=snd_seq_event_output_direct(s->seq,e)>=0;surfaces.sent+=ok;if(s->context)s->context->sent+=ok;return ok;}
 /* TouchMCU9ea4881 protocol thresholds; Ardour e0d72575b1 confirms the
  * channel-pressure framing and per-strip enable. Scaling is host-specific.
  * Use max(L,R) native envelope amplitude, no invented held-overload latch. */
@@ -1181,6 +1201,7 @@ static int channel_output(Surface *s,MirrorBank *bank,const CopiedMirror *snapsh
   return 1;
  }
  s->chooser_cleared=0;
+ if(SURFACE_VALUE(s,controller).profile==&mcu_profile_xtouch_mini)return mini_output(s,bank,snapshot,now);
  if(!meter_output(s,bank,snapshot))return 0;
  if(!bank->ready){
   if((bank->view==BV_DRUM_PADS||bank->assignment==BA_SEND)&&!parent_led_clear(s))return 0;
@@ -1233,7 +1254,7 @@ static int channel_output(Surface *s,MirrorBank *bank,const CopiedMirror *snapsh
   if(bank->offset+strip<snapshot->pad_count){char label[8];unsigned index=bank->offset+strip;snprintf(label,sizeof(label),"%c%02u",'A'+index/16,index%16+1);channel_ascii(w.name,label,strlen(label));channel_ascii(w.value,"------",6);w.color=7;}
  }
  const CopiedTrack *encoder=input_track(snapshot,bank_encoder_identity(bank,strip));
- unsigned ring_field=bank_encoder_field(bank,strip);w.ring=0;
+ unsigned ring_field=surface_encoder_field(s,bank,strip);w.ring=0;
  if(encoder&&ring_field<CF_COUNT){MIRROR_FIELD(volume);const CopiedField *rf=copied_field(snapshot,encoder,ring_field,&volume);if(rf&&rf->available&&(ring_field==CF_MIDI_VOLUME?midi_volume(encoder->vptr):mixable(encoder->vptr))){float x;memcpy(&x,&rf->bits,4);w.ring=(unsigned)(x*10.0f+0.5f)+1;if(ring_field==CF_PAN&&x==0.5f)w.ring|=64;}}
  if(bank->assignment==BA_EFFECT){
   const EffectsCopy *e=&snapshot->effects;if(!bank->flip)w.ring=0;memset(w.name,' ',7);memset(w.value,' ',7);

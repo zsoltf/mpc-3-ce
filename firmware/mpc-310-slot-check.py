@@ -116,7 +116,7 @@ for slot in spec['slots']:
     patched[offset:offset + len(after)] = after
     allowed.extend(offset + i for i, (a, b) in enumerate(zip(before, after)) if a != b)
     end = offset + len(before)
-assert patched[0x04dd8810:0x04dd8819] == b' CE 0.4.0'
+assert patched[0x04dd8810:0x04dd8819] == b' CE 0.4.1'
 assert patched[0x04dd8819:0x04dd881c] == b'\0\0\0'
 changed = [i for i, (a, b) in enumerate(zip(new.raw, patched)) if a != b]
 assert len(patched) == len(new.raw) and changed == allowed and len(changed) == 9

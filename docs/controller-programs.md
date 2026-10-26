@@ -37,6 +37,59 @@ same CE control messages in MPC Global MIDI Learn: that would apply two actions.
 An absolute knob/fader takes control when it reaches or crosses the MPC value.
 Changing layer, bank, project, or connection requires pickup again.
 
+## X-Touch Mini
+
+The [Mini visual guide](https://mpc3ce.com/mini-guide.html) shows the **v0.4.1
+layout**, including both held menus and printable reference strips.
+Use MC mode and the X-Touch Mini profile.
+Reconnect starts with **Volume** knobs and **Select** track buttons.
+
+The top row always operates the eight tracks in the current track bank,
+including while the knobs are on Sends or Inserts. **Select** lights the
+selected track, **Mute** lights muted tracks, **Solo** lights soloed tracks and
+**Record** lights armed tracks. Record toggles each track's record arm; the
+bottom-row Record button controls transport recording.
+Missing or unsupported targets stay dark.
+
+Tap **Layer A** to cycle Volume, Pan, Q-Links 1-8, Q-Links 9-16, Sends and
+Inserts. Tap **Layer B** to cycle Select, Mute, Solo and Record, then back to Select. A bare tap changes mode
+on release. Hold a Layer button to show its top-row menu:
+
+| Top button, left to right | Hold A: knobs and actions | Hold B: track buttons |
+| --- | --- | --- |
+| 1 | Volume | Select |
+| 2 | Pan | Mute |
+| 3 | Q-Links 1-8 | Solo |
+| 4 | Q-Links 9-16 | Record |
+| 5 | Sends | No action |
+| 6 | Inserts: return to slots | No action |
+| 7 | Save | No action |
+| 8 | Add Track | No action |
+
+Only the current mode is lit in a held menu. Release the Layer button to restore
+track lights; a menu choice does not also cycle. If both are held, A takes menu
+precedence and neither release cycles.
+
+The bottom row is **Undo, Redo, Rewind, Forward, Loop, Stop, Play, Record**.
+Rewind/Forward move by beats and repeat while held. Stop again while stopped
+returns to the start. Hold **B + Rewind/Forward** for the previous/next track
+bank, in every knob mode. Hold **A + Rewind/Forward** for the previous/next native
+MPC Q-Link mode while on Q-Links, or parameter page inside an insert. It has no
+action in other modes. A modified navigation gesture does not become transport
+if the Layer button is released first. Both Layers held suppress transport and
+navigation.
+
+Volume/Pan knob pushes select their tracks without resetting levels. Q-Link
+pushes do nothing. In Sends, knobs 1-4 edit the selected track's sends and 5-8
+edit the matching return volumes; pushes do nothing. In Inserts, push 1-4 at the
+slot list to open an occupied slot or its native chooser. Turn to edit the open
+slot's parameters; push toggles native two-state parameters. Select Inserts
+again to return to slots. Finish native choosers on the MPC.
+
+Rings follow MPC values, including touchscreen changes; unavailable targets
+clear. The master fader always controls master output. Save uses MPC's normal
+naming dialog when needed. Normal-MIDI presets are not rewritten.
+
 ## Launchpad X and Launchpad Pro Mk3
 
 Detect, or Add with the Launchpad X or Launchpad Pro Mk3 profile, uses the
@@ -338,6 +391,8 @@ Fast Forward, Rewind and other MMC commands have no CE assignment.
 
 Assignments above are the CE setup contract, not manufacturer defaults.
 
+- [X-Touch Mini Quick Start Guide](https://cdn-media.empowertribe.com/a2d3dedbd371482db5c9906c06d301f4/QSG_BE_0808-AAF_X-TOUCH-MINI_WW.pdf),
+  pages 18-19: MC assignments, Layer A (Marker) and Layer B (Nudge).
 - MPK mini III Program Editor guide v1.0, pages 7-13, included in the
   [official editor 1.0.4](https://cdn.inmusicbrands.com/akai/MACEDITORS/AkaiMPKMiniIIIProgramEditorOSX%201.0.4.dmg).
 - LPD8 Mk2 Program Editor guide v1.1, pages 4-8, included in the

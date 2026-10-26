@@ -18,7 +18,7 @@ def main():
     parser.add_argument('source', type=pathlib.Path)
     parser.add_argument('output', type=pathlib.Path)
     parser.add_argument('--mpc-3.10', dest='mpc_310', action='store_true',
-                        help='explicit MPC 3.10 / CE 0.4.0 data slots; does not enable runtime admission')
+                        help='explicit MPC 3.10 / CE 0.4.1 data slots; does not enable runtime admission')
     args = parser.parse_args()
     source, output = args.source, args.output
     spec = json.loads(pathlib.Path(__file__).with_name('mpc-ce-3.10.json').read_text()) if args.mpc_310 else SPEC

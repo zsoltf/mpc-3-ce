@@ -32,7 +32,7 @@ elif args.source_commit or args.source_inputs:
 # This legacy prerelease metadata stays paired with the frozen 3.9 runtime pins.
 # The explicit 3.10 candidate overrides its build identity below.
 release = json.loads((repo/'release/public-source-v0.3.0.json').read_text()) if args.prerelease else {}
-RUNTIME_SOURCE = 'v0.4.0' if args.candidate_310 else release['release'] if args.prerelease else 'v0.2.6'
+RUNTIME_SOURCE = 'v0.4.1' if args.candidate_310 else release['release'] if args.prerelease else 'v0.2.6'
 source, output = args.source, args.output
 names = 'command-observer.so command-client mirror-input mirror-read config.h mcu-session.sh mcu mpclearn-controls main-button'.split()
 if args.prerelease:
@@ -82,10 +82,10 @@ if args.prerelease:
                     format=release['runtime_format'],
                     qualified_hardware=release['qualified_hardware'],
                     plugin_bundle='MPCLEARN/plugins.squashfs on the SD card',
-                    base_label='CE v0.4.0 candidate' if args.candidate_310 else 'CE v0.2.6',
+                    base_label='CE v0.4.1 candidate' if args.candidate_310 else 'CE v0.2.6',
                     limits='Cardinal CPU-heavy patches can overload the MPC. Existing controller hardware and prototype qualification limits apply.')
 if args.candidate_310:
-    metadata.update(image_revision='v0_4_0', product_candidate=args.source_commit,
+    metadata.update(image_revision='v0_4_1', product_candidate=args.source_commit,
                     format=candidate_format, qualified_hardware='Unqualified MPC 3.10 development candidate',
                     source_inputs_sha256=hashlib.sha256(args.source_inputs.read_bytes()).hexdigest())
 (output/'BUILD.json').write_text(json.dumps(metadata, indent=2)+'\n')

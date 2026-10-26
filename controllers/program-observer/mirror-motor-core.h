@@ -6,7 +6,7 @@
 /* Physical touch knowledge belongs to the current ALSA connection. Binding
  * barriers/targets belong to one bank identity and are discarded on remap. */
 enum {MT_UNKNOWN,MT_DOWN,MT_UP};
-enum {BA_PAN,BA_TRACK,BA_SEND,BA_EFFECT,BA_QLINK,BA_IO};
+enum {BA_PAN,BA_TRACK,BA_SEND,BA_EFFECT,BA_QLINK,BA_IO,BA_MINI_SEND};
 enum {BV_TRACK,BV_INSTRUMENT,BV_SUBMIX,BV_RETURN,BV_OUTPUT,BV_ALL,BV_MIDI,BV_INPUT,BV_AUDIO,BV_DRUM_PADS,BV_COUNT};
 static inline int bank_role(unsigned view,uint32_t v){
  switch(view){case BV_TRACK:return playable(v);case BV_INSTRUMENT:return v==MODEL_DRUMPROGRAM_VPTR||v==MODEL_KEYGROUPPROGRAM_VPTR||v==MODEL_PLUGINPROGRAM_VPTR;case BV_SUBMIX:return v==MODEL_SUBMIXPROGRAM_VPTR;case BV_RETURN:return v==MODEL_SENDPROGRAM_VPTR;case BV_OUTPUT:return v==MODEL_OUTPUTPROGRAM_VPTR||v==MODEL_MASTEROUTPUTPROGRAM_VPTR;case BV_ALL:return 1;case BV_MIDI:return v==MODEL_MIDIPROGRAM_VPTR||v==MODEL_CVPROGRAM_VPTR;case BV_INPUT:return v==MODEL_INPUTPROGRAM_VPTR;case BV_AUDIO:return v==MODEL_AUDIOPROGRAM_VPTR;default:return 0;}
@@ -89,7 +89,7 @@ static inline void bank_apply(MirrorBank *bank,const CopiedMirror *snapshot,uint
   const CopiedTrack *t=snapshot->tracks+i;if(t->track!=snapshot->selection.bits)continue;
   /* Return controls remain independently bound, but a return is never the
    * source of this selected-send view. Keep other qualified mixable sources. */
-  if(bank->assignment==BA_SEND&&(t->vptr==MODEL_SENDPROGRAM_VPTR||!mixable(t->vptr)))break;
+  if((bank->assignment==BA_SEND||bank->assignment==BA_MINI_SEND)&&(t->vptr==MODEL_SENDPROGRAM_VPTR||!mixable(t->vptr)))break;
   selected=(MotorIdentity){snapshot->epoch,t->serial,t->binding,t->incarnation,t->track,t->program,t->track_owner,t->program_owner,0,0,0};break;
  }
  /* Follow an actual MPC selection change, not every refresh: explicit Bank
