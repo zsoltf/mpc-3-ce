@@ -446,6 +446,5 @@
   "firmware/v0.4.2-payload.sha256": "firmware/v0.4.2-payload.sha256",
   "vst2/pd-engine/README.md": "vst2/pd-engine/README.md",
   "vst2/pd-engine/check.sh": "vst2/pd-engine/check.sh",
-  "vst2/pd-engine/.gitignore": "vst2/pd-engine/.gitignore",
-  "vst2/pd-engine/DURM.md": "vst2/pd-engine/DURM.md"
+  "vst2/pd-engine/.gitignore": "vst2/pd-engine/.gitignore"
 }

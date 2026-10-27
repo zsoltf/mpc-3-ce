@@ -47,10 +47,6 @@ Inside that archive, the Pure Data engine is under `pure-data/src/`.
 The touchscreen/plugin build consumes this library; its entry point is
 [hosted-build.sh](../pd-touch-prototype/hosted-build.sh).
 
-The build also compiles a separate [Durm example/test plugin](DURM.md).
-The files `engine.c` and `plugin.c` in this directory belong to that example;
-they are not the Pure Data core or the shipped Pd Sketch plugins.
-
 ## Licenses
 
 Pure Data and libpd retain their upstream [license notices](notices/).
