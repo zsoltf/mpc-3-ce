@@ -86,7 +86,7 @@ section[id] { scroll-margin-top: 88px; }
 .skip:focus { top: 8px; }
 .top nav a[aria-current="page"] { text-decoration: underline; text-underline-offset: 5px; }
 @media (max-width: 1000px) { .top { position: static; } }
-@media (max-width: 560px) { .top nav { gap: 10px; } .top nav .btn { padding: 10px 12px; font-size: 13px; } }
+@media (max-width: 560px) { .top nav { gap: 10px 22px; } .top nav .btn { padding: 10px 12px; font-size: 13px; } }
 @media (max-width: 640px) { .page-head { padding-top: 36px; } }
 @media print {
   :root { color-scheme: light; --page: #fff; --page-2: #fff; --surface: #fff; --ink: #000; --ink-2: #222; --ink-3: #444; --line: #bbb; }
