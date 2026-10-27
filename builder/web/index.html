@@ -99,13 +99,13 @@
 
     /* Header */
     .top { position: sticky; top: 0; z-index: 20; background: var(--header); backdrop-filter: saturate(150%) blur(12px); -webkit-backdrop-filter: saturate(150%) blur(12px); border-bottom: 1px solid var(--line); }
-    .top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 64px; }
+    .top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; min-height: 64px; height: auto; padding-block: 12px; flex-wrap: wrap; }
     .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; }
     .brand:hover { color: var(--ink); }
     .brand .mark { width: 26px; height: 26px; border-radius: 7px; background: var(--ink); display: grid; place-items: center; }
     .brand .mark i { display: block; width: 10px; height: 10px; border-radius: 2px; background: var(--cta); }
     .brand .tag { font-size: 12px; font-weight: 600; color: var(--ink-3); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
-    .top nav { display: flex; align-items: center; gap: 22px; font-size: 15px; font-weight: 600; }
+    .top nav { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; font-size: 15px; font-weight: 600; }
     .top nav a:not(.btn) { text-decoration: none; color: var(--ink-2); white-space: nowrap; }
     .top nav a:not(.btn):hover, .top nav a[aria-current="page"]:not(.btn) { color: var(--ink); }
     .top .btn { padding: 9px 14px; }
@@ -116,9 +116,10 @@
     :root[data-theme="dark"] .theme .sun { display: block; }
     :root[data-theme="dark"] .theme .moon { display: none; }
     @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .theme .sun { display: block; } :root:not([data-theme="light"]) .theme .moon { display: none; } }
-    @media (max-width: 860px) { .top nav .opt { display: none; } }
+    .top nav a[aria-current="page"] { text-decoration: underline; text-underline-offset: 5px; }
+    @media (max-width: 1000px) { .top { position: static; } }
     @media (max-width: 560px) { .brand .tag { display: none; } .top nav { gap: 10px; } .top nav .btn { padding: 9px 12px; font-size: 14px; } }
-    @media (max-width: 440px) { .top nav .opt2 { display: none; } }
+
 
     /* Footer */
     footer { padding: 36px 0 56px; border-top: 1px solid var(--line); font-size: 14px; color: var(--ink-3); }
@@ -621,7 +622,7 @@
 
     /* Header: a thin glass bar, the brand mark is a 2x2 pad grid in track colours */
     .top { background: var(--header); border-bottom: 1px solid rgba(255,255,255,.08); }
-    .top .wrap { height: 56px; }
+    .top .wrap { min-height: 56px; }
     .brand { font-size: 17px; gap: 11px; }
     .brand .mark { width: 22px; height: 22px; border-radius: 6px; background: #1d1d1f; box-shadow: inset 0 0 0 1px #3a3a3c; }
     .brand .mark i { width: 4px; height: 4px; border-radius: 1.2px; background: var(--led-blue); box-shadow: 6px 0 var(--led-grn), 0 6px var(--led-mag), 6px 6px var(--led-yel); transform: translate(-3px, -3px); }
@@ -795,7 +796,7 @@
 
     /* Header: the product name in caps, links in caps, one crimson button */
     .top { background: var(--header); border-bottom: 1px solid #1f1f1f; }
-    .top .wrap { height: 60px; }
+    .top .wrap { min-height: 60px; }
     .brand { font-family: var(--display); font-weight: 400; font-size: 28px; letter-spacing: .02em; text-transform: uppercase; gap: 12px; }
     .brand .mark { width: 22px; height: 22px; border-radius: 4px; background: #1f1f1f; }
     .top nav { gap: 28px; font-family: var(--display); font-weight: 400; font-size: 19px; text-transform: uppercase; letter-spacing: .04em; }
@@ -992,13 +993,13 @@
 
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="./"><span class="mark"><i></i></span>MPC 3 CE</a>
+    <a class="brand" href="./" aria-current="page"><span class="mark" aria-hidden="true"><i></i></span>MPC 3 CE</a>
     <nav aria-label="Site">
-      <a class="opt" href="#tour">Controllers</a>
-      <a class="opt" href="#setup">Setup</a>
-      <a class="opt2" href="launchpad-guide.html">Launchpad guide</a>
-      <a class="opt2" href="guide.html">X-Touch guide</a>
-      <a class="opt2" href="mini-guide.html">Mini guide</a>
+      <a href="./#tour">Controllers</a>
+      <a href="./#setup">Setup</a>
+      <a href="launchpad-guide.html">Launchpad guide</a>
+      <a href="guide.html">X-Touch guide</a>
+      <a href="mini-guide.html">Mini guide</a>
       <a class="btn primary" href="builder.html">Build your image</a>
     </nav>
   </div>
