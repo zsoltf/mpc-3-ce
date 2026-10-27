@@ -61,12 +61,24 @@ static int qlink_mode_resolve(Context *c,unsigned wanted_epoch,uint32_t *control
  if(current>=available||word(root+MODEL_ROOT_QLINK_OWNER)!=owner||word(owner+MODEL_QLINK_OWNER_CONTROLLER)!=k||word(k+8)!=command_queues||word(k+0x524)!=capability||word(capability+0x28)!=h||word(k+0x5c)!=current)return 0;
  *controller=k;*id=current;*count=available;return 1;
 }
+static unsigned qlink_screen_direction(uint32_t k){
+  /* ADA2 is a bank model, not a polymorphic object. Its typed controller
+   * owns it; the source-array identity binds its direction to this provider. */
+  uint32_t bank=word(k+0xc0),sources=qlink_current.sources,provider=qlink_current.provider;
+  if(qlink_span(provider,0x38)&&qlink_span(sources,QLINK_SLOTS*0x84)&&qlink_span(bank,0x78)&&word(provider+0x2c)==sources&&word(bank+0x70)==sources){
+   unsigned direction=word(bank+0x68);
+   if(direction<4&&word(k+0xc0)==bank&&word(provider+0x2c)==sources&&word(bank+0x70)==sources&&word(bank+0x68)==direction&&word(k+0x5c)==0)
+    return direction+1;
+  }
+ return 0;
+}
 static int qlink_mode_sample(Context *c,unsigned now){
  uint32_t k=0;unsigned id=0,count=0;unsigned old_valid=qlink_current.mode_valid;
- qlink_current.mode_valid=0;
+ unsigned old_direction=qlink_current.screen_direction;qlink_current.screen_direction=0;qlink_current.mode_valid=0;
  if(!qlink_mode_resolve(c,epoch,&k,&id,&count))return old_valid!=0;
+ if(id==0)qlink_current.screen_direction=qlink_screen_direction(k);
  if(k!=qlink_mode_key||root!=qlink_mode_root){if(qlink_mode_generation==UINT32_MAX)return old_valid!=0;qlink_mode_key=k;qlink_mode_root=root;qlink_mode_generation++;qlink_mode_last=UINT32_MAX;}
- unsigned changed=!old_valid||qlink_current.mode_controller!=k||qlink_current.mode_generation!=qlink_mode_generation||qlink_current.mode_count!=count||qlink_mode_last!=id;
+ unsigned changed=!old_valid||old_direction!=qlink_current.screen_direction||qlink_current.mode_controller!=k||qlink_current.mode_generation!=qlink_mode_generation||qlink_current.mode_count!=count||qlink_mode_last!=id;
  if(qlink_mode_last!=id){if(qlink_mode_revision==UINT32_MAX)return old_valid!=0;qlink_mode_revision++;qlink_mode_last=id;}
  qlink_current.mode_controller=k;qlink_current.mode_generation=qlink_mode_generation;qlink_current.mode_id=id;qlink_current.mode_count=count;qlink_current.mode_revision=qlink_mode_revision;qlink_current.mode_tick=now;qlink_current.mode_valid=1;atomic_store_explicit(&qlink_mode_hook,k,memory_order_release);return changed;
 }

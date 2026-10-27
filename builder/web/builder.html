@@ -82,7 +82,7 @@
         <ol class="procedure numbered">
           <li id="step1">
             <h3>Akai's update file</h3>
-            <p>Choose Akai's <code>MPC-3.10.0-Gen1-update.img</code> (CE v0.4.1) or <code>MPC-3.9.1-Gen1-update.img</code> (CE v0.3.0). Other files are refused.</p>
+            <p>Choose Akai's <code>MPC-3.10.0-Gen1-update.img</code> (CE v0.4.2) or <code>MPC-3.9.1-Gen1-update.img</code> (CE v0.3.0). Other files are refused.</p>
             <div class="row">
               <button class="btn" id="select" type="button">Choose firmware file</button>
               <a class="btn" href="https://cdn.inmusicbrands.com/Software/M310PCFIN26OCT/MPC-3.10.0-Gen1-update.img" rel="noreferrer">Download 3.10 from Akai</a>
@@ -135,7 +135,7 @@
           <li id="step4">
             <h3>Install on your MPC</h3>
             <ol class="install-list">
-              <li>Copy <code id="installImageName">MPC-3.10.0-Gen1-CE-v0.4.1-update.img</code> to the USB drive, outside any folders. Keep only this update image there. If your browser added <code>(1)</code>, remove it to match this filename.</li>
+              <li>Copy <code id="installImageName">MPC-3.10.0-Gen1-CE-v0.4.2-update.img</code> to the USB drive, outside any folders. Keep only this update image there. If your browser added <code>(1)</code>, remove it to match this filename.</li>
               <li>Safely eject the USB drive and connect it to the MPC. Save your work, back up important projects, and connect the power adapter.</li>
               <li>Open <b>Menu &gt; Preferences &gt; Info &gt; Update &gt; USB Drive Update</b>, choose the image, and confirm <b>Update</b> or reinstall. Let the MPC restart without turning off its power.</li>
               <li>For Pd/Cardinal, download and unzip <code>mpc-ce-v0.4.0-sd-plugins.zip</code> from the <a href="https://github.com/zsoltf/mpc-3-ce/releases/tag/v0.4.0">v0.4.0 release</a>. With the MPC off, copy its <code>MPCLEARN</code> folder to the SD card root. Keep that card inserted while using plugins.</li>
@@ -160,7 +160,7 @@
           <ul>
             <li>Your settings and projects are kept.</li>
             <li>Demanding Cardinal patches can still overload audio.</li>
-            <li>See <a href="RELEASE-NOTES.md">what's new in v0.4.1</a> and <a href="./">everything it does</a>.</li>
+            <li>See <a href="RELEASE-NOTES.md">what's new in v0.4.2</a> and <a href="./">everything it does</a>.</li>
           </ul>
         </div>
       </div>
@@ -184,11 +184,11 @@
 </footer>
 <script>
 const imageNames = {
-  '3.10': 'MPC-3.10.0-Gen1-CE-v0.4.1-update.img',
+  '3.10': 'MPC-3.10.0-Gen1-CE-v0.4.2-update.img',
   '3.9.1': 'MPC-3.9.1-Gen1-CE-v0.3.0-update.img',
 };
 const debugNames = {
-  '3.10': 'MPC-3.10.0-Gen1-CE-v0.4.1-DEBUG-update.img',
+  '3.10': 'MPC-3.10.0-Gen1-CE-v0.4.2-DEBUG-update.img',
   '3.9.1': 'MPC-3.9.1-Gen1-CE-v0.3.0-DEBUG-update.img',
 };
 let standardImageName = imageNames['3.10'];

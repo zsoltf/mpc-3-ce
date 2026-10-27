@@ -121,6 +121,71 @@ static void mini_production_checks(void){
   snapshot.qlinks.slots[(mode-2)*8].sampled=0;mini_feedback(surface,bank,&snapshot);need(!observed_ring[0],"unavailable Q-Link clears ring");snapshot.qlinks.slots[(mode-2)*8].sampled=1;
  }
  mini_clean_commands(in);snapshot.qlinks_available=0;MINI_MENU(84,2);MINI_FEED(0xb0,0x10,1);mini_feedback(surface,bank,&snapshot);need(!input_pending(in)&&!observed_ring[0],"Q-Link mode enters safely before source acquisition");snapshot.qlinks_available=1;mini_feedback(surface,bank,&snapshot);need(observed_ring[0]==4,"Q-Link source acquisition updates ring without mode re-entry");MINI_FEED(0xb0,0x10,1);(void)mini_published(in,bank,&snapshot,QLINK_VALUE);
+ // Independent native helper results for format3 (eight controls), directions
+ // 0..3. In particular, Column page1 crosses both native contiguous halves.
+ static const unsigned screen_order[4][16]={
+  {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},
+  {12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3},
+  {12,8,4,0,13,9,5,1,14,10,6,2,15,11,7,3},
+  {0,4,8,12,1,5,9,13,2,6,10,14,3,7,11,15}};
+ snapshot.qlinks.mode_id=0;
+ for(unsigned i=0;i<16;i++){float value=i/16.f;memcpy(&snapshot.qlinks.slots[i].bits,&value,4);}
+ for(unsigned direction=0;direction<4;direction++)for(unsigned page=0;page<2;page++){
+  snapshot.qlinks.screen_direction=direction+1;MINI_MENU(84,2+page);mini_feedback(surface,bank,&snapshot);
+  for(unsigned strip=0;strip<8;strip++){
+   unsigned index=screen_order[direction][page*8+strip];mini_clean_commands(in);MINI_FEED(0xb0,0x10+strip,1);
+   CommandRequest request=mini_published(in,bank,&snapshot,QLINK_VALUE);
+   need(request.qlink_index==index&&request.before_bits==snapshot.qlinks.slots[index].bits,"Mini Screen turn retains mapped native index and value");
+   need(observed_ring[strip]==(int)(index/16.f*10+.5f)+1,"Mini Screen ring uses same native index as turn");
+  }
+  input_qlink_interest(in,bank,&snapshot,100,1);QLinkDemand demand;
+  need(qlink_demand_read(&commands->qlink_interest,&demand)&&demand.enabled&&demand.page==(direction?2:page),"Mini mapped Screen requests bounded all-slot sampling, linear direction retains contiguous demand");
+ }
+ mini_clean_commands(in);snapshot.qlinks.screen_direction=3;MINI_MENU(84,2);MINI_FEED(0xb0,0x10,1);need(in->qlinks[12].pending,"Column turn is pending in native slot13");
+ snapshot.qlinks.screen_direction=4;input_submit(in,bank,&snapshot,100);
+ need(!in->qlinks[12].pending&&!atomic_load(&commands->published),"direction change revokes unsent intent even with identical page membership");
+ MINI_FEED(0xb0,0x10,1);CommandRequest mapped=mini_published(in,bank,&snapshot,QLINK_VALUE);need(mapped.qlink_index==0,"next turn follows changed native direction");
+ snapshot.qlinks.screen_direction=3;input_submit(in,bank,&snapshot,100);need(input_pending(in)==1,"already-published native command survives mapping change for settlement");
+ mini_clean_commands(in);MINI_FEED(0xb0,0x10,1);MINI_MENU(84,3);input_submit(in,bank,&snapshot,100);need(!atomic_load(&commands->published),"Mini bank switch discards old unsent mapping");
+ for(unsigned fallback=0;fallback<4;fallback++){
+  snapshot.qlinks.mode_id=fallback==0?2:0;snapshot.qlinks.screen_direction=fallback==1?0:fallback==2?5:3;snapshot.qlinks.mode_tick=fallback==3?101:100;
+  mini_clean_commands(in);MINI_MENU(84,2);MINI_FEED(0xb0,0x10,1);mapped=mini_published(in,bank,&snapshot,QLINK_VALUE);need(mapped.qlink_index==0,"non-Screen, unknown, unsupported or unfresh direction preserves original order");
+  input_qlink_interest(in,bank,&snapshot,100,1);need(atomic_load(&commands->qlink_interest.page)==0,"fallback retains ordinary sampling interest");
+ }
+ snapshot.qlinks.mode_tick=100;snapshot.qlinks.screen_direction=3;mini_clean_commands(in);
+ MirrorBank ordinary=*bank;ordinary.qlink_screen_order=0;input_qlink_edit(in,&ordinary,&snapshot,0,1,-1,100);mapped=mini_published(in,&ordinary,&snapshot,QLINK_VALUE);need(mapped.qlink_index==0,"other controller keeps original order under native Column direction");
+ input_qlink_interest(in,bank,&snapshot,100,0);need(!atomic_load(&commands->qlink_interest.enabled),"disconnected Mini withdraws mapped demand");
+ // Full MCU uses the same projection for encoders, LCD/rings and Flip's
+ // fader identities, motor targets and native-index receipt barrier.
+ Surface *full=surfaces.surfaces+1;MirrorBank *full_bank=surfaces.banks+1;MirrorInput *full_input=&surfaces.contexts[1].input;
+ full->seq=(snd_seq_t*)1;full->source=4;full->full=(snd_seq_addr_t){33,0};full->output=full->full;
+ snapshot.qlinks.mode_id=0;snapshot.qlinks.screen_direction=3;
+ for(unsigned i=0;i<16;i++)snprintf(snapshot.qlinks.slots[i].name,QLINK_TEXT,"P%02u",i);
+ surface_assignment(full,full_input,full_bank,&snapshot,44,100);
+ for(unsigned page=0;page<2;page++){
+  surface_navigation(full_input,full_bank,&snapshot,page,100);bank_apply(full_bank,&snapshot,100);
+  full->context->mode_notice_controller=9;full->context->mode_notice_generation=10;full->context->mode_notice_epoch=1;full->context->mode_notice_id=0;full->context->mode_notice_until=0;
+  memset(full->wire_valid,0,sizeof(full->wire_valid));for(unsigned strip=0;strip<8;strip++)need(channel_output(full,full_bank,&snapshot,100),"full MCU Screen wire output");
+  for(unsigned strip=0;strip<8;strip++){
+   unsigned index=screen_order[2][8*page+strip];char label[8];snprintf(label,sizeof(label),"P%02u    ",index);
+   need(!memcmp(observed_lcd+7*strip,label,7)&&observed_ring[strip]==(int)(index/16.f*10+.5f)+1,"full MCU LCD and ring use mapped native slot");
+   mini_clean_commands(full_input);surface_encoder(full,full_input,full_bank,&snapshot,strip,1,0,100);mapped=mini_published(full_input,full_bank,&snapshot,QLINK_VALUE);need(mapped.qlink_index==index,"full MCU encoder keeps mapped native command index");
+  }
+  mini_clean_commands(full_input);surface_assignment(full,full_input,full_bank,&snapshot,50,100);bank_apply(full_bank,&snapshot,100);
+  for(unsigned strip=0;strip<8;strip++){
+   unsigned index=screen_order[2][8*page+strip];need(full_bank->faders[strip].effect[1]==index&&bank_target(full_bank,strip,100)==(int)(index/16.f*16383+.5f),"Flip identity and motor target use mapped native value");
+   mini_clean_commands(full_input);input_touch(full_input,full_bank,&snapshot,strip,1,100);need(surface_pitch(full,full_input,full_bank,&snapshot,strip,16000-page*100-strip,100),"full MCU Flip fader input");
+   mapped=mini_published(full_input,full_bank,&snapshot,QLINK_VALUE);need(mapped.qlink_index==index,"Flip publishes mapped native slot");input_touch(full_input,full_bank,&snapshot,strip,0,100);
+  }
+  mini_clean_commands(full_input);unsigned outputNow=101+page*20;snapshot.heartbeat=outputNow;bank_apply(full_bank,&snapshot,outputNow);motor_follow_reset(&full->context->following);full->context->following.enabled=1;
+  for(unsigned strip=0;strip<8;strip++){unsigned index=screen_order[2][8*page+strip];need(strip_motor_output(full,full_bank,strip,outputNow)==1&&observed_pitch[strip]==(int)(index/16.f*16383+.5f),"actual MCU motor pitch follows mapped native slot");}
+  snapshot.heartbeat=100;surface_assignment(full,full_input,full_bank,&snapshot,50,100);
+ }
+ mini_clean_commands(full_input);surface_assignment(full,full_input,full_bank,&snapshot,40,100);bank_apply(full_bank,&snapshot,100);full->seq=NULL;memset(full->wire_valid,0,sizeof(full->wire_valid));
+ puts("PASS full MCU Screen projection: both Column banks align encoder commands, LCD/rings, Flip fader requests, native motor identities and emitted pitch positions (native state and ALSA endpoints substituted)");
+ mini_clean_commands(in);snapshot.qlinks.mode_id=2;snapshot.qlinks.screen_direction=0;
+ for(unsigned i=0;i<16;i++)snapshot.qlinks.slots[i].bits=i<8?0x3e800000:0x3f400000;
+ puts("PASS Mini Screen order: all four native directions and both banks compose real MCU input, native command indices, ring feedback and bounded interest; direction/page changes revoke unsent intents, preserve published receipts; unknown/non-Screen/other-controller order unchanged (native state and ALSA endpoints substituted)");
  mini_clean_commands(in);snapshot.effects_available=0;MINI_MENU(84,5);MINI_TAP(32);mini_feedback(surface,bank,&snapshot);need(bank->effects_slot==EFFECT_LIST&&!input_pending(in)&&!observed_ring[0],"Inserts waits safely for native source acquisition");snapshot.effects_available=1;MINI_TAP(32);need(bank->effects_slot==0,"Insert push opens occupied native slot after late acquisition");snapshot.effects.slot=0;
  for(unsigned i=0;i<8;i++)snapshot.effects.parameters[i]=(EffectParameter){.status=EF_READY,.index=i,.position=i,.tick=100,.bits=0x3e800000,.revision=2,.steps=2};
  MINI_FEED(0xb0,0x17,1);CommandRequest r=mini_published(in,bank,&snapshot,EFFECT_PARAMETER);need(r.effect_slot==0&&r.effect_index==7&&r.serial==1,"Insert turn publishes native parameter identity");mini_feedback(surface,bank,&snapshot);need(observed_ring[7]==4,"Insert ring reads authoritative parameter");

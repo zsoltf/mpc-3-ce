@@ -2,6 +2,7 @@
  * Native input stays on its audio queue. Only bounded normalized intents cross
  * to the existing UI drain; Pd/Rack retain values, smoothing and history. */
 #include "track-host-profile.h"
+#include "qlink-order.h"
 extern "C" unsigned transport_queue_submit(uint32_t,uint32_t,void*,void(*)(void*));
 extern "C" int mpclearn_track_qlink_native(unsigned,uint32_t[8]);
 struct ScreenNative {
@@ -116,7 +117,7 @@ void screenText(unsigned index,const char* name,const char* value){
     uint32_t a=0,b=0;
     auto construct=screenFunction<void(*)(uint32_t*,const char*)>(TH_STRING_CTOR);
     auto destroy=screenFunction<void(*)(uint32_t*)>(TH_STRING_DTOR);
-    construct(&a,name);construct(&b,value);screenLabel(index,1,&a,&b);destroy(&b);destroy(&a);
+    construct(&a,name);construct(&b,value);screenLabel(qlink_grid_index(index,2),1,&a,&b);destroy(&b);destroy(&a);
 }
 void screenSaveLabels(uint32_t mask=0xffff){
     auto& q=screenQLinks;void* strings=pointer(reinterpret_cast<void*>(uintptr_t(q.native.labels)),0x14);
@@ -143,6 +144,7 @@ void screenInput(void* receiver,unsigned index,float value,uint32_t original){
     if(!screenOwns(receiver)){
         screenFunction<void(*)(void*,unsigned,float)>(original)(receiver,index,value);return;
     }
+    index=qlink_column_position(index);
     const uint32_t epoch=q.applied.load(std::memory_order_acquire);
     if(!q.root.load(std::memory_order_acquire)||!epoch||epoch!=q.desired.load(std::memory_order_acquire)||
        index>=q.count.load(std::memory_order_acquire)||!std::isfinite(value)||
@@ -156,6 +158,7 @@ void screenActivity(void* receiver,unsigned index,bool active,uint32_t original)
     if(!screenOwns(receiver)){
         screenFunction<void(*)(void*,unsigned,bool)>(original)(receiver,index,active);return;
     }
+    index=qlink_column_position(index);
     if(index<16)screenQLinks.lanes[index].activity.store(active?3:1,std::memory_order_release);
 }
 void screenFxInput(void* receiver,unsigned index,float value){screenInput(receiver,index,value,TH_QLINK_FX_INPUT);}
@@ -165,8 +168,11 @@ void screenSynthActivity(void* receiver,unsigned index,bool active){screenActivi
 void screenDescriptor(void* provider,unsigned index,const void* config){
     screenNativePublication(1,uint32_t(uintptr_t(provider)),index,uint32_t(uintptr_t(config)),0,0,imageBias+TH_QLINK_DESCRIPTOR_SET);
 }
-void screenValue(void* provider,unsigned index,float value){
-    screenFunction<void(*)(void*,unsigned,float)>(TH_QLINK_VALUE_SET)(provider,index,value);
+void screenValue(void* mode,unsigned index,float value){
+    // Complete native mode entry: load mode+0x50, then tail-call the provider
+    // setter with the descriptor-domain value unchanged. Publishing through
+    // its owner also supplies the observer's real mode-refresh witness.
+    screenFunction<void(*)(void*,unsigned,float)>(TH_QLINK_MODE_VALUE_SET)(mode,index,value);
 }
 void screenAudio(void* argument){
     auto& q=screenQLinks;auto& job=*static_cast<ScreenJob*>(argument);
@@ -210,23 +216,24 @@ void screenAudio(void* argument){
             }
             q.savedTab=job.tab;
             for(unsigned i=0;i<16;++i){
+                const unsigned parameter=qlink_column_position(i);
                 // Native NormalisableRange<float> in an optional, then the
                 // qualified linear Screen sensitivity/default fields. No erased
                 // conversion callable and no engine/parameter pointer lives here.
                 alignas(8) unsigned char config[0x60]{};
                 float one=1.f,two=2.f,ten=10.f;
                 std::memcpy(config+4,&one,4);std::memcpy(config+12,&one,4);
-                config[0x44]=i<job.parameters.count;
+                config[0x44]=parameter<job.parameters.count;
                 std::memcpy(config+0x4c,&two,4);std::memcpy(config+0x54,&one,4);
                 config[0x58]=1;std::memcpy(config+0x5c,&ten,4);
-                if(i<job.parameters.count&&job.parameters.parameters[i].steps>1){
-                    float interval=1.f/(job.parameters.parameters[i].steps-1);std::memcpy(config+8,&interval,4);}
+                if(parameter<job.parameters.count&&job.parameters.parameters[parameter].steps>1){
+                    float interval=1.f/(job.parameters.parameters[parameter].steps-1);std::memcpy(config+8,&interval,4);}
                 if(job.publication!=q.publication.load(std::memory_order_acquire))break;
                 screenDescriptor(provider,i,config);
                 if(job.publication!=q.publication.load(std::memory_order_acquire))break;
                 q.ownedDescriptorRevision[i]=job.descriptorRevision[i];
-                screenValue(provider,i,i<job.parameters.count?job.parameters.parameters[i].value:0.f);
-                q.lanes[i].activity.store(0,std::memory_order_release);
+                screenValue(mode,i,parameter<job.parameters.count?job.parameters.parameters[parameter].value:0.f);
+                q.lanes[parameter].activity.store(0,std::memory_order_release);
             }
             if(job.publication==q.publication.load(std::memory_order_acquire)){
                 q.count.store(job.parameters.count,std::memory_order_release);
@@ -236,7 +243,7 @@ void screenAudio(void* argument){
         }else if(job.operation==2){
             if(q.installed.load(std::memory_order_acquire)){
                 if(current&&screenTabMatches(q.native,q.savedTab))for(unsigned i=0;i<16;++i)if(q.descriptorRevision[i].load(std::memory_order_acquire)==q.ownedDescriptorRevision[i]){screenDescriptor(provider,i,q.savedDescriptors[i]+1);
-                    float value;std::memcpy(&value,q.savedDescriptors[i],4);screenValue(provider,i,value);}
+                    float value;std::memcpy(&value,q.savedDescriptors[i],4);screenValue(mode,i,value);}
                 if(word(receiver,0)==uint32_t(uintptr_t(q.table+2)))std::memcpy(receiver,&q.originalTable,4);
                 q.receiver.store(0,std::memory_order_release);q.installed.store(0,std::memory_order_release);
             }
@@ -244,7 +251,7 @@ void screenAudio(void* argument){
         }else if(job.operation==3&&current&&job.epoch==q.applied.load(std::memory_order_acquire)&&job.epoch==q.desired.load(std::memory_order_acquire)&&screenTabMatches(q.native,job.tab)&&job.publication==q.publication.load(std::memory_order_acquire)){
             for(unsigned i=0;i<job.parameters.count;++i)
                 if(q.lanes[i].sequence.load(std::memory_order_acquire)==job.observed[i])
-                    screenValue(provider,i,job.parameters.parameters[i].value);
+                    screenValue(mode,qlink_grid_index(i,2),job.parameters.parameters[i].value);
         }
     }
     if(job.operation==1&&q.applied.load(std::memory_order_acquire)!=job.epoch&&q.desired.load(std::memory_order_acquire)==job.epoch)q.desired.store(0,std::memory_order_release);
@@ -361,7 +368,7 @@ void screenRefresh(Slot* wanted){
         for(unsigned i=0;i<16;++i){q.lanes[i].consumed=q.lanes[i].sequence.load(std::memory_order_acquire);
             screenText(i,i<parameters.count?parameters.parameters[i].name:"",i<parameters.count?parameters.parameters[i].display:"");
             if(publication!=q.publication.load(std::memory_order_acquire)){q.desired.store(0,std::memory_order_release);return;}
-            q.ownedLabelRevision[i]=q.labelRevision[i].load(std::memory_order_acquire);}
+            const unsigned index=qlink_grid_index(i,2);q.ownedLabelRevision[index]=q.labelRevision[index].load(std::memory_order_acquire);}
         if(!screenSubmit(1,epoch,parameters,&publication))q.desired.store(0,std::memory_order_release);
         return;
     }
@@ -385,9 +392,9 @@ void screenRefresh(Slot* wanted){
     bool feedback=false;
     for(unsigned i=0;i<parameters.count;++i){auto& old=q.parameters.parameters[i];auto& value=parameters.parameters[i];
         if(old.value!=value.value||std::strcmp(old.display,value.display)||std::strcmp(old.name,value.name)){
-            uint32_t revision=q.labelRevision[i].load(std::memory_order_acquire);
+            const unsigned index=qlink_grid_index(i,2);uint32_t revision=q.labelRevision[index].load(std::memory_order_acquire);
             screenText(i,value.name,value.display);
-            if(revision==q.labelRevision[i].load(std::memory_order_acquire))q.ownedLabelRevision[i]=revision;
+            if(revision==q.labelRevision[index].load(std::memory_order_acquire))q.ownedLabelRevision[index]=revision;
             feedback=true;
         }
     }

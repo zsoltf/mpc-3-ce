@@ -39,7 +39,7 @@ Changing layer, bank, project, or connection requires pickup again.
 
 ## X-Touch Mini
 
-The [Mini visual guide](https://mpc3ce.com/mini-guide.html) shows the **v0.4.1
+The [Mini visual guide](https://mpc3ce.com/mini-guide.html) shows the **v0.4.2
 layout**, including both held menus and printable reference strips.
 Use MC mode and the X-Touch Mini profile.
 Reconnect starts with **Volume** knobs and **Select** track buttons.

@@ -8,7 +8,7 @@ Build your image in your browser from Akai's official update. Nothing is uploade
 **[Build your image](https://mpc3ce.com/builder.html)** ·
 [Website](https://mpc3ce.com/) ·
 [Controller guide](docs/controller-programs.md) ·
-[Release notes](docs/releases/v0.4.1.md)
+[Release notes](docs/releases/v0.4.2.md)
 
 ## What it adds
 
@@ -33,9 +33,15 @@ together: launch clips on one while programming drum steps on the other.
 Each keeps its own view, and the drum editor stays on its chosen clip while
 the other Launchpad launches clips.
 
+## New in v0.4.2
+
+Cardinal Screen Q-Links keep responding to repeated turns. Its parameters fill
+columns in MPC's Q-Link grid; Mini and full X-Touch Screen banks follow the
+current page's row or column direction.
+
 ## Install
 
-CE **v0.4.1 uses MPC 3.10 Gen1**. The same builder makes CE **v0.3.0 from
+CE **v0.4.2 uses MPC 3.10 Gen1**. The same builder makes CE **v0.3.0 from
 MPC 3.9.1 Gen1**. Tested on MPC Live II; other Gen1 models are untested.
 Gen2 and Force are not supported.
 
@@ -45,12 +51,12 @@ Gen2 and Force are not supported.
 3. Copy the generated image to a USB drive with the exact filename shown.
    Connect power and use **Preferences > Info > Update > USB Drive Update**.
 
-After installing v0.4.1, Preferences > Info shows `MPC 3 CE 0.4.1`.
+After installing v0.4.2, Preferences > Info shows `MPC 3 CE 0.4.2`.
 Don't use Online Update: it replaces CE with stock firmware.
 
 For **Pd and Cardinal**, download and unzip
 [`mpc-ce-v0.4.0-sd-plugins.zip`](https://github.com/zsoltf/mpc-3-ce/releases/tag/v0.4.0).
-The same bundle works with v0.4.1. With the MPC off, copy its `MPCLEARN` folder to the SD card root and keep the
+The same bundle works with v0.4.2. With the MPC off, copy its `MPCLEARN` folder to the SD card root and keep the
 card inserted while using plugins. [Plugin installation guide](firmware/plugin-setup/README.md).
 
 ## Connect controllers
@@ -83,7 +89,7 @@ work without a controller.
   moving to 3.10.
 - Note selection adds native Undo history and clears Redo.
 - X-Touch Shift+jog does not extend the Arrange loop; use MPC Shift+wheel.
-- Further controller and plugin limits are in the [release notes](docs/releases/v0.4.1.md).
+- Further controller and plugin limits are in the [release notes](docs/releases/v0.4.2.md).
 
 ## More
 

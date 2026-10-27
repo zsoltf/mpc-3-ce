@@ -14,7 +14,7 @@
 #include "step-state.h"
 #include "clip-state.h"
 #define MIRROR_MAGIC 0x41564d4du /* MMV19: native drum-step projection on the existing UI owner */
-#define MIRROR_VERSION 21u
+#define MIRROR_VERSION 22u
 #define MIRROR_CELLS 2048u
 #define MIRROR_HASH 4096u
 #define MIRROR_PROBES 32u

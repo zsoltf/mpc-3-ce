@@ -37,7 +37,7 @@ typedef struct {
  CommandRequest effect_request;CommandEvent effect_execution,effect_value;unsigned effect_seen;
 } InputFlight;
 typedef struct {MotorIdentity identity;CommandRequest request;unsigned pending,relative;float shift,lower,upper;} InputEffect;
-typedef struct {CommandRequest request;unsigned pending,relative,wait_tick,barriers[COMMAND_LANES];float shift,lower,upper;} InputQLink;
+typedef struct {CommandRequest request;unsigned pending,relative,wait_tick,barriers[COMMAND_LANES],order;float shift,lower,upper;} InputQLink;
 typedef struct {uint32_t epoch,owner,incarnation,bits,expires;unsigned held,valid,reported,pending;int physical;} InputMaster;
 #define INPUT_JOG_EVENTS 64u
 typedef struct {uint32_t operation,bits,epoch,owner,field,expires;uint64_t order;} InputGlobalEvent;
@@ -177,11 +177,14 @@ static inline void input_io_interest(MirrorInput *in,const MirrorBank *bank,cons
 static inline void input_qlink_interest(MirrorInput *in,const MirrorBank *bank,const CopiedMirror *s,uint32_t now,int connected){
  CommandState *c=in->commands;if(!c)return;QLinkInterest *d=&c->qlink_interest;
  unsigned enabled=connected&&bank->assignment==BA_QLINK&&bank->ready;
- unsigned changed=atomic_load(&d->enabled)!=enabled||atomic_load(&d->epoch)!=s->epoch||atomic_load(&d->page)!=bank->qlink_page;
+ // A native Screen bank can cross both contiguous halves. Reuse the bounded
+ // all-slot demand; the observer still samples at most eight slots per tick.
+ unsigned page=enabled&&bank_qlink_order(bank,s,now)>1?2:bank->qlink_page;
+ unsigned changed=atomic_load(&d->enabled)!=enabled||atomic_load(&d->epoch)!=s->epoch||atomic_load(&d->page)!=page;
  unsigned until=atomic_load(&d->until);if(!changed&&(!enabled||(until>now&&until-now>500)))return;
  if(!command_writer_enter(c))return;
  unsigned rev=atomic_load(&d->revision);if(changed&&rev>UINT32_MAX-2){atomic_store(&d->until,0);command_writer_leave(c);return;}
- if(changed){atomic_store(&d->revision,rev+1);atomic_store(&d->enabled,enabled);atomic_store(&d->epoch,s->epoch);atomic_store(&d->page,bank->qlink_page);}
+ if(changed){atomic_store(&d->revision,rev+1);atomic_store(&d->enabled,enabled);atomic_store(&d->epoch,s->epoch);atomic_store(&d->page,page);}
  atomic_store(&d->until,enabled&&now<=UINT32_MAX-1000?now+1000:0);if(changed)atomic_store_explicit(&d->revision,rev+2,memory_order_release);command_writer_leave(c);
 }
 static inline unsigned input_pending(const MirrorInput *in){unsigned n=0;for(unsigned i=0;i<COMMAND_SLOTS;i++)n+=in->flights[i].flight!=0;return n;}
@@ -440,11 +443,16 @@ static inline int input_qlink_group_wait(MirrorInput *in,const CopiedMirror *s,u
  unsigned wait=0;for(unsigned i=0;i<in->coordinator->count;i++)wait|=input_qlink_wait(in->coordinator->origins[i],s,index,now);return wait!=0;
 }
 static inline void input_qlink_edit_index(MirrorInput *in,const MirrorBank *bank,const CopiedMirror *s,unsigned index,int delta,int absolute,uint32_t now){
- if(index>=QLINK_SLOTS||(bank->qlink_page!=2&&index/8!=bank->qlink_page)||bank->assignment!=BA_QLINK||!bank->ready||in->error||now>UINT32_MAX-120000||(!delta&&absolute<0))return;
+ if(!bank_qlink_contains(bank,s,index,now)||bank->assignment!=BA_QLINK||!bank->ready||in->error||now>UINT32_MAX-120000||(!delta&&absolute<0))return;
  if(input_mode_busy(in))return;
  const QLinkSlot *p=input_qlink_slot(s,index,now);if(!p)return;
  InputQLink *g=in->qlinks+index;
- if(in->coordinator)for(unsigned i=0;i<in->coordinator->count;i++){InputQLink *peer=in->coordinator->origins[i]->qlinks+index;if(peer!=g&&peer->pending&&input_qlink_same(&peer->request,s,index)){*g=*peer;peer->pending=0;}}
+ unsigned order=bank_qlink_order(bank,s,now);if(g->pending&&g->order!=order)g->pending=0;
+ if(in->coordinator)for(unsigned i=0;i<in->coordinator->count;i++){
+  MirrorInput *origin=in->coordinator->origins[i];InputQLink *peer=origin->qlinks+index;
+  if(peer->pending&&origin->origin_bank&&peer->order!=bank_qlink_order(origin->origin_bank,s,now))peer->pending=0;
+  if(peer!=g&&peer->pending&&input_qlink_same(&peer->request,s,index)){*g=*peer;peer->pending=0;}
+ }
  unsigned compatible=input_qlink_same(&g->request,s,index),prior=p->bits;
  if(!compatible)memset(g,0,sizeof(*g));
  if(compatible&&g->pending)prior=g->request.bits;
@@ -453,10 +461,10 @@ static inline void input_qlink_edit_index(MirrorInput *in,const MirrorBank *bank
  if(absolute>=0){value=absolute/16383.0f;g->relative=0;}
  else{float step=delta/127.0f;if(!g->pending){g->relative=1;g->shift=g->lower=0;g->upper=1;}if(g->relative){g->shift+=step;g->lower=input_effect_clamp(g->lower+step,0,1);g->upper=input_effect_clamp(g->upper+step,0,1);if(g->lower==g->upper)g->shift=0;}value=input_effect_clamp(value+step,0,1);}
  unsigned bits;memcpy(&bits,&value,4);const QLinkCopy *q=&s->qlinks;
- g->request=(CommandRequest){.epoch=s->epoch,.bits=bits,.expires=now+120000,.before_bits=p->bits,.before_revision=p->revision,.reserved=QLINK_VALUE,.project_owner=s->project_owner,.field_incarnation=q->generation,.qlink_root=q->root,.qlink_wrapper=q->wrapper,.qlink_provider=q->provider,.qlink_generation=q->generation,.qlink_index=index};g->pending=1;
+ g->request=(CommandRequest){.epoch=s->epoch,.bits=bits,.expires=now+120000,.before_bits=p->bits,.before_revision=p->revision,.reserved=QLINK_VALUE,.project_owner=s->project_owner,.field_incarnation=q->generation,.qlink_root=q->root,.qlink_wrapper=q->wrapper,.qlink_provider=q->provider,.qlink_generation=q->generation,.qlink_index=index};g->order=bank_qlink_order(bank,s,now);g->pending=1;
 }
 static inline void input_qlink_edit(MirrorInput *in,const MirrorBank *bank,const CopiedMirror *s,unsigned strip,int delta,int absolute,uint32_t now){
- if(strip<8&&bank->qlink_page<2)input_qlink_edit_index(in,bank,s,bank->qlink_page*8+strip,delta,absolute,now);
+ if(strip<8&&bank->qlink_page<2)input_qlink_edit_index(in,bank,s,bank_qlink_index(bank,s,strip,now),delta,absolute,now);
 }
 static inline void input_qlink_pitch(MirrorInput *in,MirrorBank *bank,const CopiedMirror *s,unsigned strip,int position,uint32_t now){
  InputGesture *g=in->gestures+strip;g->changed=0;input_pitch(in,bank,strip,position,now);if(g->changed)input_qlink_edit(in,bank,s,strip,0,position,now);
@@ -465,7 +473,7 @@ static inline void input_qlink_submit(MirrorInput *in,const MirrorBank *bank,con
  if(input_mode_busy(in))return;
  for(unsigned index=0;index<QLINK_SLOTS;index++){
   InputQLink *g=in->qlinks+index;if(!g->pending)continue;
-  if(bank->assignment!=BA_QLINK||!bank->ready||(bank->qlink_page!=2&&index/8!=bank->qlink_page)||!input_qlink_same(&g->request,s,index)||now>g->request.expires){g->pending=0;continue;}
+  if(bank->assignment!=BA_QLINK||!bank->ready||!bank_qlink_contains(bank,s,index,now)||g->order!=bank_qlink_order(bank,s,now)||!input_qlink_same(&g->request,s,index)||now>g->request.expires){g->pending=0;continue;}
   const QLinkSlot *p=input_qlink_slot(s,index,now);if(!p){g->pending=0;continue;}
   unsigned busy=0;for(unsigned i=0;i<COMMAND_SLOTS;i++)if(in->flights[i].flight&&command_qlink(in->flights[i].field)&&input_qlink_same(&in->flights[i].qlink_request,s,index))busy=1;
   if(busy)continue; /* Native admission checks current activity; a copied gesture byte is not an input delay. */

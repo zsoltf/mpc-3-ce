@@ -10,4 +10,4 @@ cp -R web/img dist/img
 
 cp ../docs/controller-programs.md dist/CONTROLLERS.md
 cp ../firmware/plugin-setup/README.md dist/PLUGIN-INSTALL.md
-cp ../docs/releases/v0.4.1.md dist/RELEASE-NOTES.md
+cp ../docs/releases/v0.4.2.md dist/RELEASE-NOTES.md

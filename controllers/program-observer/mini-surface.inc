@@ -8,7 +8,7 @@ static void surface_jog(MirrorInput*,const CopiedMirror*,unsigned,unsigned,int,u
 static unsigned mini_mode(const MirrorBank *bank){return bank->assignment==BA_EFFECT?5:bank->assignment==BA_MINI_SEND?4:bank->assignment==BA_QLINK?2+bank->qlink_page:bank->assignment==BA_PAN?1:0;}
 static void mini_select_mode(Surface *s,MirrorInput *in,MirrorBank *bank,unsigned mode,uint32_t now){
  bank->assignment=mode==5?BA_EFFECT:mode==4?BA_MINI_SEND:mode>=2?BA_QLINK:mode==1?BA_PAN:BA_TRACK;
- bank->qlink_page=mode==3;bank->effects_slot=EFFECT_LIST;bank->effects_page=bank->effects_generation=0;
+ bank->qlink_page=mode==3;bank->qlink_screen_order=1;bank->effects_slot=EFFECT_LIST;bank->effects_page=bank->effects_generation=0;
  bank->flip=0;bank->fader_field=CF_VOLUME;bank_view(bank,BV_TRACK,now);
  bank_drop(bank,now);input_discard(in);memset(s->display_until,0,sizeof(s->display_until));
  memset(s->wire_valid,0,sizeof(s->wire_valid));s->mode_valid=0;
@@ -110,7 +110,7 @@ static int mini_output(Surface *s,const MirrorBank *bank,const CopiedMirror *sna
  s->mode_valid=1;
  unsigned strip=s->next_wire++%8,ring=0;
  if(ready){
-  if(bank->assignment==BA_QLINK){const QLinkSlot *q=input_qlink_slot(snapshot,bank->qlink_page*8+strip,now);if(q){float x;memcpy(&x,&q->bits,4);if(isfinite(x)&&x>=0&&x<=1)ring=(unsigned)(x*10+0.5f)+1;}}
+  if(bank->assignment==BA_QLINK){const QLinkSlot *q=input_qlink_slot(snapshot,bank_qlink_index(bank,snapshot,strip,now),now);if(q){float x;memcpy(&x,&q->bits,4);if(isfinite(x)&&x>=0&&x<=1)ring=(unsigned)(x*10+0.5f)+1;}}
   else if(bank->assignment==BA_EFFECT){const EffectsCopy *e=&snapshot->effects;const EffectParameter *p=e->parameters+strip;if(snapshot->effects_available&&e->status==EF_READY&&e->serial==bank->selected.serial&&e->slot==bank->effects_slot&&e->page==bank->effects_page&&e->slot<EFFECT_SLOTS&&p->status==EF_READY&&p->tick<=now&&now-p->tick<EFFECT_FRESH_MS){float x;memcpy(&x,&p->bits,4);if(isfinite(x)&&x>=0&&x<=1)ring=(unsigned)(x*10+0.5f)+1;}}
   else if(bank->assignment==BA_MINI_SEND)ring=mini_field_ring(snapshot,strip<4?input_track(snapshot,&bank->selected):bank_return(snapshot,strip-4),strip<4?CF_SEND1+strip:CF_VOLUME);
   else ring=mini_field_ring(snapshot,input_track(snapshot,bank->strips+strip),surface_encoder_field(s,bank,strip));

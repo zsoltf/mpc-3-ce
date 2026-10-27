@@ -10,6 +10,7 @@ host = stage / "controllers/program-observer"
 shutil.copyfile(kit / "track-host.cc", stage / "ui/examples/track-host.cc")
 shutil.copyfile(kit / "screen-qlinks.inc", stage / "ui/examples/screen-qlinks.inc")
 shutil.copyfile(kit / "track-host-profile.h", stage / "ui/examples/track-host-profile.h")
+shutil.copyfile(host / "qlink-order.h", stage / "ui/examples/qlink-order.h")
 # MPC 3.10 admission reads the same owners from traced coordinates; the
 # exact 3.10 Preferences preparation merges them with its own.
 shutil.copyfile(kit / "track-host-310-coordinates.json", host / "track-host-310-coordinates.json")

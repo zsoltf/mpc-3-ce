@@ -739,7 +739,7 @@ static void surface_assignment(Surface *s,MirrorInput *in,MirrorBank *bank,const
  if(note==40&&in->jog_shift){input_global_add(in,snapshot,GLOBAL_TRACK_TYPE,0,now);return;}
  if(note==63&&!in->jog_shift){bank->assignment=BA_IO;bank->flip=0;bank_view(bank,BV_TRACK,now);}
  else if(note==50&&bank->assignment==BA_IO)return;
- else if(note==44){bank->assignment=BA_QLINK;bank->flip=0;bank->qlink_page=0;bank_view(bank,BV_TRACK,now);}
+ else if(note==44){bank->assignment=BA_QLINK;bank->flip=0;bank->qlink_page=0;bank->qlink_screen_order=SURFACE_VALUE(s,controller).profile->protocol!=MCU_PROTOCOL_HUI;bank_view(bank,BV_TRACK,now);}
  else if(note==43){bank->assignment=BA_EFFECT;bank->flip=0;bank->effects_slot=EFFECT_LIST;bank->effects_page=0;bank_view(bank,BV_TRACK,now);}
  else if(note==50&&bank->assignment==BA_EFFECT){if(bank->effects_slot==EFFECT_LIST)return;bank->flip=!bank->flip;}
  else if((note==66&&!in->jog_shift)||(note==65&&in->jog_shift)){bank_view(bank,bank->view==BV_DRUM_PADS?BV_TRACK:BV_DRUM_PADS,now);bank->assignment=BA_TRACK;bank->flip=0;}
@@ -806,7 +806,7 @@ static void surface_general_press(Surface *surface,MirrorInput *in,const CopiedM
 }
 static int surface_pitch(Surface *s,MirrorInput *in,MirrorBank *bank,const CopiedMirror *snapshot,unsigned strip,int position,uint32_t now){
  if(stopping)return 1;
- if(bank->assignment==BA_QLINK&&bank->flip)input_qlink_pitch(in,bank,snapshot,strip,position,now);else if(bank->assignment==BA_EFFECT&&bank->flip)input_effect_pitch(in,bank,snapshot,strip,position,now);else input_pitch(in,bank,strip,position,now);motor_follow_report(&SURFACE_VALUE(s,following).motors[strip],position,now,bank->assignment==BA_QLINK&&bank->flip?in->qlinks[bank->qlink_page*8+strip].pending:bank->assignment==BA_EFFECT&&bank->flip?in->effects[strip].pending:bank_field(bank,strip)<CF_COUNT&&in->desires[strip][bank_field(bank,strip)].pending);s->display_field[strip]=bank_field(bank,strip);s->display_until[strip]=now>UINT32_MAX-2000?UINT32_MAX:now+2000;
+ if(bank->assignment==BA_QLINK&&bank->flip)input_qlink_pitch(in,bank,snapshot,strip,position,now);else if(bank->assignment==BA_EFFECT&&bank->flip)input_effect_pitch(in,bank,snapshot,strip,position,now);else input_pitch(in,bank,strip,position,now);motor_follow_report(&SURFACE_VALUE(s,following).motors[strip],position,now,bank->assignment==BA_QLINK&&bank->flip?in->qlinks[bank_qlink_index(bank,snapshot,strip,now)].pending:bank->assignment==BA_EFFECT&&bank->flip?in->effects[strip].pending:bank_field(bank,strip)<CF_COUNT&&in->desires[strip][bank_field(bank,strip)].pending);s->display_field[strip]=bank_field(bank,strip);s->display_until[strip]=now>UINT32_MAX-2000?UINT32_MAX:now+2000;
  return surface_servo(s,bank,strip,position,now);
 }
 #endif
@@ -1083,7 +1083,7 @@ static int strip_motor_ready(Surface *s,MirrorBank *bank,unsigned channel,uint32
  int target=bank_target(bank,channel,now);if(target>=0)motor_follow_target(&SURFACE_VALUE(s,following).motors[channel],key,target,now);
  if(bank->assignment==BA_QLINK&&bank->flip){
   if(input_mode_busy(&SURFACE_VALUE(s,input)))return 0;
-  unsigned index=bank->qlink_page*8+channel;
+  unsigned index=f->effect[1];
   InputQLink *g=SURFACE_VALUE(s,input).qlinks+index;
   unsigned same=g->request.epoch==bank->epoch&&g->request.qlink_generation==f->effect[0]&&g->request.qlink_wrapper==f->effect[2]&&g->request.qlink_provider==f->effect[3]&&g->request.qlink_root==f->effect[4];
   if(same&&g->wait_tick&&f->qlink_kind)for(unsigned lane=0;lane<COMMAND_LANES;lane++)if(f->qlink_matches[lane]>g->barriers[lane]){g->wait_tick=0;break;}
@@ -1287,7 +1287,7 @@ static int channel_output(Surface *s,MirrorBank *bank,const CopiedMirror *snapsh
  }
  else if(bank->assignment==BA_QLINK){
   SURFACE_VALUE(s,effect_notice_slot)=EFFECT_LIST;
-  const QLinkCopy *q=&snapshot->qlinks;unsigned index=bank->qlink_page*8+strip;
+  const QLinkCopy *q=&snapshot->qlinks;unsigned index=bank_qlink_index(bank,snapshot,strip,now);
   if(snapshot->qlinks_available&&q->mode_valid&&q->mode_tick<=now&&now-q->mode_tick<QLINK_FRESH_MS){
    if(SURFACE_VALUE(s,mode_notice_controller)!=q->mode_controller||SURFACE_VALUE(s,mode_notice_generation)!=q->mode_generation||SURFACE_VALUE(s,mode_notice_epoch)!=snapshot->epoch||SURFACE_VALUE(s,mode_notice_id)!=q->mode_id){SURFACE_VALUE(s,mode_notice_controller)=q->mode_controller;SURFACE_VALUE(s,mode_notice_generation)=q->mode_generation;SURFACE_VALUE(s,mode_notice_epoch)=snapshot->epoch;SURFACE_VALUE(s,mode_notice_id)=q->mode_id;SURFACE_VALUE(s,mode_notice_until)=now+2000;}
   }else SURFACE_VALUE(s,mode_notice_until)=0;

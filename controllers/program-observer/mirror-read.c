@@ -301,7 +301,7 @@ static inline void effects_json(const CopiedMirror *s){
 static inline void qlink_json_text(const char *s){putchar('"');for(unsigned i=0;i<QLINK_TEXT&&s[i];i++){unsigned char c=s[i];if(c=='"'||c=='\\')printf("\\%c",c);else if(c<32)printf("\\u%04x",c);else putchar(c);}putchar('"');}
 static inline void qlink_json(const CopiedMirror *s){
  const QLinkCopy *q=&s->qlinks;
- printf("{\"mode_selection\":{\"valid\":%s,\"controller\":%u,\"generation\":%u,\"revision\":%u,\"id\":%u,\"eligible_count\":%u,\"tick\":%u,\"name\":",q->mode_valid?"true":"false",q->mode_controller,q->mode_generation,q->mode_revision,q->mode_id,q->mode_count,q->mode_tick);qlink_json_text(qlink_mode_name(q->mode_id));printf("},");
+ printf("{\"mode_selection\":{\"valid\":%s,\"controller\":%u,\"generation\":%u,\"revision\":%u,\"id\":%u,\"eligible_count\":%u,\"tick\":%u,\"name\":",q->mode_valid?"true":"false",q->mode_controller,q->mode_generation,q->mode_revision,q->mode_id,q->mode_count,q->mode_tick);qlink_json_text(qlink_mode_name(q->mode_id));printf("},\"screen_direction\":");if(q->screen_direction)printf("%u",q->screen_direction-1);else printf("null");printf(",");
  printf("\"sample_available\":%s,\"quality\":\"native_ui_seed_and_completed_mode_cache_value_agreement\",\"assignment_confirmed\":false,\"semantic_generation_observed\":true,\"target_settled\":false,\"gesture_is_availability\":false,\"assignment_available\":null,\"cross_slot_atomic\":false,\"status\":%u,\"epoch\":%u,\"enrollment_generation\":%u,\"demand\":%u,\"tick\":%u,\"native_reads\":%u,\"root\":%u,\"controls\":%u,\"queue\":%u,\"wrapper\":%u,\"provider\":%u,\"labels\":%u,\"mode_owner\":%u,\"raw_signals\":[%u,%u,%u],\"slots\":[",s->qlinks_available?"true":"false",q->status,q->epoch,q->generation,q->demand,q->tick,q->reads,q->root,q->controls,q->queue,q->wrapper,q->provider,q->labels,q->mode,q->raw_signals[0],q->raw_signals[1],q->raw_signals[2]);
  for(unsigned i=0;i<QLINK_SLOTS;i++){
   const QLinkSlot *v=q->slots+i;unsigned fresh=s->qlinks_available&&v->sampled&&v->revision&&v->tick<=s->heartbeat&&s->heartbeat-v->tick<QLINK_FRESH_MS;
@@ -363,7 +363,7 @@ int main(int argc,char **argv){
  unsigned bank[MIRROR_BANK],n=0;int available=fresh&&out.ready;
  if(stable)for(unsigned i=0;i<out.count&&n<MIRROR_BANK;i++)if(playable(out.tracks[i].vptr)){bank[n++]=i;available&=out.tracks[i].available;}
  if(!n)available=0;
- printf("{\"format\":\"MMV21\",\"producer_pid\":%u,\"stable\":%s,\"fresh\":%s,\"error\":%u,\"epoch\":%u,\"generation\":%u,\"topology_revision\":%u,\"master_count\":%u,\"cells_used\":%u,\"cells_capacity\":%u,\"bank_available\":%s,\"view\":\"%s\",\"tracks\":[",s->pid,stable?"true":"false",fresh?"true":"false",out.error,out.epoch,out.generation,out.revision,out.count,out.allocated,MIRROR_CELLS,available?"true":"false",all?"all":"bank");
+ printf("{\"format\":\"MMV%u\",\"producer_pid\":%u,\"stable\":%s,\"fresh\":%s,\"error\":%u,\"epoch\":%u,\"generation\":%u,\"topology_revision\":%u,\"master_count\":%u,\"cells_used\":%u,\"cells_capacity\":%u,\"bank_available\":%s,\"view\":\"%s\",\"tracks\":[",MIRROR_VERSION,s->pid,stable?"true":"false",fresh?"true":"false",out.error,out.epoch,out.generation,out.revision,out.count,out.allocated,MIRROR_CELLS,available?"true":"false",all?"all":"bank");
  unsigned shown=all&&stable?out.count:n;
  for(unsigned k=0;k<shown;k++){
   unsigned index=all?k:bank[k];CopiedTrack *t=out.tracks+index;float value;memcpy(&value,&t->bits,4);

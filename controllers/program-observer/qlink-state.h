@@ -18,6 +18,7 @@ typedef struct {
 typedef struct {
  uint32_t demand,epoch,generation,status,tick,reads,root,controls,queue,wrapper,provider,labels,mode,sources,descriptors,cache,strings;
  uint32_t mode_controller,mode_generation,mode_revision,mode_id,mode_count,mode_tick,mode_valid;
+ uint32_t screen_direction; /* Native ADA2 direction + 1; zero is unqualified. */
  uint32_t raw_signals[3];
  QLinkSlot slots[QLINK_SLOTS];
 } QLinkCopy;

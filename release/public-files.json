@@ -146,6 +146,7 @@
   "controllers/program-observer/qlink-capture.inc": "controllers/program-observer/qlink-capture.inc",
   "controllers/program-observer/qlink-command.inc": "controllers/program-observer/qlink-command.inc",
   "controllers/program-observer/qlink-mode.inc": "controllers/program-observer/qlink-mode.inc",
+  "controllers/program-observer/qlink-order.h": "controllers/program-observer/qlink-order.h",
   "controllers/program-observer/qlink-state.h": "controllers/program-observer/qlink-state.h",
   "controllers/program-observer/recording-capture.inc": "controllers/program-observer/recording-capture.inc",
   "controllers/program-observer/session-wrapper-test.py": "controllers/program-observer/session-wrapper-test.py",
@@ -439,5 +440,8 @@
   "builder/web/mini-guide.html": "builder/web/mini-guide.html",
   "docs/releases/v0.4.1.md": "docs/releases/v0.4.1.md",
   "firmware/v0.4.1-runtime.sha256": "firmware/v0.4.1-runtime.sha256",
-  "firmware/v0.4.1-payload.sha256": "firmware/v0.4.1-payload.sha256"
+  "firmware/v0.4.1-payload.sha256": "firmware/v0.4.1-payload.sha256",
+  "docs/releases/v0.4.2.md": "docs/releases/v0.4.2.md",
+  "firmware/v0.4.2-runtime.sha256": "firmware/v0.4.2-runtime.sha256",
+  "firmware/v0.4.2-payload.sha256": "firmware/v0.4.2-payload.sha256"
 }

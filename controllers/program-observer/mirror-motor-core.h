@@ -3,6 +3,7 @@
 #define MPC_MIRROR_MOTOR_CORE_H
 #define MIRROR_READER_COMPONENT 1
 #include "mirror-read.c"
+#include "qlink-order.h"
 /* Physical touch knowledge belongs to the current ALSA connection. Binding
  * barriers/targets belong to one bank identity and are discarded on remap. */
 enum {MT_UNKNOWN,MT_DOWN,MT_UP};
@@ -23,7 +24,7 @@ typedef struct {
  MirrorFader faders[MIRROR_BANK];
  MotorIdentity selected, strips[MIRROR_BANK];
  uint32_t offset,epoch,heartbeat,topology_revision,playable_count,remaps;
- unsigned view,fader_field,assignment,flip,effects_slot,effects_page,effects_generation,effects_chooser_request,qlink_page;
+ unsigned view,fader_field,assignment,flip,effects_slot,effects_page,effects_generation,effects_chooser_request,qlink_page,qlink_screen_order;
  unsigned volume_fields[MIRROR_BANK];
  /* Row this strip's identity was bound from in the snapshot's track array, or
   * -1 when it has none (pad rows resolve directly). It is a hint: every reader
@@ -31,6 +32,22 @@ typedef struct {
  int strip_row[MIRROR_BANK];
  int ready,chooser;
 } MirrorBank;
+static inline unsigned bank_qlink_order(const MirrorBank *bank,const CopiedMirror *s,unsigned now){
+ const QLinkCopy *q=&s->qlinks;
+ return bank->qlink_screen_order&&s->qlinks_available&&q->epoch==s->epoch&&q->mode_valid&&q->mode_id==0&&q->mode_tick<=now&&now-q->mode_tick<QLINK_FRESH_MS&&q->screen_direction<=4?q->screen_direction:0;
+}
+static inline unsigned bank_qlink_index(const MirrorBank *bank,const CopiedMirror *s,unsigned strip,unsigned now){
+ unsigned page=bank->qlink_page,order=bank_qlink_order(bank,s,now);
+ if(strip>=8||page>=2)return QLINK_SLOTS;
+ return qlink_grid_index(page*8+strip,order?order-1:0);
+}
+static inline int bank_qlink_contains(const MirrorBank *bank,const CopiedMirror *s,unsigned index,unsigned now){
+ if(index>=QLINK_SLOTS)return 0;
+ if(bank->qlink_page==2)return 1;
+ if(bank_qlink_order(bank,s,now)<=1)return index/8==bank->qlink_page;
+ for(unsigned strip=0;strip<8;strip++)if(bank_qlink_index(bank,s,strip,now)==index)return 1;
+ return 0;
+}
 static inline unsigned bank_parameter(const MirrorBank *bank,unsigned strip){
  if(bank->assignment==BA_EFFECT||bank->assignment==BA_QLINK)return CF_COUNT;
  if(bank->assignment==BA_SEND)return strip<4?CF_SEND1+strip:CF_COUNT;
@@ -144,7 +161,7 @@ static inline void bank_apply(MirrorBank *bank,const CopiedMirror *snapshot,uint
    identity=(MotorIdentity){0};track=NULL;known_empty=0;
    const QLinkCopy *q=&snapshot->qlinks;
    if(snapshot->qlinks_available&&q->epoch==snapshot->epoch&&q->status==QL_SAMPLED){
-    effect[0]=q->generation;effect[1]=bank->qlink_page*8+i;effect[2]=q->wrapper;effect[3]=q->provider;effect[4]=q->root;
+    effect[0]=q->generation;effect[1]=bank_qlink_index(bank,snapshot,i,now);effect[2]=q->wrapper;effect[3]=q->provider;effect[4]=q->root;
     const QLinkSlot *p=q->slots+effect[1];if(p->sampled&&p->normalized_valid&&p->tick<=now&&now-p->tick<QLINK_FRESH_MS)qlink=p;
    }
   }

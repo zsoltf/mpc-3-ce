@@ -22,7 +22,7 @@ result=$?
 python3 - "$fixture_dir/channels.json" <<'PYTEST'
 import json,sys
 j=json.load(open(sys.argv[1]))
-assert j['format']=='MMV21' and j['stable'] and not j['fresh'] and not j['error']
+assert j['format']=='MMV22' and j['stable'] and not j['fresh'] and not j['error']
 assert j['master_count']==12 and len(j['tracks'])==12
 for t in j['tracks']:
  assert t['available'] and t['volume']==0.5
@@ -30,5 +30,5 @@ for t in j['tracks']:
   f=t['fields'][key]
   assert f['available'] and f['value']==value and f['seed_kind']==1,(key,f)
 assert j['selection']['available'] and j['selection']['value']==0
-print('PASS actual MMV21 reader JSON:12 retained channel groups, defaults and independent owner/property identity; closed producer is stale')
+print('PASS actual MMV22 reader JSON:12 retained channel groups, defaults and independent owner/property identity; closed producer is stale')
 PYTEST

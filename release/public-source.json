@@ -1,38 +1,38 @@
 {
-  "release": "v0.4.1",
-  "image_revision": "v0_4_1",
+  "release": "v0.4.2",
+  "image_revision": "v0_4_2",
   "firmware": "3.10.0 Gen1",
-  "runtime_format": "CMD32/MMV21",
-  "runtime_checksums": "firmware/v0.4.1-runtime.sha256",
-  "payload_checksums": "firmware/v0.4.1-payload.sha256",
-  "payload_checksums_sha256": "bc4477e76da37d7cad9d66e0aea56e3cb4a239885f59d5ee249070428bb4bd3b",
+  "runtime_format": "CMD32/MMV22",
+  "runtime_checksums": "firmware/v0.4.2-runtime.sha256",
+  "payload_checksums": "firmware/v0.4.2-payload.sha256",
+  "payload_checksums_sha256": "56d17bd784d1cda514f5de87578fb40d8641ed9d2302f8d225fbdb1aaff507d2",
   "runtime_location": "/usr/share/mpclearn/mcu",
-  "qualified_hardware": "MPC Live II: prior installed MPC 3.10 base accepted; Mini development runtime through 36dacd5 accepted with native controls, feedback and clean playback. This rebuilt image has not been flashed.",
+  "qualified_hardware": "MPC Live II: development repair 4002987 accepted for repeated Cardinal edits on physical Mini with clean listening; d785a26 accepted for native four-knob grouping and physical Mini order. Encoder smoothness is not newly qualified. This rebuilt release image has not been flashed.",
   "image_flash_tested": false,
   "debug_image_flash_tested": false,
   "status": "release-candidate",
   "release_artifacts_current_for_source": true,
-  "product_candidate": "b850c2222273a726841c52852ed421595aee2e27",
-  "development_source_base": "b850c2222273a726841c52852ed421595aee2e27",
-  "recipe_source_commit": "b850c2222273a726841c52852ed421595aee2e27",
+  "product_candidate": "3ead01d0a1f29627e98235dcb31b9aafbccbf9a8",
+  "development_source_base": "3ead01d0a1f29627e98235dcb31b9aafbccbf9a8",
+  "recipe_source_commit": "3ead01d0a1f29627e98235dcb31b9aafbccbf9a8",
   "build_metadata": "BUILD.json is the immutable build-time candidate record. This release metadata records subsequent qualification of the exact payload and recipes.",
-  "diagnostics_status": "Offline exact recipe reconstruction checked; native Debug image flash and USB report not qualified",
-  "native_info_label": "MPC 3 CE 0.4.1",
+  "diagnostics_status": "Offline exact SSH, no-SSH and Debug recipe reconstruction checked; native Debug image flash and USB report not qualified",
+  "native_info_label": "MPC 3 CE 0.4.2",
   "recipes": {
     "ssh": {
-      "manifest_sha256": "23f49df98edfed8427688e21731b613ae594df00ce3dd5f87812eef23b7117bb",
-      "patch_sha256": "4604d990634cf119594391d7ca216ea1b92d7d20bb9a701c3ca0f40ac0c3f129",
-      "root_sha256": "f272cd21282d4fc58c318128b9973144deedeba33070a3c6420e5656bcf0c8b4"
+      "manifest_sha256": "b42f2f95e40814eb632e3a7ba66461e6fd05d4cb85ee9163d554507b0cbc97cc",
+      "patch_sha256": "15a018862467154f3458db90de837b52d0d76eeb13f31db6ad0fc34df8777fb8",
+      "root_sha256": "41c52490c7223200f9763641462d884404a06968179c207d527319dd2f3ed0fd"
     },
     "no-ssh": {
-      "manifest_sha256": "1ee0d53535b9be554e72a0d55192eb9c1c6edaa69076656460f72ce0711aac17",
-      "patch_sha256": "7cd5749a0bf1b28ccc9e595d13cb6d14be01927d1920ff750f0628ac5eb0ba8a",
-      "root_sha256": "aa7325b00c06a055dd5ad03e5b89ce6e6c644fc2389882b8b491f93bf8a0e724"
+      "manifest_sha256": "d7a13957e446073f511d25d17da7b18ffc11b2e89818632a9150a852aad3ffaf",
+      "patch_sha256": "4245ed0b004186d117d313a0a800c5dcbca076a67c45203e213a4fc77ea7ed48",
+      "root_sha256": "9e8f5de4a28dd0871c04b76b0055c09769e5ff10d4d3e58a8e820ae7f7f4d466"
     },
     "diagnostics": {
-      "manifest_sha256": "8dfd9a4a73d0cf4487def48e852505e3b10f6df89d987222e6849774cbadcafa",
-      "patch_sha256": "274cc44b19e76222dd4b82619552d3ee4fda3187aa026772ee8babd98fe9d86d",
-      "root_sha256": "72b7a4df47ef46d673ab941064f84afad6cb4b6b1a6e16ec4c5fc1da45491d0d"
+      "manifest_sha256": "b3b176e950ca014b6642dfde2d4791dfa0dd1e6344e1aa200fe7a02abd1f255c",
+      "patch_sha256": "8347d029e0d8419c90d8c4bf3f4ac424b25ea3b93b5b3af9999c111de401c50c",
+      "root_sha256": "ad41b64ceca29f26ac2ac0ff8e7cbd2174e43bd59315924cae339d3efe44644f"
     }
   }
 }

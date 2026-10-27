@@ -2923,6 +2923,30 @@ static void mode_callbacks_fixture(unsigned mask){
   *done=context();done->r[p?MODEL_QLINK_MODE_DONE_REGISTER1:4]=ptr(mode_test_cells[p])+8;call(done,p?QM_DONE1:QM_DONE0);
  }
 }
+static unsigned screen_getter_calls;
+static float screen_getter_fixture(void *wrapper,unsigned index){(void)wrapper;require(index<16,"Screen sample native index");screen_getter_calls++;return index/16.f;}
+static void screen_order_projection_checks(Context *drain,uint32_t controls,uint32_t k){
+ uint32_t bank=controls+0xf00,provider=controls+0x200,sources=controls+0x1000;
+ void *page=mmap((void*)(MODEL_QLINK_GET&~4095u),4096,PROT_READ|PROT_WRITE|PROT_EXEC,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);
+ require(page!=(void*)MAP_FAILED||errno==EEXIST,"native getter fixture page");uint32_t *entry=(uint32_t*)MODEL_QLINK_GET;jump(&entry,ptr(screen_getter_fixture));__builtin___clear_cache((char*)MODEL_QLINK_GET,(char*)entry);
+ put(k+0x5c,0);put(k+0xc0,bank);put(bank+0x70,sources);put(bank+0x68,2);
+ for(unsigned i=0;i<16;i++){put(controls+0x2200+12*i+4,controls+0x2500);put(controls+0x2200+12*i+8,controls+0x2500);}
+ QLinkInterest *interest=&command_state->qlink_interest;atomic_store(&interest->revision,2);atomic_store(&interest->enabled,1);atomic_store(&interest->epoch,epoch);atomic_store(&interest->page,2);atomic_store(&interest->until,1000);
+ atomic_store(&fixture->heartbeat,100);screen_getter_calls=0;qlink_service(drain);
+ require(qlink_current.screen_direction==3&&screen_getter_calls==8,"qualified native Column direction and first bounded eight-slot sample");
+ atomic_store(&fixture->heartbeat,120);qlink_service(drain);
+ require(screen_getter_calls==16,"all-slot interest samples both native halves over two drains");
+ for(unsigned i=0;i<16;i++)require(qlink_current.slots[i].sampled,"every mapped Screen slot acquired");
+ atomic_store(&fixture->heartbeat,140);qlink_service(drain);require(screen_getter_calls==16,"clean Screen projection does not repeat native value reads");
+ for(unsigned direction=0;direction<4;direction++){put(bank+0x68,direction);qlink_mode_sample(drain,140);require(qlink_current.screen_direction==direction+1,"all four qualified scalar directions project");}
+ put(bank+0x68,4);qlink_mode_sample(drain,140);require(!qlink_current.screen_direction,"unknown native direction is unqualified");
+ put(bank+0x68,2);put(bank+0x70,sources+4);qlink_mode_sample(drain,140);require(!qlink_current.screen_direction,"foreign source bank cannot qualify");
+ put(bank+0x70,sources);put(provider+0x2c,sources+4);qlink_mode_sample(drain,140);require(!qlink_current.screen_direction,"provider rebind cannot reuse old direction");put(provider+0x2c,sources);
+ put(k+0x5c,8);qlink_mode_sample(drain,140);require(!qlink_current.screen_direction,"non-Screen mode clears projection");
+ atomic_store(&interest->enabled,0);atomic_store(&fixture->heartbeat,160);qlink_service(drain);require(qlink_current.status==QL_OFF&&screen_getter_calls==16,"withdrawn demand stops native sampling");
+ qlink_initialize();
+ puts("PASS native Screen direction projection: rooted production resolver, provider-bound ADA2 scalar, four directions/foreign/unknown/non-Screen rejection; all-slot sampling reads eight per drain, sixteen over two drains, zero on clean third drain and withdrawn demand (native objects/getter substituted)");
+}
 static void mode_acceptance_checks(void){
  MirrorState *saved=fixture;CommandState *saved_command=command_state;
  fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"mode fixture state");
@@ -2934,7 +2958,7 @@ static void mode_acceptance_checks(void){
   put(root+MODEL_ROOT_CONTROLS,controls);put(root+MODEL_ROOT_QLINK_WRAPPER,wrapper);put(controls+0x30,provider);put(controls+0x38,labels);put(controls+0x2c,t);put(t,MODEL_QLINK_TOUCH_VPTR);put(wrapper,command_queues);put(wrapper+8,provider);put(provider+0x28,16);
   put(provider+0x2c,controls+0x1000);put(provider+0x30,controls+0x1900);put(provider+0x34,controls+0x2100);put(labels+0x10,16);put(labels+0x18,16);put(labels+0x1c,16);put(labels+0x14,controls+0x2200);
   put(root+MODEL_ROOT_QLINK_OWNER,parent);put(parent+MODEL_QLINK_OWNER_CONTROLLER,k);put(k,MODEL_QLINK_CONTROLLER_VPTR);put(k+8,command_queues);put(k+0x524,cap);put(cap+0x28,13);put(k+0x5c,8);
-  Context drain=context();drain.r[0]=command_queues+4;require(qlink_mode_sample(&drain,0)&&qlink_current.mode_valid,"actual rooted mode admission and eligible count");
+  Context drain=context();drain.r[0]=command_queues+4;if(!mode_test_case)screen_order_projection_checks(&drain,controls,k);require(qlink_mode_sample(&drain,0)&&qlink_current.mode_valid,"actual rooted mode admission and eligible count");
   CommandRequest r={.epoch=epoch,.bits=mode_test_case==4?6:1,.expires=120000,.reserved=QLINK_MODE,.field_incarnation=qlink_mode_generation,.project_owner=channel_owner_id(project),.global_owner=k,.qlink_root=root};
   unsigned at=submit_fixture(r);CommandSlot *slot=command_state->slots+at;r=accepted[at].request;
   require(atomic_load(&slot->processed)==r.seq&&atomic_load(active_request+at)==r.seq&&!atomic_load(&slot->done)&&!atomic_load(&command_state->error),"setter returned but native mode callbacks remain owned");
@@ -3303,6 +3327,7 @@ static void type_source_checks(void){
 #include "step-production-test.inc"
 #include "clip-production-test.inc"
 int main(int argc,char **argv){
+ if(argc==2&&!strcmp(argv[1],"--screen-order")){alarm(30);exercise_adjust=4096;replay_checks();mode_acceptance_checks();return 0;}
  if(argc==2&&!strcmp(argv[1],"--clip-owner")){alarm(30);clip_owner_checks();return 0;}
  if(argc==2&&!strcmp(argv[1],"--step-owner")){alarm(30);step_owner_checks();return 0;}
 #ifdef NATIVE_WHEEL_PROBE
