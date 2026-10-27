@@ -220,6 +220,7 @@ Pd source starts in [pd-engine](../vst2/pd-engine/README.md).
 Pure Data and builds `libpd.a`. Then:
 
 ```sh
+./vst2/pd-engine/build.sh
 python3 vst2/cardinal-touch-prototype/fetch-rack-source.py build/cardinal-touch-prototype/sources
 bash vst2/pd-touch-prototype/hosted-build.sh
 bash vst2/pd-touch-prototype/hosted-package.sh "$PD_RACK_HOST_STAGE"
