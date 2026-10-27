@@ -3,12 +3,12 @@ set -euo pipefail
 cd "$(dirname "$0")"
 repo=$(cd ../.. && pwd)
 mkdir -p "$repo/build/pd-touch-prototype/libpd" "$repo/build/pd-touch-prototype/adapter"
-tar -xzf ../pd-durm/package/libpd-source.tar.gz -C "$repo/build/pd-touch-prototype/libpd"
+tar -xzf ../pd-engine/package/libpd-source.tar.gz -C "$repo/build/pd-touch-prototype/libpd"
 cp "$repo/vst2/pd-rack-prototype/editor-view.h" "$repo/build/pd-touch-prototype/adapter/"
 cp "$repo/build/cardinal-touch-prototype/sources/dpf/dgl/src/nanovg/stb_truetype.h" "$repo/build/pd-touch-prototype/adapter/"
 cp "$repo/build/pd-touch-prototype/libpd/pure-data/font/DejaVuSansMono.ttf" "$repo/build/pd-touch-prototype/adapter/DejaVuSans.ttf"
 docker run --rm --network none -v "$PWD:/kit:ro" -v "$repo/build/pd-touch-prototype:/work" \
- -v "$repo/vst2/pd-durm/package/armhf/libpd.a:/libpd.a:ro" mpclearn-cardinal-rack-probe-build sh -ec '
+ -v "$repo/vst2/pd-engine/package/armhf/libpd.a:/libpd.a:ro" mpclearn-cardinal-rack-probe-build sh -ec '
  flags="-DPDINSTANCE -DPDTHREADS -DLIBPD_EMBED_NO_SIGNALS -fvisibility=hidden -O2 -fno-strict-aliasing -march=armv7-a -mfpu=vfpv3-d16 -mfloat-abi=hard -Wall -Wextra -Werror -Wno-misleading-indentation -I/work/libpd/libpd_wrapper -I/work/libpd/pure-data/src -I/work/adapter -I/kit"
  arm-linux-gnueabihf-gcc -std=c11 -fPIC $flags -c /kit/pd-touch.c -o /work/adapter/pd-touch.o
  cp /libpd.a /work/adapter/libpd-touch.a

@@ -215,13 +215,14 @@ docker run --rm -v "$PWD/build/cardinal-full-prototype:/work" -v "$PWD/vst2:/kit
 The Cardinal clone must contain the pinned commit. `full-package.sh` strips the
 plugins and copies the bundled Debian libraries into `Cardinal.vst/deps`.
 
-Pd: `vst2/pd-durm/build.sh` applies `libpd-embed.patch` to the pinned libpd and
+Pd source starts in [pd-engine](../vst2/pd-engine/README.md).
+`vst2/pd-engine/build.sh` applies `libpd-embed.patch` to the pinned libpd and
 Pure Data and builds `libpd.a`. Then:
 
 ```sh
 python3 vst2/cardinal-touch-prototype/fetch-rack-source.py build/cardinal-touch-prototype/sources
-./vst2/pd-touch-prototype/hosted-build.sh
-./vst2/pd-touch-prototype/hosted-package.sh "$PD_RACK_HOST_STAGE"
+bash vst2/pd-touch-prototype/hosted-build.sh
+bash vst2/pd-touch-prototype/hosted-package.sh "$PD_RACK_HOST_STAGE"
 ```
 
 `PD_RACK_HOST_STAGE` is the stage printed by `compose.sh`. The SD bundle's
@@ -249,7 +250,7 @@ build your own image from this source with the builder; see
 - `vst2/pd-rack-prototype/`, `vst2/pd-touch-prototype/`,
   `vst2/cardinal-touch-prototype/`: the Pd and Cardinal touch-editor sources
   that `compose.sh` builds into the release observer, and the scripts that
-  build the SD bundle's Cardinal and Pd plugins; `vst2/pd-durm/` builds libpd.
+  build the SD bundle's Cardinal and Pd plugins; `vst2/pd-engine/` builds libpd.
 - `release/sources/`: upstream revisions and Debian source packages for the
   SD bundle.
 - `firmware/`: packaging, image patching, provisioning and verification.

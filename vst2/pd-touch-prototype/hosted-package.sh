@@ -14,7 +14,7 @@ cp "$repo/build/pd-touch-prototype/libpd/pure-data/font/LICENSE" "$stage/pd-pack
 cp "$repo/build/pd-touch-prototype/hosted/"*.so "$stage/pd-package/plugins/"
 cp "$kit"/* "$stage/source/"
 cp "$repo/build/pd-touch-prototype/adapter/stb_truetype.h" "$stage/source/"
-cp "$repo/vst2/pd-durm/package/libpd-source.tar.gz" "$stage/source/"
+cp "$repo/vst2/pd-engine/package/libpd-source.tar.gz" "$stage/source/"
 docker run --rm --network none -v "$repo/vst2:/kit:ro" -v "$stage/pd-package:/out" mpclearn-cardinal-full-build bash -ec '
  arm-linux-gnueabihf-gcc -I/kit/pd-rack-prototype -std=c11 -O2 -Wall -Wextra -Werror /kit/pd-touch-prototype/hosted-component.c -o /out/tools/hosted-component -ldl -lm
  for module in /out/plugins/*.so; do

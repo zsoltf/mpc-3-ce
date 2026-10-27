@@ -19,8 +19,8 @@ for target in local armhf; do
  fi
  mkdir -p /out/$target
  make clean UTIL=false EXTRA=false >/dev/null
- if ! make -j4 libs/libpd.a CC="$cc" MULTI=true UTIL=false EXTRA=false SETLOCALE=false OPT_CFLAGS='-O2 -fno-strict-aliasing' ADDITIONAL_CFLAGS="$flags $arch" >/tmp/pd-durm-build.log 2>&1; then
-  cat /tmp/pd-durm-build.log
+ if ! make -j4 libs/libpd.a CC="$cc" MULTI=true UTIL=false EXTRA=false SETLOCALE=false OPT_CFLAGS='-O2 -fno-strict-aliasing' ADDITIONAL_CFLAGS="$flags $arch" >/tmp/pd-engine-build.log 2>&1; then
+  cat /tmp/pd-engine-build.log
   exit 1
  fi
  "$cc" -std=c11 -O2 -Wall -Wextra -Werror -Wno-misleading-indentation -fPIC $flags $arch -Ilibpd_wrapper -Ipure-data/src -I/out -I/kit -shared /kit/plugin.c /kit/engine.c libs/libpd.a -o /out/$target/PdDurm.so -Wl,--version-script=/kit/exports.map -Wl,-Bsymbolic -lm -lpthread -ldl

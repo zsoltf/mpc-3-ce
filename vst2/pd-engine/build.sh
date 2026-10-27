@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")"
-build_area=$(mktemp -d /tmp/mpclearn-pd-durm.XXXXXX)
+build_area=$(mktemp -d /tmp/mpclearn-pd-engine.XXXXXX)
 trap 'rm -rf "$build_area"' EXIT INT TERM
 python3 -B fetch-source.py "$build_area/source"
 mkdir -p package
@@ -14,5 +14,5 @@ p=Path('package');digest=hashlib.sha256((p/'durm.pd').read_bytes()).digest()
 (p/'identity.h').write_text('static const unsigned char PATCH_ID[32]={'+','.join(str(n) for n in digest)+'};\n')
 print('adapted patch SHA256',digest.hex())
 PY
-docker build -t mpclearn-pd-durm-build .
-docker run --rm --network none --memory 1g --pids-limit 128 -v "$build_area/source:/source" -v "$PWD:/kit:ro" -v "$PWD/package:/out" mpclearn-pd-durm-build sh /kit/build-in-container.sh
+docker build -t mpclearn-pd-engine-build .
+docker run --rm --network none --memory 1g --pids-limit 128 -v "$build_area/source:/source" -v "$PWD:/kit:ro" -v "$PWD/package:/out" mpclearn-pd-engine-build sh /kit/build-in-container.sh
