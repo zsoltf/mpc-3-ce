@@ -1,4 +1,4 @@
-# Browser MCU image creator
+# MPC 3 CE browser image builder
 
 This static browser app creates a personal MPC 3 CE image from Akai's official
 Gen1 update: v0.4.2 from MPC 3.10, or v0.3.0 from MPC 3.9.1. It recognises the
@@ -34,7 +34,7 @@ memory while it builds the image.
 Public site: https://mpc3ce.com/
 
 Choose Settings > Pages > Source > GitHub Actions in
-`zsoltf/mpc-3-community-edition`. See [publishing instructions](../docs/PUBLISHING.md).
+`zsoltf/mpc-3-ce`. See [publishing instructions](../docs/PUBLISHING.md).
 The supplied workflow builds and publishes only `builder/dist`. All site asset
 URLs are relative, so the same output works under a repository Pages subpath.
 No firmware, keys, image output, or server credentials are needed by the build.
