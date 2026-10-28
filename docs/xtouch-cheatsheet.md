@@ -75,6 +75,11 @@ volume; fields that do not apply show dashes.
 | Flip in parameters | Parameters on faders, track volumes on encoders. |
 | EQ | Q-Links 1 to 8 on the encoders. Bank switches to 9 to 16. Shift+Bank changes the MPC's Q-Link mode. Flip puts Q-Links on faders. |
 
+**Launch Control XL3:** choose DAW Control to use the top eight encoders for
+Q-Links. Page arrows select Q-Links 1-8, 9-16, then four effect pages. Its
+display follows MPC values; choose the Q-Link mode on the MPC. See the
+[XL3 setup and controls](https://github.com/zsoltf/mpc-3-ce/blob/main/docs/controller-programs.md#launch-control-xl-3).
+
 ## Transport and editing
 
 | Button | Action |
@@ -118,4 +123,5 @@ A hard flick can keep moving briefly after you stop.
   Effect open on the MPC and finish there.
 - Plug-in presets, parameter reset to default, and parameter pages for synth
   instances.
-- SMPTE display, HUI, and any controller other than the full-size X-Touch.
+- SMPTE display. This sheet covers the full-size X-Touch; the controller guide
+  covers the Launchpads, the XL3 and the MCU/HUI and Akai profiles.

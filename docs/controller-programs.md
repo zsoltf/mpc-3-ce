@@ -289,11 +289,25 @@ dark with `-` values; pad arm and selection are unavailable. The same chord
 returns to Track mixer and its existing Solo/Arm and Mute/Select choices.
 Control pages remain available, with faders retaining the chosen mixer target.
 
+### Q-Links and effects
+
+The XL3 has built-in Q-Link control and display feedback through CE's DAW
+profile; no Global MIDI Learn assignment is needed.
+
+1. Press **Mode**, choose **DAW Control**, then press **Mode** again.
+2. Use the **Page arrows** to select Q-Links 1-8 or Q-Links 9-16.
+3. Turn the **top row of eight encoders** to adjust the selected Q-Links.
+4. Select the desired Q-Link mode and assignments on the MPC. The XL3 follows
+   the active MPC Q-Link mode.
+
 Control pages cycle through Q-Links 1-8, Q-Links 9-16, then effect slots 1-4.
 Each effect page exposes its first eight available parameters in the current
-MPC context. Q-Link pages follow MPC's active Q-Link mode; select the desired
-mode and assignments on MPC first. The middle and bottom encoder rows remain
-dark in Control mode.
+MPC context. The middle and bottom encoder rows remain dark in Control mode.
+The display shows Q-Link numbers or available effect parameter names and their
+current values on a 0-127 scale, including changes made on the MPC.
+The XL3's knob LEDs indicate availability; they are not value rings.
+
+### Buttons and feedback
 
 Solo/Arm switches the upper button row between those actions. Mute/Select
 switches the lower row. The buttons' lights follow MPC state. Play starts, pauses

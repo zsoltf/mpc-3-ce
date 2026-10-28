@@ -23,11 +23,15 @@ Build your image in your browser from Akai's official update. Nothing is uploade
   clips play. Use two Launchpads together: launch clips on one and edit drum
   steps on the other. Each keeps its own view, and the drum editor stays on
   its chosen clip while the other Launchpad launches clips.
-- **Q-Links and effects:** control Q-Links, sends and inserts from X-Touch or
-  X-Touch Mini, with feedback from the MPC. Save projects from the controller.
+- **Q-Links and effects:** control Q-Links, sends and inserts from X-Touch,
+  X-Touch Mini or Launch Control XL3, with feedback from the MPC. The XL3
+  displays control names and values; X-Touch and Mini LED rings follow values.
+  X-Touch and Mini also save projects from the controller.
   [X-Touch guide](https://mpc3ce.com/guide.html) ·
-  [Mini guide and printable reference](https://mpc3ce.com/mini-guide.html).
-- **Global MIDI Learn:** map MIDI buttons, knobs and faders to MPC functions.
+  [Mini guide](https://mpc3ce.com/mini-guide.html) ·
+  [XL3 guide](docs/controller-programs.md#launch-control-xl-3).
+- **Global MIDI Learn:** map controller knobs and faders to MPC Q-Links,
+  and assign MIDI buttons to transport and other MPC functions.
 - **Mouse and wheel editing:** click and drag with a USB mouse; use Shift +
   data wheel in Grid to select the next or previous note.
 - **Pd and Cardinal synths and effects:** play and edit patches on the
