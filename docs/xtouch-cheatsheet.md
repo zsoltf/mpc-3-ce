@@ -78,7 +78,7 @@ volume; fields that do not apply show dashes.
 **Launch Control XL3:** choose DAW Control to use the top eight encoders for
 Q-Links. Page arrows select Q-Links 1-8, 9-16, then four effect pages. Its
 display follows MPC values; choose the Q-Link mode on the MPC. See the
-[XL3 setup and controls](https://github.com/zsoltf/mpc-3-ce/blob/main/docs/controller-programs.md#launch-control-xl-3).
+[XL3 setup and controls](https://mpc3ce.com/xl3-guide.html#qlinks).
 
 ## Transport and editing
 

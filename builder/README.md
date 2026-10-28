@@ -7,7 +7,9 @@ connect to or flash an MPC.
 
 `web/index.html` is the landing page with interactive feature demos;
 `web/builder.html` is the image builder itself.
-`web/guide.html` is the printable setup and controller reference. Its mappings
+Controller guides are `web/guide.html` (X-Touch), `web/mini-guide.html`,
+`web/launchpad-guide.html` and `web/xl3-guide.html`. Each supports printing.
+The X-Touch mappings
 are maintained alongside `docs/xtouch-cheatsheet.md`. The build publishes
 `web/xtouch-cheatsheet.md`; keep the controller mappings in both copies consistent.
 

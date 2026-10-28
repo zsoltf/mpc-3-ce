@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Launch Control XL3 guide - MPC 3 CE</title>
+  <meta name="description" content="Launch Control XL3 setup for MPC 3 CE: Q-Links, effect parameters, track and drum-pad mixing, and display feedback.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site.css">
+  <style>
+
+
+    /* Guide */
+    main { padding-bottom: 88px; }
+    .tools { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+    .doc .toc { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 32px 0 0; padding: 16px 0 0; border-top: 1px solid var(--line); list-style: none; font-size: 14px; }
+    .doc .toc li { margin: 0; }
+    .doc .toc a { color: var(--ink-2); text-decoration: none; font-weight: 600; }
+    .doc .toc a:hover { color: var(--red); }
+    .doc section { padding-top: 56px; scroll-margin-top: 72px; }
+    .doc section > p { color: var(--ink-2); margin: 0 0 12px; max-width: 70ch; }
+    .doc section h3 { margin: 32px 0 10px; }
+    .doc ul { margin: 8px 0 0; padding-left: 22px; color: var(--ink-2); }
+    .doc ul li { margin-bottom: 8px; }
+    .steps { margin-top: 18px; }
+    .steps > li { padding-bottom: 20px; }
+    .steps > li > div > b { display: block; color: var(--ink); font-weight: 600; margin-bottom: 2px; }
+    .steps span { color: var(--ink-2); }
+    .notice { margin: 8px 0 0; padding: 14px 16px; border-radius: var(--radius-s); background: var(--red-soft); color: var(--red-text); }
+    .notice strong { color: inherit; }
+    .doc table { margin-top: 14px; }
+    .doc td:first-child { width: 34%; }
+    .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 32px; }
+    @media (max-width: 720px) { .two { grid-template-columns: 1fr; } .doc td:first-child { width: auto; } .page-head { padding-top: 40px; } }
+    @media print {
+      body { color: black; background: white; font-size: 11pt; }
+      .page-head, .doc section { padding: 0; margin: 0 0 14pt; }
+      h2, h3, tr { break-inside: avoid; }
+      th, td { border-color: #bbb; padding: 4pt 6pt; color: black; }
+      p, li, span, td { color: black; }
+      a { color: black; text-decoration: none; }
+      .top, .tools, .toc, footer { display: none; }
+      .notice { background: white; border: 1px solid #777; color: black; }
+      code, kbd { background: none; padding: 0; border: 0; }
+    }
+  </style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./"><span class="mark" aria-hidden="true"><i></i></span>MPC 3 CE</a>
+    <nav aria-label="Site">
+      <a href="./#tour">Controllers</a>
+      <a href="./#setup">Setup</a>
+      <a href="launchpad-guide.html">Launchpad guide</a>
+      <a href="guide.html">X-Touch guide</a>
+      <a href="mini-guide.html">Mini guide</a>
+      <a href="xl3-guide.html" aria-current="page">XL3 guide</a>
+      <a class="btn primary" href="builder.html">Build your image</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<div class="wrap"><div class="doc">
+  <div class="page-head">
+    <h1>Launch Control XL3 guide</h1>
+    <p class="lead">Control MPC tracks, drum pads, Q-Links and effects. The XL3 display follows MPC values, including changes made on the touchscreen.</p>
+    <div class="tools"><button class="btn small" type="button" onclick="window.print()">Print or save as PDF</button><a class="btn" href="#qlinks">Set up Q-Link control</a></div>
+    <ul class="toc" aria-label="Sections">
+      <li><a href="#setup">Connect</a></li>
+      <li><a href="#qlinks">Q-Links and effects</a></li>
+      <li><a href="#mixer">Track mixing</a></li>
+      <li><a href="#pads">Drum-pad mixing</a></li>
+      <li><a href="#feedback">Display and feedback</a></li>
+    </ul>
+  </div>
+
+  <section id="setup">
+    <h2>Connect the XL3</h2>
+    <ol class="steps">
+      <li>Connect the XL3 to the MPC by USB.</li>
+      <li>In <strong>Preferences &gt; MIDI/Sync</strong>, turn <strong>Track, Global and Control</strong> off for <code>LCXL3 1 DAW In</code>. Leave the Custom and musical ports configured as usual.</li>
+      <li>Open <strong>Preferences &gt; CONTROLLERS</strong> and press <strong>Detect</strong>. CE adds the XL3 and enters DAW Mixer mode.</li>
+    </ol>
+    <p>The built-in integration provides Q-Link control and feedback without a Global MIDI Learn mapping.</p>
+  </section>
+
+  <section id="qlinks">
+    <h2>Control Q-Links and effects</h2>
+    <ol class="steps">
+      <li>On the XL3, press <kbd>Mode</kbd>, choose <strong>DAW Control</strong>, then press <kbd>Mode</kbd> again.</li>
+      <li>Use the <strong>Page arrows</strong> to choose <strong>Q-Links 1&ndash;8</strong> or <strong>Q-Links 9&ndash;16</strong>.</li>
+      <li>Select the desired Q-Link mode and assignments on the MPC.</li>
+      <li>Turn the <strong>top row of eight encoders</strong> to adjust those Q-Links. The display shows their numbers and current values.</li>
+    </ol>
+    <p>The Page arrows cycle through six pages:</p>
+    <table>
+      <thead><tr><th scope="col">Page</th><th scope="col">Top eight encoders</th></tr></thead>
+      <tbody>
+        <tr><td>Q-Links 1&ndash;8</td><td>The first eight Q-Links in the active MPC Q-Link mode.</td></tr>
+        <tr><td>Q-Links 9&ndash;16</td><td>The next eight Q-Links in the active MPC Q-Link mode.</td></tr>
+        <tr><td>Effect slots 1&ndash;4</td><td>One page per slot, showing its first eight available parameters in the current MPC context.</td></tr>
+      </tbody>
+    </table>
+    <p>Choose the MPC Q-Link mode on the MPC; the XL3 Page arrows change control pages. In DAW Control, the middle and bottom encoder rows are unassigned. Faders retain the current Track or Pad mixer target.</p>
+  </section>
+
+  <section id="mixer">
+    <h2>Mix tracks</h2>
+    <p>Press <kbd>Mode</kbd>, choose <strong>DAW Mixer</strong>, then press <kbd>Mode</kbd> again.</p>
+    <table>
+      <thead><tr><th scope="col">Control</th><th scope="col">Action</th></tr></thead>
+      <tbody>
+        <tr><td>Eight faders</td><td>Volume for the current eight tracks.</td></tr>
+        <tr><td>Top encoder row</td><td>Send 1.</td></tr>
+        <tr><td>Middle encoder row</td><td>Send 2.</td></tr>
+        <tr><td>Bottom encoder row</td><td>Pan.</td></tr>
+        <tr><td>Track arrows</td><td>Previous or next bank of eight tracks.</td></tr>
+        <tr><td>Solo/Arm</td><td>Switch the upper button row between Solo and Record Arm.</td></tr>
+        <tr><td>Mute/Select</td><td>Switch the lower button row between Mute and track selection.</td></tr>
+        <tr><td>Play</td><td>Start, pause in place, or resume playback.</td></tr>
+        <tr><td>Record</td><td>Control transport recording.</td></tr>
+      </tbody>
+    </table>
+    <p>Faders use pickup: move a fader to the current MPC value before it takes control. Encoders act relatively. A control that is unavailable for the current track stays dark.</p>
+  </section>
+
+  <section id="pads">
+    <h2>Mix drum pads</h2>
+    <p>In DAW Mixer, hold <kbd>Shift</kbd> and press a Drum track&rsquo;s <strong>lower-row button</strong>. This selects the track and opens its Pad mixer. Selecting a non-Drum track returns to Track mixing.</p>
+    <table>
+      <thead><tr><th scope="col">Control</th><th scope="col">Pad mixer</th></tr></thead>
+      <tbody>
+        <tr><td>Faders</td><td>Pad volume.</td></tr>
+        <tr><td>Bottom encoders</td><td>Pad pan.</td></tr>
+        <tr><td>Upper / lower buttons</td><td>Pad Solo / Mute.</td></tr>
+        <tr><td>Track arrows</td><td>Bank through all 128 pads, A01 to H16.</td></tr>
+        <tr><td>Shift + Solo/Arm</td><td>Switch between Track and Pad mixing for the selected Drum program.</td></tr>
+      </tbody>
+    </table>
+    <p>The Pad mixer follows the selected Drum program. Pad sends, selection and record arm are unavailable. Q-Link and effect pages remain accessible in DAW Control.</p>
+  </section>
+
+  <section id="feedback">
+    <h2>Display and feedback</h2>
+    <ul>
+      <li>The display shows track or pad labels, Q-Link numbers and available effect parameter names. Values use a 0&ndash;127 scale and follow changes made on the MPC.</li>
+      <li>In Track mixing, knob lights use each track&rsquo;s MPC colour. Pad mixing and DAW Control use fixed colours; knob LEDs indicate availability rather than a value ring.</li>
+      <li>Button lights follow selection, mute, solo and record-arm state. In Pad mixing, the two rows show Solo and Mute.</li>
+      <li>Hold <kbd>Shift</kbd> and turn a control to preview it. An unavailable encoder value shows a dash.</li>
+      <li>Disable the XL3 row in MPC Controllers before unplugging to return the device to Standalone mode.</li>
+    </ul>
+    <p>For other controllers, see the <a href="https://github.com/zsoltf/mpc-3-ce/blob/main/docs/controller-programs.md">controller reference</a>.</p>
+  </section>
+</div></div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <nav aria-label="Project links">
+      <a href="builder.html">Image builder</a>
+      <a href="xl3-guide.html">XL3 guide</a>
+      <a href="xtouch-cheatsheet.md" download>Cheat sheet</a>
+      <a href="https://github.com/zsoltf/mpc-3-ce/releases" rel="noopener noreferrer">Releases</a>
+      <a href="https://github.com/zsoltf/mpc-3-ce/issues" rel="noopener noreferrer">Report a bug</a>
+      <a href="https://github.com/zsoltf/mpc-3-ce" rel="noopener noreferrer">GitHub</a>
+    </nav>
+    <p>MPC 3 CE. Built on research from <a href="https://github.com/TheKikGen/MPC-LiveXplore" rel="noopener noreferrer">MPC-LiveXplore</a>. Unofficial, and not affiliated with Akai, inMusic, Behringer or Novation. Please don't share the images you build.</p>
+  </div>
+</footer>
+<script>
+</script>
+</body>
+</html>

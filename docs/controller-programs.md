@@ -263,6 +263,9 @@ the official Programmer addresses: grid Note11-88, right CC89 down to19.
 
 ## Launch Control XL 3
 
+[Launch Control XL3 guide](https://mpc3ce.com/xl3-guide.html): setup, Q-Links,
+effects, Track and Pad mixing, and display feedback.
+
 Detect, or Add with the Launch Control XL 3 profile, uses its DAW pair. Turn
 Track, Control and Global input off for this DAW port in MIDI/Sync; leave its
 Custom/musical ports unchanged. CE enters DAW Mixer mode. To change modes, press Mode, choose

@@ -29,7 +29,7 @@ Build your image in your browser from Akai's official update. Nothing is uploade
   X-Touch and Mini also save projects from the controller.
   [X-Touch guide](https://mpc3ce.com/guide.html) ·
   [Mini guide](https://mpc3ce.com/mini-guide.html) ·
-  [XL3 guide](docs/controller-programs.md#launch-control-xl-3).
+  [XL3 guide](https://mpc3ce.com/xl3-guide.html).
 - **Global MIDI Learn:** map controller knobs and faders to MPC Q-Links,
   and assign MIDI buttons to transport and other MPC functions.
 - **Mouse and wheel editing:** click and drag with a USB mouse; use Shift +
@@ -75,7 +75,7 @@ turn **Track, Global and Control** off for the listed input. Open
 | X-Touch Mini | Hold MC while connecting | `X-TOUCH MINI MIDI 1` |
 | Launchpad X | Automatic | `LPX MIDI In` |
 | Launchpad Pro Mk3 | Automatic | `LPProMK3 MIDI` |
-| Launch Control XL3 | Automatic | `LCXL3 1 DAW In` |
+| [Launch Control XL3](https://mpc3ce.com/xl3-guide.html) | Automatic | `LCXL3 1 DAW In` |
 
 Use multiple controllers together. See the [controller guide](docs/controller-programs.md)
 for other profiles, routing and controls. Mouse editing and note selection
