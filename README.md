@@ -12,26 +12,26 @@ Build your image in your browser from Akai's official update. Nothing is uploade
 
 ## What it adds
 
-- **X-Touch:** motorized faders, track names and meters that follow the MPC;
-  mixer, transport, effects, Q-Link controls and project saving. [X-Touch guide](https://mpc3ce.com/guide.html).
-- **X-Touch Mini:** six knob modes for volume, pan, Q-Links, sends and inserts;
-  select, mute, solo or arm eight tracks, with transport always on the bottom row.
+- **Mixing:** adjust track volume and pan, select, mute, solo and arm tracks,
+  and control transport. X-Touch motorized faders, track names and meters follow
+  the MPC; Launch Control XL3 also controls drum-pad levels and pan.
+- **Clip launching and editing:** launch clips and scenes, copy and paste clips
+  or whole rows, delete clips or rows, double clips, and use Undo/Redo from a
+  Launchpad. Copy the playing clips into a new row. Pro Mk3 also has a direct
+  Quantise shortcut. [Launchpad guide](https://mpc3ce.com/launchpad-guide.html).
+- **Drum step sequencing:** program drum patterns from a Launchpad while other
+  clips play. Use two Launchpads together: launch clips on one and edit drum
+  steps on the other. Each keeps its own view, and the drum editor stays on
+  its chosen clip while the other Launchpad launches clips.
+- **Q-Links and effects:** control Q-Links, sends and inserts from X-Touch or
+  X-Touch Mini, with feedback from the MPC. Save projects from the controller.
+  [X-Touch guide](https://mpc3ce.com/guide.html) ·
   [Mini guide and printable reference](https://mpc3ce.com/mini-guide.html).
-- **Launchpad X and Pro Mk3:** launch clips and scenes, copy clips or whole rows,
-  paste, delete and double clips, copy playing clips into a new row and use Undo/Redo.
-  Pro Mk3 also has a direct Quantise shortcut.
-  Program drum patterns while other clips play. [Visual guide](https://mpc3ce.com/launchpad-guide.html).
-- **Launch Control XL3:** faders and knobs for tracks and drum pads.
 - **Global MIDI Learn:** map MIDI buttons, knobs and faders to MPC functions.
 - **Mouse and wheel editing:** click and drag with a USB mouse; use Shift +
   data wheel in Grid to select the next or previous note.
-- **Pd and Cardinal:** play and edit synths and effects on the touchscreen
-  with the optional SD plugin bundle.
-
-**Two Launchpads can do different jobs.** Use a Launchpad X and Pro Mk3
-together: launch clips on one while programming drum steps on the other.
-Each keeps its own view, and the drum editor stays on its chosen clip while
-the other Launchpad launches clips.
+- **Pd and Cardinal synths and effects:** play and edit patches on the
+  touchscreen with the optional SD plugin bundle.
 
 ## New in v0.4.2
 
