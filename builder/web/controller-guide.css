@@ -1,0 +1,75 @@
+/* Shared illustrated walkthroughs; the reference below remains printable. */
+.doc .visual-guide { padding-top: 36px; }
+.visual-guide[hidden] { display: none; }
+.vg-picker { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin:22px 0 16px; }
+.vg-picker label { font-weight:600; }
+.vg-picker select { font:inherit; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:10px 36px 10px 12px; max-width:100%; }
+.vg-steps { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 20px; }
+.vg-steps button,.vg-zoom button { font:inherit; font-size:14px; border:1px solid var(--line); border-radius:6px; padding:9px 12px; background:var(--surface); color:var(--ink-2); cursor:pointer; }
+.vg-steps button[aria-current="step"] { border-color:#8bc5ff; background:#182d43; color:#e4f2ff; }
+.vg-steps button span { display:inline-block; margin-right:7px; font:600 12px var(--mono); }
+.vg-panel { border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--surface); }
+.vg-zoom { display:flex; flex-wrap:wrap; gap:8px; padding:14px 18px; align-items:center; }
+.vg-zoom span { font-size:13px; color:var(--ink-3); margin-right:auto; }
+.vg-zoom button { padding:5px 10px; font-size:12px; }
+.vg-zoom button[aria-pressed="true"] { color:var(--ink); border-color:var(--ink-2); }
+.vg-drawing { padding:12px 20px 22px; background:radial-gradient(ellipse at center,#2a2d34 0,#14161a 72%); }
+.vg-drawing svg { display:block; width:100%; height:auto; max-height:650px; margin:auto; }
+.vg-drawing svg[data-device="xl3"] { max-width:600px; }
+.vg-copy { padding:24px 28px; border-top:1px solid var(--line); display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.doc .vg-copy h3 { margin:0 0 10px; font-size:23px; }
+.vg-copy .vg-workflow-title { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); margin-bottom:8px; }
+.vg-copy p { margin:0; color:var(--ink-2); }
+.vg-result { border-left:2px solid #8bc5ff; padding-left:20px; }
+.vg-result b { display:block; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:#8bc5ff; margin-bottom:8px; }
+.vg-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+.vg-action { font-size:13px; border:1px solid var(--action-color); border-radius:5px; padding:4px 9px; color:var(--ink); }
+.vg-legend { display:flex; flex-wrap:wrap; gap:8px 20px; margin:14px 0 6px; color:var(--ink-2); font-size:12px; }
+.vg-legend i { display:inline-block; width:16px; height:10px; border:2px solid #8bc5ff; border-radius:3px; margin-right:6px; vertical-align:-2px; }
+.vg-legend .turn { border-style:dashed; }
+.vg-legend .hold { border-color:#f59ed2; background:#643252; }
+.vg-note { font-size:13px; color:var(--ink-3); }
+.vg-reference { display:inline-block; margin-top:14px; font-size:14px; }
+/* Hardware labels stay light on dark in screen and print. */
+.vg-hardware text { fill:#d9dce2; font:11px var(--sans); text-anchor:middle; }
+.vg-hardware .device-name { font-size:19px; letter-spacing:2px; fill:#fafafa; }
+.vg-hardware .compact { font-size:9px; }
+.vg-hardware .minor { font-size:9px; fill:#a4abb5; }
+.vg-hardware .shell { fill:#26292e; stroke:#646974; stroke-width:2; }
+.vg-hardware .panel { fill:#202329; stroke:#3e444d; }
+.vg-hardware .control-face { fill:#343941; stroke:#68707c; stroke-width:1; }
+.vg-hardware .knob-face { fill:#191c22; stroke:#7d8592; stroke-width:2; }
+.vg-hardware .knob-mark { stroke:#e3e7ec; stroke-width:3; }
+.vg-hardware .slot { fill:#101215; stroke:#3f454d; }
+.vg-hardware .cap { fill:#6c727d; stroke:#aaaeb8; }
+.vg-hardware .scribble { fill:#0e151a; stroke:#3f4f5b; }
+.vg-hardware .control-halo { fill:none; stroke:transparent; stroke-width:3; }
+.vg-hardware .highlight .control-halo { stroke:var(--action-color); }
+.vg-hardware .highlight.turn .control-halo,.vg-hardware .highlight.move .control-halo { stroke-dasharray:5 3; }
+.vg-hardware .highlight.hold .control-face { fill:#643252; stroke:#f59ed2; }
+.vg-hardware .highlight .control-label { fill:#fff; font-weight:700; }
+.vg-hardware .highlight .cap,.vg-hardware .highlight .knob-face { stroke:var(--action-color); }
+.vg-hardware .highlight.press .control-face { fill:var(--action-bg); stroke:var(--action-color); }
+@media(max-width:700px) {
+ .vg-picker { align-items:flex-start; flex-direction:column; }
+ .vg-picker select { width:100%; }
+ .vg-copy { grid-template-columns:1fr; gap:20px; padding:20px; }
+ .vg-drawing { padding:8px; }
+ .vg-zoom { padding:12px; }
+ .vg-zoom span { flex-basis:100%; }
+ .vg-steps { gap:6px; }
+ .vg-steps button { font-size:12px; padding:8px; }
+}
+@media print {
+ .visual-guide { break-before:page; }
+ .vg-picker,.vg-steps,.vg-zoom,.vg-reference { display:none; }
+ .vg-panel { border-color:#888; background:white; }
+ .vg-drawing { background:#fff; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+ .vg-drawing svg { max-height:360px; }
+ .vg-copy { display:block; color:black; padding:12pt; }
+ .vg-copy p,.vg-action,.vg-note,.vg-legend { color:black; }
+ .vg-result { margin-top:10pt; border-color:#555; }
+ .vg-result b { color:black; }
+ .vg-panel { break-inside:avoid; }
+ .vg-hardware { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+}
