@@ -37,10 +37,72 @@ same CE control messages in MPC Global MIDI Learn: that would apply two actions.
 An absolute knob/fader takes control when it reaches or crosses the MPC value.
 Changing layer, bank, project, or connection requires pickup again.
 
+## Sampler controls on MPC 3.10
+
+Choose the input, monitoring and threshold on MPC Sampler once, then return to
+Main or another page. **Arm** waits for the configured threshold; **Start**
+begins an armed recording immediately; **Stop** finishes a recording or cancels
+an armed sampler. Finish the native Keep/Discard dialog on the MPC before
+arming again. Leaving the Sampler page still invokes its normal stop.
+Check MPC's Browser > Audition level when comparing a sample preview with
+project playback.
+
+### MPC Live II
+
+Hold **Shift**, then tap **Erase** to start sampling immediately from the
+current screen. Use **Shift + Erase** again to stop and open native
+Keep/Discard. There is no separate arm press. A brief native banner confirms
+the sampler state.
+
+Ordinary Erase keeps its context-dependent function, including Erase + pad.
+Pressing Erase before Shift keeps that gesture with native Erase. Record,
+Play and Stop keep their existing functions. This shortcut is for MPC Live II
+on MPC 3.10; other models retain their native Shift + Erase behavior.
+
+### External controllers
+
+| Controller | Hold | Arm | Start | Stop/cancel |
+| --- | --- | --- | --- | --- |
+| Full X-Touch | Shift | Record | Play | Stop |
+| X-Touch Mini | Layer A + Layer B | Bottom Record | Bottom Play | Bottom Stop |
+| Launchpad Pro Mk3 | Shift | Left Record | Left Play | Bottom Stop Clip |
+| Launchpad X, mixer pages only | Capture MIDI | Record Arm | Mute (ordinary Play) | Solo (ordinary Stop) |
+| Launch Control XL 3 | Shift | Record while idle | Record while armed, or Play | Record while recording |
+
+On Launchpad X, tap **Custom** to open a mixer page first. Its Session and Step
+Capture gestures keep their existing functions. On Pro Mk3, Shift + bottom
+Record Arm/Mute still performs Undo/Redo.
+
+While the modifier is held, the three-button mappings show Stop at idle,
+Record while armed, and Record + Play while recording. XL3 shows Record white
+at idle, red while armed, and pulsing red with Play green while recording.
+XL3's Record action follows the native state: a threshold crossing can start
+recording before the next press, making that press Stop. Finalizing or
+unavailable clears these lights; XL3 Record then does nothing.
+
+Release the modifier for ordinary sequencer transport. Sequencer Record keeps
+its existing function. These shortcuts use the listed CE controller profiles;
+they do not add Global MIDI Learn targets. The MPC Live II shortcut above
+uses its own physical buttons and does not require a controller profile.
+
+## Drum-pad MIDI mute on MPC 3.10
+
+Mute a Drum pad on the MPC or through a CE pad mixer. Its native effective mute
+also controls MIDI notes sent from that pad: new notes are blocked while muted,
+and notes already sent are ended. Unmuting does not replay those notes. Audio
+mute, pad solo and controller feedback continue to follow the MPC's native
+state; there is no separate MIDI mute switch.
+
+This applies to output that follows the Drum pad in the routing chain. MIDI
+sent before a later Drum mapping is not owned by that pad. Use distinct MIDI
+channels or pitches when independently muting instruments that share an
+external destination: MIDI 1.0 cannot send a source-specific Note Off for two
+simultaneous notes on the same destination, channel and pitch.
+
 ## X-Touch Mini
 
-The [Mini visual guide](https://mpc3ce.com/mini-guide.html) shows the **v0.4.2
-layout**, including both held menus and printable reference strips.
+The [Mini visual guide](https://mpc3ce.com/mini-guide.html) shows the layout,
+including both held menus and printable reference strips.
 Use MC mode and the X-Touch Mini profile.
 Reconnect starts with **Volume** knobs and **Select** track buttons.
 
@@ -76,8 +138,8 @@ returns to the start. Hold **B + Rewind/Forward** for the previous/next track
 bank, in every knob mode. Hold **A + Rewind/Forward** for the previous/next native
 MPC Q-Link mode while on Q-Links, or parameter page inside an insert. It has no
 action in other modes. A modified navigation gesture does not become transport
-if the Layer button is released first. Both Layers held suppress transport and
-navigation.
+if the Layer button is released first. With both Layers held, bottom Record/Play/Stop control the sampler; other
+bottom buttons and navigation are inactive. The top row keeps the A menu.
 
 Volume/Pan knob pushes select their tracks without resetting levels. Q-Link
 pushes do nothing. In Sends, knobs 1-4 edit the selected track's sends and 5-8

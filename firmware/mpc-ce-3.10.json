@@ -1,14 +1,14 @@
 {
   "version": 2,
   "input_sha256": "753f838ca362d42c8cc3f5c9c3fcc604ba076b5919212e0301923a3c11c93494",
-  "output_sha256": "e4797774a230e99f4986a83f74b9d3c7c2c626ebab4d5450de802a6d8c61eca5",
+  "output_sha256": "a9a15764555773cc9ff43ea8e1adf8f6608b3075b4849cfbc5ebe02fde4b87bd",
   "size": 116497964,
   "slots": [
     {
       "name": "ce-label",
       "offset": 81627152,
       "before_hex": "204669726d77617265000000",
-      "after_hex": "20434520302e342e32000000",
+      "after_hex": "20434520302e342e33000000",
       "unique": true
     },
     {

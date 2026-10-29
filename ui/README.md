@@ -2,7 +2,7 @@
 
 This library provides the native controls used by CE's Controllers preferences,
 Global MIDI Learn editor and Pd/Cardinal editor integration. It supports the
-MPC 3.10 build used by CE v0.4.2 and the retained MPC 3.9.1 build used by CE
+MPC 3.10 build used by CE v0.4.3 and the retained MPC 3.9.1 build used by CE
 v0.3.0. Host integration is tied to the exact MPC executable for each build;
 it is not a general UI library for arbitrary firmware or VST plugins.
 

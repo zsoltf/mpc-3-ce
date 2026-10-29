@@ -16,7 +16,7 @@
 typedef struct {uint32_t property,incarnation,owner_incarnation,revision,bits,updates,seed,available,error,length;char text[CHANNEL_TEXT+1];} CopiedField;
 typedef struct {uint32_t incarnation,available,tick,token,revision,left,right,enabled,site;} CopiedMeter;
 typedef struct {uint32_t serial,track,program,kind,incarnation,binding,vptr,revision,bits,updates,seed,available,track_owner,program_owner,meter_id,pad_owner,pad_index,pad_generation;CopiedField fields[CF_COUNT];CopiedMeter meter;} CopiedTrack;
-typedef struct {uint32_t epoch,generation,revision,count,ready,heartbeat,error,alive,allocated,project_owner,selected_serial;CopiedField selection,master,playing,automation,loop,record_mode,click;uint32_t position_available,position_error,position_tick,position_token,bar,beat,clock;CopiedTrack tracks[MIRROR_TRACKS];CopiedMeter master_meter;uint32_t meter_error,meter_cells,meter_tokens,meter_closed,automation_detail_available,automation_mixed,automation_count,automation_detail_tick,automation_generation,editor_owner,zoom_owner;uint32_t send_programs[4],send_owners[4],sends_source_revision;EffectsCopy effects;uint32_t effects_available,effects_source_revision;QLinkCopy qlinks;uint32_t qlinks_available,qlinks_source_revision;IOCopy io;uint32_t io_available;StepCopy steps;uint32_t steps_available;ClipCopy clips;uint32_t clips_available;uint32_t pad_count,pad_error;const PadState *pad_source;CopiedTrack pads[PAD_SLOTS];} CopiedMirror;
+typedef struct {uint32_t epoch,generation,revision,count,ready,heartbeat,error,alive,allocated,project_owner,selected_serial;CopiedField selection,master,playing,automation,loop,record_mode,click;uint32_t position_available,position_error,position_tick,position_token,bar,beat,clock;CopiedTrack tracks[MIRROR_TRACKS];CopiedMeter master_meter;uint32_t meter_error,meter_cells,meter_tokens,meter_closed,automation_detail_available,automation_mixed,automation_count,automation_detail_tick,automation_generation,editor_owner,zoom_owner;uint32_t send_programs[4],send_owners[4],sends_source_revision;EffectsCopy effects;uint32_t effects_available,effects_source_revision;QLinkCopy qlinks;uint32_t qlinks_available,qlinks_source_revision;IOCopy io;uint32_t io_available;StepCopy steps;uint32_t steps_available;ClipCopy clips;uint32_t clips_available;SamplerCopy sampler;uint32_t sampler_available;uint32_t pad_count,pad_error;const PadState *pad_source;CopiedTrack pads[PAD_SLOTS];} CopiedMirror;
 /* Copy destinations. The copy does not re-clear the bytes it never writes, so
  * a destination must be all zero before its FIRST use; after that the copy
  * maintains that property itself (see copy_channel). MIRROR_COPY and
@@ -246,6 +246,7 @@ static int copy_mirror_view(const MirrorState *s,CopiedMirror *out,int pads){
   atomic_thread_fence(memory_order_acquire);
   if(rev!=atomic_load_explicit(&s->revision,memory_order_relaxed))continue;
   out->revision=rev;out->error=atomic_load_explicit(&s->error,memory_order_acquire);out->alive=atomic_load_explicit(&s->alive,memory_order_acquire);out->heartbeat=atomic_load_explicit(&s->heartbeat,memory_order_acquire);out->allocated=atomic_load_explicit(&s->allocated,memory_order_acquire);copy_position(s,out);copy_general(s,out);
+  out->sampler_available=sampler_copy_read(&s->general.sampler,&out->sampler)&&out->ready&&out->sampler.epoch==out->epoch&&out->sampler.project_owner==out->project_owner&&out->sampler.editor_owner==out->editor_owner&&out->sampler.tick<=out->heartbeat;
   out->effects_source_revision=atomic_load_explicit(&s->effects.revision,memory_order_acquire);
   out->effects_available=effects_copy_read(&s->effects,&out->effects)&&out->ready&&out->effects.epoch==out->epoch&&out->effects.serial==out->selected_serial&&out->effects.tick<=out->heartbeat&&out->heartbeat-out->effects.tick<EFFECT_FRESH_MS;
   out->io_available=io_copy_read(&s->io,&out->io)&&out->ready&&out->io.epoch==out->epoch&&out->io.serial==out->selected_serial&&out->io.status==IO_READY&&out->io.tick<=out->heartbeat&&out->heartbeat-out->io.tick<IO_FRESH_MS;
@@ -351,6 +352,28 @@ static void json_meter(const CopiedMeter *m){
  if(m->available)printf("%.9g,\"right\":%.9g}",left,right);else printf("null,\"right\":null}");
 }
 static uint32_t elapsed_origin(const MirrorState *s){struct timespec now;if(clock_gettime(CLOCK_MONOTONIC,&now))return UINT32_MAX;int64_t n=((int64_t)now.tv_sec-s->origin_sec)*1000+((int64_t)now.tv_nsec-s->origin_nsec)/1000000;return n<0||n>UINT32_MAX?UINT32_MAX:(uint32_t)n;}
+/* Diagnostic accounting counters are independently atomic, not a transaction
+ * across the native audio lane and property setter lane. */
+static void midi_mute_json(const MidiMuteState *s){
+ printf("{\"snapshot_atomic\":false,\"capacity\":%u",MIDI_MUTE_CAPACITY);
+ printf(",\"error\":%u",atomic_load(&s->error));
+ printf(",\"epoch\":%u",atomic_load(&s->epoch));
+ printf(",\"active\":%u",atomic_load(&s->active));
+ printf(",\"retained\":%u",atomic_load(&s->retained));
+ printf(",\"high_water\":%u",atomic_load(&s->high_water));
+ printf(",\"emitted\":%u",atomic_load(&s->emitted));
+ printf(",\"blocked\":%u",atomic_load(&s->blocked));
+ printf(",\"terminated\":%u",atomic_load(&s->terminated));
+ printf(",\"released\":%u",atomic_load(&s->released));
+ printf(",\"unaccounted\":%u",atomic_load(&s->unaccounted));
+ printf(",\"max_lookup\":%u",atomic_load(&s->max_lookup));
+ printf(",\"pending\":%u",atomic_load(&s->pending));
+ printf(",\"slot_bytes\":%u",atomic_load(&s->slot_bytes));
+ printf(",\"storage_bytes\":%u",atomic_load(&s->storage_bytes));
+ printf(",\"route_lost\":%u",atomic_load(&s->route_lost));
+ printf(",\"ordering_lost\":%u",atomic_load(&s->ordering_lost));
+ printf("}");
+}
 int main(int argc,char **argv){
  int all=argc==3&&!strcmp(argv[2],"--all");
  if(argc!=2&&!all){fprintf(stderr,"Usage: mirror-read /native/stage/volume.state [--all]\n");return 2;}
@@ -375,6 +398,6 @@ int main(int argc,char **argv){
  }
  printf("],\"pad_error\":%u,\"pad_count\":%u,\"pads\":[",out.pad_error,out.pad_count);
  for(unsigned i=0;i<out.pad_count;i++){const CopiedTrack *p=out.pads+i;printf("%s{\"label\":\"%c%02u\",\"parent_track_serial\":%u,\"instrument_incarnation\":%u,\"membership_generation\":%u,\"sample_name_available\":false,\"color_available\":false,\"selection_available\":false,\"meter_available\":false,\"fields\":{",i?",":"",'A'+i/16,i%16+1,out.selected_serial,p->pad_owner,p->pad_generation);static const unsigned fields[]={CF_VOLUME,CF_PAN,CF_MUTE,CF_SOLO,CF_SOLO_AUDIO};static const char *labels[]={"volume","pan","mute","solo","solo_audio"};for(unsigned j=0;j<5;j++){printf("%s\"%s\":",j?",":"",labels[j]);json_field(p->fields+fields[j],fields[j]);}printf("}}");}
- printf("],\"effects\":");effects_json(&out);printf(",\"qlinks\":");qlink_json(&out);printf(",\"io\":");io_json(&out);printf(",\"meter_error\":%u,\"meter_cells\":%u,\"meter_capacity\":%u,\"meter_tokens\":%u,\"meter_closed\":%u,\"master_meter\":",out.meter_error,out.meter_cells,METER_CELLS,out.meter_tokens,out.meter_closed);json_meter(&out.master_meter);printf(",\"selection\":");json_field(&out.selection,CF_SELECTION);printf(",\"master\":");json_field(&out.master,CF_MASTER);printf(",\"playing\":");json_field(&out.playing,CF_PLAYING);printf(",\"automation\":");json_field(&out.automation,CF_AUTOMATION);printf(",\"automation_members\":{\"available\":%s,\"mixed\":%u,\"count\":%u,\"generation\":%u},\"save_owner\":%u,\"zoom_owner\":%u",out.automation_detail_available?"true":"false",out.automation_mixed,out.automation_count,out.automation_generation,out.editor_owner,out.zoom_owner);printf(",\"loop\":");json_field(&out.loop,CF_LOOP);printf(",\"click\":");json_field(&out.click,CF_CLICK);printf(",\"record_mode\":");json_field(&out.record_mode,CF_RECORD_MODE);printf(",\"channel\":");channel_json(&s->channel);printf(",\"steps\":");step_json(&out);printf(",\"clips\":");clip_json(&out);printf(",\"position\":{\"available\":%s,\"error\":%u,\"source_tick\":%u,\"thread_token\":%u,\"native_bar\":%u,\"native_beat\":%u,\"native_clock\":%u,\"index_conversion\":false}}\n",out.position_available?"true":"false",out.position_error,out.position_tick,out.position_token,out.bar,out.beat,out.clock);munmap((void*)s,sizeof(*s));return available?0:1;
+ printf("],\"effects\":");effects_json(&out);printf(",\"qlinks\":");qlink_json(&out);printf(",\"io\":");io_json(&out);printf(",\"meter_error\":%u,\"meter_cells\":%u,\"meter_capacity\":%u,\"meter_tokens\":%u,\"meter_closed\":%u,\"master_meter\":",out.meter_error,out.meter_cells,METER_CELLS,out.meter_tokens,out.meter_closed);json_meter(&out.master_meter);printf(",\"selection\":");json_field(&out.selection,CF_SELECTION);printf(",\"master\":");json_field(&out.master,CF_MASTER);printf(",\"playing\":");json_field(&out.playing,CF_PLAYING);printf(",\"automation\":");json_field(&out.automation,CF_AUTOMATION);printf(",\"automation_members\":{\"available\":%s,\"mixed\":%u,\"count\":%u,\"generation\":%u},\"save_owner\":%u,\"zoom_owner\":%u",out.automation_detail_available?"true":"false",out.automation_mixed,out.automation_count,out.automation_generation,out.editor_owner,out.zoom_owner);printf(",\"loop\":");json_field(&out.loop,CF_LOOP);printf(",\"click\":");json_field(&out.click,CF_CLICK);printf(",\"record_mode\":");json_field(&out.record_mode,CF_RECORD_MODE);printf(",\"channel\":");channel_json(&s->channel);printf(",\"steps\":");step_json(&out);printf(",\"clips\":");clip_json(&out);printf(",\"sampler\":{\"available\":%s,\"native_state\":%u,\"ui_active\":%u,\"audio_active\":%u,\"recording\":%u,\"backend_enabled\":%u,\"source_tick\":%u}",out.sampler_available?"true":"false",out.sampler.state,out.sampler.ui_active,out.sampler.audio_active,out.sampler.recording,out.sampler.backend_enabled,out.sampler.tick);printf(",\"midi_mute\":");midi_mute_json(&s->midi_mute);printf(",\"position\":{\"available\":%s,\"error\":%u,\"source_tick\":%u,\"thread_token\":%u,\"native_bar\":%u,\"native_beat\":%u,\"native_clock\":%u,\"index_conversion\":false}}\n",out.position_available?"true":"false",out.position_error,out.position_tick,out.position_token,out.bar,out.beat,out.clock);munmap((void*)s,sizeof(*s));return available?0:1;
 }
 #endif

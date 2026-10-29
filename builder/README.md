@@ -1,7 +1,7 @@
 # MPC 3 CE browser image builder
 
 This static browser app creates a personal MPC 3 CE image from Akai's official
-Gen1 update: v0.4.2 from MPC 3.10, or v0.3.0 from MPC 3.9.1. It recognises the
+Gen1 update: v0.4.3 from MPC 3.10, or v0.3.0 from MPC 3.9.1. It recognises the
 file by its checksum. Firmware and keys stay in the browser; the app does not
 connect to or flash an MPC.
 

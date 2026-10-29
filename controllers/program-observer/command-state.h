@@ -14,7 +14,11 @@
 #include "step-state.h"
 #include "clip-state.h"
 #define COMMAND_MAGIC 0x41444d43u
+#ifdef MODEL_MIDI_PROBE
+#define COMMAND_VERSION 3201u
+#else
 #define COMMAND_VERSION 32u
+#endif
 #define COMMAND_SLOTS 32u
 #define COMMAND_LANES 8u
 #define COMMAND_EVENTS 128u
@@ -36,7 +40,10 @@ static inline const char *command_error_name(unsigned code){
 }
 enum {CA_NONE,CA_ENROLL_INCREMENT,CA_ENROLL_DECREMENT,CA_LANE_GUARD,CA_CONSTRUCTOR_OWNER,CA_SOURCE_REENTRY};
 static inline uint32_t command_admission_detail(unsigned guard,unsigned result,unsigned site){return (site<<16)|(guard<<8)|(result&255u);}
-enum {JOG_BAR=CF_COUNT,JOG_BEAT,JOG_PULSE,GLOBAL_SAVE,GLOBAL_ZOOM_IN,GLOBAL_ZOOM_OUT,GLOBAL_ZOOM_UP,GLOBAL_ZOOM_DOWN,GLOBAL_KEY_ENTER,GLOBAL_KEY_CANCEL,GLOBAL_KEY_LEFT,GLOBAL_KEY_UP,GLOBAL_KEY_RIGHT,GLOBAL_KEY_DOWN,GLOBAL_RECORD_TOGGLE,GLOBAL_CLICK_TOGGLE,GLOBAL_LOOP_TOGGLE,GLOBAL_PAGE_MAIN,GLOBAL_PAGE_ARRANGE,GLOBAL_PAGE_CLIP,GLOBAL_PAGE_MIX,GLOBAL_PAGE_PAD_MIX,GLOBAL_PAGE_TRACK_EDIT,GLOBAL_PAGE_SAMPLE_EDIT,GLOBAL_PAGE_STEP,EFFECT_PARAMETER,EFFECT_ENABLE,QLINK_VALUE,QLINK_MODE,IO_PARAMETER,EFFECT_CHOOSER,GLOBAL_TRACK_TYPE,GLOBAL_TRACK_NEW,GLOBAL_PLAY,GLOBAL_STOP,GLOBAL_UNDO,GLOBAL_REDO,JOG_DATA,GLOBAL_KEY_TAB,GLOBAL_KEY_BACKTAB,JOG_PRESS,GLOBAL_SEQ_DUPLICATE,NOTE_SELECT,GLOBAL_RECORD_ENABLE,STEP_TOGGLE,CLIP_ACTION,STEP_STOP};
+enum {JOG_BAR=CF_COUNT,JOG_BEAT,JOG_PULSE,GLOBAL_SAVE,GLOBAL_ZOOM_IN,GLOBAL_ZOOM_OUT,GLOBAL_ZOOM_UP,GLOBAL_ZOOM_DOWN,GLOBAL_KEY_ENTER,GLOBAL_KEY_CANCEL,GLOBAL_KEY_LEFT,GLOBAL_KEY_UP,GLOBAL_KEY_RIGHT,GLOBAL_KEY_DOWN,GLOBAL_RECORD_TOGGLE,GLOBAL_CLICK_TOGGLE,GLOBAL_LOOP_TOGGLE,GLOBAL_PAGE_MAIN,GLOBAL_PAGE_ARRANGE,GLOBAL_PAGE_CLIP,GLOBAL_PAGE_MIX,GLOBAL_PAGE_PAD_MIX,GLOBAL_PAGE_TRACK_EDIT,GLOBAL_PAGE_SAMPLE_EDIT,GLOBAL_PAGE_STEP,EFFECT_PARAMETER,EFFECT_ENABLE,QLINK_VALUE,QLINK_MODE,IO_PARAMETER,EFFECT_CHOOSER,GLOBAL_TRACK_TYPE,GLOBAL_TRACK_NEW,GLOBAL_PLAY,GLOBAL_STOP,GLOBAL_UNDO,GLOBAL_REDO,JOG_DATA,GLOBAL_KEY_TAB,GLOBAL_KEY_BACKTAB,JOG_PRESS,GLOBAL_SEQ_DUPLICATE,NOTE_SELECT,GLOBAL_RECORD_ENABLE,STEP_TOGGLE,CLIP_ACTION,STEP_STOP,SAMPLER_INSPECT,SAMPLER_ARM,SAMPLER_START,SAMPLER_STOP};
+/* Private diagnostic operation, appended without changing existing IDs or shared ABI. */
+static inline int command_sampler(unsigned op){return op>=SAMPLER_INSPECT&&op<=SAMPLER_STOP;}
+static inline int command_sampler_mutation(unsigned op){return op>=SAMPLER_ARM&&op<=SAMPLER_STOP;}
 static inline int command_clip(unsigned op){return op==CLIP_ACTION;}
 /* STEP_TOGGLE edits one drum step; STEP_STOP stops the track of a bound step
  * view's clip (Pro Stop Clip) with MPC's per-track stop. */
@@ -86,6 +93,7 @@ static inline int command_record(unsigned op){return op==GLOBAL_RECORD_TOGGLE||o
 /* Boolean owner intents include idempotent Record-on; existing toggle IDs stay unchanged. */
 static inline int command_toggle(unsigned op){return (op>=GLOBAL_RECORD_TOGGLE&&op<=GLOBAL_LOOP_TOGGLE)||op==GLOBAL_RECORD_ENABLE;}
 static inline int command_transport(unsigned op){return op==GLOBAL_PLAY||op==GLOBAL_STOP;}
+static inline int command_audio_global(unsigned op){return command_transport(op)||command_sampler(op);}
 static inline int command_history(unsigned op){return op==GLOBAL_UNDO||op==GLOBAL_REDO;}
 /* Duplicate Sequence: one press builds the application's own Copy Sequence
  * command from the current sequence into the first unused slot, named the way
@@ -94,7 +102,7 @@ static inline int command_history(unsigned op){return op==GLOBAL_UNDO||op==GLOBA
  * it. It resolves the editor exactly as the other editor-family global
  * operations do and takes no new hook site. See sequence-duplicate.inc. */
 static inline int command_sequence_duplicate(unsigned op){return op==GLOBAL_SEQ_DUPLICATE;}
-static inline int command_global(unsigned op){return op==GLOBAL_RECORD_ENABLE||op==GLOBAL_TRACK_NEW||op==GLOBAL_TRACK_TYPE||command_transport(op)||command_history(op)||command_key(op)||command_sequence_duplicate(op)||op==CF_AUTOMATION||(op>=GLOBAL_SAVE&&op<=GLOBAL_PAGE_STEP);}
+static inline int command_global(unsigned op){return command_sampler(op)||op==GLOBAL_RECORD_ENABLE||op==GLOBAL_TRACK_NEW||op==GLOBAL_TRACK_TYPE||command_transport(op)||command_history(op)||command_key(op)||command_sequence_duplicate(op)||op==CF_AUTOMATION||(op>=GLOBAL_SAVE&&op<=GLOBAL_PAGE_STEP);}
 enum {RC_ENTER=129,RC_DONE,RC_APPLY,RC_PRODUCER,RC_ENQUEUER,RC_ENQUEUE_RETURN,RC_SECOND_ENTER,RC_SECOND_RETURN,RC_SECOND_DONE,RC_CP_DEATH};
 enum {MS_CREATE=99,MS_RESULT,MS_ENTER,MS_DONE,MS_FACTORY_DEATH,MS_FACTORY_DELETE,MS_SET_ENTER,MS_SET_DONE};
 enum {PX_GET=165,PX_GET_DONE,PX_SET,PX_LISTENER,PX_NOTIFY,PX_DEATH,PX_FACADE,PX_FACADE_ALT,PX_SET_ALT,PX_REPLACE,PX_UI_VECTOR,PX_RETIRE,PX_WIDGET_CTOR,PX_WIDGET_DTOR,PX_VST_REFRESH,PX_PARAMETER_TREE,PX_UI_DRAIN,PX_INSERT_ENABLE};
@@ -161,6 +169,9 @@ typedef struct {
 enum {PX_LOSS_WRITER=1,PX_LOSS_FRAME=2,PX_LOSS_SEQUENCE=4};
 typedef struct {_Atomic uint32_t guard,sequence,words[PROCESSOR_WORDS];} ProcessorObservation;
 #include "plugin-controls-state.h"
+#ifdef MODEL_MIDI_PROBE
+#include "drum-midi-probe-state.h"
+#endif
 typedef struct {
  uint32_t magic,version,bytes,pid,start_lo,start_hi,origin_sec,origin_nsec,owner_token,capacity,seconds;
  _Atomic uint32_t alive,error,trace_error,published,consumed,closed,reclaimed;
@@ -184,6 +195,9 @@ typedef struct {
  CommandSlot slots[COMMAND_SLOTS];
  _Atomic uint32_t lane_tokens[COMMAND_LANES];
  PluginUiState plugin_ui;
+#ifdef MODEL_MIDI_PROBE
+ DrumMidiProbe drum_midi;
+#endif
 } CommandState;
 /* Diagnostic publication is lane-owned except for bounded ticket/slot claims.
  * A single explicit exclusive attempt never retries inside compiler lowering. */

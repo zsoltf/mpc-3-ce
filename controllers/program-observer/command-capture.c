@@ -11,6 +11,7 @@ static void component_pause(unsigned);
 #undef observer_hook
 #include "command-state.h"
 #include "transport-queue.h"
+#include "midi-mute-api.h"
 #ifdef NATIVE_PREFERENCES
 #include "native-preferences.h"
 #endif
@@ -94,7 +95,10 @@ static void recording_lifetime(uint32_t,int);
 static void native_wheel_probe_initialize(void);
 #endif
 void command_initialize(void){
- qlink_command_initialize();qlink_mode_initialize();qlink_initialize();effects_initialize();io_initialize();jog_initialize();master_initialize();meter_initialize();global_initialize();recording_initialize();midi_initialize();
+ qlink_command_initialize();qlink_mode_initialize();qlink_initialize();effects_initialize();io_initialize();jog_initialize();master_initialize();meter_initialize();global_initialize();midi_mute_initialize();recording_initialize();midi_initialize();
+#ifdef MODEL_MIDI_PROBE
+ atomic_store(&command_state->drum_midi.bias,observer_image_bias);
+#endif
  command_owner=token();command_queues=0;atomic_store(&command_in_hook,0);atomic_store(&command_violation,0);for(unsigned i=0;i<COMMAND_SLOTS;i++)atomic_store(active_request+i,0);for(unsigned i=0;i<COMMAND_LANES;i++)release(&lane_claims[i].busy);atomic_store(&lane_claims[0].busy,1);
  atomic_store(&enrolling,0);atomic_store(&enrollment_fault,0);atomic_store(&enrollment_detail,0);memset(source_requests,0,sizeof(source_requests));service_cursor=0;local_lane=1;position_depth=0;memset(&invocation,0,sizeof(invocation));memset(accepted,0,sizeof(accepted));memset(native_started,0,sizeof(native_started));
  channel_initialize();
@@ -348,7 +352,9 @@ static void native_dispatch(uint32_t program,uint32_t function,unsigned controll
 }
 /* Called only by the existing consumer. Retired matching plus source/UI
  * admission closure protects immutable old metadata. No native pointer reads. */
+static int sampler_probe_receipted(unsigned at);
 static int transaction_drained(unsigned at){
+ if(!sampler_probe_receipted(at))return 0;
  if(atomic_load_explicit(active_request+at,memory_order_seq_cst)||atomic_load_explicit(&enrolling,memory_order_seq_cst)||atomic_load_explicit(&command_in_hook,memory_order_seq_cst))return 0;
  for(unsigned i=0;i<COMMAND_LANES;i++)if(atomic_load_explicit(lane_in_hook+i,memory_order_seq_cst))return 0;
  return 1;
@@ -519,6 +525,12 @@ static void send_destinations(Context *c){
 #define COMMAND_DRAIN_READ() ((void)0)
 #endif
 static void service(Context *c){
+ midi_mute_service();
+ sampler_lifecycle_service();
+ sampler_probe_cleanup(); /* One UI pass for returned diagnostic flights only. */
+ sampler_source_publish();
+ sampler_physical_service(c);
+ COMMAND_PAUSE(22); /* Deterministic post-cleanup audio return race. */
 #ifdef NATIVE_PREFERENCES
  native_preferences_refresh(); /* Qualified stock UI-drain thread. */
 #endif
@@ -633,12 +645,28 @@ static void position_point(Context *c,unsigned site,unsigned lane){
  atomic_store(&out->epoch,f.epoch);atomic_store(&out->tick,atomic_load(&mirror_state->heartbeat));atomic_store(&out->token,token());atomic_store(&out->bar,b);atomic_store(&out->beat,beat);atomic_store(&out->clock,clock);
  atomic_store_explicit(&out->revision,rev+2,memory_order_release);
 }
+#include "drum-midi-probe.inc"
+#include "midi-mute.inc"
 void observer_hook(Context *c,unsigned kind){
  if(!c||kind<MODEL_HOOK_BASE||!command_state)return;
  unsigned site=kind-MODEL_HOOK_BASE;
+ if(site==SP_INPUT){sampler_physical_input(c);return;}
+ if(sampler_native_point(c,site))return;
+ unsigned midi_observed=0;
+ if(!midi_mute_is_internal()){
+#ifdef MODEL_MIDI_PROBE
+  midi_observed=drum_midi_dispatch(c,site);
+#endif
+ }
+#ifdef MODEL_MIDI_MUTE
+ unsigned midi_handled=midi_mute_dispatch(c,site);
+#else
+ unsigned midi_handled=0;
+#endif
+ if(midi_observed||midi_handled)return;
  /* A native holder drain must retire CE flights even after observer close.
   * It touches only retained CE static state and emits no source receipt. */
- if(site==GL_EDITOR_RETIRED){transport_editor_retired(c->r[5]);return;}
+ if(site==GL_EDITOR_RETIRED){transport_editor_retired(c->r[5]);midi_mute_editor_retired(c->r[5]);return;}
  if(site==IO_TRACK_RETIRED){io_track_retired(c->r[5]);return;}
  if(site==IO_MONITOR_ENTER||site==IO_SEND_ENTER)io_native_enter(c->r[0]);
  if(site==STEP_BOUND_PLAYHEAD){step_bound_clock_capture(c);return;}
@@ -810,6 +838,7 @@ void observer_hook(Context *c,unsigned kind){
   if(site==M_ROOT_DESTROY)global_root(site);
   command_mirror_hook(c,kind);
   if(!active()){command_fail(C_SOURCE_FAILURE);goto done;}
+  if(site==M_LOAD_READY)sampler_native_changed();
   if(site==M_RESET||site==M_CREATE_ENTER)global_root(M_RESET);
   if(site==M_RESET||site==M_CREATE_ENTER){uint32_t q=word(c->r[0]+MODEL_ROOT_QUEUES);if(q>UINT32_MAX-4||!typed(q,MODEL_THREAD_QUEUES_VPTR)||!typed(q+4,MODEL_PER_THREAD_QUEUES_VPTR)){command_fail(C_NATIVE_MEMBERSHIP);goto done;}command_queues=q;uint32_t a=word(root+MODEL_ROOT_AUDIO);if(pointer(a)&&a<UINT32_MAX-0x400){uint32_t x=word(a+MODEL_AUDIO_NAVIGATOR);if(typed(x,MODEL_ASYNC_SEQUENCER_VPTR))atomic_store_explicit(&jog_current_x,x,memory_order_release);uint32_t f=word(root+MODEL_ROOT_COMMAND_FACTORY);if(typed(f,MODEL_COMMAND_FACTORY_VPTR))atomic_store_explicit(&master_factory,f,memory_order_release);}}
   if(!root)command_queues=0;

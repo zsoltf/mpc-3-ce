@@ -21,6 +21,7 @@ typedef struct {
  ClipEditSource copy_source;
  unsigned copy_used,copy_held;
  unsigned lc_round,lc_step,lc_received,lc_on,lc_queried,lc_correction,lc_display;
+ unsigned char sampler_held[128]; /* Press ownership only, reset with the connection. */
  unsigned char held[128],touch[32],led_valid[128],led_value[128],led_style[128];
  /* Encoder position 255 caches the delivered unavailable marker. */
  unsigned char position_valid[32],position[32];

@@ -50,6 +50,10 @@
     flow('Inputs and outputs','#views',[
       step('Open the I/O view','Press Inputs for the selected track.','Faders keep track volume. Unavailable fields show dashes.',[press('inputs','Inputs')]),
       step('Choose routing','Turn encoders 1-8 to step through the available choices.','1 Monitor; 2 MIDI In Port; 3 MIDI In Channel; 4 Send To Track; 5 Audio Out; 6 MIDI Out Port; 7 MIDI Out Channel; 8 Audio In.',[turn('k1 k2 k3 k4 k5 k6 k7 k8','Routing encoders')])]),
+    flow('Sampler controls','#sampler',[
+      step('Arm the sampler','Configure the input once on MPC Sampler, return to Main, then hold Shift and press Record.','Arm waits for the configured threshold. Keep Shift held to see sampler state on the transport LEDs.',[hold('shift','Shift'),press('record','Record','red')]),
+      step('Start immediately','Hold Shift and press Play to start an armed sampler immediately.','Armed lights Record; recording lights Record and Play. This does not change sequencer Record.',[hold('shift','Shift'),press('play','Play','green')]),
+      step('Stop and keep or discard','Hold Shift and press Stop. Finish with the native Keep/Discard dialog on MPC.','Stop also cancels an armed sampler. Release Shift for ordinary transport. Leaving the native Sampler page still invokes its normal stop.',[hold('shift','Shift'),press('stop','Stop')])]),
     flow('Playback and recording','#transport',[
       step('Play and stop','Press Play to start from the current position. Press Stop to stop; press it again while stopped to return to the start.','Rewind and Fast Fwd move by beats. Hold either to repeat.',[press('play','Play','green'),press('stop','Stop'),press('rew ff','Rewind / Fast Fwd')]),
       step('Record, loop, click','Record toggles MPC recording. Cycle switches looping; Click switches the metronome.','The X-Touch position display follows bars, beats and ticks.',[press('record','Record','red'),press('cycle','Cycle'),press('click','Click')])]),
@@ -94,6 +98,10 @@
       step('Set pad volume and pan','Move a fader for pad volume. Turn the bottom encoder for pad pan.','The top and middle encoder rows have no pad sends. Pad selection and record arm are unavailable.',[move('f1','Pad fader'),turn('k17','Pad pan')]),
       step('Solo and mute pads','Press an upper-row button for Solo or a lower-row button for Mute.','In Pad mixing these rows always control Solo and Mute.',[press('upper1','Pad Solo','yellow'),press('lower1','Pad Mute','green')]),
       step('Reach all 128 pads','Press Track arrows to bank through pads A01-H16, eight at a time.','Fader labels identify the pads. Q-Link and effect pages remain accessible in DAW Control.',[press('trackL trackR','Pad bank arrows')])]),
+    flow('Sampler controls','#sampler',[
+      step('Idle: arm','Configure the input once on MPC Sampler and return to Main. Hold Shift and tap Record to arm.','Record is white while idle. Armed lights Record red. The threshold can start recording automatically.',[hold('shift','Shift'),press('record','Record','red')]),
+      step('Armed: start','While armed, hold Shift and tap Record again to start immediately. Shift + Play is also an explicit Start.','Use the lights: if the threshold already started recording, the next Shift + Record stops it.',[hold('shift','Shift'),press('record','Record','red')]),
+      step('Recording: stop','While recording, hold Shift and tap Record to stop. Keep or discard the sample on the MPC.','During recording, Play is green and Record pulses red. Finalizing or unavailable lights both off and refuses another phase. Release Shift for ordinary transport.',[hold('shift','Shift'),press('record','Record','red')])]),
     flow('Playback and recording','#mixer',[
       step('Play, pause, resume','Press Play to start playback. Press it again to pause in place, and again to resume.','Play does not perform a separate return-to-start gesture.',[press('play','Play','green')]),
       step('Record','Press Record to control MPC transport recording.','Track record arm is a separate action on the upper button row in Track mixing.',[press('record','Record','red')])]),

@@ -1800,3 +1800,5 @@ extern "C" void native_preferences_hook(void *saved,unsigned kind) {
  else if(kind==3)(void)capture_global_owner(context);
  else failure(NP_BAD_CONTEXT);
 }
+
+#include "sampler-banner.inc"

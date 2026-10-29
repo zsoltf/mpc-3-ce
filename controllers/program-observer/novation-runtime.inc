@@ -390,6 +390,45 @@ static void native_row_button(NovationState *n,unsigned index,int down,unsigned 
  if(!n->row_used&&now>=n->row_tick&&now-n->row_tick<400){unsigned mode=novation_row_mode(index);n->row_mode=n->row_mode==mode?NOV_ROW_SELECT:mode;}
  n->row_hold=0;
 }
+/* Sampler chords reuse primitive native commands. The XL3's one Record key
+ * chooses an intent from copied native state; execution revalidates that state. */
+static unsigned native_sampler_view(const NovationState *n){
+#ifdef MODEL_FIRMWARE_310
+ if(n->protocol==MCU_PROTOCOL_LCXL3)return n->shift;
+ if(n->protocol==MCU_PROTOCOL_LPP3)return n->held[90];
+ return n->protocol==MCU_PROTOCOL_LPX&&novation_mixer_page(n->layer)&&n->held[98];
+#else
+ (void)n;return 0;
+#endif
+}
+static int native_sampler_button(NovationState *n,MirrorInput *in,const CopiedMirror *snapshot,const NovationEvent *event,unsigned prior,uint32_t now,unsigned dispatch){
+ if(event->kind!=NOV_BUTTON)return 0;
+ unsigned index=event->index;
+ if(n->sampler_held[index]){if(!event->value){n->sampler_held[index]=0;n->held[index]=0;}return 1;}
+ if(!event->value||prior||!native_sampler_view(n))return 0;
+ unsigned op=0;
+ if(n->protocol==MCU_PROTOCOL_LCXL3){if(index==116)op=SAMPLER_START;else if(index==118){
+   /* Latch even when unavailable, so readiness during this hold cannot fire. */
+   if(dispatch&&snapshot->sampler_available){unsigned state=snapshot->sampler.state;op=state==0?SAMPLER_ARM:state==1||state==2?SAMPLER_START:state==3||state==5?SAMPLER_STOP:0;}
+  }else return 0;
+ }else if(n->protocol==MCU_PROTOCOL_LPP3){op=index==10?SAMPLER_ARM:index==20?SAMPLER_START:index==8?SAMPLER_STOP:0;if(!op)return 0;
+ }else{op=index==19?SAMPLER_ARM:index==39?SAMPLER_START:index==29?SAMPLER_STOP:0;if(!op)return 0;}
+ n->sampler_held[index]=1;n->held[index]=0; /* Do not leak Pro Stop Clip into pad modifiers. */
+ if(dispatch&&op)input_global_add(in,snapshot,op,0,now);
+ return 1;
+}
+static void native_sampler_lights(const NovationState *n,const CopiedMirror *snapshot,unsigned char *values,unsigned char *styles,unsigned char *used){
+ if(!native_sampler_view(n))return;
+ unsigned xl=n->protocol==MCU_PROTOCOL_LCXL3,pro=n->protocol==MCU_PROTOCOL_LPP3;
+ unsigned play=xl?116:pro?20:39,record=xl?118:pro?10:19,stop=pro?8:29;
+ used[play]=used[record]=1;values[play]=values[record]=styles[play]=styles[record]=0;
+ if(!xl){used[stop]=1;values[stop]=styles[stop]=0;}
+ if(!snapshot->ready||!snapshot->sampler_available)return;
+ unsigned state=snapshot->sampler.state,recording=state==3||state==5;
+ if(state==0){if(xl)values[record]=3;else values[stop]=5;}
+ if(state==1||state==2||recording)values[record]=5;
+ if(recording){values[play]=21;styles[record]=2;}
+}
 static void native_intent(Surface *surface,MirrorBank *bank,const CopiedMirror *snapshot,const NovationEvent *event,uint32_t now){
  NovationState *n=&surface->novation;MirrorInput *in=&SURFACE_VALUE(surface,input);unsigned index=event->index,strip=index%8;
  if(event->kind==NOV_MODE){
@@ -399,6 +438,7 @@ static void native_intent(Surface *surface,MirrorBank *bank,const CopiedMirror *
  if(n->protocol==MCU_PROTOCOL_LCXL3&&n->observed_mode!=1&&n->observed_mode!=2)return;
  if(event->kind==NOV_BUTTON){
   unsigned prior=n->held[index];n->held[index]=(unsigned char)event->value;
+  if(native_sampler_button(n,in,snapshot,event,prior,now,1))return;
   if(n->protocol==MCU_PROTOCOL_LCXL3&&index==63){n->shift=(unsigned)event->value;return;}
   if(n->protocol!=MCU_PROTOCOL_LCXL3){
    unsigned pro=n->protocol==MCU_PROTOCOL_LPP3;
@@ -512,8 +552,9 @@ static int native_consume(Surface *surface,MirrorBank *bank,const MirrorState *s
  if(!runtime)return 1; /* The shipped path always owns the shared cycle. */
  int copied=runtime_snapshot(runtime,state,bank->view==BV_DRUM_PADS);if(copied<0)return 0;
  if(!copied||!runtime->snapshot->ready||atomic_load(&SURFACE_VALUE(surface,input).commands->new_project_intent)){
+  unsigned sampler_consumed=native_sampler_button(&surface->novation,&SURFACE_VALUE(surface,input),runtime->snapshot,&decoded,decoded.kind==NOV_BUTTON?surface->novation.held[decoded.index]:0,runtime->now,0);
   surface->novation.copy_source=(ClipEditSource){0};surface->novation.copy_used=1;
-  input_discard(&SURFACE_VALUE(surface,input));input_jog_discard(&SURFACE_VALUE(surface,input));memset(surface->native_pickup,0,sizeof(surface->native_pickup));memset(surface->native_touch_identity,0,sizeof(surface->native_touch_identity));if(decoded.kind==NOV_BUTTON){surface->novation.held[decoded.index]=(unsigned char)decoded.value;if(surface->novation.protocol==MCU_PROTOCOL_LCXL3&&decoded.index==63)surface->novation.shift=(unsigned)decoded.value;}if(decoded.kind==NOV_TOUCH)surface->novation.touch[decoded.index]=(unsigned char)decoded.value;return 1;
+  input_discard(&SURFACE_VALUE(surface,input));input_jog_discard(&SURFACE_VALUE(surface,input));memset(surface->native_pickup,0,sizeof(surface->native_pickup));memset(surface->native_touch_identity,0,sizeof(surface->native_touch_identity));if(decoded.kind==NOV_BUTTON&&!sampler_consumed){surface->novation.held[decoded.index]=(unsigned char)decoded.value;if(surface->novation.protocol==MCU_PROTOCOL_LCXL3&&decoded.index==63)surface->novation.shift=(unsigned)decoded.value;}if(decoded.kind==NOV_TOUCH)surface->novation.touch[decoded.index]=(unsigned char)decoded.value;return 1;
  }
  bank_apply(bank,runtime->snapshot,runtime->now);input_sync(&SURFACE_VALUE(surface,input),bank);
  native_intent(surface,bank,runtime->snapshot,&decoded,runtime->now);return 1;
@@ -635,6 +676,7 @@ static int native_output(Surface *surface,MirrorBank *bank,const CopiedMirror *s
    if(index){if(!feedback->clip_feedback_started){feedback->clip_feedback_started=1;feedback->clip_feedback_tick=now;}unsigned value=now-feedback->clip_feedback_tick<80?0:3;used[index]=1;values[index]=value;styles[index]=0;if(!n->led_valid[index]||n->led_value[index]!=value||n->led_style[index])n->led_cursor=index;}
   }
  }
+ native_sampler_lights(n,snapshot,values,styles,used);
  /* Reserve up to eight messages for changing control positions/text. */
  for(unsigned step=0;step<128&&n->cycle_messages<8;step++){unsigned i=n->led_cursor;n->led_cursor=(i+1)%128;if(!used[i]||(n->led_valid[i]&&n->led_value[i]==values[i]&&n->led_style[i]==styles[i]))continue;NovationWire w=novation_led(n->protocol,i,styles[i],values[i]);int sent=native_wire(surface,&w,0);if(sent!=1)return sent==2?1:0;n->led_valid[i]=1;n->led_value[i]=values[i];n->led_style[i]=styles[i];}
  if(n->protocol!=MCU_PROTOCOL_LCXL3)return 1; /* Programmer grid is its own fader projection. */

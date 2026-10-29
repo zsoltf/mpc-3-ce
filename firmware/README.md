@@ -1,6 +1,6 @@
 # MPC 3 CE firmware
 
-CE v0.4.2 uses MPC 3.10 Gen1. The browser builder also retains CE v0.3.0
+CE v0.4.3 uses MPC 3.10 Gen1. The browser builder also retains CE v0.3.0
 for MPC 3.9.1 Gen1. MPC Live II is the tested model; other Gen1 models are
 untested. Gen2 and Force are not supported.
 
@@ -14,12 +14,12 @@ containing Akai's software are not distributed by this repository.
 The CE image adds the controller runtime, Controllers preferences, Global MIDI
 Learn editor, mouse and wheel editing, and integration for the optional Pd and
 Cardinal plugins. The runtime runs from `/usr/share/mpclearn/mcu` and starts
-automatically. See the [release notes](../docs/releases/v0.4.2.md) for features
+automatically. See the [release notes](../docs/releases/v0.4.3.md) for features
 and known limits.
 
 Pd Sketch Synth, Pd Sketch FX, Cardinal Synth and Cardinal FX also need the
 [SD plugin bundle](plugin-setup/README.md). The same v0.4.0 bundle works with
-CE v0.4.2. Keep its SD card inserted while using the plugins.
+CE v0.4.3. Keep its SD card inserted while using the plugins.
 
 SSH is disabled by default. Selecting your own Ed25519 public key in the
 builder enables root login with that key. Private keys are never needed by
@@ -35,9 +35,9 @@ includes the Pd/Cardinal editors and GPU presenter. Building the
 not require rebuilding the runtime.
 
 [release/public-source.json](../release/public-source.json) identifies the
-v0.4.2 runtime, payload checksums and SSH, no-SSH and Debug recipes. Its image
-revision is `v0_4_2`, runtime format is CMD32/MMV22, and installed Info label is
-`MPC 3 CE 0.4.2`. The runtime's `BUILD.json` records its original build; later
+v0.4.3 runtime, payload checksums and SSH, no-SSH and Debug recipes. Its image
+revision is `v0_4_3`, runtime format is CMD32/MMV24, and installed Info label is
+`MPC 3 CE 0.4.3`. The runtime's `BUILD.json` records its original build; later
 documentation updates do not change those release bytes.
 
 The retained 3.9.1 build has separate

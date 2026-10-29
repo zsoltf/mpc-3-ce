@@ -106,6 +106,7 @@ static int mini_output(Surface *s,const MirrorBank *bank,const CopiedMirror *sna
  }
  unsigned playing=ready&&snapshot->playing.available,record=ready&&snapshot->record_mode.available&&(snapshot->record_mode.bits==1||snapshot->record_mode.bits==3);
  unsigned values[8]={0,0,ready&&SURFACE_VALUE(s,input).jog_rewind?127:0,ready&&SURFACE_VALUE(s,input).jog_forward?127:0,ready&&snapshot->loop.available&&snapshot->loop.bits?127:0,playing&&!snapshot->playing.bits?127:0,playing&&snapshot->playing.bits?127:0,record?127:0};
+ if(surface_sampler_view(s))for(unsigned i=0;i<3;i++)values[5+i]=ready?sampler_transport_led(snapshot,93+i):0;
  for(unsigned i=0;i<8;i++){unsigned note=mini_bottom_notes[i];if(!s->mode_valid||s->mode_led[note]!=values[i]){snd_seq_event_t e;snd_seq_ev_clear(&e);snd_seq_ev_set_noteon(&e,0,note,values[i]);if(!channel_send(s,&e))return 0;s->mode_led[note]=values[i];}}
  s->mode_valid=1;
  unsigned strip=s->next_wire++%8,ring=0;

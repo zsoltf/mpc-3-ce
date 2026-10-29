@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Exact ELF/raw ARM coordinate checks and model-mode detour recipes."""
-import hashlib,json,struct,sys
+import hashlib,json,struct,sys,os
 from pathlib import Path
 offline_310=len(sys.argv)==4 and sys.argv[3] in ("--offline-3.10","--offline-mirror-3.10")
 command_310=len(sys.argv)==4 and sys.argv[3]=='--command-3.10'
@@ -177,6 +177,23 @@ if profile_310:
  spec=importlib.util.spec_from_file_location('model_310',Path(__file__).with_name('model-310.py'))
  profile=importlib.util.module_from_spec(spec);spec.loader.exec_module(profile)
  sites,profile_guards,origin,profile_data_words=profile.prepare(sys.argv[1],sys.argv[2],sites if mirror else None,command=command_310)
+sampler_sites = []
+if command_310 and os.environ.get('MPCLEARN_SAMPLER_PROBE') is None:
+ import json
+ sampler_sites=json.loads(Path(__file__).with_name('sampler-lifecycle-310.json').read_text())['sites']
+ sampler_sites+=json.loads(Path(__file__).with_name('sampler-physical-310.json').read_text())['sites']
+ selected += [s['id'] for s in sampler_sites]
+sampler_after={int(s['address'],16) for s in sampler_sites if s['after']}
+midi_probe_sites = []
+if os.environ.get('MPCLEARN_MIDI_PROBE') and (not command_310 or os.environ['MPCLEARN_MIDI_PROBE'] != '1'):
+ raise SystemExit('MIDI probe requires exact CE 3.10 command profile and flag=1')
+if command_310:
+ import json
+ for name in ('drum-midi-probe-310.json','midi-mute-310.json'):
+  midi_probe_sites += json.loads(Path(__file__).with_name(name).read_text())['sites']
+ selected += [s['id'] for s in midi_probe_sites]
+ if len(sites)!=len(selected):raise SystemExit('MIDI native hook id count mismatch')
+midi_probe_after={int(s['address'],16) for s in midi_probe_sites if s['after']}
 for a,h in sites:
  if at(a,8).hex()!=h:raise SystemExit(f'raw recipe changed at {a:x}')
 if command:
@@ -389,7 +406,7 @@ for a,_ in sites:
   if w&0xffff0000==0xe59f0000:row.append(struct.unpack('<I',at(a+offset+8+(w&4095),4))[0])
   else:row.append(0)
  reloc.append(row)
-lines+=['static const unsigned char capture_after_pair[PATCH_COUNT]={'+','.join('1' if (command and origin.get(a,a)==0x331ea38) or origin.get(a,a) in (0x1e75f48,0x24713cc,0x236f204,0x236f210,0x236f21c,0x236fc74,0x236fc80,0x236fc8c,0x236f274,0x236f280,0x236f294,0x236fce0,0x236fcf0,0x236fd0c,0x16051a4,0x16051b0,0x16051c0,0x2373a8c,0x2373a9c,0x2373aa8,0x2471e84,0x24712cc,0x2471f60,0x2471fa4,0x2471420,0x11fabd0,0xf57e0c,0x245e8bc,0x1351008,0x245e63c,0x245e650,0x245ee98,0x1462ed0,0x245ec18,0x245ec2c,0x1e8cc2c,0x1e8cca0,0x26522e4,0x2652328,0x265236c,0x26523b0,0xeeee58,0xe4fb9c,0x1462cec,0x128f750,0x12c5aec,0x1c3752c,0x1c37708,0x23669d0,0x2366b44,0x1bea98c,0x1c2f644,0x28cb31c,0x264fccc,0x1bda804,0x1bda9f4,0x2651d04,0x2652160,0x25178d4,0x236f628,0x236f3d8,0x236fe14,0x26527dc,0x257b858,0x254c9c0,0x23755ac,0x2374f88,0x23755ec,0x2375288,0x236f444,0x236fe98,0x135a760,0x1c371fc,0x238f964,0x1c3b740) else '0' for a,h in sites)+'};','static const uint32_t relocated[PATCH_COUNT][2]={'+','.join('{'+','.join(hex(x) for x in row)+'}' for row in reloc)+'};']
+lines+=['static const unsigned char capture_after_pair[PATCH_COUNT]={'+','.join('1' if a in sampler_after or a in midi_probe_after or (command and origin.get(a,a)==0x331ea38) or origin.get(a,a) in (0x1e75f48,0x24713cc,0x236f204,0x236f210,0x236f21c,0x236fc74,0x236fc80,0x236fc8c,0x236f274,0x236f280,0x236f294,0x236fce0,0x236fcf0,0x236fd0c,0x16051a4,0x16051b0,0x16051c0,0x2373a8c,0x2373a9c,0x2373aa8,0x2471e84,0x24712cc,0x2471f60,0x2471fa4,0x2471420,0x11fabd0,0xf57e0c,0x245e8bc,0x1351008,0x245e63c,0x245e650,0x245ee98,0x1462ed0,0x245ec18,0x245ec2c,0x1e8cc2c,0x1e8cca0,0x26522e4,0x2652328,0x265236c,0x26523b0,0xeeee58,0xe4fb9c,0x1462cec,0x128f750,0x12c5aec,0x1c3752c,0x1c37708,0x23669d0,0x2366b44,0x1bea98c,0x1c2f644,0x28cb31c,0x264fccc,0x1bda804,0x1bda9f4,0x2651d04,0x2652160,0x25178d4,0x236f628,0x236f3d8,0x236fe14,0x26527dc,0x257b858,0x254c9c0,0x23755ac,0x2374f88,0x23755ec,0x2375288,0x236f444,0x236fe98,0x135a760,0x1c371fc,0x238f964,0x1c3b740) else '0' for a,h in sites)+'};','static const uint32_t relocated[PATCH_COUNT][2]={'+','.join('{'+','.join(hex(x) for x in row)+'}' for row in reloc)+'};']
 branches=[]
 for a,_ in sites:
  row=[]
@@ -409,7 +426,7 @@ for i,(a,n) in enumerate(guards):lines+=['static const unsigned char guard_bytes
 lines+=['static const struct {uint32_t address;unsigned length;const unsigned char *bytes;} guards[]={'+','.join('{'+hex(a)+','+str(n)+',guard_bytes_'+str(i)+'}' for i,(a,n) in enumerate(guards))+'};']
 if mirror:lines+=['static const unsigned hook_ids[PATCH_COUNT]={'+','.join(str(i) for i in selected)+'};']
 out=Path(sys.argv[2])
-out.with_name('model-build-profile.h').write_text('/* Exact preparation selects one build profile. */\n'+('#define MODEL_FIRMWARE_310 1\n' if command_310 else ''))
+out.with_name('model-build-profile.h').write_text('/* Exact preparation selects one build profile. */\n'+('#define MODEL_FIRMWARE_310 1\n' if command_310 else '')+('#define MODEL_SAMPLER_HOOKS '+str(len(sampler_sites))+'u\n' if sampler_sites else '')+('#define MODEL_MIDI_PROBE 1\n' if os.environ.get('MPCLEARN_MIDI_PROBE') else '')+('#define MODEL_MIDI_MUTE 1\n#define MODEL_MIDI_MUTE_ENABLED 1\n#define MODEL_MIDI_NATIVE_HOOKS '+str(len(midi_probe_sites))+'u\n' if midi_probe_sites else ''))
 out.write_text('\n'.join(lines)+'\n')
 ranges=[(va,va+size,flags) for typ,off,va,pa,size,mem,flags,align in loads if typ==1 and size]
 out.with_name('module-ranges.h').write_text('static const uint32_t module_ranges[][3]={'+','.join('{'+','.join(hex(n) for n in row)+'}' for row in ranges)+'};\n')

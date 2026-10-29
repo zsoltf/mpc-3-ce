@@ -1,0 +1,338 @@
+{
+  "scope": "Opt-in read-only M36 finite native MIDI diagnostic, no output calls or filtering.",
+  "constants": {},
+  "sites": [
+    {
+      "id": 309,
+      "name": "ROOT",
+      "old": "0x1fe3b48",
+      "address": "0x1fe3b48",
+      "bytes": "0610a0e10400a0e1",
+      "unwind": [
+        "0x1fe3870",
+        "0x1fe3ea4"
+      ],
+      "after": 1
+    },
+    {
+      "id": 310,
+      "name": "ROOT_END",
+      "old": "0x1fe3b54",
+      "address": "0x1fe3b54",
+      "bytes": "4830dde570b0dde5",
+      "unwind": [
+        "0x1fe3870",
+        "0x1fe3ea4"
+      ],
+      "after": 0
+    },
+    {
+      "id": 311,
+      "name": "MAP",
+      "old": "0x29d2198",
+      "address": "0x29d2198",
+      "bytes": "0400a0e1583193e5",
+      "unwind": [
+        "0x29d1e10",
+        "0x29d2764"
+      ],
+      "after": 1
+    },
+    {
+      "id": 312,
+      "name": "MAP_END",
+      "old": "0x29d21a4",
+      "address": "0x29d21a4",
+      "bytes": "f030dde5000053e3",
+      "unwind": [
+        "0x29d1e10",
+        "0x29d2764"
+      ],
+      "after": 0
+    },
+    {
+      "id": 313,
+      "name": "SEND",
+      "old": "0x29d2290",
+      "address": "0x29d2290",
+      "bytes": "0610a0e10c0080e2",
+      "unwind": [
+        "0x29d1e10",
+        "0x29d2764"
+      ],
+      "after": 1
+    },
+    {
+      "id": 314,
+      "name": "SEND_END",
+      "old": "0x29d229c",
+      "address": "0x29d229c",
+      "bytes": "f030dde5000053e3",
+      "unwind": [
+        "0x29d1e10",
+        "0x29d2764"
+      ],
+      "after": 0
+    },
+    {
+      "id": 315,
+      "name": "ON_BYTES",
+      "old": "0x28ad3e0",
+      "address": "0x28ad3e0",
+      "bytes": "017acded0430dde5",
+      "unwind": [
+        "0x28ad350",
+        "0x28ad528"
+      ],
+      "after": 1
+    },
+    {
+      "id": 316,
+      "name": "ON_SINK",
+      "old": "0x28ad448",
+      "address": "0x28ad448",
+      "bytes": "128a8ded4c608de5",
+      "unwind": [
+        "0x28ad350",
+        "0x28ad528"
+      ],
+      "after": 1
+    },
+    {
+      "id": 317,
+      "name": "OFF_BYTES",
+      "old": "0x28ad59c",
+      "address": "0x28ad59c",
+      "bytes": "7010efe60700a0e1",
+      "unwind": [
+        "0x28ad528",
+        "0x28ad6e4"
+      ],
+      "after": 1
+    },
+    {
+      "id": 318,
+      "name": "OFF_SINK",
+      "old": "0x28ad604",
+      "address": "0x28ad604",
+      "bytes": "108a8ded44508de5",
+      "unwind": [
+        "0x28ad528",
+        "0x28ad6e4"
+      ],
+      "after": 1
+    },
+    {
+      "id": 319,
+      "name": "PENDING",
+      "old": "0x1fe3d80",
+      "address": "0x1fe3d80",
+      "bytes": "0a10a0e1e60f85e2",
+      "unwind": [
+        "0x1fe3870",
+        "0x1fe3ea4"
+      ],
+      "after": 1
+    },
+    {
+      "id": 320,
+      "name": "DUE",
+      "old": "0x1fe2a18",
+      "address": "0x1fe2a18",
+      "bytes": "0110a0e34030d0e5",
+      "unwind": [
+        "0x1fe2914",
+        "0x1fe2fb0"
+      ],
+      "after": 0
+    },
+    {
+      "id": 321,
+      "name": "DUE_END",
+      "old": "0x1fe2a4c",
+      "address": "0x1fe2a4c",
+      "bytes": "987398e59c4398e5",
+      "unwind": [
+        "0x1fe2914",
+        "0x1fe2fb0"
+      ],
+      "after": 0
+    },
+    {
+      "id": 322,
+      "name": "OFF_ROOT",
+      "old": "0x1fe1d9c",
+      "address": "0x1fe1d9c",
+      "bytes": "0520a0e10400a0e1",
+      "unwind": [
+        "0x1fe1d04",
+        "0x1fe1e4c"
+      ],
+      "after": 1
+    },
+    {
+      "id": 323,
+      "name": "OFF_END",
+      "old": "0x1fe1da8",
+      "address": "0x1fe1da8",
+      "bytes": "483694e5cc1494e5",
+      "unwind": [
+        "0x1fe1d04",
+        "0x1fe1e4c"
+      ],
+      "after": 0
+    },
+    {
+      "id": 325,
+      "name": "DRAIN",
+      "old": "0x1fe30d4",
+      "address": "0x1fe30d4",
+      "bytes": "504093e5481093e5",
+      "unwind": [
+        "0x1fe2fb8",
+        "0x1fe3870"
+      ],
+      "after": 0
+    },
+    {
+      "id": 326,
+      "name": "DRAIN_END",
+      "old": "0x1fe317c",
+      "address": "0x1fe317c",
+      "bytes": "98639ae59c439ae5",
+      "unwind": [
+        "0x1fe2fb8",
+        "0x1fe3870"
+      ],
+      "after": 0
+    },
+    {
+      "id": 327,
+      "name": "CLEANUP",
+      "old": "0x29d2e8c",
+      "address": "0x29d2e8c",
+      "bytes": "41ce80e20cc08ce2",
+      "unwind": [
+        "0x29d2e50",
+        "0x29d32c4"
+      ],
+      "after": 1
+    },
+    {
+      "id": 328,
+      "name": "CLEANUP_END",
+      "old": "0x29d3118",
+      "address": "0x29d3118",
+      "bytes": "84d08de2d040cde1",
+      "unwind": [
+        "0x29d2e50",
+        "0x29d32c4"
+      ],
+      "after": 0
+    }
+  ],
+  "functions": [
+    {
+      "name": "PENDING",
+      "start": "0x1fe3870",
+      "length": 1588,
+      "sha256": "9553f1c5e0ae73893a4628b20a9987c91528875710b02501007821669eacef1d"
+    },
+    {
+      "name": "SEND_END",
+      "start": "0x29d1e10",
+      "length": 2388,
+      "sha256": "819d1fec3aa928c7679f90d537a61d0b3e4fd40f8669678f1596683901ca0b7e"
+    },
+    {
+      "name": "ON_SINK",
+      "start": "0x28ad350",
+      "length": 472,
+      "sha256": "5805fdc0a115040981bb80f0cf0b884ed2c974a7488fe006c50c37bdf78ae11d"
+    },
+    {
+      "name": "OFF_SINK",
+      "start": "0x28ad528",
+      "length": 444,
+      "sha256": "ec0e1af330fb71031ef0e5d9c9520c8cc21b9d07aa9a23587df2c3a311eb4f68"
+    },
+    {
+      "name": "DUE_END",
+      "start": "0x1fe2914",
+      "length": 1692,
+      "sha256": "53ffd147d7582141fc7ba1c163656731e1c25f718e31bdeeaa856fad23f8b56c"
+    },
+    {
+      "name": "OFF_END",
+      "start": "0x1fe1d04",
+      "length": 328,
+      "sha256": "dc0c92672469c6c95d65565d4ceacf7035578de73a29ab715cdd750b596c17f1"
+    },
+    {
+      "name": "0x2860d44",
+      "start": "0x2860d44",
+      "length": 708,
+      "sha256": "a2885d442de952592d97e3104db951d558e7ee3cd1e1d7c5e8d046d2d9aace25"
+    },
+    {
+      "name": "0x2867f80",
+      "start": "0x2867f80",
+      "length": 1192,
+      "sha256": "61272e24a22a0167f36e4c700d00ac9ea87eb198c40521cf56a234a88b18f4a6"
+    },
+    {
+      "name": "0xe4d948",
+      "start": "0xe4d948",
+      "length": 496,
+      "sha256": "69535f79636fa1aa546bd0156eb3e11006879b98dc991faac481d640475ab8f4"
+    },
+    {
+      "name": "0x29d2764",
+      "start": "0x29d2764",
+      "length": 8,
+      "sha256": "f4e2e21dc38e30435ce63448b4fbd255cc3d01d1377b7be51ef01cb893a38e6b"
+    },
+    {
+      "name": "0x29d34cc",
+      "start": "0x29d34cc",
+      "length": 356,
+      "sha256": "5bf75c58296e2790071f96ccf836db55d2aa66bf803673ae191f03788314044d"
+    },
+    {
+      "name": "0x28adf58",
+      "start": "0x28adf40",
+      "length": 72,
+      "sha256": "750f40504ab5ef05e6d3421bf1b579545159e789d5b8c8e3ea253cbea0c8836a"
+    },
+    {
+      "name": "DRAIN",
+      "start": "0x1fe2fb8",
+      "length": 2232,
+      "sha256": "425fab7758e644c2c417f3be75dd8e8d6b19f6d80a1f141b4a5dc54dd8950c9c"
+    },
+    {
+      "name": "CLEANUP",
+      "start": "0x29d2e50",
+      "length": 1140,
+      "sha256": "b9da4a7c733a0a7c556d97435c3d2ef1cb48e384f46cdb7267f5785f22bdab48"
+    }
+  ],
+  "words": [
+    {
+      "address": "0x6d51624",
+      "bytes": "a4d49c02b4e39c02e461ff01c4329d02"
+    },
+    {
+      "address": "0x6d4d3a4",
+      "bytes": "14888502ac8885024411a90158898502"
+    },
+    {
+      "address": "0x6d4eacc",
+      "bytes": "c0db8a0200e08a024411a9011cfd8a02"
+    },
+    {
+      "address": "0x6d4c124",
+      "bytes": "648f7f02989a7f0280ef7f029c637e02"
+    }
+  ]
+}

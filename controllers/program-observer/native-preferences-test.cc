@@ -1,5 +1,6 @@
 /* ARM composition for the production toolkit adapters. MPC rendering, touch,
  * stock ownership and Graphics are explicit fixtures. */
+#define SAMPLER_BANNER_COMPONENT 1
 #include "native-preferences.cc"
 
 extern "C" void *malloc(size_t);
@@ -381,7 +382,9 @@ static void setup_outer_layout(Frame &frame,void *page){
 
 #include "native-preferences-resolver-test.inc"
 
+#include "sampler-banner-test.inc"
 int main(){
+ sampler_banner_checks();
  native_resolver_checks();
  NativePreferencesState fixture={};state=&fixture;
  ((void**)tab_vtable_fixture)[2]=(void*)(uintptr_t)test_tab_dtor;((void**)tab_vtable_fixture)[4]=(void*)(uintptr_t)test_tab_active;

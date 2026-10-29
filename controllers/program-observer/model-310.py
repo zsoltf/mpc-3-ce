@@ -6,6 +6,7 @@ No coordinate is admitted through similarity or runtime version detection.
 """
 import hashlib
 import json
+import os
 from pathlib import Path
 import struct
 import sys
@@ -42,7 +43,45 @@ def prepare(path, output, mirror_sites=None, command=False):
             spec['sites'] += extension['pending_command_sites'] + command_extension['sites']
         by_old = {int(site['old'], 16): site for site in spec['sites']}
         spec['sites'] = [by_old[a] for a, _ in mirror_sites]
-    if 'EXECUTABLE_END' in spec['constants'] and spec['constants']['EXECUTABLE_END'] != next(x[2] + x[5] for x in elf.loads if x[6] & 1):
+    if command and os.environ.get('MPCLEARN_SAMPLER_PROBE') in (None, '1', '2', '3'):
+        probe = json.loads((here / 'sampler-probe-310.json').read_text())
+        if os.environ.get('MPCLEARN_SAMPLER_PROBE') in (None, '3'):
+            backend = json.loads((here / 'sampler-backend-probe-310.json').read_text())
+            probe['functions'] += backend['functions']
+            probe['constants'].update(backend['constants'])
+            probe['words'] += backend['words']
+        spec['functions'] += probe['functions']
+        spec['constants'].update(probe['constants'])
+        if os.environ.get('MPCLEARN_SAMPLER_PROBE') in (None, '2', '3'):
+            spec['constants']['SAMPLER_CALLS'] = 1
+        if os.environ.get('MPCLEARN_SAMPLER_PROBE') is None:
+            lifecycle = json.loads((here / 'sampler-lifecycle-310.json').read_text())
+            spec['sites'] += lifecycle['sites']
+            spec['functions'] += lifecycle['functions']
+            spec['constants'].update(lifecycle['constants'])
+            physical = json.loads((here / 'sampler-physical-310.json').read_text())
+            spec['sites'] += physical['sites']
+            spec['functions'] += physical['functions']
+            spec['constants'].update(physical['constants'])
+            probe['words'] += physical['words']
+        for check in probe['words']:
+            if elf.at(int(check['address'], 16), len(bytes.fromhex(check['bytes']))).hex() != check['bytes']:
+                raise SystemExit('3.10 sampler ownership witness changed: ' + check['address'])
+    if os.environ.get('MPCLEARN_MIDI_PROBE') and (not command or os.environ['MPCLEARN_MIDI_PROBE'] != '1'):
+        raise SystemExit('MIDI probe requires exact CE 3.10 command preparation and flag=1')
+    if command:
+        for profile_name in ('drum-midi-probe-310.json', 'midi-mute-310.json'):
+            probe = json.loads((here / profile_name).read_text())
+            spec['sites'] += probe['sites']
+            spec['functions'] += probe['functions']
+            spec['constants'].update(probe['constants'])
+            for check in probe['words']:
+                if elf.at(int(check['address'], 16), len(bytes.fromhex(check['bytes']))).hex() != check['bytes']:
+                    raise SystemExit('3.10 MIDI ownership witness changed: ' + check['address'])
+        spans = sorted(int(s['address'], 16) for s in spec['sites'])
+        if any(b < a + 8 for a, b in zip(spans, spans[1:])):
+            raise SystemExit('overlapping MIDI native detour')
+    if 'EXECUTABLE_END'  in spec['constants'] and spec['constants']['EXECUTABLE_END'] != next(x[2] + x[5] for x in elf.loads if x[6] & 1):
         raise SystemExit('selected executable segment bound changed')
     if 'WRITABLE_START' in spec['constants']:
         rw = next(x for x in elf.loads if x[0] == 1 and x[6] & 2)

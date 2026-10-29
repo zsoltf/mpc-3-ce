@@ -1,0 +1,190 @@
+{
+  "scope": "Temporary M36 sampler diagnostic. MPCLEARN_SAMPLER_PROBE=1 permits inspection; =2 additionally permits bounded native arm/start/stop. Native finalization and UI remain separately observed.",
+  "constants": {
+    "SAMPLER_PROBE": 1,
+    "SAMPLING_RECORDER_VPTR": 113941156,
+    "SAMPLING_RECORDER_SECONDARY_VPTR": 113941196,
+    "SAMPLING_RECORDER_THIRD_VPTR": 113941232,
+    "SAMPLER_MODE_VPTR": 114227996,
+    "SAMPLER_LISTENER_VPTR": 114228500,
+    "SAMPLER_LISTENER_ADD": 18417596,
+    "SAMPLER_LISTENER_REMOVE": 18418016,
+    "SAMPLER_ARM": 32489652,
+    "SAMPLER_START": 32497660,
+    "SAMPLER_STOP": 32494760
+  },
+  "functions": [
+    {
+      "name": "audio_ctor",
+      "start": "0x1a8f444",
+      "length": 4292,
+      "sha256": "1cb8c59a32765c93817bcfd6b9b32f9f3b14e373358c19e6a36b52fcd437f6eb"
+    },
+    {
+      "name": "audio_dtor",
+      "start": "0x1a90508",
+      "length": 2640,
+      "sha256": "5190c8f4b6e75238dd1e63079b9465db5382ca85f5cec82b6b352b7dde250c09"
+    },
+    {
+      "name": "recorder_ctor",
+      "start": "0x1efe7cc",
+      "length": 2536,
+      "sha256": "d3a7bc096c0401495def9b342d34d52fcf4d746933abfec31ef2bea4f220396b"
+    },
+    {
+      "name": "sampler_base_ctor",
+      "start": "0x11cd0fc",
+      "length": 232,
+      "sha256": "b74a03d3b82492d700a193dcc364fcaa188442fe8847b815eb265a7c7e00cf82"
+    },
+    {
+      "name": "root_sampler_ctor",
+      "start": "0xfefad0",
+      "length": 47384,
+      "sha256": "8f01cbfc641d66e28d4a3089eff9c6a22adbba3b38a10ea3bd570abdd77279b4"
+    },
+    {
+      "name": "record_button",
+      "start": "0x2f8325c",
+      "length": 148,
+      "sha256": "b2e4bad423901288a49378eeed02251c5f416279dd63a06998d8f57bfb390635"
+    },
+    {
+      "name": "recording_bool",
+      "start": "0x1efe6b0",
+      "length": 212,
+      "sha256": "8903195e4dcae24fd621180c8d5576aa86bd515aaea7e468efc5dfed7eedb176"
+    },
+    {
+      "name": "sampler_native_0x11907bc",
+      "start": "0x11907bc",
+      "length": 280,
+      "sha256": "ad71512b004506ae993c54aa5876da68fc9bbaec2c82690a545b30256cf1f486"
+    },
+    {
+      "name": "sampler_native_0x1190960",
+      "start": "0x11908d4",
+      "length": 1024,
+      "sha256": "04f6dfaa2a06181bdd316dbf3eb3528531b7aa64202a68f6e97a79bc89a6e0fa"
+    },
+    {
+      "name": "sampler_native_0x1efc0b4",
+      "start": "0x1efc0b4",
+      "length": 924,
+      "sha256": "1d4bfb362db127bb8ef7add6035ddb6b82fdf3d49a1c73eaad6b4df54339bf8e"
+    },
+    {
+      "name": "sampler_native_0x1efdffc",
+      "start": "0x1efdffc",
+      "length": 692,
+      "sha256": "b45d110ffc8ad028228881777235931ae9c23f9432877fa8219c02e6719fc035"
+    },
+    {
+      "name": "sampler_native_0x1efd4a8",
+      "start": "0x1efd4a8",
+      "length": 56,
+      "sha256": "36922cdb8d2c55343580ba87ee83729d1de9204856d5a08cc9cee6b2b33217f4"
+    },
+    {
+      "name": "sampler_native_0x1efcc40",
+      "start": "0x1efcc40",
+      "length": 2152,
+      "sha256": "88bd66c8926a1c6e7829f7ac378ae1a2baa7f51749c7fe75e40d506b98e18620"
+    },
+    {
+      "name": "sampler_native_0x11d106c",
+      "start": "0x11d106c",
+      "length": 1660,
+      "sha256": "556a90f672ac7965542442798dbc9e4a7cb98542623a58cc5d79bd5389154d98"
+    },
+    {
+      "name": "sampler_native_0x11d226c",
+      "start": "0x11d226c",
+      "length": 408,
+      "sha256": "da128239deb4f9c5a60c2c41b26e59e429cad6d7f24f18d913f7c9f40bc80a32"
+    },
+    {
+      "name": "sampler_native_0x11d2404",
+      "start": "0x11d2404",
+      "length": 184,
+      "sha256": "620432679de1753037e228bee9e9ae40b4b98ad97f95dfd2ded939832a0ba987"
+    },
+    {
+      "name": "sampler_native_0x165cee8",
+      "start": "0x165cee8",
+      "length": 700,
+      "sha256": "6cbb7a20322c5e81ca0ecca9d4844898b693a958fc68b9f728a40a8e1906676c"
+    },
+    {
+      "name": "sampler_native_0x165b278",
+      "start": "0x165b278",
+      "length": 880,
+      "sha256": "e035034ad1fb6bebe52125eed3ed57e19be10ba49ce3c318cce653bb085f36fe"
+    },
+    {
+      "name": "sampler_native_0x165aff8",
+      "start": "0x165aff8",
+      "length": 640,
+      "sha256": "b88a9b26767b926c9b5dd9f8f0a90f31d74f3131a50649b830e20b8e7b6894bf"
+    },
+    {
+      "name": "sampler_native_0xe5e5d4",
+      "start": "0xe5e5d4",
+      "length": 404,
+      "sha256": "47fb789d9610c90439fc25ead0f4c224de7062c257ceea30dfbd82e389682122"
+    },
+    {
+      "name": "sampler_native_0x165d1a4",
+      "start": "0x165d1a4",
+      "length": 248,
+      "sha256": "6ad645e63cb1583c139c608fcc7e13227c0a747dd9d800640dccb4ea25662029"
+    },
+    {
+      "name": "sampler_context_0x165d29c",
+      "start": "0x165d29c",
+      "length": 408,
+      "sha256": "ffbb8e69cc8c8cede900bd2f84cf99118ffed6ab8c9e146ff8d3a65161f7f32f"
+    },
+    {
+      "name": "sampler_context_0x165ce5c",
+      "start": "0x165ce5c",
+      "length": 140,
+      "sha256": "491e06e97d348e11c2cf537e385de87b1576b614513db621bd238c5b73a75139"
+    },
+    {
+      "name": "sampler_context_0x11d24bc",
+      "start": "0x11d24bc",
+      "length": 608,
+      "sha256": "9f197d032138b7971573881a5897e749e7f532c5431c5ea934ed674c0fbd9fe6"
+    },
+    {
+      "name": "sampler_context_0x11d271c",
+      "start": "0x11d271c",
+      "length": 424,
+      "sha256": "af8745ab52259467ac18391983c6918b769007fb5a2de232f128b9e68a35f4bb"
+    }
+  ],
+  "words": [
+    {
+      "address": "0x6ca9aa4",
+      "bytes": "9879ef017c84ef0144f01c01ecee1c01c46fef01986fef01"
+    },
+    {
+      "address": "0x6ca9acc",
+      "bytes": "6c84ef01d884ef01a88bef01307127013471270138712701"
+    },
+    {
+      "address": "0x6ca9af0",
+      "bytes": "7484ef01a884ef01c0b0ef0100000000a44ad2061c20f001"
+    },
+    {
+      "address": "0x6cefb1c",
+      "bytes": "f0ff1c0140011d01d0aaee00d8aaee00e0aaee006c221d0104241d01bc241d011c271d01"
+    },
+    {
+      "address": "0x6cefd14",
+      "bytes": "38011d016c011d011c07190120071901e8161d01ece91c01"
+    }
+  ]
+}

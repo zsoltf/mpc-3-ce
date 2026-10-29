@@ -195,6 +195,7 @@ int native_preferences_initialize(void);
 int native_preferences_install(uint32_t bias,void **mapping);
 void native_preferences_hook(void *context,unsigned kind);
 void native_preferences_refresh(void);
+unsigned native_sampler_banner(uint32_t overlay,uint32_t bias,uint32_t owner_token,unsigned message);
 /* Physical data-wheel input on the admitted UI owner. A visible editor
  * consumes the event; a selected native list also advances its selection. */
 int native_preferences_wheel(int steps);

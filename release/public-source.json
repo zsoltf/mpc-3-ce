@@ -1,38 +1,38 @@
 {
-  "release": "v0.4.2",
-  "image_revision": "v0_4_2",
+  "release": "v0.4.3",
+  "image_revision": "v0_4_3",
   "firmware": "3.10.0 Gen1",
-  "runtime_format": "CMD32/MMV22",
-  "runtime_checksums": "firmware/v0.4.2-runtime.sha256",
-  "payload_checksums": "firmware/v0.4.2-payload.sha256",
-  "payload_checksums_sha256": "56d17bd784d1cda514f5de87578fb40d8641ed9d2302f8d225fbdb1aaff507d2",
+  "runtime_format": "CMD32/MMV24",
+  "runtime_checksums": "firmware/v0.4.3-runtime.sha256",
+  "payload_checksums": "firmware/v0.4.3-payload.sha256",
+  "payload_checksums_sha256": "8460f7e2873a60926f14219442738da406b0d139c445ce5debdddb49f4a087ed",
   "runtime_location": "/usr/share/mpclearn/mcu",
-  "qualified_hardware": "MPC Live II: development repair 4002987 accepted for repeated Cardinal edits on physical Mini with clean listening; d785a26 accepted for native four-knob grouping and physical Mini order. Encoder smoothness is not newly qualified. This rebuilt release image has not been flashed.",
-  "image_flash_tested": false,
+  "qualified_hardware": "MPC Live II",
+  "image_flash_tested": true,
   "debug_image_flash_tested": false,
   "status": "release-candidate",
   "release_artifacts_current_for_source": true,
-  "product_candidate": "3ead01d0a1f29627e98235dcb31b9aafbccbf9a8",
-  "development_source_base": "3ead01d0a1f29627e98235dcb31b9aafbccbf9a8",
-  "recipe_source_commit": "3ead01d0a1f29627e98235dcb31b9aafbccbf9a8",
+  "product_candidate": "5d896d0d8561db57e6d8e52e7a0a5327a3b934fb",
+  "development_source_base": "5d896d0d8561db57e6d8e52e7a0a5327a3b934fb",
+  "recipe_source_commit": "5d896d0d8561db57e6d8e52e7a0a5327a3b934fb",
   "build_metadata": "BUILD.json is the immutable build-time candidate record. This release metadata records subsequent qualification of the exact payload and recipes.",
-  "diagnostics_status": "Offline exact SSH, no-SSH and Debug recipe reconstruction checked; native Debug image flash and USB report not qualified",
-  "native_info_label": "MPC 3 CE 0.4.2",
+  "diagnostics_status": "Offline SSH, no-SSH and Debug recipe reconstruction checked; native Debug flash is not qualified",
+  "native_info_label": "MPC 3 CE 0.4.3",
   "recipes": {
     "ssh": {
-      "manifest_sha256": "b42f2f95e40814eb632e3a7ba66461e6fd05d4cb85ee9163d554507b0cbc97cc",
-      "patch_sha256": "15a018862467154f3458db90de837b52d0d76eeb13f31db6ad0fc34df8777fb8",
-      "root_sha256": "41c52490c7223200f9763641462d884404a06968179c207d527319dd2f3ed0fd"
+      "manifest_sha256": "087172857cea454335b57d59e812c49327cfc92c1dc0105c50075f3443a2e012",
+      "patch_sha256": "24432e60f04a57d5777f4cc727a850c76e29031a2741ebdee7440da4165cd57f",
+      "root_sha256": "5eff0b6f9995aa6f908426730bb92b4652f332e97c1cac0f3c001d2776d9fd58"
     },
     "no-ssh": {
-      "manifest_sha256": "d7a13957e446073f511d25d17da7b18ffc11b2e89818632a9150a852aad3ffaf",
-      "patch_sha256": "4245ed0b004186d117d313a0a800c5dcbca076a67c45203e213a4fc77ea7ed48",
-      "root_sha256": "9e8f5de4a28dd0871c04b76b0055c09769e5ff10d4d3e58a8e820ae7f7f4d466"
+      "manifest_sha256": "1dcf8e691e81b25fd805ae1388864be36f9ead6af5583d7d24fe7fe0b4c8f35d",
+      "patch_sha256": "311ab3aa250a5e1211ff9d96ae454ca66a2386cf7a03fe43ffb141b843a3ec87",
+      "root_sha256": "32e1a0caf108987628d8389e3196c64325015874307795fe99dff13574930ef9"
     },
     "diagnostics": {
-      "manifest_sha256": "b3b176e950ca014b6642dfde2d4791dfa0dd1e6344e1aa200fe7a02abd1f255c",
-      "patch_sha256": "8347d029e0d8419c90d8c4bf3f4ac424b25ea3b93b5b3af9999c111de401c50c",
-      "root_sha256": "ad41b64ceca29f26ac2ac0ff8e7cbd2174e43bd59315924cae339d3efe44644f"
+      "manifest_sha256": "d22e13de8b18a1336bc2ef752ceab1485a38cd777339689f3cdafd775b641500",
+      "patch_sha256": "9f92bfaefb94703bf1e13ca5b733e0cfdd3f2b647d6de11bcb14674310b6aa9a",
+      "root_sha256": "853bdf8290b8413e9d1d18a2d6c677413cca84e4e3332b9afa470e28a8e6bb7c"
     }
   }
 }

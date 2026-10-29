@@ -1,0 +1,171 @@
+{
+  "scope": "Temporary flag3 offscreen backend enable trial; native UI enable and queue context guards. No automatic disable or production lifetime claim.",
+  "constants": {
+    "SAMPLER_BACKEND_TRIAL": 1,
+    "SAMPLER_BACKEND_ENABLE": 32502196
+  },
+  "functions": [
+    {
+      "start": "0x1efc0b4",
+      "length": 924,
+      "sha256": "1d4bfb362db127bb8ef7add6035ddb6b82fdf3d49a1c73eaad6b4df54339bf8e",
+      "provenance": "recorder-arm; arm-backend-report.md"
+    },
+    {
+      "start": "0x1eff1b4",
+      "length": 876,
+      "sha256": "b717b8cc9cf2f931cca62563f7e298aa3c722669941d22a1cb0ec7d524e9aa99",
+      "provenance": "recorder-enable-disable; arm-backend-report.md"
+    },
+    {
+      "start": "0x1efb1d8",
+      "length": 2484,
+      "sha256": "a98485d3c18dd41ae4b8724957b212d4c46a27bbb98d8108889ed234247f7963",
+      "provenance": "recorder-backend-ensure; arm-backend-report.md"
+    },
+    {
+      "start": "0x1ef8ef8",
+      "length": 804,
+      "sha256": "40c1d8052713dd844c83b2d8e470b84c591f482981da630e71d43249a31dc7e0",
+      "provenance": "recorder-backend-set; arm-backend-report.md"
+    },
+    {
+      "start": "0x1efbb8c",
+      "length": 1248,
+      "sha256": "6dcee60fcf1545c316007c433985d28e6d12f2041b2eb5888c9a2eb1c156c096",
+      "provenance": "recorder-backend-refresh; arm-backend-report.md"
+    },
+    {
+      "start": "0x1efd4e0",
+      "length": 112,
+      "sha256": "9e987ccaf5bc947424d6b3759fb20b8e8778d0a6639d59d11cca0a07c92f1313",
+      "provenance": "recorder-disable-audio-callback; arm-backend-report.md"
+    },
+    {
+      "start": "0x11cfb14",
+      "length": 284,
+      "sha256": "2d8ecf0a8ceefeb3c78ee865cc0faf245f24bdfed2c193363f24bbad596aa2fb",
+      "provenance": "sampler-enable-disable-callbacks; arm-backend-report.md"
+    },
+    {
+      "start": "0x11d24bc",
+      "length": 608,
+      "sha256": "9f197d032138b7971573881a5897e749e7f532c5431c5ea934ed674c0fbd9fe6",
+      "provenance": "sampler-audio-activate; arm-backend-report.md"
+    },
+    {
+      "start": "0x11d271c",
+      "length": 424,
+      "sha256": "af8745ab52259467ac18391983c6918b769007fb5a2de232f128b9e68a35f4bb",
+      "provenance": "sampler-audio-deactivate; arm-backend-report.md"
+    },
+    {
+      "start": "0x11cd388",
+      "length": 196,
+      "sha256": "53861fd94bcc5a5c808d2cb86d6c643c723127a46e79ba4545bcb287425b9a5a",
+      "provenance": "sampler-input-restore; arm-backend-report.md"
+    },
+    {
+      "start": "0x11c65e0",
+      "length": 216,
+      "sha256": "e034a654b1c5cd638ce4e1ced289c3f87f19e0ec548941d27e5721ebc9ac76c7",
+      "provenance": "sampler-input-save; arm-backend-report.md"
+    },
+    {
+      "start": "0x1a87760",
+      "length": 2516,
+      "sha256": "198eb5faf6bb49183682c926d21b1b515dd3f36f16bc52c50e0b8a8c03d16411",
+      "provenance": "audio-outbound-enqueuer-constructor; arm-backend-report.md"
+    },
+    {
+      "start": "0x1a87250",
+      "length": 564,
+      "sha256": "469bf27bf59d265d2d9bd781688d524799a668c2e5990024eb360844d6fec028",
+      "provenance": "audio-outbound-enqueuer-tls-install; arm-backend-report.md"
+    },
+    {
+      "start": "0x2d2e068",
+      "length": 908,
+      "sha256": "fe06e8e886d3cc54baeee1dfa65c12580e0cdc03943c7d42f5109f53e565148a",
+      "provenance": "per-thread-register-tls; arm-backend-report.md"
+    },
+    {
+      "start": "0x2d2e678",
+      "length": 840,
+      "sha256": "b6233fab95714e24d63d36a8ae7b612540a42887fff33d28f9139b5cc841a9c5",
+      "provenance": "per-thread-register-producer; arm-backend-report.md"
+    },
+    {
+      "start": "0x2d2d728",
+      "length": 1088,
+      "sha256": "a0c1052d8bd9173dd6883c0a14a4ac2d70c8836ecf8832ce92ea1872343a6209",
+      "provenance": "per-thread-register-callback; arm-backend-report.md"
+    },
+    {
+      "start": "0x2d2debc",
+      "length": 244,
+      "sha256": "e1731618173e848c827b26fbe75a4c7167e717ffb4446c3da2793331540176dc",
+      "provenance": "per-thread-ui-drain; arm-backend-report.md"
+    },
+    {
+      "start": "0x2d2b7b8",
+      "length": 104,
+      "sha256": "fe4f42a5442ae00a27f73ea1d5a0135023e73c26a16cfa765dfc297813f6eb41",
+      "provenance": "locking-outbound-push-and-drain; arm-backend-report.md"
+    },
+    {
+      "start": "0x1a6b84c",
+      "length": 224,
+      "sha256": "6dc2a0b6513d44f6028037949d95bd772b4ead3dd7039da74b5aa763814eca02",
+      "provenance": "nonlocking-outbound-push; arm-backend-report.md"
+    },
+    {
+      "start": "0x1a6bb98",
+      "length": 172,
+      "sha256": "49a9644dae5d848ab0ac04a44bf4f4184e03e5e23eb9a5d3cff028d035868366",
+      "provenance": "nonlocking-outbound-drain; arm-backend-report.md"
+    },
+    {
+      "start": "0x156a790",
+      "length": 1476,
+      "sha256": "dabf58b225468756bbe54fc24b5c6a9cbc7abfcef58b36af3357bd56d3f880d1",
+      "provenance": "ui-runner; arm-backend-report.md"
+    },
+    {
+      "start": "0x2d3014c",
+      "length": 352,
+      "sha256": "b6fc51438f7bf23d306f2d984b2d3653992bd828b0b8655a740bb38373feed14",
+      "provenance": "thread-queues-constructor; arm-backend-report.md"
+    },
+    {
+      "start": "0x2d2f484",
+      "length": 1172,
+      "sha256": "6baeb04b84ced50375d6d1ceb897efaf8e21dc6c8b5ff5bda987cb7c50f5c2f2",
+      "provenance": "per-thread-constructor; arm-backend-report.md"
+    },
+    {
+      "start": "0x2d30128",
+      "length": 36,
+      "sha256": "d66ccdae8c072d71a0e0a9eb362aa54cffdb86ba617a54d8963e68464175d471",
+      "provenance": "audio-drain-or-wait; arm-backend-report.md"
+    }
+  ],
+  "words": [
+    {
+      "address": "0x6ca6240",
+      "bytes": "b0bba601f0bba60124b9a601a8bba601b0baa601a0bba60198bba601"
+    },
+    {
+      "address": "0x6cb9514",
+      "bytes": "20cdd2025ccdd202b8b7d20220b8d2023cc3d20278b8d20280b8d202"
+    },
+    {
+      "address": "0x6ca226c",
+      "bytes": "58a8560198a85601c4a75601"
+    },
+    {
+      "address": "0x6cb9578",
+      "bytes": "70eed20258f4d20218fad202"
+    }
+  ]
+}

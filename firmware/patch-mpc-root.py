@@ -15,7 +15,7 @@ parser.add_argument('rootfs', type=pathlib.Path)
 parser.add_argument('executable', type=pathlib.Path)
 parser.add_argument('expectation', type=pathlib.Path)
 parser.add_argument('--mpc-3.10', dest='mpc_310', action='store_true',
-                    help='explicit MPC 3.10 / CE 0.4.2 data slots; no runtime payload qualification')
+                    help='explicit MPC 3.10 / CE 0.4.3 data slots; no runtime payload qualification')
 args = parser.parse_args()
 rootfs, executable, expectation = args.rootfs, args.executable, args.expectation
 spec = json.loads((repo / 'firmware' / ('mpc-ce-3.10.json' if args.mpc_310 else 'mpc-ce.json')).read_text())

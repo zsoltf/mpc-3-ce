@@ -13,8 +13,9 @@
 #include "io-state.h"
 #include "step-state.h"
 #include "clip-state.h"
+#include "midi-mute-state.h"
 #define MIRROR_MAGIC 0x41564d4du /* MMV19: native drum-step projection on the existing UI owner */
-#define MIRROR_VERSION 22u
+#define MIRROR_VERSION 24u
 #define MIRROR_CELLS 2048u
 #define MIRROR_HASH 4096u
 #define MIRROR_PROBES 32u
@@ -58,6 +59,7 @@ typedef struct {
  IOState io;
  StepState steps;
  ClipState clips;
+ MidiMuteState midi_mute;
 } MirrorState;
 _Static_assert(offsetof(MirrorState,cells)%2048==0,"cell alignment");
 extern MirrorState *mirror_state;

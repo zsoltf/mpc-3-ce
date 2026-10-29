@@ -7,6 +7,7 @@ docker run --rm --network none --memory 256m --pids-limit 32 -v "$PWD:/src:ro" -
 /usr/arm-linux-gnueabihf/lib/ld-linux-armhf.so.3 --library-path /usr/arm-linux-gnueabihf/lib /src/package/command/processor-component /out/processor.state
 /usr/arm-linux-gnueabihf/lib/ld-linux-armhf.so.3 --library-path /usr/arm-linux-gnueabihf/lib /src/package/command/project-client-test /out/intent.state
 /usr/arm-linux-gnueabihf/lib/ld-linux-armhf.so.3 --library-path /usr/arm-linux-gnueabihf/lib /src/package/command/effects-client-test /out/effects-command.state /out/effects-mirror.state /out/effects-request.bin
+/usr/arm-linux-gnueabihf/lib/ld-linux-armhf.so.3 --library-path /usr/arm-linux-gnueabihf/lib /src/package/command/pad-client-test /out/pad-mirror.state /out/pad-request.bin
 /usr/arm-linux-gnueabihf/lib/ld-linux-armhf.so.3 --library-path /usr/arm-linux-gnueabihf/lib /src/package/command/command-component /out/volume.state /out/command.state
 /usr/arm-linux-gnueabihf/lib/ld-linux-armhf.so.3 --library-path /usr/arm-linux-gnueabihf/lib /src/package/command/command-client status /out/command.state > /out/command.json
 library=$(sed -n '\''s/^#define OBSERVER_LIBRARY "\(.*\)"$/\1/p'\'' /src/package/command/config.h)

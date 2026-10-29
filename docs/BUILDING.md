@@ -22,7 +22,7 @@ rebuilding the native runtime.
 
 ## MPC 3.10 candidate runtime
 
-The v0.4.2 candidate selects MPC 3.10 explicitly. Put the official Gen1 USB
+The v0.4.3 candidate selects MPC 3.10 explicitly. Put the official Gen1 USB
 image at `inputs/MPC-3.10.0-Gen1-update.img`. With the Docker images described
 below available, extract the stock executable and compose the complete runtime:
 
@@ -53,7 +53,7 @@ snapshot, use the normal export described in [Publishing](PUBLISHING.md); the
 candidate option intentionally resets qualification metadata. The runtime's
 `BUILD.json` remains its original build-time record. Subsequent qualification is
 recorded in `release/public-source.json` against the unchanged payload and recipes.
-The v0.4.2 checksum files identify that payload; the older prerelease checksums and
+The v0.4.3 checksum files identify that payload; the older prerelease checksums and
 `release/public-source-v0.3.0.json` remain paired with the 3.9.1 packaging path.
 
 ## MPC 3.9.1 runtime and historical v0.3.0 build

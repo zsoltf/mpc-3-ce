@@ -547,7 +547,7 @@ typedef struct {unsigned layer;unsigned char held[68];ProgramQLinkPickup qlinks[
 typedef struct {snd_seq_t *seq;snd_seq_addr_t full,output,ingress;int sink,source;unsigned bank_down[4],button_down[40],display_field[8],general_down[128];
 #ifdef MIRROR_INPUT
  SurfaceContext *context;
- unsigned shared_connection,mini_layer_consumed,mini_button_mode,mini_navigation_locked;
+ unsigned shared_connection,mini_layer_consumed,mini_button_mode,mini_navigation_locked,sampler_transport_down;
  snd_seq_addr_t stop_adapter,stop_mpc;int stop_sink;
  HuiInput hui_input;HuiPickup hui_pickup[HUI_STRIPS];uint32_t hui_connected_tick,hui_heartbeat_tick,hui_reply_tick;unsigned hui_heartbeat_valid,hui_reply_count;
  unsigned char hui_led[HUI_STRIPS][4],hui_led_valid[HUI_STRIPS],hui_transport[3];unsigned hui_transport_valid;
@@ -688,7 +688,41 @@ static int surface_servo(Surface *s,MirrorBank *bank,unsigned strip,int position
 static unsigned surface_encoder_field(const Surface *s,const MirrorBank *bank,unsigned strip){
  return SURFACE_VALUE(s,controller).profile==&mcu_profile_xtouch_mini&&bank->assignment==BA_TRACK?bank->volume_fields[strip]:bank_encoder_field(bank,strip);
 }
+static unsigned surface_sampler_view(Surface *s){
+#ifdef MODEL_FIRMWARE_310
+ return SURFACE_VALUE(s,controller).profile==&mcu_profile_xtouch?SURFACE_VALUE(s,input).jog_shift:
+  SURFACE_VALUE(s,controller).profile==&mcu_profile_xtouch_mini?s->general_down[84]&&s->general_down[85]:0;
+#else
+ (void)s;return 0;
+#endif
+}
+static unsigned sampler_transport_led(const CopiedMirror *snapshot,unsigned note){
+ if(!snapshot->sampler_available)return 0;
+ unsigned state=snapshot->sampler.state,recording=state==3u||state==5u;
+ return (note==93u?state==0u:note==94u?recording:state==1u||state==2u||recording)?127u:0u;
+}
 #include "mini-surface.inc"
+/* A modifier owns the whole press/release pair. Releasing Shift or either
+ * Mini layer first must never turn the remaining transport release/repeat
+ * into a sequencer action. No sampler state is predicted here. */
+static int surface_sampler_button(Surface *s,MirrorInput *in,const CopiedMirror *snapshot,unsigned note,int down,uint32_t now,unsigned dispatch){
+#ifndef MODEL_FIRMWARE_310
+ (void)s;(void)in;(void)snapshot;(void)note;(void)down;(void)now;(void)dispatch;return 0;
+#else
+ if(note<93u||note>95u)return 0;
+ unsigned bit=1u<<(note-93u);
+ if(s->sampler_transport_down&bit){
+  if(!down){s->sampler_transport_down&=~bit;s->general_down[note]=0;}
+  return 1;
+ }
+ unsigned modifier=surface_sampler_view(s);
+ if(!down||!modifier||s->general_down[note]||(note==93&&in->stop_down)||(note==94&&in->play_down))return 0;
+ s->sampler_transport_down|=bit;s->general_down[note]=1;
+ if(SURFACE_VALUE(s,controller).profile==&mcu_profile_xtouch_mini)mini_consume_modifiers(s);
+ if(dispatch)input_global_add(in,snapshot,note==95?SAMPLER_ARM:note==94?SAMPLER_START:SAMPLER_STOP,0,now);
+ return 1;
+#endif
+}
 static void surface_encoder(Surface *s,MirrorInput *in,const MirrorBank *bank,const CopiedMirror *snapshot,unsigned strip,int delta,int push,uint32_t now){
  if(SURFACE_VALUE(s,controller).profile==&mcu_profile_xtouch_mini){
   if(bank->assignment==BA_MINI_SEND){mini_send_encoder(in,bank,snapshot,strip,delta,push,now);return;}
@@ -923,6 +957,7 @@ static int surface_consume(Surface *s,MirrorBank *bank,const MirrorState *state,
    if(copied)bank_apply(bank,snapshot,now);else bank_drop(bank,now);
    input_sync(&SURFACE_VALUE(s,input),bank);
    hui_pickup_sync(s,&SURFACE_VALUE(s,input),bank,now);
+   if((kind==11||kind==12)&&surface_sampler_button(s,&SURFACE_VALUE(s,input),snapshot,channel,value,now,copied&&snapshot->ready&&!atomic_load(&SURFACE_VALUE(s,input).commands->new_project_intent)))continue;
    if(!copied||!snapshot->ready||atomic_load(&SURFACE_VALUE(s,input).commands->new_project_intent)){
     unsigned held_shift=SURFACE_VALUE(s,input).jog_shift;input_discard(&SURFACE_VALUE(s,input));input_jog_discard(&SURFACE_VALUE(s,input));SURFACE_VALUE(s,input).jog_shift=held_shift;input_master_invalidate(&SURFACE_VALUE(s,input));
     if(SURFACE_VALUE(s,controller).profile==&mcu_profile_xtouch_mini&&(kind==6||kind==9||kind==11||kind==12)){
@@ -1226,7 +1261,10 @@ static int channel_output(Surface *s,MirrorBank *bank,const CopiedMirror *snapsh
  if(mcu_has(&SURFACE_VALUE(s,controller),MCU_CAP_GLOBAL))for(unsigned i=0;i<sizeof(notes)/sizeof(notes[0]);i++)if(!s->mode_valid||s->mode_led[notes[i]]!=modes[i]){snd_seq_ev_clear(&global);snd_seq_ev_set_noteon(&global,0,notes[i],modes[i]?127:0);if(!channel_send(s,&global))return 0;s->mode_led[notes[i]]=modes[i];}
  s->mode_valid=1;
  if(mcu_has(&SURFACE_VALUE(s,controller),MCU_CAP_GLOBAL)){
-  if(snapshot->playing.available){unsigned playing=snapshot->playing.bits;if(!s->playing_valid||s->playing_value!=playing){for(unsigned i=0;i<2;i++){snd_seq_ev_clear(&global);snd_seq_ev_set_noteon(&global,0,93+i,(i?playing:!playing)?127:0);if(!channel_send(s,&global))return 0;}s->playing_valid=1;s->playing_value=playing;}}
+  unsigned sampler_view=surface_sampler_view(s);
+  unsigned playing_available=sampler_view?(sampler_transport_led(snapshot,93)||sampler_transport_led(snapshot,94)):snapshot->playing.available;
+  unsigned playing=sampler_view?sampler_transport_led(snapshot,94)!=0:snapshot->playing.bits;
+  if(playing_available){if(!s->playing_valid||s->playing_value!=playing){for(unsigned i=0;i<2;i++){snd_seq_ev_clear(&global);snd_seq_ev_set_noteon(&global,0,93+i,(i?playing:!playing)?127:0);if(!channel_send(s,&global))return 0;}s->playing_valid=1;s->playing_value=playing;}}
   else if(!s->playing_valid||s->playing_value!=2){for(unsigned i=0;i<2;i++){snd_seq_ev_clear(&global);snd_seq_ev_set_noteon(&global,0,93+i,0);if(!channel_send(s,&global))return 0;}s->playing_valid=1;s->playing_value=2;}
  }
  unsigned auto_led=snapshot->automation_detail_available&&!snapshot->automation_mixed?127:1;
@@ -1235,6 +1273,7 @@ static int channel_output(Surface *s,MirrorBank *bank,const CopiedMirror *snapsh
   if(snapshot->record_mode.bits==3)record=1;
   else if(snapshot->record_mode.bits==1&&snapshot->playing.available)record=snapshot->playing.bits?127:1;
  }
+ if(surface_sampler_view(s))record=sampler_transport_led(snapshot,95);
  unsigned state_notes[8]={74,75,79,86,95,89,100,101},state_values[8]={snapshot->automation.available&&snapshot->automation.bits==1?auto_led:0,snapshot->automation.available&&snapshot->automation.bits==2?auto_led:0,snapshot->automation.available&&snapshot->automation.bits==0?auto_led:0,snapshot->loop.available&&snapshot->loop.bits?127:0,record,snapshot->click.available&&snapshot->click.bits?127:0,s->zoom_mode&&!s->data_wheel?127:0,s->data_wheel?0:127};
  if(mcu_has(&SURFACE_VALUE(s,controller),MCU_CAP_GLOBAL))for(unsigned i=0;i<8;i++){if(i>=6&&!mcu_has(&SURFACE_VALUE(s,controller),MCU_CAP_JOG))continue;if(!s->mode_valid||s->mode_led[state_notes[i]]!=state_values[i]||!s->state_valid[i]){snd_seq_ev_clear(&global);snd_seq_ev_set_noteon(&global,0,state_notes[i],state_values[i]);if(!channel_send(s,&global))return 0;s->mode_led[state_notes[i]]=state_values[i];s->state_valid[i]=1;}}
  /* Master input/feedback belongs to the distinct rooted MpcMixer owner.

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Browser builder recipes for the MPC 3.10 v0.4.2 image: the candidate payload
+# Browser builder recipes for the MPC 3.10 v0.4.3 image: the candidate payload
 # rebuilt with the placeholder key, then SSH, no-SSH and diagnostics byte recipes.
 set -euo pipefail
 repo=$(cd "$(dirname "$0")/.." && pwd)

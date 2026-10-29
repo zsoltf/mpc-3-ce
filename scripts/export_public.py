@@ -8,7 +8,7 @@ repo = pathlib.Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--source-root', type=pathlib.Path, default=repo)
 parser.add_argument('--archive-directory', type=pathlib.Path, help='Create a new plain source snapshot without touching the public checkout')
-parser.add_argument('--candidate-310', metavar='SOURCE_COMMIT', help='Export a private v0.4.2 source candidate at this exact commit')
+parser.add_argument('--candidate-310', metavar='SOURCE_COMMIT', help='Export a private v0.4.3 source candidate at this exact commit')
 args = parser.parse_args()
 repo = args.source_root.resolve()
 dest = args.archive_directory.resolve() if args.archive_directory else repo / 'artifacts/mpc-3-community-edition'
@@ -34,7 +34,7 @@ if args.candidate_310:
     def version(path, name):
         return re.search(r'^#define ' + name + r' ([0-9]+)u$', (repo/path).read_text(), re.M).group(1)
     candidate_metadata = {
-        'release': 'v0.4.2', 'image_revision': 'v0_4_2', 'firmware': '3.10.0 Gen1',
+        'release': 'v0.4.3', 'image_revision': 'v0_4_3', 'firmware': '3.10.0 Gen1',
         'product_candidate': commit, 'development_source_base': commit,
         'runtime_format': 'CMD' + version('controllers/program-observer/command-state.h', 'COMMAND_VERSION') + '/MMV' + version('controllers/program-observer/mirror-state.h', 'MIRROR_VERSION'),
         'status': 'private-development-candidate', 'image_flash_tested': False,

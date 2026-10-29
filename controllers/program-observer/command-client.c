@@ -45,6 +45,10 @@ static void status(const CommandState *s){
 
 static unsigned global_name(const char *name){
  static const char *names[]={"save","zoom-in","zoom-out","zoom-up","zoom-down","enter","cancel","left","up","right","down","record-toggle","click-toggle","loop-toggle","main","arrange","clip","track-mix","pad-mix","track-edit","sample-edit","step-sequencer"};
+ if(!strcmp(name,"sampler-inspect"))return SAMPLER_INSPECT;
+ if(!strcmp(name,"sampler-arm"))return SAMPLER_ARM;
+ if(!strcmp(name,"sampler-start"))return SAMPLER_START;
+ if(!strcmp(name,"sampler-stop"))return SAMPLER_STOP;
  if(!strcmp(name,"automation"))return CF_AUTOMATION;
  if(!strcmp(name,"track-type"))return GLOBAL_TRACK_TYPE;
  if(!strcmp(name,"track-new"))return GLOBAL_TRACK_NEW;
@@ -55,10 +59,11 @@ static unsigned global_name(const char *name){
  for(unsigned i=0;i<sizeof(names)/sizeof(names[0]);i++)if(!strcmp(name,names[i]))return GLOBAL_SAVE+i;
  return UINT_MAX;
 }
-static int prepare(const char *path,const char *output,const char *value_text,const char *index_text,const char *field_text){
+static int prepare(const char *path,const char *output,const char *value_text,const char *index_text,const char *field_text,const char *pad_text){
  CommandRequest r={0};unsigned field=CF_VOLUME;static const char *fields[]={"volume","pan","mute","solo","arm","name","color","select","effective_mute","solo_audio","send1","send2","send3","send4"};if(field_text&&global_name(field_text)!=UINT_MAX)field=global_name(field_text);else if(field_text&&!strcmp(field_text,"master"))field=CF_MASTER;else if(field_text&&!strcmp(field_text,"bars"))field=JOG_BAR;else if(field_text&&!strcmp(field_text,"beats"))field=JOG_BEAT;else if(field_text&&!strcmp(field_text,"pulses"))field=JOG_PULSE;else if(field_text&&!strcmp(field_text,"notes"))field=NOTE_SELECT;else if(field_text){for(field=0;field<sizeof(fields)/sizeof(fields[0])&&strcmp(field_text,fields[field]);field++);if(!command_supported(field))return 2;}
  char *end;errno=0;int32_t delta=0;float value=0;if(command_jog(field)||command_note_select(field)){long limit=command_note_select(field)?WHEEL_MAX_STEPS:JOG_DELTA_LIMIT,n=strtol(value_text,&end,10);if(errno||*end||n < -limit||n>limit||!n||index_text)return 2;delta=(int32_t)n;}else{value=strtof(value_text,&end);if(errno||*end||!(value>=0&&value<=(field==CF_AUTOMATION?2:1)))return 2;}
  unsigned index=UINT_MAX;if(index_text){errno=0;unsigned long n=strtoul(index_text,&end,10);if(errno||*end||n<1||n>MIRROR_TRACKS)return 2;index=(unsigned)n-1;}
+ unsigned pad_index=0;if(pad_text){errno=0;unsigned long n=strtoul(pad_text,&end,10);if(errno||!*pad_text||*end||!*value_text||(value!=0&&value!=1)||n>=PAD_SLOTS||(field!=CF_MUTE&&field!=CF_SOLO)||index_text)return 2;pad_index=(unsigned)n;}
  int fd=-1;struct stat st;const MirrorState *s=map_file(path,sizeof(*s),0,&fd,&st);if(s==MAP_FAILED)return 1;int result=1;
  if(s->magic!=MIRROR_MAGIC||s->version!=MIRROR_VERSION||s->bytes!=sizeof(*s)||s->capacity!=MIRROR_CELLS||!s->pid)goto done;
  uint64_t start=command_process_start(s->pid);long hz=sysconf(_SC_CLK_TCK);if(!start||hz<=0||(uint64_t)s->origin_sec*(unsigned long)hz+(uint64_t)s->origin_nsec*(unsigned long)hz/1000000000<start||!command_process_exact(s->pid))goto done;
@@ -84,13 +89,16 @@ static int prepare(const char *path,const char *output,const char *value_text,co
   if(index_text||now>UINT32_MAX-120000||!copy.master.available)goto done;
   uint32_t bits;memcpy(&bits,&value,4);r=(CommandRequest){.pid=s->pid,.start_lo=(uint32_t)start,.start_hi=(uint32_t)(start>>32),.origin_sec=s->origin_sec,.origin_nsec=s->origin_nsec,.epoch=copy.epoch,.bits=bits,.created=now,.expires=now+120000,.before_bits=copy.master.bits,.before_revision=copy.master.revision,.reserved=CF_MASTER,.field_incarnation=copy.master.incarnation,.project_owner=copy.project_owner,.global_owner=copy.master.owner_incarnation};goto write_request;
  }
- if(index==UINT_MAX){for(unsigned i=0;i<copy.count;i++)if(copy.tracks[i].vptr==MODEL_DRUMPROGRAM_VPTR){index=i;break;}}
+ if(pad_text){for(unsigned i=0;i<copy.count;i++)if(copy.tracks[i].serial==copy.selected_serial){index=i;break;}}
+ else if(index==UINT_MAX){for(unsigned i=0;i<copy.count;i++)if(copy.tracks[i].vptr==MODEL_DRUMPROGRAM_VPTR){index=i;break;}}
  if(index>=copy.count||now>UINT32_MAX-120000)goto done;
- CopiedTrack *t=copy.tracks+index;if(field==CF_VOLUME&&midi_volume(t->vptr))field=CF_MIDI_VOLUME;MIRROR_FIELD(volume);const CopiedField *f=copied_field(&copy,t,command_source_field(field),&volume);if(!f||!f->available)goto done;uint32_t bits;if(command_float(field))memcpy(&bits,&value,4);else{if(value!=0&&value!=1)goto done;bits=(uint32_t)value;}if(field==CF_SELECTION?f->bits==t->track:bits==f->bits)goto done;
+ CopiedTrack pad,*t=copy.tracks+index;if(pad_text){if(!copy_pad(&copy,t,pad_index,&pad))goto done;t=&pad;}if(field==CF_VOLUME&&midi_volume(t->vptr))field=CF_MIDI_VOLUME;MIRROR_FIELD(volume);const CopiedField *f=copied_field(&copy,t,command_source_field(field),&volume);if(!f||!f->available)goto done;uint32_t bits;if(command_float(field))memcpy(&bits,&value,4);else{if(value!=0&&value!=1)goto done;bits=(uint32_t)value;}if(field==CF_SELECTION?f->bits==t->track:bits==f->bits)goto done;
  r=(CommandRequest){0,s->pid,(uint32_t)start,(uint32_t)(start>>32),s->origin_sec,s->origin_nsec,copy.epoch,t->serial,t->binding,t->incarnation,bits,now,now+120000,f->bits,f->revision,field,t->track_owner,t->program_owner,field?f->incarnation:0,copy.project_owner,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+ if(pad_text){r.pad_owner=t->pad_owner;r.pad_index=t->pad_index;r.pad_generation=t->pad_generation;r.field_incarnation=f->incarnation;}
 write_request:;
  int out=open(output,O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC|O_NOFOLLOW,0600);if(out<0)goto done;int ok=write(out,&r,sizeof(r))==(ssize_t)sizeof(r);close(out);if(!ok)goto done;
- if(command_global(field))printf("{\"prepared\":true,\"operation\":%u,\"owner\":%u,\"epoch\":%u,\"bits\":%u}\n",r.reserved,r.global_owner,r.epoch,r.bits);
+ if(pad_text)printf("{\"prepared_pad\":%u,\"pad_owner\":%u,\"pad_generation\":%u,\"master_index\":%u,\"field\":%u,\"before\":%u,\"desired\":%u,\"expires\":%u}\n",r.pad_index,r.pad_owner,r.pad_generation,index+1,r.reserved,r.before_bits,r.bits,r.expires);
+ else if(command_global(field))printf("{\"prepared\":true,\"operation\":%u,\"owner\":%u,\"epoch\":%u,\"bits\":%u}\n",r.reserved,r.global_owner,r.epoch,r.bits);
  else if(command_jog(field)||command_note_select(field))printf("{\"prepared\":true,\"pid\":%u,\"epoch\":%u,\"operation\":%u,\"signed_steps\":%d,\"expires\":%u}\n",r.pid,r.epoch,r.reserved,(int32_t)r.bits,r.expires);
  else if(field==CF_MASTER)printf("{\"prepared\":true,\"pid\":%u,\"epoch\":%u,\"global_mixer_owner\":%u,\"field_incarnation\":%u,\"bits\":%u,\"expires\":%u}\n",r.pid,r.epoch,r.global_owner,r.field_incarnation,r.bits,r.expires);
  else printf("{\"prepared\":true,\"pid\":%u,\"master_index\":%u,\"epoch\":%u,\"serial\":%u,\"binding\":%u,\"incarnation\":%u,\"bits\":%u,\"expires\":%u}\n",r.pid,index+1,r.epoch,r.serial,r.binding,r.incarnation,r.bits,r.expires);
@@ -165,7 +173,9 @@ static int settle(const char *command_path,const char *mirror_path){
     const CopiedTrack *t=NULL;for(unsigned i=0;i<s.count;i++)if(s.tracks[i].serial==r.serial)t=s.tracks+i;
     if(!t||s.epoch!=r.epoch||s.project_owner!=r.project_owner||t->binding!=r.binding||t->incarnation!=r.incarnation||t->track_owner!=r.track_owner||t->program_owner!=r.program_owner)goto unmap;
     if(command_effect(r.reserved)||command_chooser(r.reserved)){InputFlight *tx=in.flights+at;*tx=(InputFlight){.flight=seq,.bits=r.bits,.expires=r.expires,.field=r.reserved,.field_incarnation=r.field_incarnation,.effect_request=r,.acknowledged=atomic_load(&q->settled)==seq};tx->target=(MotorIdentity){r.epoch,r.serial,r.binding,r.incarnation,t->track,t->program,r.track_owner,r.program_owner,0,0,0};continue;}
-    MIRROR_FIELD(v);const CopiedField *f=copied_field(&s,t,command_source_field(r.reserved),&v);if(!f||!f->available||(r.reserved&&f->incarnation!=r.field_incarnation))goto unmap;
+    /* Settlement follows the retained Instrument request, including a pad
+     * replaced after execution. Current membership is only an input binding. */
+    MIRROR_FIELD(v);const CopiedField *f;if(r.pad_owner){if(!copy_pad_receipt(&s,r.pad_owner,t->program,r.program_owner,command_source_field(r.reserved),&v))goto unmap;f=&v;}else f=copied_field(&s,t,command_source_field(r.reserved),&v);if(!f||!f->available||(r.reserved&&f->incarnation!=r.field_incarnation))goto unmap;
     InputFlight *tx=in.flights+at;*tx=(InputFlight){.flight=seq,.bits=r.bits,.expires=r.expires,.before_revision=r.before_revision,.field=r.reserved,.field_incarnation=r.field_incarnation,.property=f->property,.acknowledged=atomic_load_explicit(&q->settled,memory_order_acquire)==seq};
     tx->target=(MotorIdentity){r.epoch,r.serial,r.binding,r.incarnation,t->track,t->program,r.track_owner,r.program_owner,r.pad_owner,r.pad_index,r.pad_generation};
    }
@@ -541,7 +551,13 @@ unmap:munmap((void*)m,sizeof(*m));close(mfd);
 done:munmap(c,sizeof(*c));close(fd);return result;
 }
 #include "clip-client.inc"
+#include "drum-midi-probe-client.inc"
 int main(int argc,char **argv){
+#ifdef MODEL_MIDI_PROBE
+ if(argc==4&&!strcmp(argv[1],"midi-probe-watch"))return drum_midi_watch(argv[2],argv[3]);
+ if(argc==3&&!strcmp(argv[1],"midi-probe-end"))return drum_midi_end(argv[2]);
+ if(argc==3&&!strcmp(argv[1],"midi-probe-export"))return drum_midi_export(argv[2]);
+#endif
  if(argc==8&&!strcmp(argv[1],"clip-view"))return clip_interest_cli(argv[2],argv[3],argv[4],argv[5],argv[6],argv[7]);
  if(argc==8&&!strcmp(argv[1],"clip-submit"))return clip_submit_cli(argv[2],argv[3],argv[4],argv[5],argv[6],argv[7],NULL,NULL,NULL);
  if(argc==11&&!strcmp(argv[1],"clip-copy-submit"))return clip_submit_cli(argv[2],argv[3],argv[4],argv[5],argv[6],argv[7],argv[8],argv[9],argv[10]);
@@ -563,14 +579,15 @@ int main(int argc,char **argv){
  if(argc==4&&!strcmp(argv[1],"processor-stream"))return processor_stream(argv[2],argv[3]);
  if(argc==3&&!strcmp(argv[1],"processor-end"))return processor_end(argv[2]);
  if((argc==5||argc==6)&&!strcmp(argv[1],"new-project-intent")&&(argc==5||!strcmp(argv[5],"consume")))return new_project(argv[2],argv[3],argv[4],argc==6);
- if((argc==5||argc==6)&&!strcmp(argv[1],"global"))return prepare(argv[2],argv[3],argc==6?argv[5]:"0",NULL,argv[4]);
- if(argc==5&&!strcmp(argv[1],"master"))return prepare(argv[2],argv[3],argv[4],NULL,"master");
- if(argc==6&&!strcmp(argv[1],"jog"))return prepare(argv[2],argv[3],argv[4],NULL,argv[5]);
+ if((argc==5||argc==6)&&!strcmp(argv[1],"global"))return prepare(argv[2],argv[3],argc==6?argv[5]:"0",NULL,argv[4],NULL);
+ if(argc==5&&!strcmp(argv[1],"master"))return prepare(argv[2],argv[3],argv[4],NULL,"master",NULL);
+ if(argc==6&&!strcmp(argv[1],"jog"))return prepare(argv[2],argv[3],argv[4],NULL,argv[5],NULL);
  if(argc==4&&!strcmp(argv[1],"session-status"))return session(argv[2],argv[3],0);
  if(argc==4&&!strcmp(argv[1],"stop"))return session(argv[2],argv[3],1);
- if(argc>=2&&!strcmp(argv[1],"prepare")&&(argc>=5&&argc<=7))return prepare(argv[2],argv[3],argv[4],argc>=6?argv[5]:NULL,argc==7?argv[6]:NULL);
+ if(argc==7&&!strcmp(argv[1],"pad-prepare"))return prepare(argv[2],argv[3],argv[6],NULL,argv[5],argv[4]);
+ if(argc>=2&&!strcmp(argv[1],"prepare")&&(argc>=5&&argc<=7))return prepare(argv[2],argv[3],argv[4],argc>=6?argv[5]:NULL,argc==7?argv[6]:NULL,NULL);
  if(argc==4&&!strcmp(argv[1],"submit"))return submit(argv[2],argv[3]);
  if(argc==4&&!strcmp(argv[1],"settle"))return settle(argv[2],argv[3]);
  if(argc==3&&!strcmp(argv[1],"status")){int fd=-1;struct stat st;CommandState *s=map_file(argv[2],sizeof(*s),0,&fd,&st);if(s==MAP_FAILED)return 1;int ok=header(s);if(ok)status(s);munmap(s,sizeof(*s));close(fd);return ok?0:1;}
- fputs("command-client effects-chooser /volume.state /absent-request.bin SLOT(0..3) add|replace\ncommand-client io-interest /command.state /volume.state on|off SECONDS(1..300)\ncommand-client io-prepare /volume.state /absent-request.bin FIELD(0..7) SIGNED_STEPS(-32..32, nonzero)\ncommand-client qlink-mode /volume.state /absent-request.bin SIGNED_STEPS(-32..32, nonzero)\ncommand-client qlink-prepare /volume.state /absent-request.bin INDEX(0..15) VALUE(0..1)\ncommand-client qlink-interest /command.state /volume.state on|off SECONDS(1..300)\ncommand-client effects-interest /command.state /volume.state off|list|SLOT(0..3) PAGE(0..575) SECONDS(1..300)\ncommand-client effects-prepare /volume.state /absent-request.bin STRIP(0..7) VALUE(0..1)\ncommand-client effects-enable /volume.state /absent-request.bin SLOT(0..3) ENABLED(0|1)\ncommand-client processor-watch /command.state discover|KEY 1..300\ncommand-client processor-stream /command.state 1..300 (NDJSON stdout; backpressure fails)\ncommand-client processor-status /command.state\ncommand-client processor-end /command.state\ncommand-client global /volume.state /absent-request.bin automation MODE(0..2)|save|zoom-in|zoom-out|zoom-up|zoom-down|enter|cancel|left|up|right|down|record-toggle|click-toggle|loop-toggle\ncommand-client master /volume.state /absent-request.bin VALUE\ncommand-client jog /volume.state /absent-request.bin SIGNED_STEPS bars|beats|pulses|notes (notes: -4..4, nonzero)\ncommand-client prepare /volume.state /absent-request.bin VALUE [MASTER_INDEX [volume|pan|mute|solo|arm|select|send1|send2|send3|send4]]\ncommand-client submit /command.state /request.bin\ncommand-client settle /command.state /volume.state\ncommand-client status /command.state\ncommand-client session-status /command.state /volume.state\ncommand-client stop /command.state /volume.state\n",stderr);return 2;
+ fputs("command-client pad-prepare /volume.state /absent-request.bin PAD_INDEX(0..127, selected Drum track) mute|solo VALUE(0|1)\ncommand-client effects-chooser /volume.state /absent-request.bin SLOT(0..3) add|replace\ncommand-client io-interest /command.state /volume.state on|off SECONDS(1..300)\ncommand-client io-prepare /volume.state /absent-request.bin FIELD(0..7) SIGNED_STEPS(-32..32, nonzero)\ncommand-client qlink-mode /volume.state /absent-request.bin SIGNED_STEPS(-32..32, nonzero)\ncommand-client qlink-prepare /volume.state /absent-request.bin INDEX(0..15) VALUE(0..1)\ncommand-client qlink-interest /command.state /volume.state on|off SECONDS(1..300)\ncommand-client effects-interest /command.state /volume.state off|list|SLOT(0..3) PAGE(0..575) SECONDS(1..300)\ncommand-client effects-prepare /volume.state /absent-request.bin STRIP(0..7) VALUE(0..1)\ncommand-client effects-enable /volume.state /absent-request.bin SLOT(0..3) ENABLED(0|1)\ncommand-client processor-watch /command.state discover|KEY 1..300\ncommand-client processor-stream /command.state 1..300 (NDJSON stdout; backpressure fails)\ncommand-client processor-status /command.state\ncommand-client processor-end /command.state\ncommand-client global /volume.state /absent-request.bin automation MODE(0..2)|save|zoom-in|zoom-out|zoom-up|zoom-down|enter|cancel|left|up|right|down|record-toggle|click-toggle|loop-toggle\ncommand-client master /volume.state /absent-request.bin VALUE\ncommand-client jog /volume.state /absent-request.bin SIGNED_STEPS bars|beats|pulses|notes (notes: -4..4, nonzero)\ncommand-client prepare /volume.state /absent-request.bin VALUE [MASTER_INDEX [volume|pan|mute|solo|arm|select|send1|send2|send3|send4]]\ncommand-client submit /command.state /request.bin\ncommand-client settle /command.state /volume.state\ncommand-client status /command.state\ncommand-client session-status /command.state /volume.state\ncommand-client stop /command.state /volume.state\n",stderr);return 2;
 }

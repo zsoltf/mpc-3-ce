@@ -1,5 +1,5 @@
 #!/bin/bash
-# Private MPC 3.10 development candidate (v0.4.2), for device trials only.
+# Private MPC 3.10 development candidate (v0.4.3), for device trials only.
 # Same canonical image patch/verification path as build-prerelease.sh; the
 # runtime manifest is the candidate's own, written beside its payload.
 set -euo pipefail
@@ -44,7 +44,7 @@ cp "$bundle" "$out/MPCLEARN/plugins.squashfs"
 cp firmware/plugin-setup/README.md "$out/README.md"
 mkdir "$out/exec"
 cp "$host/ce-MPC" "$out/exec/MPC"
-image="$relative/MPC-3.10.0-Gen1-CE-v0.4.2-candidate-update.img"
+image="$relative/MPC-3.10.0-Gen1-CE-v0.4.3-candidate-update.img"
 docker run --rm --network none -v "$repo:/work" -w /work \
  -v "$repo/inputs:/inputs:ro" -v "$out/payload:/payload:ro" \
  -e MPC_FIRMWARE_VERSION=3.10 -e MPC_IMAGE_PROFILE=prerelease -e MPC_IMAGE_WORK="$relative/image" \

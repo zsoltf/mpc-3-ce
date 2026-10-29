@@ -115,7 +115,50 @@ static void mini_production_checks(void){
  for(unsigned i=0;i<6;i++){MINI_FEED(0x90,84,127);MINI_FEED(0x90,84,127);need(mini_mode(bank)==i,"A repeats do not cycle before release");MINI_FEED(0x80,84,0);MINI_FEED(0x90,84,0);need(mini_mode(bank)==(i+1)%6,"A bare release advances six modes exactly once");}
  for(unsigned i=0;i<4;i++){MINI_FEED(0x90,85,127);MINI_FEED(0x90,85,127);need(surface->mini_button_mode==i,"B repeats do not cycle before release");MINI_FEED(0x80,85,0);MINI_FEED(0x90,85,0);need(surface->mini_button_mode==(i+1)%4,"B bare release cycles four modes and wraps exactly once");}
  MINI_FEED(0x90,85,127);MINI_FEED(0x90,top[3],127);MINI_FEED(0x90,top[3],127);MINI_FEED(0x80,85,0);MINI_FEED(0x80,top[3],0);need(surface->mini_button_mode==3,"Record menu repeat and modifier-first release do not cycle or arm track");mini_clean_commands(in);MINI_TAP(95);(void)mini_published(in,bank,&snapshot,GLOBAL_RECORD_TOGGLE);need(surface->mini_button_mode==3,"bottom Record remains transport in track Record mode");mini_clean_commands(in);MINI_MENU(85,0);
- MINI_FEED(0x90,84,127);MINI_FEED(0x90,85,127);mini_feedback(surface,bank,&snapshot);need(observed_led[top[0]]==127,"both-held menu has deterministic A precedence");MINI_TAP(92);MINI_TAP(94);MINI_FEED(0x80,84,0);MINI_FEED(0x80,85,0);need(mini_mode(bank)==0&&surface->mini_button_mode==0&&!in->jog_forward&&!in->global_count,"both-held releases consume without accidental transport or cycle");
+ MINI_FEED(0x90,84,127);MINI_FEED(0x90,85,127);mini_feedback(surface,bank,&snapshot);need(observed_led[top[0]]==127,"both-held menu has deterministic A precedence");MINI_TAP(92);MINI_TAP(94);MINI_FEED(0x80,84,0);MINI_FEED(0x80,85,0);
+#ifdef MODEL_FIRMWARE_310
+ need(in->global_count==1&&in->global_events[0].operation==SAMPLER_START,"both-held Play selects native sampler Start");mini_clean_commands(in);
+#endif
+ need(mini_mode(bank)==0&&surface->mini_button_mode==0&&!in->jog_forward&&!in->global_count,"both-held releases consume without accidental transport or cycle");
+#ifdef MODEL_FIRMWARE_310
+ for(unsigned device=0;device<2;device++){
+  Surface *target=surfaces.surfaces+device;MirrorBank *target_bank=surfaces.banks+device;MirrorInput *target_in=&surfaces.contexts[device].input;
+  target->seq=(snd_seq_t*)1;target->source=3;target->full=(snd_seq_addr_t){32+device,0};target->output=target->full;
+  for(unsigned note=93;note<=95;note++){
+   mini_clean_commands(target_in);
+   mini_feed(target,target_bank,state,&runtime,0x90,device?70:84,127);
+   if(!device)mini_feed(target,target_bank,state,&runtime,0x90,85,127);
+   mini_feed(target,target_bank,state,&runtime,0x90,note,127);
+   mini_feed(target,target_bank,state,&runtime,0x90,note,127);
+   mini_feed(target,target_bank,state,&runtime,0x80,device?70:84,0);
+   if(!device)mini_feed(target,target_bank,state,&runtime,0x80,85,0);
+   mini_feed(target,target_bank,state,&runtime,0x90,note,127);
+   mini_feed(target,target_bank,state,&runtime,0x80,note,0);
+   need(target_in->global_count==1&&!target_in->stop_home&&!target_in->play_down&&!target_in->stop_down&&!target->sampler_transport_down,"sampler chord owns repeated down and modifier-first release without sequencer side effects");
+   CommandRequest request=mini_published(target_in,target_bank,&snapshot,note==95?SAMPLER_ARM:note==94?SAMPLER_START:SAMPLER_STOP);
+   need(request.global_owner==snapshot.editor_owner&&request.epoch==snapshot.epoch,"sampler chord uses current shared native command owner");
+  }
+  mini_clean_commands(target_in);
+  mini_feed(target,target_bank,state,&runtime,0x90,device?70:84,127);if(!device)mini_feed(target,target_bank,state,&runtime,0x90,85,127);
+  snapshot.ready=0;
+  mini_feed(target,target_bank,state,&runtime,0x90,95,127);
+  snapshot.ready=1;mini_feed(target,target_bank,state,&runtime,0x80,95,0);
+  need(!target_in->global_count&&!target->sampler_transport_down,"unready sampler press cannot become a latent command on ready release");
+  snapshot.sampler_available=1;
+  const unsigned stop[6]={127,0,0,0,0,0},play[6]={0,0,0,127,0,127},record[6]={0,127,127,127,0,127};
+  for(unsigned native=0;native<6;native++){
+   snapshot.sampler.state=native;bank_apply(target_bank,&snapshot,100);target->mode_valid=target->playing_valid=0;memset(target->state_valid,0,sizeof(target->state_valid));
+   for(unsigned sweep=0;sweep<8;sweep++)need(channel_output(target,target_bank,&snapshot,100),"sampler modifier native feedback sweep");
+   need(observed_led[93]==stop[native]&&observed_led[94]==play[native]&&observed_led[95]==record[native],"sampler transport LEDs follow native idle armed recording and finalizing states only");
+  }
+  snapshot.sampler_available=0;for(unsigned sweep=0;sweep<8;sweep++)need(channel_output(target,target_bank,&snapshot,100),"unavailable sampler feedback sweep");
+  need(!observed_led[93]&&!observed_led[94]&&!observed_led[95],"unavailable sampler source clears every sampler lamp");
+  mini_feed(target,target_bank,state,&runtime,0x80,device?70:84,0);if(!device)mini_feed(target,target_bank,state,&runtime,0x80,85,0);
+  mini_feed(target,target_bank,state,&runtime,0x90,95,127);mini_feed(target,target_bank,state,&runtime,0x80,95,0);
+  (void)mini_published(target_in,target_bank,&snapshot,GLOBAL_RECORD_TOGGLE);mini_clean_commands(target_in);
+ }
+ puts("PASS full X-Touch Shift and Mini A+B sampler chords through ALSA codec/production ingress: exact native command requests, repeated-down and modifier-first release isolation, native state LEDs and unchanged ordinary Record (native source and MIDI endpoints substituted)");
+#endif
  for(unsigned mode=2;mode<4;mode++){
   MINI_MENU(84,mode);mini_clean_commands(in);MINI_FEED(0x90,84,127);MINI_TAP(92);MINI_FEED(0x80,84,0);CommandRequest r=mini_published(in,bank,&snapshot,QLINK_MODE);need(r.bits==1&&r.global_owner==9&&mini_mode(bank)==mode,"A Forward uses native Q-Link mode owner without bank change");
   snapshot.qlinks.slots[(mode-2)*8].sampled=0;mini_feedback(surface,bank,&snapshot);need(!observed_ring[0],"unavailable Q-Link clears ring");snapshot.qlinks.slots[(mode-2)*8].sampled=1;

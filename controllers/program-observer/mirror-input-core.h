@@ -605,7 +605,7 @@ static inline unsigned input_global_owner(const CopiedMirror *s,unsigned op){
  if(command_record(op))return s->record_mode.available?s->record_mode.owner_incarnation:0;
  if(op==GLOBAL_CLICK_TOGGLE)return s->click.available?s->click.owner_incarnation:0;
  if(op==GLOBAL_LOOP_TOGGLE)return s->project_owner;
- return op==GLOBAL_TRACK_NEW||op==GLOBAL_TRACK_TYPE||command_transport(op)||command_history(op)||op==GLOBAL_SAVE||command_page(op)||command_key(op)||command_sequence_duplicate(op)?s->editor_owner:s->zoom_owner;
+ return op==GLOBAL_TRACK_NEW||op==GLOBAL_TRACK_TYPE||command_audio_global(op)||command_history(op)||op==GLOBAL_SAVE||command_page(op)||command_key(op)||command_sequence_duplicate(op)?s->editor_owner:s->zoom_owner;
 }
 static inline unsigned input_global_field(const CopiedMirror *s,unsigned op){
  return op==GLOBAL_TRACK_TYPE?s->selected_serial:op==CF_AUTOMATION?s->automation.incarnation:command_record(op)?s->record_mode.incarnation:op==GLOBAL_CLICK_TOGGLE?s->click.incarnation:0;
@@ -643,11 +643,12 @@ static inline int input_press_proof(MirrorInput *in,InputFlight *tx){
 static inline int input_global_proof(MirrorInput *in,InputFlight *tx){
  /* Duplicate Sequence files the middle event too: it names the source and the
   * destination slot the observer resolved, before the submission. */
- unsigned wanted=tx->field==CF_AUTOMATION||command_toggle(tx->field)||command_sequence_duplicate(tx->field)?7:5;
+ unsigned wanted=tx->field==CF_AUTOMATION||command_toggle(tx->field)||command_sequence_duplicate(tx->field)||command_sampler(tx->field)?7:5;
  const CommandEvent *begin=tx->global_events,*state=begin+1,*end=begin+2;
  if(tx->global_seen!=wanted||begin->token!=in->commands->owner_token||begin->program!=end->program||begin->bits!=tx->bits||begin->revision!=tx->global_epoch||end->revision!=tx->global_epoch){in->error=C_TRACE_AMBIGUOUS;return 0;}
- if(command_transport(tx->field)){if(!end->token||end->token==begin->token||!end->capture||!end->counter||!begin->sp||end->sp){in->error=C_TRACE_AMBIGUOUS;return 0;}}
+ if(command_audio_global(tx->field)){if(!end->token||end->token==begin->token||!end->capture||!end->counter||!begin->sp||end->sp){in->error=C_TRACE_AMBIGUOUS;return 0;}}
  else if(end->token!=begin->token||begin->sp!=end->sp){in->error=C_TRACE_AMBIGUOUS;return 0;}
+ if(command_sampler(tx->field)&&(state->token!=end->token||state->program!=begin->program||state->revision!=tx->global_epoch||!state->capture||state->sp||(state->bits&~0x707u)||((state->bits&255u)>5u)||begin->tick>state->tick||state->tick>end->tick)){in->error=C_TRACE_AMBIGUOUS;return 0;}
  if(tx->field==CF_AUTOMATION&&(state->token!=begin->token||state->program!=begin->program||state->revision!=tx->global_epoch||state->bits>2||state->counter>1||state->bits!=end->bits)){in->error=C_TRACE_AMBIGUOUS;return 0;}
  if(command_toggle(tx->field)&&(state->token!=begin->token||state->program!=begin->program||!begin->capture||state->capture!=begin->capture||state->revision!=tx->global_epoch||state->bits!=end->bits)){in->error=C_TRACE_AMBIGUOUS;return 0;}
  /* The duplicate's slot record: same owner thread, same receiver, this epoch,
@@ -660,7 +661,8 @@ static inline int input_global_proof(MirrorInput *in,InputFlight *tx){
   * observer's focused-component diagnostic in bit 1, so two bits are legal
   * there; every other operation still carries a bare boolean. The diagnostic
   * is read, never required: bit 0 alone is the native result. */
- if(tx->field!=CF_AUTOMATION&&end->bits>(command_key(tx->field)?3u:1u)){in->error=C_TRACE_AMBIGUOUS;return 0;}
+ if(command_sampler_mutation(tx->field)&&end->bits==2u){in->error=C_TRACE_AMBIGUOUS;return 0;}
+ if(tx->field!=CF_AUTOMATION&&end->bits>((command_key(tx->field)||command_sampler_mutation(tx->field))?3u:1u)){in->error=C_TRACE_AMBIGUOUS;return 0;}
  tx->done_tick=end->tick;return 1;
 }
 /* An event may be newer than the caller's clock sample. Bound its tick by the
@@ -907,7 +909,7 @@ static inline void input_events(MirrorInput *in,InputFlight *tx,unsigned at){
    }
    if(command_global(tx->field)){
     unsigned part=e->kind==CE_GLOBAL_BEGIN?0:e->kind==CE_GLOBAL_STATE?1:e->kind==CE_GLOBAL_END?2:3;
-    if(part==3||(tx->global_seen&(1u<<part))||e->reserved!=tx->field||e->controller!=tx->field||e->arg_kind||e->incarnation!=tx->field_incarnation||e->property!=tx->property||e->tick>command_tick_limit(in->commands->seconds)){in->error=C_TRACE_AMBIGUOUS;return;}
+    if(part==3||(tx->global_seen&(1u<<part))||e->reserved!=tx->field||e->controller!=tx->field||((command_sampler(tx->field)&&part==1)?(e->arg_kind&~0x101u):(e->arg_kind||e->property!=tx->property))||e->incarnation!=tx->field_incarnation||e->tick>command_tick_limit(in->commands->seconds)){in->error=C_TRACE_AMBIGUOUS;return;}
     tx->global_events[part]=*e;tx->global_seen|=1u<<part;continue;
    }
    if(tx->field==CF_MASTER){

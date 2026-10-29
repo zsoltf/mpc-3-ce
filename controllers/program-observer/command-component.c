@@ -185,6 +185,9 @@ static void replay_checks(void){
   if(hook_ids[i]==M_WHEEL_DATA)in.r[4]=ptr(track_objects[0]); /* displaced NEON pair loads the cursor x/y vector through r4 */
   if(hook_ids[i]>=M_WHEEL_FLUSH&&hook_ids[i]<=M_WHEEL_FLUSH_LAST){in.r[7]=ptr(track_objects[0]);in.r[4]=ptr(track_objects[0]);} /* displaced ldrsh reads +114 through r7 or r4 */
   if(hook_ids[i]==M_NATIVE_WHEEL){in.r[3]=ptr(track_objects[0]);in.r[5]=ptr(file_handler);} /* actual pair loads vtable+0x20 */
+#ifdef MODEL_SAMPLER_FEATURE
+  if(hook_ids[i]==SL_PUBLISH)in.r[6]=ptr(file_handler); /* native backend index pointer */
+#endif
   /* Adjacent native hooks are legal. Install this fixture's one-pair
    * continuation immediately before its exercise, so another site's +8
    * continuation cannot overwrite the pair under test. */
@@ -322,8 +325,10 @@ static unsigned submit_fixture(CommandRequest r){
 /* Component-only deterministic scheduling and final-call substitution probes. */
 static _Atomic unsigned pause_at,pause_reached,pause_resume;
 static unsigned probe_operation,probe_inject;
+static void (*component_after_cleanup)(void);
 static void *foreign_required(void *unused){(void)unused;Context c=context();call(&c,M_RESET);return NULL;}
 static void component_pause(unsigned at){
+ if(at==22&&component_after_cleanup){void (*run)(void)=component_after_cleanup;component_after_cleanup=NULL;run();return;}
  if(at==5&&probe_inject){
   if(probe_inject==1){pthread_t t;require(!pthread_create(&t,NULL,foreign_required,NULL)&&!pthread_join(t,NULL),"foreign violation before BLX");}
   else if(probe_inject==3){uint32_t m=word(root+MODEL_ROOT_AUDIO)+MODEL_AUDIO_MIXER,offset=tracks[0].kind==7?0x78:tracks[0].kind==8?0x84:0x90;put(m+offset+4,word(m+offset));}
@@ -2435,6 +2440,55 @@ static void sequence_duplicate_checks(uint32_t editor,uint32_t audio){
  component_sequence_first_unused=NULL;component_sequence_default_name=NULL;component_sequence_confirm=NULL;component_sequence_string_free=NULL;
  puts("PASS Duplicate Sequence lane: the application's own CopySequence confirm still reads exactly the six block words this lane fills and still builds and submits the CopySequenceCommand through CommandManager::perform, its constructor still keeps the navigator, source and destination where execute and undo read them, execute's make-current gate is still a slot-index compare no name can skip and still calls the navigator, the first-unused rule and the default name still have the shape the lane relies on, the navigator chain is still the dispatcher's own three hops, no site is patched at the confirm, one accepted request is one first-unused query, one default name, one confirm carrying a plain zeroed block and one String release with the current sequence as the source and the first unused slot as the destination, the settlement records both slots, and a null or wrongly typed navigator, a missing engine object, a full project, a self-inconsistent or absent current sequence, a missing CommandManager, a destination slot that does not name its own array position and a re-rooted editor each refuse without building or submitting anything; execute keeps the two sequences apart and hands the destination to the copy as the object written and the source as the object read, and the copy's own prologue and used-byte carry confirm that direction (native confirm, first-unused rule, default name and String release substituted)");
 }
+#if defined(MODEL_SAMPLER_CALLS) && defined(MODEL_FIRMWARE_310)
+static unsigned sampler_fixture_adds,sampler_fixture_removes,sampler_fixture_calls,sampler_fixture_force_idle,sampler_fixture_listener_present;
+static pthread_t sampler_fixture_audio;
+static void sampler_finish_after_cleanup(void){atomic_store(&pause_resume,1);require(!pthread_join(sampler_fixture_audio,NULL),"audio cancel returns after this UI drain passed cleanup");atomic_store(&pause_at,0);}
+static uint32_t sampler_fixture_recorder,sampler_fixture_mode;
+#ifdef MODEL_SAMPLER_PHYSICAL
+static unsigned sampler_physical_feedback_last;
+static void sampler_physical_feedback_fixture(unsigned message){require(token()==command_owner,"physical feedback runs on UI owner");sampler_physical_feedback_last=message;}
+#endif
+#if defined(MODEL_SAMPLER_BACKEND_TRIAL)
+static unsigned sampler_backend_calls,sampler_backend_fault;
+static void sampler_backend_enable_fixture(uint32_t recorder,unsigned enabled){
+ require(token()==command_owner&&atomic_load(&command_in_hook)&&enabled<=1&&recorder==sampler_fixture_recorder,"backend resource changes use exact recorder on UI owner");
+#ifdef MODEL_SAMPLER_FEATURE
+ if(!enabled){
+  if(!*(unsigned char*)(uintptr_t)(recorder+0x574))return;
+  *(unsigned char*)(uintptr_t)(recorder+0x574)=0;
+  if(word(recorder+0x490+8*word(recorder+0x488))){Context source=context();source.r[4]=recorder;call(&source,SL_PUBLISH);put(recorder+0x264,0);*(unsigned char*)(uintptr_t)(recorder+0x290)=0;}
+  put(recorder+0x490,0);put(recorder+0x498,0);return;
+ }
+#endif
+ require(!word(recorder+0x264)&&!*(unsigned char*)(uintptr_t)(recorder+0x574),"backend enable only from native disabled idle state");
+ sampler_backend_calls++;
+ if(sampler_backend_fault==1)return;
+ *(unsigned char*)(uintptr_t)(recorder+0x574)=1;
+ if(sampler_backend_fault!=2)put(recorder+0x490+8*word(recorder+0x488),0x12345000);
+ if(sampler_backend_fault==3)put(root+0x608,0);
+}
+#endif
+static void sampler_listener_fixture(uint32_t notifier,uint32_t listener,unsigned add){
+ require(token()==command_owner&&atomic_load(&command_in_hook),"sampler listener changes run only in qualified UI service");
+ require(notifier==sampler_fixture_recorder+4&&listener==sampler_fixture_mode+0x1ec,"sampler listener uses exact native subobjects");
+ if(add){sampler_fixture_adds++;sampler_fixture_listener_present=1;}else{
+  require(!word(sampler_fixture_recorder+0x264)&&!*(unsigned char*)(uintptr_t)(sampler_fixture_mode+0x1f),"sampler cleanup only removes idle inactive listener");sampler_fixture_removes++;sampler_fixture_listener_present=0;
+ }
+}
+static unsigned sampler_call_fixture(unsigned op,uint32_t recorder){
+ require(token()!=command_owner&&local_lane&&!atomic_load(lane_in_hook+local_lane-1),"sampler methods run on audio consumer outside trace hook");
+ require(recorder==sampler_fixture_recorder,"sampler method uses same native recorder");sampler_fixture_calls++;
+ unsigned state=sampler_fixture_force_idle==1?0:op==SAMPLER_ARM?(sampler_fixture_force_idle==2?3:1):op==SAMPLER_START?(sampler_fixture_force_idle==3?1:3):word(recorder+0x264)<3?0:4;
+ put(recorder+0x264,state);*(unsigned char*)(uintptr_t)(recorder+0x290)=state>=3;
+#ifdef MODEL_SAMPLER_FEATURE
+ Context source=context();source.r[5]=recorder+0x23c;source.r[7]=state;call(&source,SL_STATE);
+ if(op==SAMPLER_STOP){source=context();source.r[4]=recorder;call(&source,SL_PUBLISH);}
+#endif
+ return 1;
+}
+static void sampler_cleanup_fixture(void){Context drain=context();drain.r[0]=command_queues+4;call(&drain,COMMAND_DRAIN);}
+#endif
 static void general_checks(void){
  MirrorState *saved=fixture;CommandState *csaved=command_state;fixture=calloc(1,sizeof(*fixture));command_state=calloc(1,sizeof(*command_state));require(fixture&&command_state,"general state fixture");
  initial(1);command_initialize();observer_running=1;observer_image_bias=0;atomic_store(&command_state->alive,1);component_global_dispatch=global_dispatch_fixture;
@@ -2558,6 +2612,141 @@ static void general_checks(void){
   }
   input_drain(&in,&bank,&out,i+1);require(!in.error&&in.settled==(op==GLOBAL_SAVE?2u:1u),"production global consumer accepts native whole-operation proof");command_retire();require(command_idle(command_state),"general facade slot reclaims");
  }
+#if defined(MODEL_SAMPLER_PROBE) && defined(MODEL_FIRMWARE_310)
+ /* Only CE queue/owner/receipt plumbing is exercised here; these allocated
+  * objects and the native queue are substitutes, not MPC sampler proof. */
+ unsigned char sampler_objects[0xf00] __attribute__((aligned(8)))={0};
+ uint32_t sampler_rec=ptr(sampler_objects),sampler_mode=ptr(sampler_objects+0x600);
+ uint32_t saved_audio_vptr=word(a),saved_sampler=word(a+0x3d8),saved_mode=word(ptr(root_object)+0x608);
+ put(a,MODEL_AUDIO_VPTR);put(a+0x3d8,sampler_rec);put(ptr(root_object)+0x608,sampler_mode);
+ put(sampler_rec,MODEL_SAMPLING_RECORDER_VPTR);put(sampler_rec+0x20,MODEL_SAMPLING_RECORDER_SECONDARY_VPTR);put(sampler_rec+0x28,MODEL_SAMPLING_RECORDER_THIRD_VPTR);
+ put(sampler_mode,MODEL_SAMPLER_MODE_VPTR);put(sampler_mode+0x1ec,MODEL_SAMPLER_LISTENER_VPTR);put(sampler_mode+0x1f4,sampler_rec);
+ for(unsigned state=0;state<6;state++){
+  put(sampler_rec+0x264,state);sampler_objects[0x290]=state>=3;sampler_objects[0x600+0x1f]=state&1;put(sampler_rec+0x420,0x12340000+state*4);put(sampler_rec+0x488,state&1);sampler_objects[0x574]=(state>>1)&1;put(sampler_rec+0x490+8*(state&1),0x12345000+0x100*(state&1));
+  MIRROR_COPY(out);require(copy_mirror(fixture,&out),"sampler owner snapshot");
+  CommandRequest r={.epoch=epoch,.expires=120000,.reserved=SAMPLER_INSPECT,.project_owner=out.project_owner,.global_owner=out.editor_owner};
+  unsigned held=word(e+0x2cc),calls=transport_calls,at=submit_fixture(r),id=atomic_load(&command_state->published);
+  require(transport_queue_component_pending()&&word(e+0x2cc)==held+1&&atomic_load(&command_state->slots[at].done)!=id,"sampler inspection retains queue holder without synchronous observation");
+  pthread_t audio;require(!pthread_create(&audio,NULL,transport_queue_runner,NULL)&&!pthread_join(audio,NULL),"sampler inspection on separate native-queue substitute");
+  require(word(e+0x2cc)==held&&transport_calls==calls&&atomic_load(&command_state->slots[at].done)==id,"inspection invokes no native transport method and releases holder");
+  command_retire();atomic_fetch_add(&fixture->heartbeat,1);require(copy_mirror(fixture,&out),"sampler receipt snapshot");
+  MirrorInput in={.commands=command_state};MirrorBank bank;bank_init(&bank);bank_apply(&bank,&out,out.heartbeat);
+  in.flights[at]=(InputFlight){.flight=id,.field=SAMPLER_INSPECT,.expires=120000,.global_owner=r.global_owner,.global_epoch=epoch};
+  input_drain(&in,&bank,&out,out.heartbeat);require(!in.error&&in.settled==1,"production consumer settles sampler inspection as observation only");
+  CommandEvent *observed=in.flights[at].global_events+1;
+  require(observed->program==sampler_rec&&observed->capture==sampler_mode&&observed->counter==0x12340000+state*4&&observed->bits==(state|((state&1)<<8)|((state>=3)<<9)),"receipt contains native state, mode and opaque latest-sample identity");
+  require(observed->arg_kind==((state&1)|(((state>>1)&1)<<8))&&observed->property==0x12345000+0x100*(state&1),"production consumer accepts bounded sampler backend metadata only on STATE receipt");
+  command_retire();require(command_idle(command_state),"sampler observation slot reclaims");
+ }
+ for(unsigned bad=0;bad<2;bad++){
+  if(bad)put(sampler_mode+0x1f4,sampler_rec+4);else put(sampler_rec,MODEL_RECORDER_VPTR);
+  MIRROR_COPY(out);require(copy_mirror(fixture,&out),"sampler rejection owner snapshot");
+  CommandRequest r={.epoch=epoch,.expires=120000,.reserved=SAMPLER_INSPECT,.project_owner=out.project_owner,.global_owner=out.editor_owner};
+  unsigned at=submit_fixture(r);require(atomic_load(&command_state->slots[at].rejected)==C_NATIVE_MEMBERSHIP&&!transport_queue_component_pending(),"sequence recorder or mode/recorder mismatch cannot be inspected");
+  command_retire();require(command_idle(command_state),"sampler refusal reclaims");put(sampler_rec,MODEL_SAMPLING_RECORDER_VPTR);put(sampler_mode+0x1f4,sampler_rec);
+ }
+#if defined(MODEL_SAMPLER_CALLS) && !defined(MODEL_SAMPLER_FEATURE)
+ sampler_fixture_recorder=sampler_rec;sampler_fixture_mode=sampler_mode;component_sampler_listener=sampler_listener_fixture;component_sampler_call=sampler_call_fixture;
+ put(sampler_rec+0x264,0);sampler_objects[0x290]=0;sampler_objects[0x600+0x1f]=0;sampler_objects[0x600+0x20]=1;
+ require(sampler_probe_admit(SAMPLER_ARM,sampler_rec,sampler_mode)==C_NOT_READY,"UI-inactive but audio-active mode cannot race pending native exit-stop");
+ sampler_objects[0x600+0x20]=0;sampler_objects[0x600+0x1f]=1;
+ require(sampler_probe_admit(SAMPLER_ARM,sampler_rec,sampler_mode)==C_NOT_READY,"audio-inactive but UI-active mode cannot accept offscreen mutation");sampler_objects[0x600+0x1f]=0;
+ put(sampler_rec+0x488,0);sampler_objects[0x574]=1;put(sampler_rec+0x490,0x12345000);
+#if defined(MODEL_SAMPLER_BACKEND_TRIAL)
+ component_sampler_backend_enable=sampler_backend_enable_fixture;sampler_backend_fault=0;
+ sampler_objects[0x574]=0;put(sampler_rec+0x490,0); /* First Arm requires native UI enable. */
+#endif
+ const unsigned sampler_ops[]={SAMPLER_ARM,SAMPLER_START,SAMPLER_STOP,SAMPLER_STOP,SAMPLER_ARM};
+ const unsigned sampler_before[]={0,1,3,1,0},sampler_after[]={1,3,4,0,0};
+ for(unsigned test=0;test<5;test++){
+  unsigned op=sampler_ops[test],before=sampler_before[test],after=sampler_after[test];sampler_fixture_force_idle=test==4;put(sampler_rec+0x264,before);sampler_objects[0x290]=before>=3;sampler_objects[0x600+0x1f]=0;
+  MIRROR_COPY(out);require(copy_mirror(fixture,&out),"sampler call owner snapshot");
+  CommandRequest r={.epoch=epoch,.expires=120000,.reserved=op,.project_owner=out.project_owner,.global_owner=out.editor_owner};
+  unsigned adds=sampler_fixture_adds,removes=sampler_fixture_removes,calls=sampler_fixture_calls,at=submit_fixture(r),id=atomic_load(&command_state->published);
+  require(sampler_fixture_adds==adds+1&&sampler_fixture_calls==calls&&transport_queue_component_pending(),"UI listener registration precedes audio call");
+#if defined(MODEL_SAMPLER_BACKEND_TRIAL)
+  require(sampler_backend_calls==1&&sampler_probe_backend_ready(sampler_rec),"first disabled Arm enables backend once on UI; already-enabled and other operations never enable again");
+#endif
+  if(test==3){atomic_store(&pause_at,21);atomic_store(&pause_reached,0);atomic_store(&pause_resume,0);}
+  pthread_t audio;require(!pthread_create(&audio,NULL,transport_queue_runner,NULL),"sampler mutation audio queue substitute");
+  if(test==3){
+   while(!atomic_load_explicit(&pause_reached,memory_order_acquire))sched_yield();
+   require(!atomic_load(active_request+at)&&atomic_load(&command_state->slots[at].done)==id&&!atomic_load(sampler_cleanup_ready+at),"pause exactly after done/trace release before transport_finish");
+   command_retire();require(atomic_load(&command_state->slots[at].sealed)!=id&&atomic_load(&command_state->slots[at].reclaimed)!=id&&command_free(command_state)!=at,"admission cleanup pin prevents sealing, reclaim and reuse in callback retirement gap");
+   atomic_store(&pause_resume,1);
+  }
+  require(!pthread_join(audio,NULL),"sampler audio return");atomic_store(&pause_at,0);
+  require(sampler_fixture_calls==calls+1&&word(sampler_rec+0x264)==after&&atomic_load(sampler_cleanup_ready+at)==id,"one method call schedules one UI cleanup pass");
+  command_retire();require(atomic_load(&command_state->slots[at].sealed)!=id,"call return alone cannot settle before UI cleanup");
+  sampler_cleanup_fixture();require(!atomic_load(sampler_cleanup_ready+at)&&sampler_fixture_removes==removes+(op==SAMPLER_STOP&&before<3),"UI cleanup preserves armed and finalizing native completion ownership");
+  command_retire();atomic_fetch_add(&fixture->heartbeat,1);require(copy_mirror(fixture,&out),"sampler method receipt snapshot");
+  MirrorInput in={.commands=command_state};MirrorBank bank;bank_init(&bank);bank_apply(&bank,&out,out.heartbeat);
+  in.flights[at]=(InputFlight){.flight=id,.field=op,.expires=120000,.global_owner=r.global_owner,.global_epoch=epoch};input_drain(&in,&bank,&out,out.heartbeat);
+  require(!in.error&&in.settled==1&&in.flights[at].global_events[2].bits==(op==SAMPLER_START?3u:1u),"sampler receipt distinguishes method invoked and native start result, never sample completion");command_retire();require(command_idle(command_state),"sampler call slot reclaims");
+ }
+ /* Cancel finishes after service has passed cleanup; a later arm in that
+  * same drain must not register/queue until the prior cleanup has run. */
+ sampler_fixture_force_idle=0;put(sampler_rec+0x264,1);sampler_objects[0x290]=0;sampler_objects[0x600+0x1f]=0;
+ MIRROR_COPY(race_out);require(copy_mirror(fixture,&race_out),"sampler cleanup race identities");
+ CommandRequest cancel_r={.epoch=epoch,.expires=120000,.reserved=SAMPLER_STOP,.project_owner=race_out.project_owner,.global_owner=race_out.editor_owner};
+ unsigned cancel_at=submit_fixture(cancel_r),cancel_id=atomic_load(&command_state->published),race_adds=sampler_fixture_adds,race_removes=sampler_fixture_removes;
+ atomic_store(&pause_at,21);atomic_store(&pause_reached,0);atomic_store(&pause_resume,0);require(!pthread_create(&sampler_fixture_audio,NULL,transport_queue_runner,NULL),"paused cancellation audio");
+ while(!atomic_load_explicit(&pause_reached,memory_order_acquire))sched_yield();
+ unsigned arm_at=command_free(command_state);CommandRequest arm_r=cancel_r;arm_r.reserved=SAMPLER_ARM;arm_r.seq=cancel_id+1;
+ require(command_publish_request_at(command_state,&arm_r,arm_at),"publish following arm without draining UI");
+ component_after_cleanup=sampler_finish_after_cleanup;sampler_cleanup_fixture();
+ require(atomic_load(&command_state->slots[arm_at].processed)!=arm_r.seq&&!transport_queue_component_pending()&&sampler_fixture_adds==race_adds&&sampler_fixture_removes==race_removes,"same drain defers later arm until prior cancellation cleanup");
+ command_retire();require(atomic_load(&command_state->slots[cancel_at].sealed)!=cancel_id,"finished callback still pinned until UI cleanup");
+ sampler_cleanup_fixture();
+ require(!atomic_load(sampler_cleanup_pending+cancel_at)&&sampler_fixture_removes==race_removes+1&&sampler_fixture_adds==race_adds+1&&sampler_fixture_listener_present&&transport_queue_component_pending(),"next UI pass removes old canceled listener before registering and queuing new arm");
+ pthread_t race_audio;require(!pthread_create(&race_audio,NULL,transport_queue_runner,NULL)&&!pthread_join(race_audio,NULL),"following arm audio");sampler_cleanup_fixture();
+ require(sampler_fixture_listener_present&&sampler_fixture_removes==race_removes+1,"old cancellation never removes newly armed listener");
+ command_retire();atomic_fetch_add(&fixture->heartbeat,1);require(copy_mirror(fixture,&race_out),"race completion source");
+ MirrorInput race_input={.commands=command_state};MirrorBank race_bank;bank_init(&race_bank);bank_apply(&race_bank,&race_out,race_out.heartbeat);
+ race_input.flights[cancel_at]=(InputFlight){.flight=cancel_id,.field=SAMPLER_STOP,.expires=120000,.global_owner=cancel_r.global_owner,.global_epoch=epoch};
+ race_input.flights[arm_at]=(InputFlight){.flight=arm_r.seq,.field=SAMPLER_ARM,.expires=120000,.global_owner=arm_r.global_owner,.global_epoch=epoch};
+ input_drain(&race_input,&race_bank,&race_out,race_out.heartbeat);require(!race_input.error&&race_input.settled==2,"both serialized sampler flights settle through production consumer");command_retire();require(command_idle(command_state),"race slots reclaim only after cleanup");
+ puts("PASS deterministic sampler retirement gap: no seal/reuse before transport finish and UI cleanup; cancel return after cleanup point defers newer arm until old listener cleanup completes");
+#if defined(MODEL_SAMPLER_BACKEND_TRIAL)
+ /* Failed native prerequisite calls are observed on a disposable copy of the
+  * command mailbox. Their incomplete slots are discarded with that fixture,
+  * never represented as settled or reclaimed production commands. */
+ for(unsigned fault=1;fault<=3;fault++){
+  require(command_idle(command_state),"backend failure begins from drained fixture");CommandState *original=command_state,*failed=malloc(sizeof(*failed));require(failed!=NULL,"isolated partial-enable mailbox");memcpy(failed,original,sizeof(*failed));command_state=failed;
+  sampler_backend_fault=fault;put(sampler_rec+0x264,0);sampler_objects[0x290]=0;sampler_objects[0x574]=0;put(sampler_rec+0x488,0);put(sampler_rec+0x490,0);
+  MIRROR_COPY(out);require(copy_mirror(fixture,&out),"partial enable identities");CommandRequest r={.epoch=epoch,.expires=120000,.reserved=SAMPLER_ARM,.project_owner=out.project_owner,.global_owner=out.editor_owner};
+  unsigned before=sampler_fixture_calls,at=submit_fixture(r),id=atomic_load(&command_state->published);
+  require(atomic_load(&command_state->slots[at].rejected)&&native_started[at]==id&&!transport_queue_component_pending()&&sampler_fixture_calls==before&&atomic_load(&command_state->slots[at].done)!=id,"failed enable, missing backend or changed owner never queues/certifies Arm");
+  command_retire();require(atomic_load(&command_state->slots[at].reclaimed)!=id,"partial native enable cannot be reclaimed as never-started refusal");
+  put(root+0x608,sampler_mode);command_state=original;free(failed);atomic_store(sampler_cleanup_pending+at,0);atomic_store(sampler_cleanup_ready+at,0);native_started[at]=0;
+ }
+ sampler_backend_fault=0;sampler_objects[0x574]=1;put(sampler_rec+0x490,0x12345000);
+ puts("PASS flag3 backend prerequisite: UI-only enable once from disabled idle, enabled owner/backend recheck, failed enable/missing backend/stale owner refuse before audio Arm and retain explicit partial-operation incompletion (native enable substituted; no input/sample proof)");
+#endif
+ /* A failed push registered but never called. The native add result does not
+  * prove insertion ownership, so the UI pass retains the native listener. */
+ sampler_fixture_force_idle=0;put(sampler_rec+0x264,0);sampler_objects[0x290]=0;
+ MIRROR_COPY(sampler_out);require(copy_mirror(fixture,&sampler_out),"sampler queue failure owner snapshot");
+ CommandRequest sampler_request={.epoch=epoch,.expires=120000,.reserved=SAMPLER_ARM,.project_owner=sampler_out.project_owner,.global_owner=sampler_out.editor_owner};
+ unsigned removals=sampler_fixture_removes,calls=sampler_fixture_calls;transport_queue_component_fail(1);unsigned rejected=submit_fixture(sampler_request);transport_queue_component_fail(0);
+ require(atomic_load(&command_state->slots[rejected].rejected)==C_NOT_READY&&sampler_fixture_calls==calls,"failed push never calls recorder");sampler_cleanup_fixture();command_retire();require(command_idle(command_state)&&sampler_fixture_removes==removals,"failed push retains native listener without claiming registration ownership");
+ /* A native page change between admission and execution forbids the call and
+  * forbids cleanup removal: the now-active native page owns its listener. */
+ unsigned at=submit_fixture(sampler_request),id=atomic_load(&command_state->published);sampler_objects[0x600+0x1f]=1;removals=sampler_fixture_removes;
+ pthread_t audio;require(!pthread_create(&audio,NULL,transport_queue_runner,NULL)&&!pthread_join(audio,NULL),"changed native page callback substitute");
+ require(sampler_fixture_calls==calls,"queued sampler mutation rechecks inactive page");sampler_cleanup_fixture();require(sampler_fixture_removes==removals,"active page keeps native listener");command_retire();
+ atomic_fetch_add(&fixture->heartbeat,1);require(copy_mirror(fixture,&sampler_out),"skipped sampler call snapshot");MirrorInput sin={.commands=command_state};MirrorBank sbank;bank_init(&sbank);bank_apply(&sbank,&sampler_out,sampler_out.heartbeat);
+ sin.flights[at]=(InputFlight){.flight=id,.field=SAMPLER_ARM,.expires=120000,.global_owner=sampler_request.global_owner,.global_epoch=epoch};input_drain(&sin,&sbank,&sampler_out,sampler_out.heartbeat);
+ require(!sin.error&&sin.settled==1&&!sin.flights[at].global_events[2].bits,"changed state produces explicit skipped-call observation");command_retire();sampler_objects[0x600+0x1f]=0;
+ component_sampler_listener=NULL;component_sampler_call=NULL;
+ puts("PASS sampler trial plumbing: UI listener before audio arm/start/stop, post-call native state snapshot, UI-only idle cleanup after cancel and native-owned listener after push failure, no cleanup after recording methods even if state already idle, no cleanup during finalization or active page, raced page skips call (native methods/listener/queue substituted; no native sample completion proven)");
+#endif
+#ifdef MODEL_SAMPLER_FEATURE
+#include "sampler-production-test.inc"
+#endif
+ put(a,saved_audio_vptr);put(a+0x3d8,saved_sampler);put(ptr(root_object)+0x608,saved_mode);
+ puts("PASS sampler inspection: existing retained queue, six native state receipts, active/recording flags, sample identity, production consumer settlement, wrong-recorder and mismatched-mode refusal (native objects and queue substituted; no native calls)");
+#endif
  save_nested_drains=0;
  puts("PASS nested owning-thread Save drains defer without touching the outer flight or queued request; one facade receipt and later queued request settle through the production consumer (native Save/message loop substituted)");
  /* The peer pin and the corrected resolution both fail closed. A peer whose

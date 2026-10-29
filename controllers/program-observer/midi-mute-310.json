@@ -1,0 +1,366 @@
+{
+  "scope": "Native pad MIDI mute; exact engine-owned native output helper and product return/route hooks.",
+  "constants": {
+    "MIDI_ENQUEUER_CTOR": 42651176,
+    "MIDI_ENQUEUER_DTOR": 42654464,
+    "MIDI_NOTE_OFF": 42652968,
+    "MIDI_SINK_VPTR": 113937020,
+    "MIDI_TIME_VPTR": 113945480,
+    "MIDI_AUDIO_VPTR": 114394940,
+    "MIDI_ENGINE_VPTR": 114185808,
+    "MIDI_SINK_ENQUEUE": 31580024,
+    "MIDI_CURRENT_ENQUEUER_VPTR": 114617552,
+    "MIDI_DEFAULT_ENQUEUER_VPTR": 113995184,
+    "MIDI_OFF_MAPPER": 42648704
+  },
+  "sites": [
+    {
+      "id": 360,
+      "name": "ON_RETURN",
+      "old": "0x28ad464",
+      "address": "0x28ad464",
+      "bytes": "b4209fe5a8309fe5",
+      "unwind": [
+        "0x28ad350",
+        "0x28ad528"
+      ],
+      "after": 0
+    },
+    {
+      "id": 361,
+      "name": "OFF_RETURN",
+      "old": "0x28ad620",
+      "address": "0x28ad620",
+      "bytes": "b4209fe5a8309fe5",
+      "unwind": [
+        "0x28ad528",
+        "0x28ad6e4"
+      ],
+      "after": 0
+    },
+    {
+      "id": 362,
+      "name": "ROUTES_REPLACE",
+      "old": "0x1e21420",
+      "address": "0x1e21420",
+      "bytes": "202084e5e02093e5",
+      "unwind": [
+        "0x1e21364",
+        "0x1e217e8"
+      ],
+      "after": 0
+    },
+    {
+      "id": 363,
+      "name": "ROUTES_CLEAR",
+      "old": "0x1e223f0",
+      "address": "0x1e223f0",
+      "bytes": "e02089e5e42089e5",
+      "unwind": [
+        "0x1e222d8",
+        "0x1e22458"
+      ],
+      "after": 1
+    },
+    {
+      "id": 364,
+      "name": "INSTRUMENT_MAP",
+      "old": "0x2860ddc",
+      "address": "0x2860ddc",
+      "bytes": "04808de2017a87e2",
+      "unwind": [
+        "0x2860d44",
+        "0x2861008"
+      ],
+      "after": 0
+    }
+  ],
+  "functions": [
+    {
+      "name": "mpc_juce_filter_constructor",
+      "start": "0x1286a08",
+      "length": 2520,
+      "sha256": "abf0f5e6d5cf449d94ba78efb8aa2cebd891bba85eafae7443bcf5a8e25b1e7a"
+    },
+    {
+      "name": "mpc_juce_filter_destructor",
+      "start": "0x1285fa4",
+      "length": 1448,
+      "sha256": "1f3137a071ba3e4b8fb877e6dc5492c8dddbcc2f79336c4074df6f4e4fc3e091"
+    },
+    {
+      "name": "editor_destructor",
+      "start": "0x2eaabc0",
+      "length": 4800,
+      "sha256": "a496427265a2c486b5c9a9e71628c8f8ae9039487f5a8a36976cb96e4f3b9bb0"
+    },
+    {
+      "name": "editor_deleting_destructor_containing_extent",
+      "start": "0x2eabe80",
+      "length": 1052,
+      "sha256": "80335ec5421a1048dfe60fe0d8ea9e79e9ac09a656ef259f5269e099bc5e37a3"
+    },
+    {
+      "name": "engine_pre_editor_shutdown",
+      "start": "0xffc1e8",
+      "length": 84,
+      "sha256": "5dbef92c24dc4f10857228e4e2f966c2b48aa66416873f2d4d6d197bb5c35b81"
+    },
+    {
+      "name": "mpc_engine_constructor",
+      "start": "0xfefad0",
+      "length": 47384,
+      "sha256": "8f01cbfc641d66e28d4a3089eff9c6a22adbba3b38a10ea3bd570abdd77279b4"
+    },
+    {
+      "name": "mpc_engine_destructor",
+      "start": "0xffccac",
+      "length": 15552,
+      "sha256": "cf55b73699dd43a5cb0f2f376e15b7f678e5d8ac61405d3fc38506838a22d034"
+    },
+    {
+      "name": "engine_base_midi_constructor",
+      "start": "0x1566c80",
+      "length": 1012,
+      "sha256": "cfdc8b8f61006ed1b0ae5bdb3d8bacb950a83c97692d84796b85fae37e8ac4f3"
+    },
+    {
+      "name": "engine_base_midi_destructor",
+      "start": "0x1567074",
+      "length": 388,
+      "sha256": "4d68e3227809c03c9e0022ea76d6d671aaf4dcd86f20dc681a60c764946ecb40"
+    },
+    {
+      "name": "engine_base_clock_constructor",
+      "start": "0x1567d68",
+      "length": 6544,
+      "sha256": "54b3d955bd4be27020fc4ad9e07dc096878381f281cb83afebaa2c1e2135652b"
+    },
+    {
+      "name": "engine_base_clock_destructor",
+      "start": "0x15696f8",
+      "length": 4248,
+      "sha256": "f9cbe0fabfd337f592f68b4f812631a89faecfd588b3976f1a80bc78684d66d0"
+    },
+    {
+      "name": "midi_devices_constructor",
+      "start": "0x1e27084",
+      "length": 1844,
+      "sha256": "46e6fed08cebc2be73bfb949c3174220efd30828f1843812c7748a471aa04bdf"
+    },
+    {
+      "name": "mpc_audio_constructor",
+      "start": "0x1a8f444",
+      "length": 4292,
+      "sha256": "1cb8c59a32765c93817bcfd6b9b32f9f3b14e373358c19e6a36b52fcd437f6eb"
+    },
+    {
+      "name": "mpc_audio_destructor",
+      "start": "0x1a90508",
+      "length": 2640,
+      "sha256": "5190c8f4b6e75238dd1e63079b9465db5382ca85f5cec82b6b352b7dde250c09"
+    },
+    {
+      "name": "sequencer_time_constructor",
+      "start": "0x201401c",
+      "length": 1696,
+      "sha256": "196770c674c8b24a2f286f9e07f5494214b01c4fe4ff512cb55d2d5dc99be961"
+    },
+    {
+      "name": "sequencer_time_destructor",
+      "start": "0x2011dcc",
+      "length": 1584,
+      "sha256": "f22883d4a1251c964ea20f1736d1158a797e3cd9eb474103211c2db6a895d4df"
+    },
+    {
+      "name": "program_factory_constructor",
+      "start": "0x128a5ac",
+      "length": 2980,
+      "sha256": "d3a7f7503f23fb8db4f66a89e58b2487f8863b9901acd3927c27a2a336a36b76"
+    },
+    {
+      "name": "midi_program_factory_create",
+      "start": "0x128b878",
+      "length": 236,
+      "sha256": "3762406f1a5754e5b00e2308e3abcedda7a521d0fdc7eed26d9e90a26fc424eb"
+    },
+    {
+      "name": "midi_program_factory_create_alternate",
+      "start": "0x128b964",
+      "length": 236,
+      "sha256": "63536c88db4fbe341941cc049fc725b978f7e251ae48dcaac62356499091e49c"
+    },
+    {
+      "name": "midi_program_constructor",
+      "start": "0x28af868",
+      "length": 472,
+      "sha256": "ed36ac583ce06f281f57cda09f76ddd5b401e4926fd0a318a4a2c619d4ab4835"
+    },
+    {
+      "name": "default_midi_enqueuer_constructor",
+      "start": "0x28ace28",
+      "length": 28,
+      "sha256": "2cd70c9bf803d6fceef692c8998c0f3fee7a6671cf9d29be80b137aa105fbca1"
+    },
+    {
+      "name": "default_midi_enqueuer_destructors_containing_extent",
+      "start": "0x28adb00",
+      "length": 112,
+      "sha256": "764ef5b0edc4c500a7b7e4c5b55407098b43c9ca9b62b5c82de6aff6eb475fd6"
+    },
+    {
+      "name": "default_off_mapper_containing_extent",
+      "start": "0x28a8d48",
+      "length": 14440,
+      "sha256": "e57e654d734458c89cf5c8877df7ad8c205e1276e5100dfc4873144b3a2b4980"
+    },
+    {
+      "name": "native_note_off",
+      "start": "0x28ad528",
+      "length": 444,
+      "sha256": "ec0e1af330fb71031ef0e5d9c9520c8cc21b9d07aa9a23587df2c3a311eb4f68"
+    },
+    {
+      "name": "midi_devices_enqueue",
+      "start": "0x1e1df78",
+      "length": 744,
+      "sha256": "f7022447e71cf744576a45b32b02779aefc114fa30b74785f952458947d58499"
+    },
+    {
+      "name": "midi_output_route_publish",
+      "start": "0x1e22ca4",
+      "length": 1596,
+      "sha256": "62aa5f28eace2edd72d7e28384f442e70dc18e5b76235a6cc798f0ee1e9b15d6"
+    },
+    {
+      "name": "midi_output_route_swap_audio_callback",
+      "start": "0x1e21364",
+      "length": 1156,
+      "sha256": "95a5e24824be86908626528ea008dac47302ce04be5b929e1d2484a4598ca904"
+    },
+    {
+      "name": "midi_devices_clear",
+      "start": "0x1e22a94",
+      "length": 520,
+      "sha256": "29c884ac7646b17989ba2ca294648cd28c3631e56434b6b8964f03cac16a7986"
+    },
+    {
+      "name": "midi_devices_clear_audio_callback",
+      "start": "0x1e222d8",
+      "length": 384,
+      "sha256": "ff314af5bbb200ab82bc0e249c4da1dad31b6206348f0ff815de9297202725cb"
+    },
+    {
+      "name": "midi_program_destructor",
+      "start": "0x28adbc0",
+      "length": 336,
+      "sha256": "5654314244e1b142f2846dbf7b82d326beeca64055f2b4f5dcc6ed346253bae1"
+    },
+    {
+      "name": "program_destructor",
+      "start": "0x28cf9fc",
+      "length": 1544,
+      "sha256": "ed1001b541d9f4ad908a186194f05b1d2756199fe97f31ad98a11bf0c13f1fab"
+    },
+    {
+      "name": "program_holder_destructor",
+      "start": "0x27a046c",
+      "length": 948,
+      "sha256": "fc016da0f64f65a71a237da848bde1dc24d3fff231beca5bbb6badd83f8f526e"
+    },
+    {
+      "name": "program_native_queue_producer",
+      "start": "0x28cb964",
+      "length": 628,
+      "sha256": "8e01b393eb0c582f105b248887750dec53f9eec83bf8c80b825ef0b25b776fe0"
+    },
+    {
+      "name": "midi_program_subobject_on_forward_containing_extent",
+      "start": "0x28adf40",
+      "length": 72,
+      "sha256": "750f40504ab5ef05e6d3421bf1b579545159e789d5b8c8e3ea253cbea0c8836a"
+    },
+    {
+      "name": "current_native_on",
+      "start": "0x28ad350",
+      "length": 472,
+      "sha256": "5805fdc0a115040981bb80f0cf0b884ed2c974a7488fe006c50c37bdf78ae11d"
+    },
+    {
+      "name": "port_packet_append",
+      "start": "0x1e2f984",
+      "length": 512,
+      "sha256": "bce9b9917e4f33e16839bd4a5f5dca7d986cd8636b62d8388dd4078bff79409a"
+    },
+    {
+      "name": "port_packet_drain_and_stable_timestamp_insert",
+      "start": "0x1e2f728",
+      "length": 604,
+      "sha256": "e5cb657e55cdba27b0b3ac618bcf1b65d335fbdfc1fdfcdb4f2e825c3ff17ef3"
+    },
+    {
+      "name": "midi_device_output_drain",
+      "start": "0x1e20a40",
+      "length": 224,
+      "sha256": "93957a06cb7db230b23891123d76fe81a48becd4d7aca08bfec86ff0bb27de23"
+    },
+    {
+      "name": "transport_realtime_fa_filter",
+      "start": "0x7fa2b4",
+      "length": 3476,
+      "sha256": "f67c4d3ec5d4c5b14cc6e48ca55915d251df0dd7eb92a2fbdd0fd19342879cc5"
+    },
+    {
+      "name": "track_mapper_and_send_to",
+      "start": "0x29d1e10",
+      "length": 2388,
+      "sha256": "819d1fec3aa928c7679f90d537a61d0b3e4fd40f8669678f1596683901ca0b7e"
+    },
+    {
+      "name": "drum_event_mapper",
+      "start": "0x2867f80",
+      "length": 1192,
+      "sha256": "61272e24a22a0167f36e4c700d00ac9ea87eb198c40521cf56a234a88b18f4a6"
+    },
+    {
+      "name": "drum_note_mapper",
+      "start": "0x2860d44",
+      "length": 708,
+      "sha256": "a2885d442de952592d97e3104db951d558e7ee3cd1e1d7c5e8d046d2d9aace25"
+    }
+  ],
+  "words": [
+    {
+      "address": "0x6ce5648",
+      "bytes": "00000000d056ce06acccff0074090001e4090001b8c1ff00e8c1ff00583dfe00403dfe003cc2ff00dcc6ff00b47a5601a841fe00aca4fe00e894fe00780a0001ec12e500840a0001443dfe00503dfe00940a0001a40a0001"
+    },
+    {
+      "address": "0x6d61abc",
+      "bytes": "00000000881ed606c0abea0210bfea02107cb400107cb400107cb400107cb400107cb400107cb400107cb400c0dfbb00c8e7bb00e0dabd004c1fbe00b07bb400c48bbe00b07bb400b47bb4000ce3ba0044b4e9021053d402cc10bb00b07bb40078d7b400b07bb400a048bb00c098b40030b5e902107cb400c07bb400c87bb400d07bb400bc7bb400bc7bb400bc7bb40024ace902b07bb400107cb400b07bb400b07bb400b87bb4003032d40274e6ba00b07bb4000c19be003838d402c431d402e024eb0218cfe90258b4e90260b4e90270b4e902d824eb02a4c7e90224b9e902d4e3e90220ace90260d3e9020874ea0248b4e9029872ea02a8bee902"
+    },
+    {
+      "address": "0x6cf39a8",
+      "bytes": "00000000e03acf06a45f28014c652801b44e280104668c00a45d28015831280120d28e0008332801e44c8c0040988c00b8978c0024d28e002cd28e00dc4e8c0034972801fc9628010497280134d28e003cd28e005831280144d28e00d84c8c00a468280124972801403128015c31280164628c00483128014cd28e0058d28e0034fd8e00acf98e00b48e8c00a431280110918c00a04d8c00d04d8c006c4d8c00a0578c00304e8c0054312801004e8c00604e8c00904e8c00e04c8c000c972801149728011c9728011c99280120972801787b2801e84c8c00e4352801f44c8c00e04c8c00e04c8c00e04c8c009c938c0040868c00d04c8c00346d8c00f8db8e00004d8c00f0928c00d4668c00c8988c00a8838c00c431280168d28e00049f8d00dc6a8c002c97280178652801"
+    },
+    {
+      "address": "0x6d18734",
+      "bytes": "000000007887d1060805a901600fa90100dda80110e4a8014c71a801bc0fa901fcdca8019cdea8018cdea801"
+    },
+    {
+      "address": "0x6caab80",
+      "bytes": "000000007871d206cc1d0102fc2301029c350102"
+    },
+    {
+      "address": "0x6ca8a74",
+      "bytes": "000000007408d206b818e201341de201b877e20178dfe101942ae2017c6ee201"
+    },
+    {
+      "address": "0x6cb6da8",
+      "bytes": "00000000bcead40600db8a0204db8a0290c48a0280c48a02b0c58a02c0ca8a0270cc8a0260c78a0210c98a02"
+    },
+    {
+      "address": "0x6d4ecd0",
+      "bytes": "6cea8a02c4ee8a0290c48a0280c48a02"
+    }
+  ]
+}
