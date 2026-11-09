@@ -1,38 +1,38 @@
 {
-  "release": "v0.4.3",
-  "image_revision": "v0_4_3",
+  "release": "v0.4.4",
+  "image_revision": "v0_4_4",
   "firmware": "3.10.0 Gen1",
   "runtime_format": "CMD32/MMV24",
-  "runtime_checksums": "firmware/v0.4.3-runtime.sha256",
-  "payload_checksums": "firmware/v0.4.3-payload.sha256",
-  "payload_checksums_sha256": "8460f7e2873a60926f14219442738da406b0d139c445ce5debdddb49f4a087ed",
+  "runtime_checksums": "firmware/v0.4.4-runtime.sha256",
+  "payload_checksums": "firmware/v0.4.4-payload.sha256",
+  "payload_checksums_sha256": "20fe6d5c42585f8b401040c1dc16a02606607ef800ceea6ad8e05d6d0afc76a5",
   "runtime_location": "/usr/share/mpclearn/mcu",
   "qualified_hardware": "MPC Live II",
   "image_flash_tested": true,
   "debug_image_flash_tested": false,
   "status": "release-candidate",
   "release_artifacts_current_for_source": true,
-  "product_candidate": "5d896d0d8561db57e6d8e52e7a0a5327a3b934fb",
-  "development_source_base": "5d896d0d8561db57e6d8e52e7a0a5327a3b934fb",
-  "recipe_source_commit": "5d896d0d8561db57e6d8e52e7a0a5327a3b934fb",
+  "product_candidate": "94a697ad98ecfbedd2f919731ccb72b92ffd5ffb",
+  "development_source_base": "94a697ad98ecfbedd2f919731ccb72b92ffd5ffb",
+  "recipe_source_commit": "94a697ad98ecfbedd2f919731ccb72b92ffd5ffb",
   "build_metadata": "BUILD.json is the immutable build-time candidate record. This release metadata records subsequent qualification of the exact payload and recipes.",
   "diagnostics_status": "Offline SSH, no-SSH and Debug recipe reconstruction checked; native Debug flash is not qualified",
-  "native_info_label": "MPC 3 CE 0.4.3",
+  "native_info_label": "MPC 3 CE 0.4.4",
   "recipes": {
     "ssh": {
-      "manifest_sha256": "087172857cea454335b57d59e812c49327cfc92c1dc0105c50075f3443a2e012",
-      "patch_sha256": "24432e60f04a57d5777f4cc727a850c76e29031a2741ebdee7440da4165cd57f",
-      "root_sha256": "5eff0b6f9995aa6f908426730bb92b4652f332e97c1cac0f3c001d2776d9fd58"
+      "manifest_sha256": "0751f393810d17645f7cb5b6dc88c0597926e1f7fa0e4ed02fdb8a2d43be49ff",
+      "patch_sha256": "a783848ee49e9b92b6b624c5086ad8753f9bc4625d1b25e6e36dd03e9961c3a5",
+      "root_sha256": "19ec06a612234b32578f214f68a97bbc25131f00270ac6bb47c834befa67e2dc"
     },
     "no-ssh": {
-      "manifest_sha256": "1dcf8e691e81b25fd805ae1388864be36f9ead6af5583d7d24fe7fe0b4c8f35d",
-      "patch_sha256": "311ab3aa250a5e1211ff9d96ae454ca66a2386cf7a03fe43ffb141b843a3ec87",
-      "root_sha256": "32e1a0caf108987628d8389e3196c64325015874307795fe99dff13574930ef9"
+      "manifest_sha256": "e275af91f675afe16fc4c0ae9932a93bb41fc42ad5b007bd40253921ca99bbd6",
+      "patch_sha256": "95fc387d41425d8ad58f345b0b6c01b41c97ce993c1e5abba87eacbb128719e0",
+      "root_sha256": "aa9a4ec9c95ec86656e3d4d3eda89ba2fe41d806d5694ace505934ab534f3854"
     },
     "diagnostics": {
-      "manifest_sha256": "d22e13de8b18a1336bc2ef752ceab1485a38cd777339689f3cdafd775b641500",
-      "patch_sha256": "9f92bfaefb94703bf1e13ca5b733e0cfdd3f2b647d6de11bcb14674310b6aa9a",
-      "root_sha256": "853bdf8290b8413e9d1d18a2d6c677413cca84e4e3332b9afa470e28a8e6bb7c"
+      "manifest_sha256": "fc28e44d8a8de9343b113d7c5c16dbd6e0ebc8580797e2518f1d3655a49ef23a",
+      "patch_sha256": "670fd0ab7022e784c5b0ac16cb20e7e23a12398b53f139acad4bcf3d6e89cb28",
+      "root_sha256": "35444f287dff8a92a157acce85797bc65958ddf857ba659b538668a1e1d1137b"
     }
   }
 }

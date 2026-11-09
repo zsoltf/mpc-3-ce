@@ -30,13 +30,14 @@ case "${1:-}" in
   [ "$#" -eq 1 ] || exit 2
   state=$(unit_state)
   case "$state" in activating|deactivating) echo 'Boot transition still active; wait for its bounded completion.' >&2;exit 1;; esac
+  # The marker alone makes every later acvs launch stock.
   : >"$home/disabled"
-  recovery=0
-  if [ "$state" = active ];then "$here/mcu-boot.sh" stop || recovery=$?;fi
+  if [ "$state" = active ];then "$here/mcu-boot.sh" stop || :;fi
   systemctl stop mpclearn-boot.service
-  # Incomplete receipt: retry only owned cleanup once the unit's children are gone.
-  if [ "$recovery" -ne 0 ];then SERVICE_RESULT=exit-code "$here/mcu-boot.sh" recover;fi
-  echo 'Autostart disabled. Stock acvs retained.';;
+  # A stop that did not reach its restart leaves a CE instance: acvs restarts
+  # it as stock.
+  if [ -f "$home/session/mpc.pid" ];then systemctl restart acvs.service;fi
+  echo 'Autostart disabled. acvs runs stock MPC.';;
  override)
   [ "$#" -eq 2 ] || exit 2
   session_idle || exit 1

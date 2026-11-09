@@ -69,4 +69,7 @@ with tempfile.TemporaryDirectory() as temp:
     file(unit, '/usr/lib/systemd/system/mpclearn-boot.service')
 for name in ['mpclearn-provision.service','mpclearn-boot.service']:
     symlink('/usr/lib/systemd/system/multi-user.target.wants/'+name, '../'+name)
+# acvs.service stays Akai's; this static drop-in (folder 0755, file 0644) makes
+# each of its MPC launches and exits go through the image's mcu-boot.sh.
+file(repo/'controllers/program-observer/acvs-mpclearn.conf', '/usr/lib/systemd/system/acvs.service.d/50-mpclearn.conf')
 expectation.write_text(json.dumps(added,indent=2)+'\n')

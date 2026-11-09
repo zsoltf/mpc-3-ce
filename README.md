@@ -8,7 +8,7 @@ Build your image in your browser from Akai's official update. Nothing is uploade
 **[Build your image](https://mpc3ce.com/builder.html)** ·
 [Website](https://mpc3ce.com/) ·
 [Controller guide](docs/controller-programs.md) ·
-[Release notes](docs/releases/v0.4.3.md)
+[Release notes](docs/releases/v0.4.4.md)
 
 ## What it adds
 
@@ -37,19 +37,15 @@ Build your image in your browser from Akai's official update. Nothing is uploade
 - **Pd and Cardinal synths and effects:** play and edit patches on the
   touchscreen with the optional SD plugin bundle.
 
-## New in v0.4.3
+## New in v0.4.4
 
-Sample while Main or another screen stays open. On MPC Live II, hold Shift and
-press Erase to start immediately; repeat to stop and keep or discard the sample.
-Native banners show Recording and Stopped. Supported controllers also have
-sampler shortcuts and state lights. [Sampling guide](docs/controller-programs.md#sampler-controls-on-mpc-310).
-
-Drum-pad mute and solo now also control the pad's outgoing MIDI notes, including
-stopping held notes when muted. Unmuting does not replay them.
+Switching between Standalone and Controller Mode no longer hangs. After
+switching back, CE controls and Pd/Cardinal return without another restart.
+Tools that stop or start MPC, such as plugin installers, now work.
 
 ## Install
 
-CE **v0.4.3 uses MPC 3.10 Gen1**. The same builder makes CE **v0.3.0 from
+CE **v0.4.4 uses MPC 3.10 Gen1**. The same builder makes CE **v0.3.0 from
 MPC 3.9.1 Gen1**. Tested on MPC Live II; other Gen1 models are untested.
 Gen2 and Force are not supported.
 
@@ -59,12 +55,12 @@ Gen2 and Force are not supported.
 3. Copy the generated image to a USB drive with the exact filename shown.
    Connect power and use **Preferences > Info > Update > USB Drive Update**.
 
-After installing v0.4.3, Preferences > Info shows `MPC 3 CE 0.4.3`.
+After installing v0.4.4, Preferences > Info shows `MPC 3 CE 0.4.4`.
 Don't use Online Update: it replaces CE with stock firmware.
 
 For **Pd and Cardinal**, download and unzip
-[`mpc-ce-v0.4.3-sd-plugins.zip`](https://github.com/zsoltf/mpc-3-ce/releases/tag/v0.4.3).
-The same bundle works with v0.4.3. With the MPC off, copy its `MPCLEARN` folder to the SD card root and keep the
+[`mpc-ce-v0.4.4-sd-plugins.zip`](https://github.com/zsoltf/mpc-3-ce/releases/tag/v0.4.4).
+The same bundle works with v0.4.4. With the MPC off, copy its `MPCLEARN` folder to the SD card root and keep the
 card inserted while using plugins. [Plugin installation guide](firmware/plugin-setup/README.md).
 
 ## Connect controllers
@@ -97,7 +93,9 @@ work without a controller.
   moving to 3.10.
 - Note selection adds native Undo history and clears Redo.
 - X-Touch Shift+jog does not extend the Arrange loop; use MPC Shift+wheel.
-- Further controller and plugin limits are in the [release notes](docs/releases/v0.4.3.md).
+- The X-Touch does not control sd88me plugins such as Air3: its Plugin page
+  does not open for them.
+- Further controller and plugin limits are in the [release notes](docs/releases/v0.4.4.md).
 
 ## More
 

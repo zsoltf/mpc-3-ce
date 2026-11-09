@@ -19,12 +19,23 @@ flowchart LR
 
 ## Runtime owners
 
-1. **Boot and session owner.** The systemd boot entry calls `mcu-session.sh`.
-   It starts the matched observer, bridge and MIDI adapter, validates process
-   identity and owns cleanup/recovery. A confirmed native New Project action
-   permits a fresh app and controller session; generic crashes do not cause an
-   uncontrolled restart loop. The package runs in place from the flashed image;
-   a single development override can replace it only while it matches that image.
+1. **MPC process and session.** Akai's `acvs.service` is the only owner of the
+   MPC process and restarts it after every exit, as on stock firmware. A static
+   drop-in makes each launch go through the image's `mcu-boot.sh launch`, which
+   is stock by default and adds the observer to an instance only for an
+   admitted session, never in Controller Mode (where the SD plugin view is
+   released first so the card leaves cleanly); on the return it switches the
+   MPC's USB back to internal and waits, bounded, for its devices before MPC
+   starts, so the SD plugins are admitted again in that launch. Each exit goes
+   through `close`, which stops that
+   instance's bridge and adapter and archives it. The boot entry only admits
+   the session before acvs starts. The session package (`mcu-session.sh`
+   behind `mcu`) prepares and closes instances and runs the follower, which
+   starts the bridge and MIDI adapter for each CE instance and never launches
+   MPC. Process identity is validated by PID and start time; a crash guard
+   sends the rest of a boot to stock MPC after two early abnormal exits. The
+   package runs in place from the flashed image; a single development override
+   can replace it only while it matches that image.
    Initial blank creation and saved-project import have separate qualified
    completion hooks; both publish into the same state service. The controller
    remains unavailable at Select Project until one completes.
@@ -75,7 +86,7 @@ This is a firmware-specific community extension for the qualified Live II
 3.9.1 app, not an official Akai SDK or a complete API for every app operation.
 Only decoded, qualified state/command paths are exposed. The full X-Touch,
 X-Touch Mini, generic MCU and the software-qualified generic HUI path exist in
-the current singleton runtime. Its core and session owner accept independently
+the current singleton runtime. Its core and session package accept independently
 named input/output ports and persist a bounded 16-record collection, while the
 current native screen and live router still use its first record. HUI
 physical/audio acceptance, the multi-controller list/router and the known-device

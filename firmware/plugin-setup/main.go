@@ -467,6 +467,93 @@ func registerSettings() error {
 	return d.Sync()
 }
 
+// Loop devices whose backing file is an SD-card bundle, by device path.
+func bundleLoops() ([]string, error) {
+	files, e := filepath.Glob("/sys/block/loop*/loop/backing_file")
+	if e != nil {
+		return nil, e
+	}
+	var loops []string
+	for _, f := range files {
+		b, e := boundedRead(f, 4096)
+		if e != nil {
+			continue // detached between the listing and the read
+		}
+		backing := strings.TrimSuffix(strings.TrimSpace(string(b)), " (deleted)")
+		if strings.HasSuffix(backing, "/"+cardRelative) {
+			loops = append(loops, "/dev/"+filepath.Base(filepath.Dir(filepath.Dir(f))))
+		}
+	}
+	return loops, nil
+}
+
+func waitNoBundleLoops(rounds int) ([]string, error) {
+	for i := 0; ; i++ {
+		loops, e := bundleLoops()
+		if e != nil || len(loops) == 0 || i >= rounds {
+			return loops, e
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+// Before MPC switches its USB devices away (Controller Mode), the admitted
+// card must leave Linux unheld: unmount the plugin view (lazily when its card
+// is already gone and the view returns I/O errors), detach its loop device and
+// drop the receipt, so a later prepare admits the card again. Then finish the
+// card unmount that MPC requested before quitting, through edisksd, the stock
+// automounter. Idempotent. The engine tmpfs states hold no card data and stay.
+func release() error {
+	if e := mpcStopped(); e != nil {
+		return e
+	}
+	var r receipt
+	b, e := boundedRead(statePath, 4096)
+	if e == nil {
+		e = json.Unmarshal(b, &r)
+	}
+	if e != nil && !errors.Is(e, os.ErrNotExist) {
+		fmt.Fprintln(os.Stderr, "Pd/Cardinal receipt unreadable; releasing by mount table:", e)
+	}
+	if _, e := mounted(pluginRoot); e == nil {
+		if _, e := command(3*time.Second, "umount", pluginRoot); e != nil {
+			if out, e := command(3*time.Second, "umount", "-l", pluginRoot); e != nil {
+				return fmt.Errorf("plugin unmount: %s: %w", out, e)
+			}
+		}
+		if _, e := mounted(pluginRoot); !errors.Is(e, os.ErrNotExist) {
+			return errors.New("plugin view is still mounted")
+		}
+	} else if !errors.Is(e, os.ErrNotExist) {
+		return e
+	}
+	// Mounting with -o loop sets autoclear; detach any loop that remains.
+	loops, e := waitNoBundleLoops(10)
+	if e != nil {
+		return e
+	}
+	for _, loop := range loops {
+		if out, e := command(3*time.Second, "losetup", "-d", loop); e != nil {
+			return fmt.Errorf("plugin loop detach %s: %s: %w", loop, out, e)
+		}
+	}
+	if loops, e = waitNoBundleLoops(10); e != nil || len(loops) != 0 {
+		return fmt.Errorf("plugin loop still attached: %v %v", loops, e)
+	}
+	if e := os.Remove(statePath); e != nil && !errors.Is(e, os.ErrNotExist) {
+		return e
+	}
+	if r.Card.Path != "" {
+		if card, e := mounted(r.Card.Path); e == nil && card.Device == r.Card.Device {
+			if out, e := command(4*time.Second, "edisksctl", "unmount", card.Source); e != nil {
+				fmt.Fprintf(os.Stderr, "SD card unmount through edisksd failed: %s: %v\n", strings.TrimSpace(string(out)), e)
+			}
+		}
+	}
+	fmt.Println("Pd/Cardinal SD bundle released")
+	return nil
+}
+
 func prepare(s bundleSpec) error {
 	if e := mpcStopped(); e != nil {
 		return e
@@ -533,15 +620,18 @@ func prepare(s bundleSpec) error {
 
 func main() {
 	if os.Geteuid() != 0 || len(os.Args) != 2 {
-		fmt.Fprintln(os.Stderr, "plugin-setup prepare|ready (root)")
+		fmt.Fprintln(os.Stderr, "plugin-setup prepare|ready|release (root)")
 		os.Exit(2)
 	}
 	// Bound the entire optional admission, including card reads. The context
 	// first cancels child commands; the final deadline lets base MPC start even
 	// if a removed card leaves a filesystem read blocked.
 	limit := 35 * time.Second
-	if os.Args[1] == "ready" {
+	switch os.Args[1] {
+	case "ready":
 		limit = 3 * time.Second
+	case "release":
+		limit = 16 * time.Second
 	}
 	var cancel context.CancelFunc
 	admissionContext, cancel = context.WithTimeout(context.Background(), limit)
@@ -551,15 +641,21 @@ func main() {
 		os.Exit(3)
 	})
 	defer deadline.Stop()
-	s, e := specification()
-	if e == nil {
-		switch os.Args[1] {
-		case "prepare":
-			e = prepare(s)
-		case "ready":
-			_, e = readReceipt(s)
-		default:
-			e = errors.New("unknown plugin setup operation")
+	var e error
+	if os.Args[1] == "release" {
+		e = release()
+	} else {
+		var s bundleSpec
+		s, e = specification()
+		if e == nil {
+			switch os.Args[1] {
+			case "prepare":
+				e = prepare(s)
+			case "ready":
+				_, e = readReceipt(s)
+			default:
+				e = errors.New("unknown plugin setup operation")
+			}
 		}
 	}
 	if e != nil {

@@ -1,9 +1,10 @@
 #!/bin/sh
-# Explicit session owner; only an exact consumed native New Project intent permits
-# one next app. Boot admission delegates here; no blind application retry.
+# The session package. acvs.service owns every MPC process; this script admits a
+# session, prepares and closes each CE instance for acvs, and runs the follower
+# that starts the controller for each instance. It never launches MPC.
 set -eu
 # Runs in place (image or dev override). Locators/logs stay on /data to survive
-# a power-off; shared state and the settings snapshot are tmpfs.
+# a power-off; shared state is tmpfs.
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 home=/data/mpclearn
 history=$home/history
@@ -11,12 +12,14 @@ preferences=$home/surface-preferences
 controller_preferences=$home/controller-preferences
 runtime=/run/mpclearn
 state=$runtime/state
-snapshot=$runtime/settings-before
+decision=$runtime/launch.decision
+# The SD plugin view was released for Controller Mode (`released`); `due`
+# after a launch that could not admit the card again yet.
+plugins_released=$runtime/plugins.released
 staging=$runtime/archive
 controller_recovery=$runtime/controller-recovery
 adapter=$here/mpclearn-controls
 inspector=$here/main-button
-settings=/media/az01-internal/Settings/MPC/MPC.settings
 # History bound (bytes, entries) and per-file caps; head caps are 4096 multiples.
 history_budget=16777216
 history_entries=8
@@ -55,8 +58,14 @@ case "$probe_definitions" in
  1) grep -Fqx "#define PLUGIN_HOST_PROBE_STATE \"$state/plugin-host-probe.state\"" config.h || exit 1;probe_state=$state/plugin-host-probe.state;;
  *) exit 1;;
 esac
-command=${1:-status};case "$command" in start|status|stop|bridge-start|bridge-stop|list-midi|configure) ;; *) echo 'mcu-session.sh start|status|stop|bridge-start|bridge-stop|list-midi|configure [--profile=xtouch|xtouch-mini|generic|hui|lcxl3-daw|launchpad-x-programmer|launchpad-pro-mk3-programmer|mpk-mini-mk3|lpd8-mk2|mpk249 (--endpoint-client=NAME --endpoint-port=NAME --endpoint-type=kernel|user|any | --input-client=NAME --input-port=NAME --input-type=kernel|user|any --output-client=NAME --output-port=NAME --output-type=kernel|user|any) --hui-mode=pickup|motorized] [--verbose]' >&2;exit 2;; esac
+command=${1:-status};case "$command" in start|status|stop|bridge-start|bridge-stop|list-midi|configure|admit|launch-prepare|close|plugin-release) ;; *) echo 'mcu-session.sh start|status|stop|bridge-start|bridge-stop|list-midi|configure|admit|launch-prepare PID|close|plugin-release [--profile=xtouch|xtouch-mini|generic|hui|lcxl3-daw|launchpad-x-programmer|launchpad-pro-mk3-programmer|mpk-mini-mk3|lpd8-mk2|mpk249 (--endpoint-client=NAME --endpoint-port=NAME --endpoint-type=kernel|user|any | --input-client=NAME --input-port=NAME --input-type=kernel|user|any --output-client=NAME --output-port=NAME --output-type=kernel|user|any) --hui-mode=pickup|motorized] [--verbose]' >&2;exit 2;; esac
 [ "$#" -eq 0 ] || shift
+# Instance operations run for acvs: no controller options.
+launcher=
+case "$command" in
+ launch-prepare) [ "$#" -eq 1 ] || exit 2;launcher=$1;shift;case "$launcher" in ''|*[!0-9]*) exit 2;; esac;[ "$launcher" -gt 1 ] || exit 2;;
+ admit|close|plugin-release) [ "$#" -eq 0 ] || exit 2;;
+esac
 verbose=;controller_profile=xtouch;endpoint_client=;endpoint_port=;endpoint_type=kernel;input_client=;input_port=;input_type=kernel;output_client=;output_port=;output_type=kernel;legacy_endpoint_options=0;split_endpoint_options=0;hui_mode=pickup;hui_mode_option=0;selection_options=0;profile_option=0
 for option in "$@";do
  case "$option" in
@@ -98,7 +107,15 @@ done
 tmpfs_dir "$runtime" || { echo "$runtime is not a root-owned 0700 tmpfs folder." >&2;exit 1; }
 cd "$home/session"
 exec 9>session.lock
-flock 9
+# BusyBox flock has no timeout. The instance operations run inside acvs and
+# must not wait without bound; the follower holds the lock only briefly.
+lock_bounded(){ n=0;until flock -n 9;do n=$((n+1));[ "$n" -le "$1" ] || return 1;sleep .1;done; }
+case "$command" in
+ launch-prepare) lock_bounded 100 || { echo 'session.lock busy; this instance runs stock.' >&2;exit 1; };;
+ plugin-release) lock_bounded 100 || { echo 'session.lock busy; SD plugins not released.' >&2;exit 1; };;
+ close) lock_bounded 300 || { echo 'session.lock busy; instance not closed, the next launch runs stock.' >&2;exit 1; };;
+ *) flock 9;;
+esac
 # Only live shared pages use RAM; receipts/logs stay in the session folder.
 # Refuse aliases and unexpected files rather than replacing another producer.
 state_check(){
@@ -116,7 +133,7 @@ probe_absent(){ [ -z "$probe_state" ] || [ ! -e "$probe_state" ]; }
 probe_present(){ [ -n "$probe_state" ] && [ -e "$probe_state" ]; }
 remove_probe_state(){ [ -z "$probe_state" ] || rm -f "$probe_state"; }
 if [ -e "$state" ] || [ -L "$state" ];then state_check || exit 1
-elif [ "$command" = start ];then mkdir -m 700 "$state" && state_check || exit 1
+else case "$command" in start|admit|launch-prepare) mkdir -m 700 "$state" && state_check || exit 1;; esac
 fi
 boot_id=$(cat /proc/sys/kernel/random/boot_id)
 same_boot(){ [ ! -f session.boot-id ] || [ "$(cat session.boot-id)" = "$boot_id" ]; }
@@ -288,8 +305,9 @@ arm_adapter(){
  rm -f manual-adapter-unarmed.pid
 }
 # History is text only: capped logs, locators and summaries; never raw state.
-generation_files='mpc.pid mpc.exit mpc.log-status bridge.pid bridge.exit bridge.log mpc.log manual-adapter.log manual-adapter-unarmed.pid generation.ready generation.failed'
-session_files='session.id session.boot-id session.location session.revoked owner.pid owner.log stop-incomplete-status.txt incomplete-command-status.json incomplete-command-status.json.truncated incomplete-mirror-read.json incomplete-mirror-read.json.truncated incomplete-bridge.log'
+# One CE instance: identity, exit, receipts and the capped MPC output from the journal.
+generation_files='mpc.pid mpc.exit bridge.pid bridge.exit bridge.log mpc.log manual-adapter.log manual-adapter-unarmed.pid generation.ready generation.failed'
+session_files='session.id session.boot-id session.location session.revoked follower.pid follower.log crash-count crash-guard handoff-holds stop-incomplete-status.txt incomplete-command-status.json incomplete-command-status.json.truncated incomplete-mirror-read.json incomplete-mirror-read.json.truncated incomplete-bridge.log'
 cap_for(){
  case "$1" in
   mpc.log) echo "$cap_mpc_log";;
@@ -380,13 +398,12 @@ archive_entry(){
  rm -rf "$staging" || return 1
  if [ "$generation" = 1 ];then
   rm -f "$controller_recovery"
-  for file in $generation_files mpc-output.pipe;do rm -f "$file";done
+  for file in $generation_files;do rm -f "$file";done
   rm -f "$state/command.state" "$state/volume.state" "$state/native-preferences.state"
   remove_probe_state
  fi
  if [ "$1" = session ];then
   for file in $session_files;do rm -f "$file";done
-  rm -f "$snapshot" "$snapshot.sha256"
  fi
 }
 archive_generation(){
@@ -394,31 +411,87 @@ archive_generation(){
  echo "Exact departed app retained as text summaries in ${archive:-no history entry}."
 }
 archive_session(){ archive_entry session; }
-launch_app(){
- state_check && [ ! -e "$state/command.state" ] && [ ! -e "$state/volume.state" ] && [ ! -e "$state/native-preferences.state" ] && probe_absent || return 1
- authorized && ! mpc_running && ! systemctl is-active --quiet acvs || return 1
- if [ -x "$here/plugin-setup" ] && "$here/plugin-setup" ready;then
-  export MPCLEARN_CARDINAL_RESOURCES=/run/mpclearn/plugins/Cardinal.vst/resources
-  export MESA_SHADER_CACHE_DISABLE=true
- fi
- mkfifo -m 600 mpc-output.pipe || return 1
- tail -c "$cap_mpc_log" <mpc-output.pipe >mpc.log 9>&- &
- log_pid=$!
- (ulimit -s 1024;exec setarch -R -- env LANG=C GLIBC_TUNABLES=glibc.malloc.hugetlb=2 MALLOC_ARENA_MAX=1 LD_PRELOAD="$here/command-observer.so" /usr/bin/MPC) >mpc-output.pipe 2>&1 9>&- &
- app_child=$!;write_identity "$app_child" mpc.pid || return 1
- # The child may still be crossing exec; don't classify that interval as death.
- n=0;while ! identity mpc.pid /usr/bin/MPC;do n=$((n+1));[ "$n" -le 50 ] && kill -0 "$app_child" 2>/dev/null || return 1;sleep .1;done
+state_empty(){ state_check && [ ! -e "$state/command.state" ] && [ ! -e "$state/volume.state" ] && [ ! -e "$state/native-preferences.state" ] && probe_absent; }
+follower_alive(){
+ same_boot && [ -f follower.pid ] || return 1
+ read -r follower_pid follower_tick <follower.pid || return 1
+ case "$follower_pid:$follower_tick" in *[!0-9:]*|:*) return 1;; esac
+ [ "$follower_pid" -gt 1 ] && [ "$(start_tick "$follower_pid")" = "$follower_tick" ]
 }
-wait_receipt(){
- # Actual wait and bounded logger join never need session.lock: explicit stop
- # can hold the lock while waiting for these receipts without a deadlock.
- app_code=0;wait "$app_child" || app_code=$?
- log_complete=1;n=0
- while kill -0 "$log_pid" 2>/dev/null;do n=$((n+1));if [ "$n" -gt 20 ];then log_complete=0;kill -TERM "$log_pid" 2>/dev/null || :;break;fi;sleep .1;done
- log_code=0;wait "$log_pid" || log_code=$?;[ "$log_code" -eq 0 ] || log_complete=0
- rm -f mpc-output.pipe
- printf 'complete=%s logger_exit=%s limit_bytes=%s\n' "$log_complete" "$log_code" "$cap_mpc_log" >mpc.log-status
- printf '%s\n' "$app_code" >mpc.exit
+# Runs for acvs before each CE instance, as a bounded child of the image's
+# launcher. The launcher PID becomes MPC's, so it is the instance identity.
+launch_prepare(){
+ session_id=$(cat session.id 2>/dev/null) || return 1
+ same_boot && authorized || { echo 'No admitted session.' >&2;return 1; }
+ [ ! -e mpc.pid ] || { echo 'The previous instance was not closed.' >&2;return 1; }
+ state_empty || { echo "$state is not empty." >&2;return 1; }
+ if identity bridge.pid "$here/mirror-input";then echo 'A bridge still runs.' >&2;return 1;fi
+ for file in $generation_files;do rm -f "$file";done
+ kind=plain;reason=
+ if [ -x "$here/plugin-setup" ];then
+  # After Controller Mode the launcher switched MPC's USB back and waited for
+  # the card: admit it again now, while MPC is stopped, bounded by
+  # plugin-setup, which asks edisksd to mount it. Otherwise this instance runs
+  # plain and a later launch tries.
+  if [ -e "$plugins_released" ];then
+   if admitted=$("$here/plugin-setup" prepare 9>&- 2>&1 >/dev/null);then rm -f "$plugins_released"
+   else printf 'due\n' >"$plugins_released";reason=$(printf '%s\n' "$admitted" | tail -n 1);fi
+  fi
+  # Bounded by plugin-setup itself; it must not keep session.lock if this
+  # child is killed by the launcher's watchdog.
+  if unavailable=$("$here/plugin-setup" ready 9>&- 2>&1 >/dev/null);then kind=cardinal;reason=
+  elif [ -z "$reason" ];then reason=$(printf '%s\n' "$unavailable" | tail -n 1);fi
+ else reason='this package has no SD plugin admission'
+ fi
+ write_identity "$launcher" mpc.pid.next && mv mpc.pid.next mpc.pid || { rm -f mpc.pid.next;return 1; }
+ echo "prepared $kind"
+ # One line for the launch decision: why there are no Pd/Cardinal plugins.
+ reason=${reason#Pd/Cardinal unavailable: }
+ [ "$kind" = cardinal ] || [ -z "$reason" ] || printf 'reason %s\n' "$reason" | cut -c1-240
+}
+# acvs ExecStopPost after an instance exit (quit, mode switch, New Project,
+# crash, systemctl stop/restart): stop its controller processes, record the
+# exit, archive it and empty the shared state. A failure leaves the instance
+# behind, so the next launch runs stock.
+close_instance(){
+ # An instance from an earlier boot is the next admission's to archive intact.
+ [ -f mpc.pid ] && same_boot || return 0
+ read -r departed_pid departed_tick <mpc.pid
+ if identity mpc.pid /usr/bin/MPC;then echo 'The instance still runs; not closing it.' >&2;return 1;fi
+ stop_adapter || { echo 'Adapter did not stop; instance not closed.' >&2;return 1; }
+ bridge_stop || :
+ if identity bridge.pid "$here/mirror-input";then
+  kill -KILL "$pid"
+  n=0;while identity bridge.pid "$here/mirror-input";do n=$((n+1));[ "$n" -le 50 ] || return 1;sleep .1;done
+ fi
+ # Recorded once: a close that failed later in an earlier attempt keeps the
+ # departed instance's own exit when a later close archives it.
+ if [ ! -f mpc.exit ];then
+  printf 'service_result=%s exit_code=%s exit_status=%s\n' "${SERVICE_RESULT:-unknown}" "${EXIT_CODE:-unknown}" "${EXIT_STATUS:-unknown}" >mpc.exit
+  echo "mpclearn close: instance $departed_pid ended: $(cat mpc.exit)" >&2
+  # Faders still held at the end are handed to the next instance's bridge.
+  rm -f handoff-holds
+  if [ -f bridge.pid ] && [ -f bridge.log ];then
+   read -r old_bridge old_bridge_tick <bridge.pid
+   final_mask=$(sed -n "s/^TOUCH_FINAL pid=$old_bridge mask=\\([0-9][0-9]*\\)$/\\1/p" bridge.log)
+   case "$final_mask" in ''|*[!0-9]*) ;; *) [ "$final_mask" -gt 511 ] || printf '%s\n' "$final_mask" >handoff-holds;; esac
+  fi
+  # Crash guard: two consecutive CE instances that end abnormally before their
+  # source became ready leave the rest of this session's boot to stock MPC.
+  crashes=0;[ ! -f crash-count ] || read -r crashes <crash-count || crashes=0
+  case "$crashes" in ''|*[!0-9]*) crashes=0;; esac
+  if [ "${SERVICE_RESULT:-success}" != success ] && [ ! -f generation.ready ];then crashes=$((crashes+1));else crashes=0;fi
+  printf '%s\n' "$crashes" >crash-count
+  if [ "$crashes" -ge 2 ] && [ ! -e crash-guard ];then
+   printf '%s\n' "$crashes" >crash-guard
+   echo 'mpclearn close: two CE instances ended before ready; the rest of this boot runs stock MPC.' >&2
+  fi
+ fi
+ # At system shutdown the session folder keeps this instance; the next boot's
+ # admission archives it.
+ [ "$(systemctl is-system-running 2>/dev/null || :)" != stopping ] || return 0
+ journalctl -q -b -o cat --no-pager _SYSTEMD_UNIT=acvs.service "_PID=$departed_pid" 2>/dev/null | tail -c "$cap_mpc_log" >mpc.log || :
+ archive_generation
 }
 native_preferences_watch_start(){
  preferences_watch_pid=
@@ -435,12 +508,12 @@ native_preferences_watch_stop(){
  preferences_watch_pid=
 }
 native_preferences_recover_owner(){
- # The resident owner must parent the watcher and acknowledge its setup state.
+ # The resident follower must parent the watcher and acknowledge its setup state.
  # A short-lived bridge-start helper cannot leave a watcher signaling itself.
  read -r recovery_app recovery_tick <mpc.pid
  recovery_bridge_pid=;recovery_bridge_tick=
  if [ "$bridge_expected" -eq 1 ];then read -r recovery_bridge_pid recovery_bridge_tick <bridge.pid;fi
- read -r recovery_owner recovery_owner_tick <owner.pid
+ read -r recovery_owner recovery_owner_tick <follower.pid
  case "$recovery_owner:$recovery_owner_tick" in *[!0-9:]*|:*) return 1;; esac
  [ "$recovery_owner" -gt 1 ] && same_boot && [ "$(start_tick "$recovery_owner")" = "$recovery_owner_tick" ] || return 1
  recovery_profile=saved;[ "$selection_options" -eq 0 ] || recovery_profile=$controller_profile
@@ -552,20 +625,25 @@ native_preferences_apply(){
  esac
  return 0
 }
-owner(){
+# Follows acvs's CE instances for one session and never launches. A cheap
+# identity poll (no hashing): when mpc.pid names a live MPC it starts the native
+# Preferences watcher, adapter and bridge once the source reports 0 or 3, then
+# arms; when that MPC is gone it waits for the next. It exits on revocation.
+follower(){
  exec 9>session.lock
- preferences_pending=0;preferences_watch_pid=
+ preferences_pending=0;preferences_watch_pid=;followed=
  trap 'preferences_pending=1' USR2
- flock 9
- app_child=;log_pid=
- if ! authorized || ! launch_app;then flock -u 9;[ -z "$app_child" ] || wait_receipt;return 1;fi
- flock -u 9
- while :;do
-  setup=0;arm_attempted=0;intent_seen=0;initializing=0
-  while identity mpc.pid /usr/bin/MPC;do
-   # Never block here: stop needs this owner to reach actual wait/exit receipt.
+ while authorized;do
+  if identity mpc.pid /usr/bin/MPC;then
+   if [ "$pid $tick" != "$followed" ];then
+    native_preferences_watch_stop
+    followed="$pid $tick";setup=0;arm_attempted=0;intent_seen=0;initializing=0
+    handoff_holds=0;[ ! -f handoff-holds ] || read -r handoff_holds <handoff-holds || handoff_holds=0
+    case "$handoff_holds" in ''|*[!0-9]*) handoff_holds=0;; esac
+   fi
+   # Never block here: close and stop take this lock for each instance.
    if flock -n 9;then
-    if authorized;then
+    if authorized && identity mpc.pid /usr/bin/MPC && [ "$pid $tick" = "$followed" ];then
      read -r app_pid app_tick <mpc.pid
      if [ "$preferences_pending" -eq 1 ];then owner_controller_recovery || setup=2;fi
      if "$here/command-client" new-project-intent "$state/command.state" "$app_pid" "$app_tick" >/dev/null 2>&1;then
@@ -591,32 +669,34 @@ owner(){
     fi
     flock -u 9
    fi
-   sleep .5 || : # SIGUSR2 may interrupt this child; the trap owns that wakeup.
-  done
-  native_preferences_watch_stop
-  wait_receipt
-  flock 9
-  if ! authorized;then flock -u 9;return 0;fi
-  stop_adapter || { flock -u 9;return 1; }
-  bridge_stop || :
-  if [ "$app_code" -ne 0 ] || mpc_running || systemctl is-active --quiet acvs;then flock -u 9;return 0;fi
-  read -r departed_pid departed_tick <mpc.pid
-  if ! "$here/command-client" new-project-intent "$state/command.state" "$departed_pid" "$departed_tick" >/dev/null;then flock -u 9;return 0;fi
-  # Exact old app is dead. A failed bridge receipt can now be archived unchanged;
-  # it is not a successful settlement. Its process must still be absent.
-  if identity bridge.pid "$here/mirror-input" || { [ -f bridge.pid ] && [ ! -f bridge.exit ]; };then flock -u 9;return 1;fi
-  handoff_holds=0
-  if [ -f bridge.pid ] && [ -f bridge.log ];then
-   read -r old_bridge old_bridge_tick <bridge.pid
-   final_mask=$(sed -n "s/^TOUCH_FINAL pid=$old_bridge mask=\\([0-9][0-9]*\\)$/\\1/p" bridge.log)
-   case "$final_mask" in ''|*[!0-9]*) ;; *) [ "$final_mask" -le 511 ] && handoff_holds=$final_mask;; esac
+  elif [ -n "$followed" ];then
+   # The instance is gone; acvs's close stops its adapter and bridge.
+   native_preferences_watch_stop;followed=
   fi
-  authorized && "$here/command-client" new-project-intent "$state/command.state" "$departed_pid" "$departed_tick" consume || { flock -u 9;return 1; }
-  archive_generation || { flock -u 9;return 1; }
-  app_child=;log_pid=
-  if ! authorized || ! launch_app;then flock -u 9;[ -z "$app_child" ] || wait_receipt;return 1;fi
-  flock -u 9
+  sleep .5 || : # SIGUSR2 may interrupt this child; the trap owns that wakeup.
  done
+ native_preferences_watch_stop
+}
+# Admission, under session.lock with no MPC running: archive the previous
+# session, prepare the optional SD plugins, write the session identity and fork
+# the follower. acvs then launches each instance and reads this session.
+admit_session(){
+ # Prior-boot locators cannot authorize signals. Preserve them before any
+ # current-boot action, then admit a new session normally.
+ # Manual start calls this where errexit does not apply: every step checks.
+ if ! same_boot;then [ -f session.id ] && archive_session || return 1;fi
+ if [ -f session.id ];then archive_session || return 1;fi
+ # Raw state is explained only by a recorded instance, archived above.
+ state_empty || { echo "Unexplained state in $state; reboot to clear it." >&2;return 1; }
+ # Optional SD plugins are admitted once with MPC stopped. No card must still
+ # leave the controller/Global Learn app usable.
+ if [ -x "$here/plugin-setup" ];then
+  if "$here/plugin-setup" prepare;then rm -f "$plugins_released";else echo 'Starting without the optional Pd/Cardinal SD bundle.' >&2;fi
+ fi
+ session_id="$$-$(start_tick $$)"
+ printf '%s\n' "$session_id" >session.id && printf '%s\n' "$boot_id" >session.boot-id && printf '%s\n' "$here" >session.location && rm -f session.revoked "$decision" || return 1
+ (follower) 9>&- >follower.log 2>&1 &
+ write_identity "$!" follower.pid
 }
 case "$command" in
  list-midi) exec "$here/mirror-input" --list-midi;;
@@ -629,7 +709,11 @@ case "$command" in
   "$here/mirror-input" --controller-status "$controller_preferences" || { echo controller_preference_invalid;exit 1; }
   [ -z "$adapter_pid" ] || route || exit 1
   [ ! -f session.revoked ] || echo session_revoked
-  [ ! -f mpc.exit ] || echo "mpc_exit=$(cat mpc.exit) log=$(cat mpc.log-status 2>/dev/null || echo unavailable)"
+  [ ! -f crash-guard ] || echo 'crash_guard: two CE instances ended before ready; this boot runs stock MPC'
+  if follower_alive;then echo "follower pid=$follower_pid";else echo follower_not_running;fi
+  # The image launcher's last decision, including any ignored add-on preload.
+  if [ -f "$decision" ];then echo "last_launch: $(cat "$decision")";else echo 'last_launch: none recorded'; fi
+  [ ! -f "$plugins_released" ] || echo "sd_plugins: released for Controller Mode ($(cat "$plugins_released")); the next launch with the card admits them again"
   status;;
  configure)
   if [ "$controller_profile" != xtouch ] && [ "$controller_profile" != xtouch-mini ];then
@@ -666,93 +750,73 @@ case "$command" in
    if [ "$bridge_expected" -eq 1 ] && identity bridge.pid "$here/mirror-input" && [ "$pid:$tick" = "$recovery_bridge_pid:$recovery_bridge_tick" ];then bridge_stop || :;fi
    exit 1
   fi;;
+ admit)
+  # Boot admission, ordered before acvs: nothing here stops or starts acvs.
+  if same_boot && [ -f session.id ] && [ ! -f session.revoked ] && follower_alive;then echo 'Existing session retained.';exit 0;fi
+  identity bridge.pid "$here/mirror-input" && exit 1
+  admit_session
+  echo 'MCU session admitted; acvs launches MPC with the controller runtime.';;
+ launch-prepare) launch_prepare;;
+ plugin-release)
+  # For a Controller Mode launch, before MPC switches its USB devices away.
+  [ -x "$here/plugin-setup" ] || exit 0
+  "$here/plugin-setup" release 9>&- >&2
+  printf 'released\n' >"$plugins_released";;
+ close) close_instance;;
  start)
-  if identity mpc.pid /usr/bin/MPC;then
-   session_id=$(cat session.id);authorized || exit 1
+  if same_boot && [ -f session.id ] && [ ! -f session.revoked ] && follower_alive && identity mpc.pid /usr/bin/MPC;then
    # The status is reported here, not acted on: this branch is the idempotent
-   # "already running" answer and exits 0. Under set -eu an unhealthy source
-   # (session-status exits non-zero, and on some failures prints no JSON at
-   # all) killed the script before the outcome line, so a dead command lane
-   # looked like a silent exit 1. Say what the source did instead. The identity
-   # and authorization gates on the two lines above are untouched, and
-   # bridge_start still refuses anything but 0 or 3.
+   # "already running" answer and exits 0, also with an unhealthy source.
    source_code=0;status || source_code=$?
    case "$source_code" in 0|3) ;; *) echo "Session source status exit $source_code; the surface stays down until the source is healthy again.";; esac
    echo 'Existing owned session retained; no restart or signal.';exit 0
   fi
   identity bridge.pid "$here/mirror-input" && exit 1
-  if same_boot && [ -f owner.pid ];then read -r owner_pid owner_tick <owner.pid;[ "$(start_tick "$owner_pid")" != "$owner_tick" ] || { echo 'Previous session owner still finishing.' >&2;exit 1; };fi
-  if [ -e "$state/command.state" ] || [ -e "$state/volume.state" ] || [ -e "$state/native-preferences.state" ] || probe_present || [ -e "$snapshot" ];then
-   [ -f session.id ] && [ -f "$snapshot.sha256" ] && sha256sum -c "$snapshot.sha256" >/dev/null || exit 1
-  fi
-  # Prior-boot locators cannot authorize signals. Preserve them before any
-  # current-boot process action, then admit a new session normally.
-  if ! same_boot;then [ -f session.id ] || exit 1;archive_session;fi
-  stop_adapter || exit 1
   echo 'Save the project before starting: this explicit operation restarts MPC.'
-  systemctl stop acvs
-  ! systemctl is-active --quiet acvs && ! mpc_running || exit 1
-  if [ -f session.id ];then
-   archive_session
-  fi
-  cp -p "$settings" "$snapshot";sha256sum "$snapshot" >"$snapshot.sha256"
-  # Optional SD plugins are admitted once by the existing stopped-session
-  # owner. No card must still leave the controller/Global Learn app usable.
-  if [ -x "$here/plugin-setup" ];then
-   "$here/plugin-setup" prepare || echo 'Starting without the optional Pd/Cardinal SD bundle.' >&2
-  fi
-  session_id="$$-$(start_tick $$)";printf '%s\n' "$session_id" >session.id
-  printf '%s\n' "$boot_id" >session.boot-id
-  printf '%s\n' "$here" >session.location
-  rm -f session.revoked
-  (owner) 9>&- >owner.log 2>&1 &
-  owner_pid=$!;write_identity "$owner_pid" owner.pid
+  # acvs runs close for the departing instance, which needs this lock.
   flock -u 9
+  systemctl stop acvs
+  flock 9
+  ! systemctl is-active --quiet acvs && ! mpc_running || { echo 'MPC or acvs still running; not admitted.' >&2;exit 1; }
+  admitted=1;admit_session || admitted=0
+  flock -u 9
+  # acvs comes back either way: without an admitted session it runs stock.
+  systemctl start acvs
+  [ "$admitted" -eq 1 ] || { echo 'Session not admitted; acvs runs stock MPC.' >&2;exit 1; }
   n=0;while [ ! -f generation.ready ];do
-   [ ! -f generation.failed ] && [ ! -f session.revoked ] && [ "$(cat session.id)" = "$session_id" ] && kill -0 "$owner_pid" 2>/dev/null || { cat generation.failed 2>/dev/null || :;exit 1; }
-   n=$((n+1));[ "$n" -le 250 ] || { echo 'Session startup not ready; inspect owner.log; no retry.' >&2;exit 1; };sleep .1
+   [ ! -f generation.failed ] || { cat generation.failed;exit 1; }
+   case "$(cat "$decision" 2>/dev/null || :)" in "stock MPC"*) cat "$decision";exit 1;; esac
+   [ "$(cat session.id 2>/dev/null || :)" = "$session_id" ] && [ ! -f session.revoked ] || exit 1
+   n=$((n+1));[ "$n" -le 300 ] || { echo 'Session admitted; the controller is not ready yet. See mcu status.' >&2;exit 1; };sleep .1
   done
   echo 'MCU session active. Chooser clears controls; saved User Template reconnects automatically.';;
  stop)
   [ -f session.id ] || { echo 'No owned session.' >&2;exit 1; }
-  # Durable revocation precedes every slow drain/stop. Owner cannot launch or arm
-  # while this lock is held and sees the revocation on its next admission.
+  # Durable revocation precedes every slow drain/stop: the follower exits and
+  # every later launch is stock. MPC.settings is MPC's own; nothing is restored.
   cp session.id session.revoked
   stop_adapter || exit 1
   clean=1;bridge_stop || clean=0
   owned_mpc=0
-  if identity mpc.pid /usr/bin/MPC;then owned_mpc=1
-  else
-   [ -f session.id ] && [ -f "$snapshot" ] && ! mpc_running && ! systemctl is-active --quiet acvs || { echo 'Different MPC/service or no owned session locator; recovery refused.' >&2;exit 1; }
-   clean=0
-  fi
+  if identity mpc.pid /usr/bin/MPC;then owned_mpc=1;fi
   if [ "$clean" -eq 1 ] && [ "$owned_mpc" -eq 1 ];then "$here/command-client" stop "$state/command.state" "$state/volume.state" || clean=0;fi
   if [ "$clean" -ne 1 ];then
-   echo 'INCOMPLETE: graceful source closure was not certified; preserving evidence before exact-process recovery.' >&2
+   echo 'INCOMPLETE: graceful source closure was not certified; preserving evidence before the restart.' >&2
    # Text only, in the session folder, so it survives a power-off.
    summarize_state . incomplete-command-status.json stop-incomplete-status.txt incomplete-mirror-read.json || :
    [ ! -f bridge.log ] || tail -c "$cap_log" bridge.log >incomplete-bridge.log || :
   fi
-  # A timed-out bridge must be gone before stock recovery, not merely signaled.
+  # A timed-out bridge must be gone before the restart, not merely signaled.
   if identity bridge.pid "$here/mirror-input";then
    clean=0;kill -KILL "$pid"
    n=0;while identity bridge.pid "$here/mirror-input";do n=$((n+1));[ "$n" -le 50 ] || exit 1;sleep .1;done
   fi
-  # With clean=1 producer is immutable/closed. TERM is application recovery, not the
-  # source protocol's graceful stop or a manufactured settlement.
-  if [ "$owned_mpc" -eq 1 ];then identity mpc.pid /usr/bin/MPC || exit 1;kill -TERM "$pid";fi
-  n=0;while identity mpc.pid /usr/bin/MPC;do
-   n=$((n+1));if [ "$n" -eq 150 ];then clean=0;echo 'Exact owned MPC did not exit after TERM; forced recovery is not graceful closure.' >&2;identity mpc.pid /usr/bin/MPC && kill -KILL "$pid";fi
-   [ "$n" -le 180 ] || { echo 'MPC still running; settings not restored.' >&2;exit 1; };sleep .1
-  done
-  if [ -f mpc.pid ];then
-   n=0;while [ ! -f mpc.exit ];do n=$((n+1));[ "$n" -le 30 ] || { echo 'MPC exit receipt unavailable; preserving incomplete diagnostics.' >&2;clean=0;break; };sleep .1;done
-   [ ! -f mpc.exit ] || echo "MPC exited status=$(cat mpc.exit); $(cat mpc.log-status)"
+  # acvs runs close for the CE instance, which needs this lock; the revoked
+  # session makes the next launch stock.
+  flock -u 9
+  if [ -f mpc.pid ] && same_boot;then systemctl restart acvs
+  elif ! systemctl is-active --quiet acvs;then systemctl start acvs
   fi
-  ! mpc_running && ! systemctl is-active --quiet acvs || exit 1
-  sha256sum -c "$snapshot.sha256" >/dev/null
-  cp -p "$snapshot" "$settings"
-  systemctl start acvs
-  echo "Session recovered; clean=$clean; fresh stopped settings restored; normal acvs started. Verify UI and PCM."
+  echo "Session stopped; clean=$clean; acvs runs stock MPC; MPC settings left as they are."
   [ "$clean" -eq 1 ];;
 esac

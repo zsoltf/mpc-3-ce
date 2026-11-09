@@ -78,7 +78,16 @@ assert inode_mode('/usr/share/mpclearn/mcu') == (0o700, 0) and inode_mode('/usr/
 units = root/'usr/lib/systemd/system'
 boot_unit = (units/'mpclearn-boot.service').read_text(); provision_unit = (units/'mpclearn-provision.service').read_text()
 assert 'ConditionPathExists=!/data/mpclearn/disabled\n' in boot_unit and '/etc/mpclearn-boot-stage' not in boot_unit
-assert 'ExecStart=/usr/share/mpclearn/mcu/mcu-boot.sh start\n' in boot_unit and 'ExecStopPost=/usr/share/mpclearn/mcu/mcu-boot.sh recover\n' in boot_unit
+assert 'ExecStart=/usr/share/mpclearn/mcu/mcu-boot.sh start\n' in boot_unit and 'ExecStopPost' not in boot_unit and 'recover' not in boot_unit
+# Admission before the first MPC, without a requirement on acvs.
+assert 'Before=acvs.service\n' in boot_unit and 'Wants=acvs.service\n' in boot_unit and 'Requires=acvs' not in boot_unit
+# acvs stays Akai's unit; one static drop-in sends each launch and exit through the image.
+dropin = units/'acvs.service.d'
+assert sorted(p.name for p in dropin.iterdir()) == ['50-mpclearn.conf'] and inode_mode('/usr/lib/systemd/system/acvs.service.d') == (0o755, 0)
+assert inode_mode('/usr/lib/systemd/system/acvs.service.d/50-mpclearn.conf') == (0o644, 0)
+assert [l for l in (dropin/'50-mpclearn.conf').read_text().splitlines() if l and not l.startswith('#')] == [
+    '[Service]', 'ExecStart=', 'ExecStart=/usr/share/mpclearn/mcu/mcu-boot.sh launch', 'ExecStopPost=-/usr/share/mpclearn/mcu/mcu-boot.sh close']
+assert 'ExecStart=/usr/bin/az01-launch-MPC\n' in (units/'acvs.service').read_text() and 'Restart=always\n' in (units/'acvs.service').read_text()
 assert 'Requires=mpclearn-provision.service\nAfter=mpclearn-provision.service\n' in boot_unit and '/data/mpclearn-boot' not in boot_unit
 assert 'TimeoutStartSec=30\n' in provision_unit and 'ExecStart=/usr/libexec/mpclearn/provision.sh\n' in provision_unit
 for name in ['mpclearn-boot.service', 'mpclearn-provision.service']:
@@ -87,7 +96,7 @@ config = (payload/'config.h').read_text().splitlines()
 for line in ['#define OBSERVER_LIBRARY "/usr/share/mpclearn/mcu/command-observer.so"', '#define OBSERVER_LOG "/run/mpclearn/state/volume.state"', '#define COMMAND_PATH "/run/mpclearn/state/command.state"', '#define WINDOW_SECONDS 0u', '#define NATIVE_PREFERENCES_STATE "/run/mpclearn/state/native-preferences.state"']:
     assert line in config, line
 assert b'native_preferences_install\0' in (payload/'command-observer.so').read_bytes()
-print('PASS image payload modes (executables 0700, private files 0600, folder 0700, provisioner 0755), units, image-location config and native Preferences observer')
+print('PASS image payload modes (executables 0700, private files 0600, folder 0700, provisioner 0755), units, acvs drop-in (folder 0755, file 0644, root), image-location config and native Preferences observer')
 if substitute:
     shutil.copy(substitute, provisioner); provisioner.chmod(0o755)
     print('NOTE provisioner substituted for mutation testing:', substitute)
@@ -98,7 +107,7 @@ REVISION = next(l.split('=', 1)[1] for l in provisioner.read_text().splitlines()
 PACKAGE = 'command-observer.so command-client mirror-input mirror-read config.h mcu-session.sh mcu mpclearn-controls main-button session-package.sha256'.split()
 
 # Nothing the image runs refers to an earlier release's files.
-shipped = [provisioner, units/'mpclearn-boot.service', units/'mpclearn-provision.service'] + [payload/n for n in EXECUTABLE + ['config.h']]
+shipped = [provisioner, units/'mpclearn-boot.service', units/'mpclearn-provision.service', units/'acvs.service.d/50-mpclearn.conf'] + [payload/n for n in EXECUTABLE + ['config.h']]
 for f in shipped:
     text = f.read_bytes()
     for old in [b'mpclearn-model', b'mpclearn-boot-stage', b'/data/mpclearn-boot', b'/data/mpclearn-image', b'removing']:
@@ -171,6 +180,51 @@ print('PASS runtime runs in place from the image (mcu status verified the packag
 print('PASS with all six earlier stages, the old boot and image folders and the old selector (.next, .tmp) present: only /data/mpclearn and /run/mpclearn were written, nothing deleted')
 state = ours(); provision(); assert ours() == state
 print('PASS rerun changes nothing')
+
+# acvs's launcher under the image's own shell, applets, stock launcher, setarch
+# and dfu-util: every refusal execs the stock launcher with the inherited
+# environment. MPC is a recording substitute, and so is setarch: qemu-user
+# refuses the ADDR_NO_RANDOMIZE personality; the substitute checks the stock
+# launcher's `-R --` arguments. Without /proc the package cannot write an
+# instance identity, so launch-prepare itself refuses here. The CE path is
+# exercised by session-wrapper-test.py.
+mpc = root/'usr/bin/MPC'; kept_mpc = root/'usr/bin/MPC.provision-check'; mpc.rename(kept_mpc)
+setarch = root/'usr/bin/setarch'; kept_setarch = root/'usr/bin/setarch.provision-check'; setarch.rename(kept_setarch)
+write(setarch, '#!/bin/sh\n[ "$1 $2 $3" = "-R -- /usr/bin/MPC" ] || exit 99\nshift 2\nexec "$@"\n', 0o755)
+write(mpc, '#!/bin/sh\necho "MPC preload=${LD_PRELOAD:-none} tunables=${GLIBC_TUNABLES:-none} arena=${MALLOC_ARENA_MAX:-none} marker=${MPCLEARN_MARKER:-none}" >/launch-record\n', 0o755)
+session_dir = data/'mpclearn/session'
+def launch(reason, preload=None):
+    record = root/'launch-record'; record.unlink(missing_ok=True); before = outside()
+    extra = {'LD_PRELOAD': preload} if preload else {}
+    r = subprocess.run(['chroot', str(root), '/usr/share/mpclearn/mcu/mcu-boot.sh', 'launch'], env={'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'MPCLEARN_MARKER': 'inherited', **extra}, capture_output=True, text=True, timeout=600)
+    assert r.returncode == 0 and record.read_text() == f'MPC preload={preload or "none"} tunables=glibc.malloc.hugetlb=2 arena=1 marker=inherited\n', (reason, r.returncode, r.stderr, record.exists() and record.read_text())
+    assert f'mpclearn launch: stock MPC: {reason}' in r.stderr, (reason, r.stderr)
+    assert (root/'run/mpclearn/launch.decision').read_text().startswith(f'stock MPC: {reason}') and outside() == before
+launch('no admitted session')
+launch('no admitted session', '/usr/lib/mpclearn-addin-test.so')
+assert 'add-on LD_PRELOAD passes through: /usr/lib/mpclearn-addin-test.so' in (root/'run/mpclearn/launch.decision').read_text()
+write(session_dir/'session.id', '1-1\n'); write(session_dir/'session.location', '/usr/share/mpclearn/mcu\n')
+write(session_dir/'session.boot-id', 'another-boot\n'); launch('no session from this boot')
+write(session_dir/'session.boot-id', 'provision-check-boot\n')
+write(data/'mpclearn/disabled', ''); launch('CE disabled'); (data/'mpclearn/disabled').unlink()
+write(session_dir/'crash-guard', '2\n'); launch('crash guard: two CE instances ended early'); (session_dir/'crash-guard').unlink()
+write(session_dir/'session.revoked', '1-1\n'); launch('session revoked'); (session_dir/'session.revoked').unlink()
+write(session_dir/'session.location', '/data/mpclearn/dev\n'); launch('development override does not verify')
+write(session_dir/'session.location', '/usr/share/mpclearn/mcu\n'); launch('launch-prepare refused (status 1)')
+# Controller Mode (MPC's remoteScreen marker) runs stock before any session
+# check; with a plugin receipt it first asks the package to release the view
+# (here no view is mounted, so the release only drops the receipt).
+remote = root/'media/az01-internal/Settings/MPC/remoteScreen'; write(remote, '', 0o644)
+launch('Controller Mode')
+write(root/'run/mpclearn/plugin-mount.json', '{}\n'); launch('Controller Mode; SD plugins released')
+assert not (root/'run/mpclearn/plugin-mount.json').exists() and (root/'run/mpclearn/plugins.released').read_text() == 'released\n'
+(root/'run/mpclearn/plugins.released').unlink(); shutil.rmtree(root/'media/az01-internal/Settings')
+assert not (session_dir/'mpc.pid').exists()
+for name in ['session.id', 'session.location', 'session.boot-id']: (session_dir/name).unlink()
+r = subprocess.run(['chroot', str(root), '/usr/share/mpclearn/mcu/mcu-boot.sh', 'close'], capture_output=True, text=True, timeout=600)
+assert r.returncode == 0 and not r.stderr, r
+mpc.unlink(); kept_mpc.rename(mpc); setarch.unlink(); kept_setarch.rename(setarch); (root/'launch-record').unlink()
+print('PASS image launcher under the image userland: no session, add-on preload (passes through), another boot, disabled, crash guard, revoked, unverifiable override, a refused launch-prepare and Controller Mode (with the image plugin-setup releasing a receipt first) each exec the stock launcher (dfu-util, tunables, setarch -R arguments; setarch and MPC substituted) with the inherited environment; close without an instance does nothing')
 
 # Our folder is used only as root 0700.
 for make in ('user-folder', 'symlink', 'file', 'non-root', 'bad-history'):

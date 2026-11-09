@@ -482,5 +482,10 @@
   "controllers/program-observer/pad-client-test.c": "controllers/program-observer/pad-client-test.c",
   "docs/releases/v0.4.3.md": "docs/releases/v0.4.3.md",
   "firmware/v0.4.3-runtime.sha256": "firmware/v0.4.3-runtime.sha256",
-  "firmware/v0.4.3-payload.sha256": "firmware/v0.4.3-payload.sha256"
+  "firmware/v0.4.3-payload.sha256": "firmware/v0.4.3-payload.sha256",
+  "controllers/program-observer/acvs-mpclearn.conf": "controllers/program-observer/acvs-mpclearn.conf",
+  "firmware/plugin-setup/release-check.sh": "firmware/plugin-setup/release-check.sh",
+  "docs/releases/v0.4.4.md": "docs/releases/v0.4.4.md",
+  "firmware/v0.4.4-runtime.sha256": "firmware/v0.4.4-runtime.sha256",
+  "firmware/v0.4.4-payload.sha256": "firmware/v0.4.4-payload.sha256"
 }

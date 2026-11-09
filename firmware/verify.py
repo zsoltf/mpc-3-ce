@@ -41,9 +41,21 @@ if prerelease:
     executable.append('plugin-setup')
     private.append('plugin-bundle.json')
 modes = {base+n:0o100700 for n in executable} | {base+n:0o100600 for n in private} | {base+n:0o100644 for n in public}
-modes |= {base.rstrip('/'):0o40700, '/usr/libexec/mpclearn/provision.sh':0o100755, '/usr/lib/systemd/system/mpclearn-provision.service':0o100644, '/usr/lib/systemd/system/mpclearn-boot.service':0o100644}
-required = {base+n for n in executable+private+public} | {'/usr/libexec/mpclearn/provision.sh','/usr/lib/systemd/system/mpclearn-provision.service','/usr/lib/systemd/system/mpclearn-boot.service','/usr/lib/systemd/system/multi-user.target.wants/mpclearn-provision.service','/usr/lib/systemd/system/multi-user.target.wants/mpclearn-boot.service'}
+dropin = '/usr/lib/systemd/system/acvs.service.d'
+modes |= {base.rstrip('/'):0o40700, '/usr/libexec/mpclearn/provision.sh':0o100755, '/usr/lib/systemd/system/mpclearn-provision.service':0o100644, '/usr/lib/systemd/system/mpclearn-boot.service':0o100644,
+          dropin:0o40755, dropin+'/50-mpclearn.conf':0o100644}
+required = {base+n for n in executable+private+public} | {'/usr/libexec/mpclearn/provision.sh','/usr/lib/systemd/system/mpclearn-provision.service','/usr/lib/systemd/system/mpclearn-boot.service','/usr/lib/systemd/system/multi-user.target.wants/mpclearn-provision.service','/usr/lib/systemd/system/multi-user.target.wants/mpclearn-boot.service',
+            dropin+'/50-mpclearn.conf'}
 assert {p for p,v in expected.items() if v['type'] != 'directory'} == required
+assert expected[dropin] == {'type':'directory','mode':0o40755} and dropin not in old, 'acvs drop-in folder must be new, root, 0755'
+# The image launcher replays the final branch of Akai's 3.10 launcher and
+# relies on this unit (Type=simple, Restart=always). Pinned at build time only.
+STOCK_310 = {'/usr/bin/az01-launch-MPC':'b0827fe316795c2eb2dc522f1e3120b85c54802cd5de526512854e971e2374b4',
+             '/usr/lib/systemd/system/acvs.service':'df9051335e570be0cf44c1fa679b1bffca3642a68771f2f2231ff1f7461a8203'}
+if mpc_310:
+    for name, digest in STOCK_310.items():
+        assert dict(x.split(':',1) for x in new[name].split())['sha256'] == digest, ('stock 3.10 launcher or acvs unit differs from the pin', name)
+    assert '/usr/bin/systemd-inhibit' not in new and not any(n.startswith('/etc/systemd/system/acvs.service.d') for n in new), 'unexpected acvs launch override in the stock root'
 for name, mode in modes.items():
     assert int(dict(x.split(':',1) for x in new[name].split())['mode'],8) == mode, ('shipped mode',name,oct(mode))
 assert new.keys()-old.keys() == expected.keys()
@@ -93,4 +105,5 @@ with tempfile.TemporaryDirectory() as temp:
             after = bytes.fromhex(slot['after_hex'])
             assert data[slot['offset']:slot['offset']+len(after)] == after
 suffix = '; exact admitted CE label and Az01 EHCI CPU deltas and all other stock content unchanged' if mpc else '; stock MPC and all other stock content unchanged'
-print('PASS: exact MCU payload bytes/owners and shipped modes (executables 0700, payload folder 0700); only added paths and parent links changed'+suffix)
+pins = '; stock 3.10 az01-launch-MPC and acvs.service match their pins' if mpc_310 else ''
+print('PASS: exact MCU payload bytes/owners and shipped modes (executables 0700, payload folder 0700), acvs drop-in (folder 0755, file 0644, root); only added paths and parent links changed'+suffix+pins)

@@ -37,7 +37,11 @@ On MPC:
 ```sh
 systemctl status mpclearn-boot.service
 /usr/share/mpclearn/mcu/mcu status
+journalctl -u acvs.service
 ```
+
+`mcu status` names the last MPC launch decision; the journal holds each
+launch and exit and MPC's own output.
 
 An explicit start or stop can restart the MPC application. **Save your project
 before either command.** Starting an already owned session retains it.
@@ -47,10 +51,10 @@ before either command.** Starting an already owned session retains it.
 /usr/share/mpclearn/mcu/mcu stop
 ```
 
-`stop` ends the controller session and restores stock MPC with the MPC
-settings from when the session started. After the MPC has been switched off in
-between, it leaves the current settings as they are. It does not disable
-startup at the next boot.
+`stop` ends the controller session and restarts MPC without the controller
+runtime. MPC's settings stay as they are, including a Standalone/Controller
+Mode or preference change made during the session. It does not disable startup
+at the next boot.
 
 ## Disable automatic startup
 
@@ -155,7 +159,7 @@ The Mini capture began after connection, so no startup exchange was observed.
 Selecting this profile requires the user to put the hardware in MC mode and is
 not a native MPC compatibility claim.
 
-The saved selection survives an accepted New Project restart and reboot. A
+The saved selection survives every MPC restart and reboot. A
 named profile is protocol policy, not a physical compatibility claim.
 
 ## Return to official firmware
@@ -176,8 +180,20 @@ and the boot service status help distinguish a controller failure from an app
 failure; `/data/mpclearn/session` and `/data/mpclearn/history` hold the logs.
 Avoid posting complete settings or projects in a public issue.
 
-The session owner validates the executable and process lifetime, handles
-project replacement, and does not endlessly restart MPC after arbitrary crashes.
+MPC runs under Akai's own service, which starts it again after every exit, as
+on stock firmware: New Project, switching between Standalone and Controller
+Mode, a crash, and tools that stop, start or restart that service. Each new MPC
+runs with the controller runtime while the session is active, except in
+Controller Mode, which runs as on stock firmware. Before MPC enters Controller
+Mode, CE lets go of the Pd/Cardinal bundle so the SD card can be removed
+cleanly. On the return to Standalone, CE switches the MPC's internal USB back
+before MPC starts, so the SD card, the MPC's audio and MIDI and USB devices are
+there as after a boot, and Pd and Cardinal are available again at once. If two MPC starts
+in a row end abnormally before their project source is ready, the rest of that
+boot runs stock MPC. An add-on that loads its own library into MPC through the
+service is not loaded while the controller runtime runs; it loads when CE is
+disabled. The controller validates the executable and process lifetime of
+each MPC.
 A firmware update can replace boot entries or invalidate native addresses;
 only use a release that explicitly supports that exact firmware.
 

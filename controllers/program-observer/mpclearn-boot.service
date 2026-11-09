@@ -1,8 +1,10 @@
 [Unit]
 Description=MPC controller session boot admission
 Wants=acvs.service
-# Match the stock prerequisites, but do not order against acvs: the existing
-# session owner synchronously stops that service during its admission.
+# Admission before the first MPC: acvs launches every instance itself and adds
+# the CE runtime for an admitted session. No requirement, so a skipped or failed
+# admission still lets acvs start stock MPC.
+Before=acvs.service
 After=az01-network-midi.service az01-script-runner.service az01-usbsata-fixer.service touch-fw-update.service xmos-update.service
 RequiresMountsFor=/data /media/az01-internal /etc
 ConditionPathExists=!/data/mpclearn/disabled
@@ -11,7 +13,6 @@ ConditionPathExists=!/data/mpclearn/disabled
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/share/mpclearn/mcu/mcu-boot.sh start
-ExecStopPost=/usr/share/mpclearn/mcu/mcu-boot.sh recover
 TimeoutStartSec=90
 TimeoutStopSec=90
 KillMode=control-group
