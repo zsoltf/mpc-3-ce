@@ -36,6 +36,14 @@ Build your image in your browser from Akai's official update. Nothing is uploade
   data wheel in Grid to select the next or previous note.
 - **Pd and Cardinal synths and effects:** play and edit patches on the
   touchscreen with the optional SD plugin bundle.
+- **Background sampling:** sample while Main or another screen stays open. On
+  MPC Live II, hold Shift and press Erase to start immediately; repeat to stop
+  and keep or discard the sample. Native banners show Recording and Stopped.
+  Supported controllers also have sampler shortcuts and state lights.
+  [Sampling guide](docs/controller-programs.md#sampler-controls-on-mpc-310).
+- **Drum-pad MIDI mute:** drum-pad mute and solo also control the pad's
+  outgoing MIDI notes, including stopping held notes when muted. Unmuting does
+  not replay them.
 
 ## New in v0.4.4
 
