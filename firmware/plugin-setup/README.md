@@ -4,8 +4,8 @@ Adds Pd Sketch Synth and Cardinal Synth as instruments, and Pd Sketch FX and
 Cardinal FX as insert effects. Cardinal supports GPU panning. Existing
 controller support and Global MIDI Learn remain available.
 
-Use `mpc-ce-v0.4.4-sd-plugins.zip` from the
-[v0.4.4 release](https://github.com/zsoltf/mpc-3-ce/releases/tag/v0.4.4)
+Use `mpc-ce-v0.4.5-sd-plugins.zip` from the
+[v0.4.5 release](https://github.com/zsoltf/mpc-3-ce/releases/tag/v0.4.5)
 with CE v0.4.x on MPC 3.10. The plugin bundle is unchanged
 between these releases. For the CE v0.3.0 image on MPC 3.9.1,
 use its [matching release](https://github.com/zsoltf/mpc-3-ce/releases/tag/v0.3.0).
@@ -20,7 +20,7 @@ use its [matching release](https://github.com/zsoltf/mpc-3-ce/releases/tag/v0.3.
 
 No SSH is needed. If the SD bundle is missing or does not match the firmware,
 the base MPC and controller session still starts, but Pd and Cardinal are
-unavailable. After installing v0.4.4, Preferences > Info shows `MPC 3 CE 0.4.4`.
+unavailable. After installing v0.4.5, Preferences > Info shows `MPC 3 CE 0.4.5`.
 
 Cardinal MIDI and Terrorform support up to four voices. Heavy patches and
 concurrent editing can still overload playback; reduce polyphony or simplify

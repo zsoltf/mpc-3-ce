@@ -195,7 +195,25 @@ func specification() (bundleSpec, error) {
 	return s, nil
 }
 
-// Stock edisksd remains the sole automounter. The card's name and /dev/sdX
+// The SoC's own SD controller: the MPC One's card slot. Models with the
+// devicetree flag inmusic,internal-sd-fitted use it as internal storage, and
+// Akai's 90-edisks-az01.rules then marks it EDISKSD_IGNORE=1.
+const socSDSlot = "/platform/ff0c0000.dwmmc/"
+
+// eligibleSD says whether a partition (its resolved sysfs path, udev
+// properties and its disk's removable flag) is the user's SD card: on the SoC
+// slot unless edisksd ignores it, else a removable disk that Akai's
+// 65-smex-external-sd.rules marks as a USB SD reader (the Live II's slot).
+// The MMC driver never marks a disk removable, so the slot needs its own case.
+func eligibleSD(resolved string, props []byte, removable string) bool {
+	p := append(append([]byte("\n"), props...), '\n')
+	if strings.Contains(resolved, socSDSlot) {
+		return !bytes.Contains(p, []byte("\nEDISKSD_IGNORE=1\n"))
+	}
+	return removable == "1" && bytes.Contains(p, []byte("\nID_DRIVE_FLASH_SD=1\n"))
+}
+
+// Stock edisksd remains the sole automounter. The card's name and device
 // allocation are observations, not saved configuration or selection keys.
 func discoverCard() (mountIdentity, string, error) {
 	if _, e := command(8*time.Second, "systemctl", "start", "edisksd.service"); e != nil {
@@ -217,15 +235,15 @@ func discoverCard() (mountIdentity, string, error) {
 		}
 		dev := "/dev/" + entry.Name()
 		props, e := command(2*time.Second, "udevadm", "info", "--query=property", "--name="+dev)
-		if e != nil || !bytes.Contains(append([]byte("\n"), props...), []byte("\nID_DRIVE_FLASH_SD=1\n")) {
+		if e != nil {
 			continue
 		}
 		resolved, e := filepath.EvalSymlinks(base)
 		if e != nil {
 			continue
 		}
-		removable, e := boundedRead(filepath.Join(filepath.Dir(resolved), "removable"), 32)
-		if e != nil || strings.TrimSpace(string(removable)) != "1" {
+		removable, _ := boundedRead(filepath.Join(filepath.Dir(resolved), "removable"), 32)
+		if !eligibleSD(resolved, props, strings.TrimSpace(string(removable))) {
 			continue
 		}
 		// AlreadyMounted and InProgress are settled by the mount readback below.

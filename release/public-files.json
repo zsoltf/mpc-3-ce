@@ -487,5 +487,9 @@
   "firmware/plugin-setup/release-check.sh": "firmware/plugin-setup/release-check.sh",
   "docs/releases/v0.4.4.md": "docs/releases/v0.4.4.md",
   "firmware/v0.4.4-runtime.sha256": "firmware/v0.4.4-runtime.sha256",
-  "firmware/v0.4.4-payload.sha256": "firmware/v0.4.4-payload.sha256"
+  "firmware/v0.4.4-payload.sha256": "firmware/v0.4.4-payload.sha256",
+  "docs/releases/v0.4.5.md": "docs/releases/v0.4.5.md",
+  "firmware/v0.4.5-runtime.sha256": "firmware/v0.4.5-runtime.sha256",
+  "firmware/v0.4.5-payload.sha256": "firmware/v0.4.5-payload.sha256",
+  "firmware/plugin-setup/card_test.go": "firmware/plugin-setup/card_test.go"
 }

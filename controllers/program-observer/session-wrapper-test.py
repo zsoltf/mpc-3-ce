@@ -201,14 +201,22 @@ INTERNAL_CARDS = (' 0 [Audio          ]: USB-Audio - MPC Live II Audio\n        
                   ' 2 [XTouch         ]: USB-Audio - X-Touch\n                      BEHRINGER X-Touch at usb-ff500000.usb-1.2.3, full speed\n')
 P('/tmp/asound-cards').write_text(INTERNAL_CARDS); P('/tmp/asound-cards.internal').write_text(INTERNAL_CARDS)
 card_bundle = P('/media/MPC Card/MPCLEARN/plugins.squashfs'); card_bundle.parent.mkdir(parents=True); card_bundle.write_bytes(b'bundle')
-# The card reader's partition in sysfs (removable disk) and udev's view of it.
-P('/tmp/devices/sdb/sdb1').mkdir(parents=True); P('/tmp/devices/sdb/removable').write_text('1\n'); P('/tmp/block').mkdir()
-P('/tmp/block/sdb1').symlink_to('/tmp/devices/sdb/sdb1')
+# The card's partition in sysfs and udev's view of it: the Live II's USB
+# reader (removable disk, ID_DRIVE_FLASH_SD=1) or the MPC One's slot on the SoC
+# SD controller (an MMC disk, never removable). /tmp/card-partition names the
+# current one for the substitutes below.
+READER_PART = P('/tmp/devices/sdb/sdb1'); READER_PART.mkdir(parents=True); P('/tmp/devices/sdb/removable').write_text('1\n')
+SLOT_PART = P('/tmp/devices/platform/ff0c0000.dwmmc/mmc_host/mmc1/mmc1:aaaa/block/mmcblk1/mmcblk1p1')
+SLOT_PART.mkdir(parents=True); (SLOT_PART.parent/'removable').write_text('0\n'); P('/tmp/block').mkdir()
+def use_card(part):
+    for link in P('/tmp/block').iterdir(): link.unlink()
+    for old in (READER_PART, SLOT_PART): (old/'partition').unlink(missing_ok=True)
+    (P('/tmp/block')/part.name).symlink_to(part); P('/tmp/card-partition').write_text(str(part))
 def card_present(present):
-    f = P('/tmp/devices/sdb/sdb1/partition')
+    f = P(P('/tmp/card-partition').read_text())/'partition'
     if present: f.write_text('1\n')
     elif f.exists(): f.unlink()
-card_present(True)
+use_card(READER_PART); card_present(True)
 P('/tmp/gpio237').mkdir(); P('/tmp/gpio237/value').write_text('0\n')
 # Akai's az01-usbmux-switch, substituted: same no-op when the state matches;
 # switching to internal brings the devices back after 1 s, as the hub
@@ -220,7 +228,7 @@ test "$1" = "$(cat /tmp/usb-mux/state)" && exit
 test ! -f /tmp/usbmux-fail || exit 1
 test ! -f /tmp/usbmux-hang || {{ test -e /tmp/sata-reset-asserted || echo 1 >/tmp/gpio237/value;sleep 30; }}
 printf '%s\\n' "$1" >/tmp/usb-mux/state
-test -f /tmp/usb-never-back || (sleep 1;cp /tmp/asound-cards.internal /tmp/asound-cards;echo 1 >/tmp/devices/sdb/sdb1/partition) >/dev/null 2>&1 &
+test -f /tmp/usb-never-back || (sleep 1;cp /tmp/asound-cards.internal /tmp/asound-cards;echo 1 >"$(cat /tmp/card-partition)/partition") >/dev/null 2>&1 &
 ''')
 P('/usr/bin/az01-usbmux-switch').chmod(0o755)
 def controller_mode_usb():
@@ -382,7 +390,7 @@ echo '{{"format":"MMV17","stable":true,"fresh":false,"tracks":[]}}';exit 1
 # release drops both (the real release is firmware/plugin-setup/release-check.sh).
 PLUGIN_SETUP = '''for exe in /proc/[0-9]*/exe;do [ "$(readlink "$exe" 2>/dev/null)" != /usr/bin/MPC ] || { echo "plugin-setup $1 refused: MPC running" >>/tmp/events;exit 3; };done
 case "$1" in
- prepare) test -f /tmp/devices/sdb/sdb1/partition || { echo 'plugin-setup prepare: no card' >>/tmp/events;echo 'Pd/Cardinal unavailable: expected one SD-card bundle, found 0' >&2;exit 3; };mkdir -p "/media/MPC Card/MPCLEARN";printf bundle >"/media/MPC Card/MPCLEARN/plugins.squashfs";echo 'plugin-setup prepare' >>/tmp/events;touch /tmp/plugins-ready;echo '{}' >/run/mpclearn/plugin-mount.json;;
+ prepare) test -f "$(cat /tmp/card-partition)/partition" || { echo 'plugin-setup prepare: no card' >>/tmp/events;echo 'Pd/Cardinal unavailable: expected one SD-card bundle, found 0' >&2;exit 3; };mkdir -p "/media/MPC Card/MPCLEARN";printf bundle >"/media/MPC Card/MPCLEARN/plugins.squashfs";echo 'plugin-setup prepare' >>/tmp/events;touch /tmp/plugins-ready;echo '{}' >/run/mpclearn/plugin-mount.json;;
  ready) test -f /run/mpclearn/plugin-mount.json || { echo 'Pd/Cardinal unavailable: no admission receipt' >&2;exit 3; };test -f /tmp/plugins-ready || { echo 'Pd/Cardinal unavailable: admitted SD mount changed' >&2;exit 3; };;
  release) echo 'plugin-setup release' >>/tmp/events;rm -f /tmp/plugins-ready /run/mpclearn/plugin-mount.json;echo 'Pd/Cardinal SD bundle released';;
  *) exit 2;; esac
@@ -785,7 +793,7 @@ try:
     # internal before MPC starts, waits for those devices and the card, and
     # admits the SD plugins again in the same launch.
     remote = settings.parent/'remoteScreen'
-    def enter_controller_mode(dead=False):
+    def enter_controller_mode(dead=False, usb=True):
         assert (runtime/'plugin-mount.json').exists() and ' cardinal=/run/mpclearn/plugins/Cardinal.vst/resources ' in last_launch(), last_launch()
         if dead: P('/tmp/plugins-ready').unlink()  # the view no longer reads; its receipt remains
         n = len(launches()); events = len(EVENTS.read_text().splitlines())
@@ -799,7 +807,7 @@ try:
         assert (runtime/'usb-internal.cards').read_text() == 'MPC Live II Audio\nMPC Live II\nX-Touch\n' and not usb_events(events)
         time.sleep(1); assert not (session/'mpc.pid').exists() and not (session/'bridge.pid').exists()
         p = run('status', 5); assert 'sd_plugins: released for Controller Mode (released)' in p.stdout, p.stdout
-        controller_mode_usb()
+        if usb: controller_mode_usb()
     def return_to_standalone():
         n = len(launches()); events = len(EVENTS.read_text().splitlines()); t0 = time.monotonic()
         remote.unlink(); (session/'exit-request').write_text('0')
@@ -854,6 +862,24 @@ try:
     previous = app_pid(); depart(True); until(lambda: ready_instance(previous), 'card admitted after the timeout')
     assert ' cardinal=/run/mpclearn/plugins/Cardinal.vst/resources ' in last_launch()
     print(f'PASS [{MODE}] Controller Mode return: switch failure, a hanging switch (killed after 5 s; its SATA reset released unless the devicetree asserts it) and devices that never return (15 s bound) each launch CE plain with the reason recorded; the next launch admits the card again')
+    # The MPC One has no USB switch (no usb-mux node in its devicetree), and
+    # its card stays in the SoC's SD slot through Controller Mode. Entry
+    # releases the SD view as on the Live II; the return switches and awaits
+    # nothing, and the launch admits the card again by plugin-setup's
+    # criterion (eligibleSD, covered by plugin-setup's Go tests; substituted
+    # here).
+    P('/tmp/usb-mux/state').unlink(); use_card(SLOT_PART); card_present(True)
+    previous = app_pid(); depart(True); until(lambda: ready_instance(previous), 'card admitted from the SoC slot')
+    assert decision.read_text() == 'CE MPC from /data/mpclearn/dev, plugins cardinal\n', decision.read_text()
+    one_start = len(EVENTS.read_text().splitlines()); enter_controller_mode(usb=False)
+    events, took = return_to_standalone()
+    later = EVENTS.read_text().splitlines()[events:]
+    assert not usb_events(one_start) and 'plugin-setup prepare' in later and not (runtime/'plugins.released').exists(), later
+    assert decision.read_text() == 'CE MPC from /data/mpclearn/dev, plugins cardinal\n' and ' cardinal=/run/mpclearn/plugins/Cardinal.vst/resources ' in last_launch(), decision.read_text()
+    P('/tmp/usb-mux/state').write_text('internal\n'); use_card(READER_PART); card_present(True)
+    previous = app_pid(); depart(True); until(lambda: ready_instance(previous), 'card admitted from the reader again')
+    assert ' cardinal=/run/mpclearn/plugins/Cardinal.vst/resources ' in last_launch()
+    print(f'PASS [{MODE}] MPC One Controller Mode round trip (no USB switch, card kept in the SoC SD slot): no usbmux event, SD view released on entry and the card admitted again on return (cardinal) in {took:.1f} s, decision without a USB note')
     # Plain without Controller Mode: the plugin check's own reason is recorded.
     P('/tmp/plugins-ready').unlink(); previous = app_pid(); depart(True); until(lambda: ready_instance(previous), 'plain with a reason')
     assert decision.read_text() == 'CE MPC from /data/mpclearn/dev, plugins plain: admitted SD mount changed\n', decision.read_text()

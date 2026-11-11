@@ -65,8 +65,10 @@ run_bounded(){
 }
 # The USB sound cards present now (MPC audio and MIDI, USB-A devices).
 usb_cards(){ sed -n 's/^.*\]: USB-Audio - //p' "$asound_cards"; }
-# An SD card partition by plugin-setup's own criterion (removable disk, udev
-# ID_DRIVE_FLASH_SD=1). Its mount is plugin-setup's request to edisksd, made
+# A USB card reader's partition by plugin-setup's criterion for it (removable
+# disk, udev ID_DRIVE_FLASH_SD=1). Only models with the USB switch wait here,
+# and their devicetrees all mark the SoC's SD slot as internal storage, so the
+# card is in the reader. Its mount is plugin-setup's request to edisksd, made
 # while admitting the card; edisksd mounts nothing unasked.
 sd_partition(){
  for part in "$block_root"/*;do
